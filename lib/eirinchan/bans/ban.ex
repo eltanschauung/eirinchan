@@ -2,6 +2,8 @@ defmodule Eirinchan.Bans.Ban do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Eirinchan.Bans
+
   schema "bans" do
     field :ip_subnet, :string
     field :reason, :string
@@ -19,6 +21,9 @@ defmodule Eirinchan.Bans.Ban do
     ban
     |> cast(attrs, [:board_id, :mod_user_id, :ip_subnet, :reason, :expires_at, :active])
     |> validate_required([:ip_subnet])
+    |> validate_change(:ip_subnet, fn :ip_subnet, value ->
+      if Bans.valid_ip_mask?(value), do: [], else: [ip_subnet: "is invalid"]
+    end)
     |> foreign_key_constraint(:board_id)
     |> foreign_key_constraint(:mod_user_id)
   end

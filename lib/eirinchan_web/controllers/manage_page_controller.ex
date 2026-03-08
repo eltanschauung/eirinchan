@@ -924,11 +924,16 @@ defmodule EirinchanWeb.ManagePageController do
         moderator: moderator,
         board: board,
         post: post,
+        boards: Moderation.list_accessible_boards(moderator),
         error: nil,
         params: %{
+          "ip" => Map.get(params, "ip", post.ip_subnet || ""),
           "reason" => Map.get(params, "reason", ""),
+          "public_message" => Map.get(params, "public_message", "0"),
+          "message" => Map.get(params, "message", "USER WAS BANNED FOR THIS POST"),
           "length" => Map.get(params, "length", ""),
-          "delete_post" => Map.get(params, "delete", "0")
+          "board" => Map.get(params, "board", "*"),
+          "delete" => Map.get(params, "delete", "0")
         }
       )
     else
@@ -942,15 +947,17 @@ defmodule EirinchanWeb.ManagePageController do
     with {:ok, moderator} <- ensure_moderator(conn),
          {:ok, board} <- load_accessible_board(moderator, uri),
          {:ok, post} <- Eirinchan.Posts.get_post(board, post_id),
+         {:ok, target_board_id} <- target_ban_board_id(moderator, params["board"]),
          {:ok, _ban} <-
            Bans.create_ban(%{
-             board_id: board.id,
+             board_id: target_board_id,
              mod_user_id: moderator.id,
-             ip_subnet: post.ip_subnet,
+             ip_subnet: Map.get(params, "ip", post.ip_subnet),
              reason: params["reason"],
              length: params["length"],
              active: true
            }),
+         :ok <- maybe_attach_public_ban_message(board, post, params, conn.host),
          {:ok, _deleted} <- maybe_moderator_delete_post(board, post, params, conn.host) do
       conn
       |> put_flash(:info, "Ban created.")
@@ -1614,7 +1621,8 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   defp maybe_moderator_delete_post(board, post, params, host) do
-    if Map.get(params, "delete_post") in ["1", "true", "on"] do
+    if Map.get(params, "delete_post") in ["1", "true", "on"] or
+         Map.get(params, "delete") in ["1", "true", "on"] do
       Eirinchan.Posts.moderate_delete_post(board, post.id, config: effective_board_config(board, host))
     else
       {:ok, post}
@@ -1632,20 +1640,93 @@ defmodule EirinchanWeb.ManagePageController do
   defp render_ban_post_error(conn, uri, post_id, message, params, status \\ :unprocessable_entity) do
     board = Boards.get_board_by_uri(uri)
     {:ok, post} = Eirinchan.Posts.get_post(board, post_id)
+    moderator = conn.assigns[:current_moderator]
 
     conn
     |> put_status(status)
     |> render(:ban_post,
-      moderator: conn.assigns[:current_moderator],
+      moderator: moderator,
       board: board,
       post: post,
+      boards: Moderation.list_accessible_boards(moderator),
       error: message,
       params: %{
+        "ip" => Map.get(params, "ip", post.ip_subnet || ""),
         "reason" => Map.get(params, "reason", ""),
+        "public_message" => Map.get(params, "public_message", "0"),
+        "message" => Map.get(params, "message", "USER WAS BANNED FOR THIS POST"),
         "length" => Map.get(params, "length", ""),
-        "delete_post" => Map.get(params, "delete_post", Map.get(params, "delete", "0"))
+        "board" => Map.get(params, "board", "*"),
+        "delete" => Map.get(params, "delete", "0")
       }
     )
+  end
+
+  defp target_ban_board_id(_moderator, nil), do: {:ok, nil}
+  defp target_ban_board_id(_moderator, ""), do: {:ok, nil}
+  defp target_ban_board_id(_moderator, "*"), do: {:ok, nil}
+
+  defp target_ban_board_id(moderator, uri) do
+    case load_accessible_board(moderator, uri) do
+      {:ok, board} -> {:ok, board.id}
+      error -> error
+    end
+  end
+
+  defp maybe_attach_public_ban_message(board, post, params, host) do
+    enabled? = Map.get(params, "public_message", "0") in ["1", "true", "on"]
+    message = Map.get(params, "message", "") |> to_string() |> String.replace(~r/[\r\n]+/, " ") |> String.trim()
+
+    cond do
+      not enabled? ->
+        :ok
+
+      message == "" ->
+        :ok
+
+      true ->
+        length_text =
+          case Bans.parse_length(Map.get(params, "length")) do
+            {:ok, nil} -> "permanently"
+            {:ok, expires_at} -> "for " <> human_ban_until(expires_at)
+            {:error, :invalid_length} -> "permanently"
+          end
+
+        public_message =
+          message
+          |> String.replace("%length%", length_text)
+          |> String.replace("%LENGTH%", String.upcase(length_text))
+
+        updated_body =
+          [post.body, "[Ban message] #{public_message}"]
+          |> Enum.reject(&is_nil/1)
+          |> Enum.reject(&(&1 == ""))
+          |> Enum.join("\n")
+
+        case Eirinchan.Posts.update_post(
+               board,
+               post.id,
+               %{"body" => updated_body},
+               config: board_config(board, host)
+             ) do
+          {:ok, _updated_post} -> :ok
+          {:error, reason} -> {:error, reason}
+        end
+    end
+  end
+
+  defp human_ban_until(expires_at) do
+    seconds = max(DateTime.diff(expires_at, DateTime.utc_now(), :second), 0)
+
+    cond do
+      seconds >= 365 * 24 * 60 * 60 -> "#{div(seconds, 365 * 24 * 60 * 60)} years"
+      seconds >= 30 * 24 * 60 * 60 -> "#{div(seconds, 30 * 24 * 60 * 60)} months"
+      seconds >= 7 * 24 * 60 * 60 -> "#{div(seconds, 7 * 24 * 60 * 60)} weeks"
+      seconds >= 24 * 60 * 60 -> "#{div(seconds, 24 * 60 * 60)} days"
+      seconds >= 60 * 60 -> "#{div(seconds, 60 * 60)} hours"
+      seconds >= 60 -> "#{div(seconds, 60)} minutes"
+      true -> "#{seconds} seconds"
+    end
   end
 
   defp render_edit_post_error(conn, uri, post_id, message, params, status \\ :unprocessable_entity) do
