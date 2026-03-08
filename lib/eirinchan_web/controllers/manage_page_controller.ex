@@ -9,6 +9,7 @@ defmodule EirinchanWeb.ManagePageController do
   alias Eirinchan.Bans
   alias Eirinchan.CustomPages
   alias Eirinchan.DNSBLConfig
+  alias Eirinchan.Feedback
   alias Eirinchan.FlagsConfig
   alias Eirinchan.Installation
   alias Eirinchan.Moderation
@@ -60,6 +61,7 @@ defmodule EirinchanWeb.ManagePageController do
         boards: Moderation.list_accessible_boards(moderator),
         report_count: accessible_report_count(moderator),
         appeal_count: accessible_appeal_count(moderator),
+        feedback_count: Feedback.unread_count(),
         unread_messages: Moderation.count_unread_messages(moderator),
         announcement: Announcement.current(),
         custom_pages: CustomPages.list_pages(),
