@@ -550,12 +550,14 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
       |> json_response(200)
       |> then(&%{id: &1["id"]})
 
+    {:ok, [thread | _]} = Eirinchan.Posts.get_thread(board, id)
+
     catalog_page =
       conn
       |> recycle()
       |> get("/#{board.uri}/catalog.html")
       |> html_response(200)
 
-    assert catalog_page =~ ~s(data-fullimage="/#{board.uri}/src/#{id}.png")
+    assert catalog_page =~ ~s(data-fullimage="#{thread.file_path}")
   end
 end

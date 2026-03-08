@@ -148,12 +148,12 @@ defmodule EirinchanWeb.PostControllerTest do
       |> get("/#{board.uri}")
       |> html_response(200)
 
-    assert page =~ "/#{board.uri}/thumb/#{id}s.png"
+    assert page =~ thread.thumb_path
 
     file_conn =
       conn
       |> recycle()
-      |> get("/#{board.uri}/src/#{id}.png")
+      |> get(thread.file_path)
 
     assert response(file_conn, 200) == stored_bytes
     assert get_resp_header(file_conn, "content-type") == ["image/png; charset=utf-8"]
@@ -161,7 +161,7 @@ defmodule EirinchanWeb.PostControllerTest do
     thumb_conn =
       conn
       |> recycle()
-      |> get("/#{board.uri}/thumb/#{id}s.png")
+      |> get(thread.thumb_path)
 
     assert response(thumb_conn, 200) != ""
     assert get_resp_header(thumb_conn, "content-type") == ["image/png; charset=utf-8"]
@@ -216,10 +216,11 @@ defmodule EirinchanWeb.PostControllerTest do
       |> html_response(200)
 
     assert page =~ ~s(class="video-container")
-    assert page =~ "/#{board.uri}/src/#{id}.png"
+    {:ok, [thread | _]} = Eirinchan.Posts.get_thread(board, id)
+    assert page =~ thread.file_path
 
     {embed_index, _} = :binary.match(page, "video-container")
-    {file_index, _} = :binary.match(page, "/#{board.uri}/src/#{id}.png")
+    {file_index, _} = :binary.match(page, thread.file_path)
 
     assert embed_index < file_index
   end
@@ -282,12 +283,13 @@ defmodule EirinchanWeb.PostControllerTest do
       |> get("/#{board.uri}")
       |> html_response(200)
 
-    assert page =~ "/#{board.uri}/thumb/#{id}s.png"
+    {:ok, [thread | _]} = Eirinchan.Posts.get_thread(board, id)
+    assert page =~ thread.thumb_path
 
     file_conn =
       conn
       |> recycle()
-      |> get("/#{board.uri}/src/#{id}.txt")
+      |> get(thread.file_path)
 
     assert response(file_conn, 200) == "hello"
     assert get_resp_header(file_conn, "content-type") == ["text/plain; charset=utf-8"]
@@ -295,7 +297,7 @@ defmodule EirinchanWeb.PostControllerTest do
     thumb_conn =
       conn
       |> recycle()
-      |> get("/#{board.uri}/thumb/#{id}s.png")
+      |> get(thread.thumb_path)
 
     assert response(thumb_conn, 200) != ""
     assert get_resp_header(thumb_conn, "content-type") == ["image/png; charset=utf-8"]
@@ -325,8 +327,10 @@ defmodule EirinchanWeb.PostControllerTest do
       |> get("/#{board.uri}")
       |> html_response(200)
 
-    assert page =~ "/#{board.uri}/thumb/#{id}s.png"
-    assert page =~ "/#{board.uri}/thumb/#{id}-1s.png"
+    {:ok, [thread | _]} = Eirinchan.Posts.get_thread(board, id)
+    [extra] = thread.extra_files
+    assert page =~ thread.thumb_path
+    assert page =~ extra.thumb_path
 
     thread_json =
       conn
@@ -392,8 +396,10 @@ defmodule EirinchanWeb.PostControllerTest do
       |> get("/#{board.uri}")
       |> html_response(200)
 
-    assert page =~ "/#{board.uri}/thumb/#{id}s.png"
-    assert page =~ "/#{board.uri}/thumb/#{id}-1s.png"
+    {:ok, [thread | _]} = Eirinchan.Posts.get_thread(board, id)
+    [extra] = thread.extra_files
+    assert page =~ thread.thumb_path
+    assert page =~ extra.thumb_path
 
     thread_json =
       conn
@@ -486,7 +492,8 @@ defmodule EirinchanWeb.PostControllerTest do
       |> get("/#{board.uri}")
       |> html_response(200)
 
-    assert page =~ "/#{board.uri}/thumb/#{id}s.png"
+    {:ok, [thread | _]} = Eirinchan.Posts.get_thread(board, id)
+    assert page =~ thread.thumb_path
   end
 
   test "posting times out remote uploads according to config", %{conn: conn} do
