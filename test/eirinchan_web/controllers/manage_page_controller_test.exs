@@ -165,7 +165,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       |> get("/manage")
       |> html_response(200)
 
-    assert dashboard =~ "Flags Configuration"
+    assert dashboard =~ "Flag Configuration"
 
     update_conn =
       conn

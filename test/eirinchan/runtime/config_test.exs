@@ -63,6 +63,7 @@ defmodule Eirinchan.Runtime.ConfigTest do
     assert config.default_user_flag == "country"
     assert config.multiple_flags
     assert Regex.match?(config.referer_match, "https://example.test/chan/tech/home.html")
+    assert Regex.match?(config.referer_match, "https://example.test/chan/tech")
 
     assert Regex.match?(
              config.referer_match,

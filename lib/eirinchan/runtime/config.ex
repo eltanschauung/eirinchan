@@ -531,6 +531,7 @@ defmodule Eirinchan.Runtime.Config do
       end
 
     board_path = interpolate_path_pattern(config.board_path, config.board_regex)
+    board_index_path = interpolate_board_index_pattern(config.board_path, config.board_regex)
     res_path = Regex.escape(config.dir.res)
     file_index = Regex.escape(config.file_index)
     file_page = interpolate_integer_pattern(config.file_page)
@@ -544,7 +545,7 @@ defmodule Eirinchan.Runtime.Config do
         prefix <>
         Regex.escape(config.root) <>
         "(" <>
-        board_path <>
+        board_index_path <>
         "(#{file_index}|#{file_page})?" <>
         "|" <>
         board_path <>
@@ -556,6 +557,22 @@ defmodule Eirinchan.Runtime.Config do
         ")([#?](.+)?)?$",
       "ui"
     )
+  end
+
+  defp interpolate_board_index_pattern(template, board_regex) do
+    template
+    |> interpolate_path_pattern(board_regex)
+    |> case do
+      "" ->
+        ""
+
+      pattern ->
+        if String.ends_with?(pattern, "/") do
+          String.trim_trailing(pattern, "/") <> "/?"
+        else
+          pattern
+        end
+    end
   end
 
   defp interpolate_path_pattern(template, board_regex) do
