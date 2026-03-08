@@ -12,7 +12,7 @@ defmodule EirinchanWeb.BuildManagementController do
   def create(conn, %{"uri" => uri}) do
     with board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          :ok <- authorize_board(conn, board) do
-      config = board_config(board, conn.host)
+      config = board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
 
       result =
         case config.generation_strategy do

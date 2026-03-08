@@ -84,7 +84,9 @@ defmodule EirinchanWeb.IpManagementController do
     with {:ok, result} <-
            Moderation.list_accessible_boards(conn.assigns.current_moderator)
            |> then(
-             &Posts.moderate_delete_posts_by_ip(&1, ip, config_by_board: config_map(&1, conn.host))
+             &Posts.moderate_delete_posts_by_ip(&1, ip,
+               config_by_board: config_map(&1, EirinchanWeb.RequestMeta.request_host(conn))
+             )
            ) do
       json(conn, %{data: result})
     else
@@ -96,7 +98,9 @@ defmodule EirinchanWeb.IpManagementController do
     with board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          :ok <- authorize_board(conn, board),
          {:ok, result} <-
-           Posts.moderate_delete_posts_by_ip(board, ip, config: board_config(board, conn.host)) do
+           Posts.moderate_delete_posts_by_ip(board, ip,
+             config: board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
+           ) do
       json(conn, %{data: result})
     else
       nil -> {:error, :not_found}

@@ -29,7 +29,7 @@ defmodule EirinchanWeb.PostManagementController do
              board,
              post_id,
              Map.take(params, ["name", "email", "subject", "body"]),
-             config: board_config(board, conn.host)
+             config: board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
            ) do
       render(conn, :show, post: post)
     else
@@ -42,7 +42,9 @@ defmodule EirinchanWeb.PostManagementController do
     with board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          :ok <- authorize_board(conn, board),
          {:ok, result} <-
-           Posts.moderate_delete_post(board, post_id, config: board_config(board, conn.host)) do
+           Posts.moderate_delete_post(board, post_id,
+             config: board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
+           ) do
       json(conn, %{data: result})
     else
       nil -> {:error, :not_found}
@@ -54,7 +56,9 @@ defmodule EirinchanWeb.PostManagementController do
     with board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          :ok <- authorize_board(conn, board),
          {:ok, post} <-
-           Posts.delete_post_files(board, post_id, config: board_config(board, conn.host)) do
+           Posts.delete_post_files(board, post_id,
+             config: board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
+           ) do
       render(conn, :show, post: post)
     else
       nil -> {:error, :not_found}
@@ -66,7 +70,9 @@ defmodule EirinchanWeb.PostManagementController do
     with board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          :ok <- authorize_board(conn, board),
          {:ok, post} <-
-           Posts.spoilerize_post_files(board, post_id, config: board_config(board, conn.host)) do
+           Posts.spoilerize_post_files(board, post_id,
+             config: board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
+           ) do
       render(conn, :show, post: post)
     else
       nil -> {:error, :not_found}
@@ -93,8 +99,10 @@ defmodule EirinchanWeb.PostManagementController do
              post_id,
              target_board,
              target_thread_id,
-             source_config: board_config(source_board, conn.host),
-             target_config: board_config(target_board, conn.host)
+             source_config:
+               board_config(source_board, EirinchanWeb.RequestMeta.request_host(conn)),
+             target_config:
+               board_config(target_board, EirinchanWeb.RequestMeta.request_host(conn))
            ) do
       render(conn, :show, post: post)
     else
