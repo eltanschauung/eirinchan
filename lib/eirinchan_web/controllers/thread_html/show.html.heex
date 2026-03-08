@@ -266,14 +266,7 @@
                 ><%= PostView.display_file_name(file, @config) %></span>)
               </span>
             </p>
-            <a href={file.file_path} target="_blank">
-              <img
-                class="post-image"
-                src={file.thumb_path || file.file_path}
-                style={PostView.thumb_style(file, @config, op?: true)}
-                alt=""
-              />
-            </a>
+            <%= raw(PostView.file_image_html(file, @config, op?: true)) %>
           </div>
         <% end %>
       <% end %>
@@ -402,14 +395,7 @@
                     ><%= PostView.display_file_name(file, @config) %></span>)
                   </span>
                 </p>
-                <a href={file.file_path} target="_blank">
-                  <img
-                    class="post-image"
-                    src={file.thumb_path || file.file_path}
-                    style={PostView.thumb_style(file, @config)}
-                    alt=""
-                  />
-                </a>
+                <%= raw(PostView.file_image_html(file, @config)) %>
               </div>
             <% end %>
           <% end %>

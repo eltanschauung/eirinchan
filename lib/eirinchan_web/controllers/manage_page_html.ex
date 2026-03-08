@@ -151,14 +151,7 @@ defmodule EirinchanWeb.ManagePageHTML do
                 ><%= PostView.display_file_name(file, @config) %></span>)
               </span>
             </p>
-            <a href={file.file_path}>
-              <img
-                class="post-image"
-                src={file.thumb_path || file.file_path}
-                style={PostView.thumb_style(file, @config, op?: @op?)}
-                alt=""
-              />
-            </a>
+            <%= raw(PostView.file_image_html(file, @config, op?: @op?)) %>
           </div>
         <% end %>
       <% end %>
