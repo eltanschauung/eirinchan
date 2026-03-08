@@ -340,9 +340,7 @@
                 style={PostView.flag_style(@config)}
               />
             <% end %>
-            <time datetime={PostView.iso_timestamp(thread)}>
-              <%= PostView.formatted_timestamp(thread) %>
-            </time>
+            <%= raw(PostView.time_html(thread)) %>
           </label>
           &nbsp;
           <a
@@ -359,7 +357,9 @@
             href={PostView.reply_path(@board, thread, thread, @config, :quote)}
             data-quote-to={thread.id}
             data-quick-reply-thread={thread.id}
-          ><%= thread.id %></a>
+          >
+            <%= thread.id %>
+          </a>
           <%= for icon <- PostView.state_icons(thread, @config) do %>
             <img class="icon" title={icon.title} src={icon.path} alt={icon.title} />
           <% end %>
@@ -372,12 +372,9 @@
             PostView.post_controls_html(thread, @board, @current_moderator, @secure_manage_token)
           ) %>
         </p>
-        <div class="body">
-          <%= raw(PostView.body_html(thread, @board, thread, @config)) %><span
-            :if={@config.fileboard && PostView.show_fileboard_summary?(thread)}
-            style="display:none"
-          >Fileboard: <%= PostView.fileboard_summary(thread) %></span>
-        </div>
+        <%= raw(
+          PostView.body_container_html(thread, @board, thread, @config, hide_fileboard: true)
+        ) %>
         <span :if={PostView.omitted_text(summary)} class="omitted">
           <%= PostView.omitted_text(summary) %>
         </span>
@@ -406,9 +403,7 @@
                   style={PostView.flag_style(@config)}
                 />
               <% end %>
-              <time datetime={PostView.iso_timestamp(reply)}>
-                <%= PostView.formatted_timestamp(reply) %>
-              </time>
+              <%= raw(PostView.time_html(reply)) %>
             </label>
             &nbsp;
             <a
@@ -424,7 +419,9 @@
               onclick={"citeReply(#{reply.id})"}
               href={PostView.reply_path(@board, thread, reply, @config, :quote)}
               data-quote-to={reply.id}
-            ><%= reply.id %></a>
+            >
+              <%= reply.id %>
+            </a>
           </p>
           <div class="files">
             <%= for media <- PostView.media_entries(reply, @config) do %>
@@ -469,12 +466,7 @@
           <%= raw(
             PostView.post_controls_html(reply, @board, @current_moderator, @secure_manage_token)
           ) %>
-          <div
-            class="body"
-            {case PostView.reply_body_style(reply) do nil -> []; style -> [style: style] end}
-          >
-            <%= raw(PostView.body_html(reply, @board, thread, @config)) %>
-          </div>
+          <%= raw(PostView.reply_body_container_html(reply, @board, thread, @config)) %>
         </div>
         <br />
       <% end %>

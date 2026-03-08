@@ -452,6 +452,70 @@ defmodule EirinchanWeb.PostView do
     |> Enum.join("<br/>")
   end
 
+  def time_html(post) do
+    ~s(<time datetime="#{html_escape_to_string(iso_timestamp(post))}">#{html_escape_to_string(formatted_timestamp(post))}</time>)
+  end
+
+  def body_container_html(post, board, thread, config, opts \\ []) do
+    body = body_html(post, board, thread, config)
+
+    tag_html =
+      case post.tag do
+        nil ->
+          ""
+
+        tag ->
+          label =
+            if is_map(config.allowed_tags), do: Map.get(config.allowed_tags, tag, tag), else: tag
+
+          ~s(<span class="tag-line">Tag: #{html_escape_to_string(label)}</span>)
+      end
+
+    fileboard_hidden? = Keyword.get(opts, :hide_fileboard, false)
+
+    fileboard_html =
+      if config.fileboard and show_fileboard_summary?(post) do
+        hidden_attr = if fileboard_hidden?, do: ~s( style="display:none"), else: ""
+
+        ~s(<span class="tag-line"#{hidden_attr}>Fileboard: #{html_escape_to_string(fileboard_summary(post))}</span>)
+      else
+        ""
+      end
+
+    ~s(<div class="body">#{body}#{tag_html}#{fileboard_html}</div>)
+  end
+
+  def reply_body_container_html(post, board, thread, config) do
+    style_attr =
+      case reply_body_style(post) do
+        nil -> ""
+        style -> ~s( style="#{html_escape_to_string(style)}")
+      end
+
+    body = body_html(post, board, thread, config)
+
+    tag_html =
+      case post.tag do
+        nil ->
+          ""
+
+        tag ->
+          label =
+            if is_map(config.allowed_tags), do: Map.get(config.allowed_tags, tag, tag), else: tag
+
+          ~s(<span class="tag-line">Tag: #{html_escape_to_string(label)}</span>)
+      end
+
+    fileboard_html =
+      if config.fileboard and show_fileboard_summary?(post) do
+        ~s(<span class="tag-line">Fileboard: #{html_escape_to_string(fileboard_summary(post))}</span>)
+      else
+        ""
+      end
+
+    ~s(<div class="body"#{style_attr}>#{body}#{tag_html}#{fileboard_html}</div>)
+  end
+
   def has_embed?(%{embed: embed}) when is_binary(embed), do: String.trim(embed) != ""
   def has_embed?(_post), do: false
 
