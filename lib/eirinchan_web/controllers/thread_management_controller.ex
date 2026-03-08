@@ -29,7 +29,7 @@ defmodule EirinchanWeb.ThreadManagementController do
              board_record,
              thread_id,
              Map.take(params, ["sticky", "locked", "cycle", "sage"]),
-             config: board_config(board_record, conn.host)
+             config: board_config(board_record, EirinchanWeb.RequestMeta.request_host(conn))
            ) do
       render(conn, :show, thread: thread)
     else
@@ -48,8 +48,10 @@ defmodule EirinchanWeb.ThreadManagementController do
              source_board,
              thread_id,
              target_board,
-             source_config: board_config(source_board, conn.host),
-             target_config: board_config(target_board, conn.host)
+             source_config:
+               board_config(source_board, EirinchanWeb.RequestMeta.request_host(conn)),
+             target_config:
+               board_config(target_board, EirinchanWeb.RequestMeta.request_host(conn))
            ) do
       render(conn, :show, thread: thread)
     else

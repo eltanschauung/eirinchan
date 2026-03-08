@@ -685,7 +685,7 @@ defmodule EirinchanWeb.ManagePageController do
       |> render(:recent_posts,
         moderator: moderator,
         boards: boards,
-        entries: recent_post_entries(posts, boards, conn.host),
+        entries: recent_post_entries(posts, boards, EirinchanWeb.RequestMeta.request_host(conn)),
         filters: %{
           "board" => params["board"],
           "query" => params["query"],
@@ -708,7 +708,7 @@ defmodule EirinchanWeb.ManagePageController do
               report_entries(
                 accessible_reports(moderator),
                 Moderation.list_accessible_boards(moderator),
-                conn.host,
+                EirinchanWeb.RequestMeta.request_host(conn),
                 conn.assigns[:secure_manage_token]
               )
           )
@@ -841,7 +841,7 @@ defmodule EirinchanWeb.ManagePageController do
            Moderation.list_accessible_boards(moderator)
            |> then(
              &Eirinchan.Posts.moderate_delete_posts_by_ip(&1, ip,
-               config_by_board: config_map(&1, conn.host)
+               config_by_board: config_map(&1, EirinchanWeb.RequestMeta.request_host(conn))
              )
            ) do
       conn
@@ -857,7 +857,7 @@ defmodule EirinchanWeb.ManagePageController do
          {:ok, board} <- load_accessible_board(moderator, uri),
          {:ok, _result} <-
            Eirinchan.Posts.moderate_delete_posts_by_ip(board, ip,
-             config: effective_board_config(board, conn.host)
+             config: effective_board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
            ) do
       conn
       |> put_flash(:info, "Posts deleted for IP.")
@@ -937,9 +937,14 @@ defmodule EirinchanWeb.ManagePageController do
         }
       )
     else
-      {:error, :unauthorized} -> redirect(conn, to: ~p"/manage/login")
-      {:error, :forbidden} -> render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
-      {:error, :not_found} -> render_dashboard_error(conn, "Post not found.", %{}, :not_found)
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      {:error, :forbidden} ->
+        render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
+
+      {:error, :not_found} ->
+        render_dashboard_error(conn, "Post not found.", %{}, :not_found)
     end
   end
 
@@ -957,15 +962,33 @@ defmodule EirinchanWeb.ManagePageController do
              length: params["length"],
              active: true
            }),
-         :ok <- maybe_attach_public_ban_message(board, post, params, conn.host),
-         {:ok, _deleted} <- maybe_moderator_delete_post(board, post, params, conn.host) do
+         :ok <-
+           maybe_attach_public_ban_message(
+             board,
+             post,
+             params,
+             EirinchanWeb.RequestMeta.request_host(conn)
+           ),
+         {:ok, _deleted} <-
+           maybe_moderator_delete_post(
+             board,
+             post,
+             params,
+             EirinchanWeb.RequestMeta.request_host(conn)
+           ) do
       conn
       |> put_flash(:info, "Ban created.")
       |> redirect(to: moderation_return_path(board, post))
     else
-      {:error, :unauthorized} -> redirect(conn, to: ~p"/manage/login")
-      {:error, :forbidden} -> render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
-      {:error, :not_found} -> render_dashboard_error(conn, "Post not found.", %{}, :not_found)
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      {:error, :forbidden} ->
+        render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
+
+      {:error, :not_found} ->
+        render_dashboard_error(conn, "Post not found.", %{}, :not_found)
+
       {:error, %Ecto.Changeset{} = changeset} ->
         render_ban_post_error(conn, uri, post_id, format_changeset(changeset), params)
     end
@@ -983,10 +1006,17 @@ defmodule EirinchanWeb.ManagePageController do
         error: nil
       )
     else
-      {:error, :unauthorized} -> redirect(conn, to: ~p"/manage/login")
-      false -> render_dashboard_error(conn, "Administrator access required.", %{}, :forbidden)
-      {:error, :forbidden} -> render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
-      {:error, :not_found} -> render_dashboard_error(conn, "Post not found.", %{}, :not_found)
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      false ->
+        render_dashboard_error(conn, "Administrator access required.", %{}, :forbidden)
+
+      {:error, :forbidden} ->
+        render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
+
+      {:error, :not_found} ->
+        render_dashboard_error(conn, "Post not found.", %{}, :not_found)
     end
   end
 
@@ -999,16 +1029,24 @@ defmodule EirinchanWeb.ManagePageController do
              board,
              post_id,
              Map.take(params, ["name", "email", "subject", "body"]),
-             config: effective_board_config(board, conn.host)
+             config: effective_board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
            ) do
       conn
       |> put_flash(:info, "Post updated.")
       |> redirect(to: moderation_return_path(board, post))
     else
-      {:error, :unauthorized} -> redirect(conn, to: ~p"/manage/login")
-      false -> render_dashboard_error(conn, "Administrator access required.", %{}, :forbidden)
-      {:error, :forbidden} -> render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
-      {:error, :not_found} -> render_dashboard_error(conn, "Post not found.", %{}, :not_found)
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      false ->
+        render_dashboard_error(conn, "Administrator access required.", %{}, :forbidden)
+
+      {:error, :forbidden} ->
+        render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
+
+      {:error, :not_found} ->
+        render_dashboard_error(conn, "Post not found.", %{}, :not_found)
+
       {:error, %Ecto.Changeset{} = changeset} ->
         render_edit_post_error(conn, uri, post_id, format_changeset(changeset), params)
     end
@@ -1027,10 +1065,17 @@ defmodule EirinchanWeb.ManagePageController do
         error: nil
       )
     else
-      {:error, :unauthorized} -> redirect(conn, to: ~p"/manage/login")
-      {:error, :forbidden} -> render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
-      false -> render_dashboard_error(conn, "Thread not found.", %{}, :not_found)
-      {:error, :not_found} -> render_dashboard_error(conn, "Thread not found.", %{}, :not_found)
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      {:error, :forbidden} ->
+        render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
+
+      false ->
+        render_dashboard_error(conn, "Thread not found.", %{}, :not_found)
+
+      {:error, :not_found} ->
+        render_dashboard_error(conn, "Thread not found.", %{}, :not_found)
     end
   end
 
@@ -1047,10 +1092,17 @@ defmodule EirinchanWeb.ManagePageController do
         error: nil
       )
     else
-      {:error, :unauthorized} -> redirect(conn, to: ~p"/manage/login")
-      {:error, :forbidden} -> render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
-      true -> render_dashboard_error(conn, "Reply not found.", %{}, :not_found)
-      {:error, :not_found} -> render_dashboard_error(conn, "Reply not found.", %{}, :not_found)
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      {:error, :forbidden} ->
+        render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
+
+      true ->
+        render_dashboard_error(conn, "Reply not found.", %{}, :not_found)
+
+      {:error, :not_found} ->
+        render_dashboard_error(conn, "Reply not found.", %{}, :not_found)
     end
   end
 
@@ -1067,8 +1119,10 @@ defmodule EirinchanWeb.ManagePageController do
              source_board,
              thread_id,
              target_board,
-             source_config: effective_board_config(source_board, conn.host),
-             target_config: effective_board_config(target_board, conn.host)
+             source_config:
+               effective_board_config(source_board, EirinchanWeb.RequestMeta.request_host(conn)),
+             target_config:
+               effective_board_config(target_board, EirinchanWeb.RequestMeta.request_host(conn))
            ) do
       conn
       |> put_flash(:info, "Thread moved.")
@@ -1077,7 +1131,7 @@ defmodule EirinchanWeb.ManagePageController do
           Eirinchan.ThreadPaths.thread_path(
             target_board,
             moved_thread,
-            effective_board_config(target_board, conn.host)
+            effective_board_config(target_board, EirinchanWeb.RequestMeta.request_host(conn))
           )
       )
     else
@@ -1113,8 +1167,10 @@ defmodule EirinchanWeb.ManagePageController do
              post_id,
              target_board,
              target_thread_id,
-             source_config: effective_board_config(source_board, conn.host),
-             target_config: effective_board_config(target_board, conn.host)
+             source_config:
+               effective_board_config(source_board, EirinchanWeb.RequestMeta.request_host(conn)),
+             target_config:
+               effective_board_config(target_board, EirinchanWeb.RequestMeta.request_host(conn))
            ) do
       conn
       |> put_flash(:info, "Reply moved.")
@@ -1123,7 +1179,7 @@ defmodule EirinchanWeb.ManagePageController do
           Eirinchan.ThreadPaths.thread_path(
             target_board,
             %Eirinchan.Posts.Post{id: moved_reply.thread_id, slug: nil},
-            effective_board_config(target_board, conn.host)
+            effective_board_config(target_board, EirinchanWeb.RequestMeta.request_host(conn))
           )
       )
     else
@@ -1280,7 +1336,7 @@ defmodule EirinchanWeb.ManagePageController do
     with {:ok, moderator} <- ensure_moderator(conn),
          board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          true <- Moderation.board_access?(moderator, board) or moderator.role == "admin" do
-      config = effective_board_config(board, conn.host)
+      config = effective_board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
 
       _result =
         case config.generation_strategy do
@@ -1503,7 +1559,9 @@ defmodule EirinchanWeb.ManagePageController do
 
   defp accessible_report_for_post(moderator, post_id) do
     accessible_reports(moderator)
-    |> Enum.find(fn report -> Integer.to_string(report.post_id) == String.trim(to_string(post_id)) end)
+    |> Enum.find(fn report ->
+      Integer.to_string(report.post_id) == String.trim(to_string(post_id))
+    end)
   end
 
   defp authorize_report(%{role: "admin"}, _report), do: :ok
@@ -1623,7 +1681,9 @@ defmodule EirinchanWeb.ManagePageController do
   defp maybe_moderator_delete_post(board, post, params, host) do
     if Map.get(params, "delete_post") in ["1", "true", "on"] or
          Map.get(params, "delete") in ["1", "true", "on"] do
-      Eirinchan.Posts.moderate_delete_post(board, post.id, config: effective_board_config(board, host))
+      Eirinchan.Posts.moderate_delete_post(board, post.id,
+        config: effective_board_config(board, host)
+      )
     else
       {:ok, post}
     end
@@ -1675,7 +1735,12 @@ defmodule EirinchanWeb.ManagePageController do
 
   defp maybe_attach_public_ban_message(board, post, params, host) do
     enabled? = Map.get(params, "public_message", "0") in ["1", "true", "on"]
-    message = Map.get(params, "message", "") |> to_string() |> String.replace(~r/[\r\n]+/, " ") |> String.trim()
+
+    message =
+      Map.get(params, "message", "")
+      |> to_string()
+      |> String.replace(~r/[\r\n]+/, " ")
+      |> String.trim()
 
     cond do
       not enabled? ->
@@ -1729,10 +1794,24 @@ defmodule EirinchanWeb.ManagePageController do
     end
   end
 
-  defp render_edit_post_error(conn, uri, post_id, message, params, status \\ :unprocessable_entity) do
+  defp render_edit_post_error(
+         conn,
+         uri,
+         post_id,
+         message,
+         params,
+         status \\ :unprocessable_entity
+       ) do
     board = Boards.get_board_by_uri(uri)
     {:ok, post} = Eirinchan.Posts.get_post(board, post_id)
-    post = %{post | name: Map.get(params, "name", post.name), email: Map.get(params, "email", post.email), subject: Map.get(params, "subject", post.subject), body: Map.get(params, "body", post.body)}
+
+    post = %{
+      post
+      | name: Map.get(params, "name", post.name),
+        email: Map.get(params, "email", post.email),
+        subject: Map.get(params, "subject", post.subject),
+        body: Map.get(params, "body", post.body)
+    }
 
     conn
     |> put_status(status)

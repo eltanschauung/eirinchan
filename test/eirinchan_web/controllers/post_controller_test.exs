@@ -194,10 +194,11 @@ defmodule EirinchanWeb.PostControllerTest do
 
   test "posting accepts YouTube embeds from the bare board route referer", %{conn: conn} do
     board = board_fixture()
+    conn = %{conn | host: "www.example.com", port: 4001}
 
     create_conn =
       conn
-      |> put_req_header("referer", "http://www.example.com/#{board.uri}")
+      |> put_req_header("referer", "http://www.example.com:4001/#{board.uri}")
       |> post(~p"/#{board.uri}/post", %{
         "body" => "embed body",
         "embed" => "https://www.youtube.com/watch?v=yujV_rWiU-0",

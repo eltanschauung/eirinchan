@@ -26,7 +26,8 @@ defmodule EirinchanWeb.LegacyModController do
       "/" <> rest ->
         dispatch_board_action(conn, String.split(rest, "/", trim: true))
 
-      _ -> send_resp(conn, :not_found, "Page not found")
+      _ ->
+        send_resp(conn, :not_found, "Page not found")
     end
   end
 
@@ -49,7 +50,10 @@ defmodule EirinchanWeb.LegacyModController do
   defp dispatch_board_action(conn, [uri, "delete", post_id, token]) do
     with {:ok, _moderator, board} <- authorized_board(conn, uri),
          :ok <- verify_action_token(conn, "#{uri}/delete/#{post_id}", token),
-         {:ok, _result} <- Posts.moderate_delete_post(board, post_id, config: board_config(board, conn.host)) do
+         {:ok, _result} <-
+           Posts.moderate_delete_post(board, post_id,
+             config: board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
+           ) do
       redirect(conn, to: "/#{uri}")
     else
       error -> legacy_error(conn, error)
@@ -62,7 +66,9 @@ defmodule EirinchanWeb.LegacyModController do
          :ok <- verify_action_token(conn, "#{uri}/deletebyip/#{post_id}", token),
          {:ok, post} <- Posts.get_post(board, post_id),
          {:ok, _result} <-
-           Posts.moderate_delete_posts_by_ip(board, post.ip_subnet, config: board_config(board, conn.host)) do
+           Posts.moderate_delete_posts_by_ip(board, post.ip_subnet,
+             config: board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
+           ) do
       redirect(conn, to: "/#{uri}")
     else
       error -> legacy_error(conn, error)
@@ -78,7 +84,11 @@ defmodule EirinchanWeb.LegacyModController do
            Posts.moderate_delete_posts_by_ip(
              Moderation.list_accessible_boards(moderator),
              post.ip_subnet,
-             config_by_board: config_map(Moderation.list_accessible_boards(moderator), conn.host)
+             config_by_board:
+               config_map(
+                 Moderation.list_accessible_boards(moderator),
+                 EirinchanWeb.RequestMeta.request_host(conn)
+               )
            ) do
       redirect(conn, to: "/#{uri}")
     else
@@ -87,11 +97,26 @@ defmodule EirinchanWeb.LegacyModController do
   end
 
   defp dispatch_board_action(conn, [uri, action, post_id, token])
-       when action in ["sticky", "unsticky", "lock", "unlock", "bumplock", "bumpunlock", "cycle", "uncycle"] do
+       when action in [
+              "sticky",
+              "unsticky",
+              "lock",
+              "unlock",
+              "bumplock",
+              "bumpunlock",
+              "cycle",
+              "uncycle"
+            ] do
     with {:ok, moderator, board} <- authorized_board(conn, uri),
          :ok <- require_role(moderator, 20),
          :ok <- verify_action_token(conn, "#{uri}/#{action}/#{post_id}", token),
-         {:ok, _thread} <- update_thread_action(board, post_id, action, conn.host) do
+         {:ok, _thread} <-
+           update_thread_action(
+             board,
+             post_id,
+             action,
+             EirinchanWeb.RequestMeta.request_host(conn)
+           ) do
       redirect(conn, to: "/#{uri}")
     else
       error -> legacy_error(conn, error)
@@ -194,8 +219,11 @@ defmodule EirinchanWeb.LegacyModController do
     end
   end
 
-  defp authorized_moderator(%Plug.Conn{assigns: %{current_moderator: nil}}), do: {:error, :unauthorized}
-  defp authorized_moderator(%Plug.Conn{assigns: %{current_moderator: moderator}}), do: {:ok, moderator}
+  defp authorized_moderator(%Plug.Conn{assigns: %{current_moderator: nil}}),
+    do: {:error, :unauthorized}
+
+  defp authorized_moderator(%Plug.Conn{assigns: %{current_moderator: moderator}}),
+    do: {:ok, moderator}
 
   defp require_role(%{role: "admin"}, _level), do: :ok
   defp require_role(%{role: "mod"}, level) when level <= 20, do: :ok

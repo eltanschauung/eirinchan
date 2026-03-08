@@ -69,6 +69,14 @@ defmodule Eirinchan.Runtime.ConfigTest do
              config.referer_match,
              "https://example.test/chan/tech/res/42-thread-slug.html"
            )
+
+    port_config =
+      Config.compose(defaults, instance, board_overrides,
+        board: board,
+        request_host: "example.test:4001"
+      )
+
+    assert Regex.match?(port_config.referer_match, "https://example.test:4001/chan/tech")
   end
 
   test "disables multiple_flags unless user_flag is enabled" do

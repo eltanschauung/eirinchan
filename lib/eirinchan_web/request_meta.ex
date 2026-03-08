@@ -32,6 +32,16 @@ defmodule EirinchanWeb.RequestMeta do
     end
   end
 
+  def request_host(conn) do
+    port = conn.port
+
+    if default_port?(conn.scheme, port) do
+      conn.host
+    else
+      "#{conn.host}:#{port}"
+    end
+  end
+
   def trusted_proxy?(remote_ip, config \\ config()) do
     IpMatching.match?(remote_ip, config.trusted_ips) or
       IpMatching.match?(remote_ip, config.trusted_cidrs)
@@ -70,6 +80,12 @@ defmodule EirinchanWeb.RequestMeta do
       _ -> nil
     end
   end
+
+  defp default_port?(:http, 80), do: true
+  defp default_port?(:https, 443), do: true
+  defp default_port?("http", 80), do: true
+  defp default_port?("https", 443), do: true
+  defp default_port?(_, _), do: false
 
   defp config do
     @default_config
