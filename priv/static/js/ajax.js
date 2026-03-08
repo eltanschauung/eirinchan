@@ -88,68 +88,55 @@ $(window).ready(function() {
 					} else if (post_response.redirect && post_response.id) {
 						if (is_reply_form) {
 							$submit.val(_('Posted...'));
-							$.ajax({
-								url: window.location.pathname + window.location.search,
-								type: 'GET',
-								dataType: 'html',
-								success: function(data) {
-									var $reply = $(data).find('div.post#reply_' + post_response.id).first();
-									var $current_reply = $('div.post#reply_' + post_response.id).first();
-									var $insertedReply = $();
+							var $insertedReply = $();
+							var $currentReply = $('div.post#reply_' + post_response.id).first();
 
-									if ($reply.length && !$current_reply.length) {
-										var $lastPost = $('div.thread > div.post.reply:last');
-										var $newReply = $reply.clone();
-										var $clear = $('<br class="clear">');
+							if (post_response.html && !$currentReply.length) {
+								var $newReply = $(post_response.html);
+								var $lastPost = $('div.thread > div.post.reply:last');
 
-										if ($lastPost.length) {
-											var $after = $lastPost.nextAll('br.clear:first');
-											if ($after.length) {
-												$after.after($newReply, $clear);
-											} else {
-												$lastPost.after($newReply, $clear);
-											}
-										} else {
-											var $op = $('div.thread > div.post.op, div.thread > div.op').first();
-											var $afterOp = $op.nextAll('br.clear:first');
-											if ($afterOp.length) {
-												$afterOp.after($newReply, $clear);
-											} else {
-												$op.after($newReply, $clear);
-											}
-										}
-										$insertedReply = $newReply;
-									}
-
-									var $target = $insertedReply.length ? $insertedReply : $('div.post#reply_' + post_response.id).first();
-									if ($target.length) {
-										highlightReply(post_response.id);
-										window.location.hash = 'q' + post_response.id;
-										$(window).scrollTop($target.offset().top);
-										clearReplyFields();
-										resetSubmit();
-										$(document).trigger("ajax_after_post", post_response);
-										setTimeout(function() {
-											try {
-												if ($insertedReply.length) {
-													$(document).trigger('new_post', $insertedReply[0]);
-												}
-												$(window).trigger("scroll");
-											} catch (e) {
-												console.error(e);
-											}
-										}, 0);
+								if ($lastPost.length) {
+									var $after = $lastPost.nextAll('br.clear:first');
+									if ($after.length) {
+										$after.after($newReply);
 									} else {
-										resetSubmit();
-										document.location = window.location.pathname + window.location.search + '#q' + post_response.id;
+										$lastPost.after($newReply);
 									}
-								},
-								error: function() {
-									resetSubmit();
-									document.location = window.location.pathname + window.location.search + '#q' + post_response.id;
-								},
-								cache: false
-							});
+								} else {
+									var $op = $('div.thread > div.post.op, div.thread > div.op').first();
+									var $afterOp = $op.nextAll('br.clear:first');
+									if ($afterOp.length) {
+										$afterOp.after($newReply);
+									} else {
+										$op.after($newReply);
+									}
+								}
+
+								$insertedReply = $('div.post#reply_' + post_response.id).first();
+							}
+
+							var $target = $insertedReply.length ? $insertedReply : $('div.post#reply_' + post_response.id).first();
+							if ($target.length) {
+								highlightReply(post_response.id);
+								window.location.hash = post_response.id;
+								$(window).scrollTop($target.offset().top);
+								clearReplyFields();
+								resetSubmit();
+								$(document).trigger("ajax_after_post", post_response);
+								setTimeout(function() {
+									try {
+										if ($target.length) {
+											$(document).trigger('new_post', $target[0]);
+										}
+										$(window).trigger("scroll");
+									} catch (e) {
+										console.error(e);
+									}
+								}, 0);
+							} else {
+								resetSubmit();
+								document.location = window.location.pathname + window.location.search + '#' + post_response.id;
+							}
 						} else {
 							$(document).trigger("ajax_after_post", post_response);
 							document.location = post_response.redirect;
