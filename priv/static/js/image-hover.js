@@ -118,34 +118,10 @@ function initImageHover() { //Pashe, influenced by tux, et al, WTFPL
 
 function imageHoverStart(e) { //Pashe, anonish, WTFPL
 	var hoverImage = $("#chx_hoverImage");
-	var scrollTop = $(window).scrollTop();
-	var imgY = e.pageY;
-	var imgTop = imgY;
 	
 	if (hoverImage.length) {
 		if (getSetting("imageHoverFollowCursor")) {
-			var windowWidth = $(window).width();
-			var imgWidth = hoverImage.width() + e.pageX;
-			
-			if (imgY < scrollTop + 15) {
-				imgTop = scrollTop;
-			} else if (imgY > scrollTop + $(window).height() - hoverImage.height() - 15) {
-				imgTop = scrollTop + $(window).height() - hoverImage.height() - 15;
-			}
-			
-			if (imgWidth > windowWidth) {
-				hoverImage.css({
-					'left': (e.pageX + (windowWidth - imgWidth)),
-					'top' : imgTop,
-				});
-			} else {
-				hoverImage.css({
-					'left': e.pageX,
-					'top' : imgTop,
-				});
-			}
-			
-			hoverImage.appendTo($("body"));
+			positionHoverImage(hoverImage, e);
 		}
 		
 		return;
@@ -166,25 +142,12 @@ function imageHoverStart(e) { //Pashe, anonish, WTFPL
 	hoverImage = $('<img id="chx_hoverImage" src="'+fullUrl+'" />');
 
 	if (getSetting("imageHoverFollowCursor")) {
-		var size = $this.parents('.file').find('.unimportant').text().match(/\b(\d+)x(\d+)\b/),
-			maxWidth = $(window).width(),
-			maxHeight = $(window).height();
-
-		if (!size) {
-			size = [$this.width() + "x" + $this.height(), $this.width(), $this.height()];
-		}
-
-		var scale = Math.min(1, maxWidth / size[1], maxHeight / size[2]);
 		hoverImage.css({
-			"position"      : "absolute",
+			"position"      : "fixed",
 			"z-index"       : 101,
 			"pointer-events": "none",
-			"width"         : size[1] + "px",
-			"height"        : size[2] + "px",
-			"max-width"     : (size[1] * scale) + "px",
-			"max-height"    : (size[2] * scale) + "px",
-			'left'          : e.pageX,
-			'top'           : imgTop,
+			"max-width"     : "70vw",
+			"max-height"    : "70vh",
 		});
 	} else {
 		hoverImage.css({
@@ -198,10 +161,36 @@ function imageHoverStart(e) { //Pashe, anonish, WTFPL
 		});
 	}
 	hoverImage.appendTo($("body"));
+	if (getSetting("imageHoverFollowCursor")) {
+		positionHoverImage(hoverImage, e);
+	}
 }
 
 function imageHoverEnd() { //Pashe, WTFPL
 	$("#chx_hoverImage").remove();
+}
+
+function positionHoverImage(hoverImage, e) {
+	var offset = 20;
+	var left = e.clientX + offset;
+	var top = e.clientY + offset;
+	var windowWidth = $(window).width();
+	var windowHeight = $(window).height();
+	var imageWidth = hoverImage.outerWidth() || 0;
+	var imageHeight = hoverImage.outerHeight() || 0;
+
+	if (left + imageWidth > windowWidth - 10) {
+		left = Math.max(10, e.clientX - imageWidth - offset);
+	}
+
+	if (top + imageHeight > windowHeight - 10) {
+		top = Math.max(10, windowHeight - imageHeight - 10);
+	}
+
+	hoverImage.css({
+		left: left,
+		top: top
+	});
 }
 
 initImageHover();
