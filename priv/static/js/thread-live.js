@@ -1,78 +1,62 @@
 ;(function () {
-  function boot() {
-    if (!window.Phoenix || !window.Phoenix.Socket || !window.LiveView || !window.LiveView.LiveSocket) {
-      return;
-    }
+  if (!window.Phoenix || !window.Phoenix.Socket || !window.LiveView || !window.LiveView.LiveSocket) {
+    return;
+  }
 
-    if (window.liveSocket) {
-      return;
-    }
+  var tokenMeta = document.querySelector("meta[name='csrf-token']");
+  if (!tokenMeta) return;
 
-    var root = document.getElementById("thread-live-root");
-    var tokenMeta = document.querySelector("meta[name='csrf-token']");
+  var Hooks = {};
 
-    if (!root || !tokenMeta) {
-      return;
-    }
+  Hooks.ThreadReply = {
+    mounted: function () {
+      var self = this;
 
-    var Hooks = {};
+      this.handleEvent("reply-visible", function (payload) {
+        var id = String(payload.id);
 
-    Hooks.ThreadReply = {
-      mounted: function () {
-        var self = this;
-
-        this.handleEvent("reply-visible", function (payload) {
-          var id = String(payload.id);
-
+        window.requestAnimationFrame(function () {
           window.requestAnimationFrame(function () {
-            window.requestAnimationFrame(function () {
-              var anchor = document.getElementById(id);
-              var reply = document.getElementById("reply_" + id);
-              var target = anchor || reply;
-              var submit = self.el.querySelector("[data-reply-submit]");
+            var anchor = document.getElementById(id);
+            var reply = document.getElementById("reply_" + id);
+            var target = anchor || reply;
+            var submit = self.el.querySelector("[data-reply-submit]");
 
-              if (submit) {
-                submit.disabled = false;
-                submit.value = submit.dataset.label || submit.value;
-              }
+            if (submit) {
+              submit.disabled = false;
+              submit.value = submit.dataset.label || submit.value;
+            }
 
-              if (!target) return;
+            if (!target) return;
 
-              try {
-                if (window.history && window.history.replaceState) {
-                  window.history.replaceState(null, document.title, window.location.pathname + window.location.search + "#" + id);
-                } else {
-                  window.location.hash = id;
-                }
-              } catch (_error) {
+            try {
+              if (window.history && window.history.replaceState) {
+                window.history.replaceState(null, document.title, window.location.pathname + window.location.search + "#" + id);
+              } else {
                 window.location.hash = id;
               }
+            } catch (_error) {
+              window.location.hash = id;
+            }
 
-              if (target.scrollIntoView) {
-                target.scrollIntoView({block: "start"});
-              }
+            if (target.scrollIntoView) {
+              target.scrollIntoView({block: "start"});
+            }
 
-              if (window.highlightReply) {
-                window.highlightReply(id);
-              }
-            });
+            if (window.highlightReply) {
+              window.highlightReply(id);
+            }
           });
         });
-      }
-    };
+      });
+    }
+  };
 
-    var liveSocket = new window.LiveView.LiveSocket("/live", window.Phoenix.Socket, {
-      params: {_csrf_token: tokenMeta.getAttribute("content")},
-      hooks: Hooks
-    });
+  var liveSocket = new window.LiveView.LiveSocket("/live", window.Phoenix.Socket, {
+    params: {_csrf_token: tokenMeta.getAttribute("content")},
+    hooks: Hooks
+  });
 
-    liveSocket.connect();
-    window.liveSocket = liveSocket;
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", boot, {once: true});
-  } else {
-    boot();
-  }
+  liveSocket.connect();
+  window.liveSocket = liveSocket;
 })();
