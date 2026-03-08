@@ -325,6 +325,7 @@ defmodule Eirinchan.Runtime.Config do
     config
     |> Map.put_new(:global_message, false)
     |> Map.put_new(:post_url, path_join(config.root, config.file_post))
+    |> ensure_geoip_defaults()
     |> put_nested_new([:cookies, :path], config.root)
     |> normalize_cookie_names()
     |> Map.put_new(:referer_match, build_referer_match(config, request_host))
@@ -344,6 +345,24 @@ defmodule Eirinchan.Runtime.Config do
       |> Map.put_new(:additional_javascript_url, updated.root)
       |> Map.put_new(:uri_flags, path_join(updated.root, "static/flags/%s.png"))
     end)
+  end
+
+  defp ensure_geoip_defaults(config) do
+    case Map.get(config, :geoip2_database_path) do
+      path when is_binary(path) ->
+        if String.trim(path) == "" do
+          Map.put(config, :geoip2_database_path, default_geoip2_database_path())
+        else
+          config
+        end
+
+      _ ->
+        Map.put(config, :geoip2_database_path, default_geoip2_database_path())
+    end
+  end
+
+  defp default_geoip2_database_path do
+    Application.app_dir(:eirinchan, "priv/geoip2/GeoLite2-Country.mmdb")
   end
 
   defp ensure_static_assets(config) do
