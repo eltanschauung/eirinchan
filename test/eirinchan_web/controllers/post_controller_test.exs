@@ -991,4 +991,22 @@ defmodule EirinchanWeb.PostControllerTest do
     assert redirected_to(delete_conn) == "/#{board.uri}"
     assert {:error, :not_found} = Eirinchan.Posts.get_thread(board, thread.id)
   end
+
+  test "quick post controls legacy report payload reports the selected post", %{conn: conn} do
+    board = board_fixture()
+    thread = thread_fixture(board, %{body: "Thread body"})
+
+    conn =
+      conn
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post(~p"/#{board.uri}/post", %{
+        "delete_#{thread.id}" => "",
+        "reason" => "quick report",
+        "report" => "Report"
+      })
+
+    assert redirected_to(conn) == "/#{board.uri}/res/#{thread.id}.html"
+    [report] = Eirinchan.Reports.list_reports(board)
+    assert report.post_id == thread.id
+  end
 end

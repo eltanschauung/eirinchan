@@ -115,5 +115,21 @@ defmodule Eirinchan.Reports do
   end
 
   defp normalize_id(value) when is_integer(value), do: value
-  defp normalize_id(value) when is_binary(value), do: String.to_integer(String.trim(value))
+
+  defp normalize_id(value) when is_binary(value) do
+    value
+    |> String.trim()
+    |> case do
+      "" ->
+        nil
+
+      trimmed ->
+        case Integer.parse(trimmed) do
+          {id, ""} -> id
+          _ -> nil
+        end
+    end
+  end
+
+  defp normalize_id(_value), do: nil
 end

@@ -253,6 +253,8 @@ defmodule EirinchanWeb.PostController do
     cond do
       Map.has_key?(params, "report_post_id") -> :report
       Map.has_key?(params, "delete_post_id") -> :delete
+      legacy_action(params) == :report -> :report
+      legacy_action(params) == :delete -> :delete
       Map.has_key?(params, "appeal_ban_id") or Map.has_key?(params, "ban_id") -> :appeal
       true -> :post
     end
@@ -342,9 +344,17 @@ defmodule EirinchanWeb.PostController do
       Map.get(params, "delete_post_id"),
       Map.get(params, "report_post_id"),
       Map.get(params, "delete[]"),
-      Map.get(params, "delete")
+      Map.get(params, "delete"),
+      delete_key_id(params)
     ]
     |> Enum.find_value(&first_legacy_id/1)
+  end
+
+  defp delete_key_id(params) do
+    Enum.find_value(params, fn
+      {"delete_" <> id, _value} when id != "file" -> id
+      _ -> nil
+    end)
   end
 
   defp first_legacy_id(nil), do: nil
