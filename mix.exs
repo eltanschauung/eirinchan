@@ -19,7 +19,7 @@ defmodule Eirinchan.MixProject do
   def application do
     [
       mod: {Eirinchan.Application, []},
-      extra_applications: [:logger, :runtime_tools, :inets]
+      extra_applications: [:logger, :runtime_tools, :inets, :locus]
     ]
   end
 
@@ -43,6 +43,7 @@ defmodule Eirinchan.MixProject do
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
       {:jason, "~> 1.2"},
+      {:locus, "~> 2.3.12"},
       {:dns_cluster, "~> 0.1.1"},
       {:bandit, "~> 1.2"}
     ]
