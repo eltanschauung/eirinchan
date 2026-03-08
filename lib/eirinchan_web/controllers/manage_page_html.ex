@@ -27,7 +27,12 @@ defmodule EirinchanWeb.ManagePageHTML do
           end}
         >
           <p class="intro">
-            <input type="checkbox" class="delete" name={"delete_#{@post.id}"} id={"delete_#{@post.id}"} />
+            <input
+              type="checkbox"
+              class="delete"
+              name={"delete_#{@post.id}"}
+              id={"delete_#{@post.id}"}
+            />
             <label for={"delete_#{@post.id}"}>
               <span :if={@post.subject} class="subject"><%= @post.subject %></span>
               <span class="name"><%= PostView.display_name(@post, @config) %></span>
@@ -42,7 +47,9 @@ defmodule EirinchanWeb.ManagePageHTML do
                   style={PostView.flag_style(@config)}
                 />
               <% end %>
-              <time datetime={PostView.iso_timestamp(@post)}><%= PostView.formatted_timestamp(@post) %></time>
+              <time datetime={PostView.iso_timestamp(@post)}>
+                <%= PostView.formatted_timestamp(@post) %>
+              </time>
             </label>
             &nbsp;
             <a
@@ -50,7 +57,9 @@ defmodule EirinchanWeb.ManagePageHTML do
               id={"post_no_#{@post.id}"}
               onclick={"highlightReply(#{@post.id})"}
               href={PostView.thread_path(@board, @post, @config) <> "##{@post.id}"}
-            >No.</a><a
+            >
+              No.
+            </a><a
               class="post_no"
               onclick={"citeReply(#{@post.id})"}
               href={PostView.reply_path(@board, @post, @post, @config, :quote)}
@@ -88,7 +97,9 @@ defmodule EirinchanWeb.ManagePageHTML do
                 style={PostView.flag_style(@config)}
               />
             <% end %>
-            <time datetime={PostView.iso_timestamp(@post)}><%= PostView.formatted_timestamp(@post) %></time>
+            <time datetime={PostView.iso_timestamp(@post)}>
+              <%= PostView.formatted_timestamp(@post) %>
+            </time>
           </label>
           &nbsp;
           <a
@@ -96,7 +107,9 @@ defmodule EirinchanWeb.ManagePageHTML do
             id={"post_no_#{@post.id}"}
             onclick={"highlightReply(#{@post.id})"}
             href={PostView.thread_path(@board, @thread, @config) <> "##{@post.id}"}
-          >No.</a><a
+          >
+            No.
+          </a><a
             class="post_no"
             onclick={"citeReply(#{@post.id})"}
             href={PostView.reply_path(@board, @thread, @post, @config, :quote)}
@@ -113,7 +126,9 @@ defmodule EirinchanWeb.ManagePageHTML do
             nil -> []
             style -> [style: style]
           end}
-        ><%= raw(PostView.body_html(@post, @board, @thread, @config)) %></div>
+        >
+          <%= raw(PostView.body_html(@post, @board, @thread, @config)) %>
+        </div>
       </div>
     <% end %>
     """
@@ -126,23 +141,22 @@ defmodule EirinchanWeb.ManagePageHTML do
   defp files_block(assigns) do
     ~H"""
     <div class="files">
-      <%= if PostView.has_embed?(@post) do %>
-        <%= raw(PostView.embed_html(@post, @config)) %>
-      <% end %>
-      <%= if !PostView.has_embed?(@post) do %>
-        <%= for file <- PostView.all_files(@post) do %>
+      <%= for media <- PostView.media_entries(@post, @config) do %>
+        <%= if PostView.embed_entry?(media) do %>
+          <%= raw(media.embed_html) %>
+        <% else %>
+          <% file = media %>
           <div
             class={PostView.file_class(@post)}
             {case PostView.multifile_style(file, @config,
-                  multifile: length(PostView.all_files(@post)) > 1
+                  multifile: PostView.media_multifile?(@post)
                 ) do
               nil -> []
               style -> [style: style]
             end}
           >
             <p class="fileinfo">
-              File:
-              <a href={file.file_path}><%= PostView.stored_file_name(file) %></a>
+              File: <a href={file.file_path}><%= PostView.stored_file_name(file) %></a>
               <span>
                 (<%= PostView.file_size_text(file) %><%= if PostView.file_dimensions(file),
                   do: raw(", " <> PostView.file_dimensions(file)) %>, <span

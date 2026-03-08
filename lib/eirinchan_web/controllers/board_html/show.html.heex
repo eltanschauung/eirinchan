@@ -273,16 +273,16 @@
   <%= for summary <- @page_data.threads do %>
     <% thread = summary.thread %>
     <div class="thread" id={"thread_#{thread.id}"} data-board={@board.uri}>
-      <div :if={PostView.has_embed?(thread) || PostView.all_files(thread) != []} class="files">
-        <%= if PostView.has_embed?(thread) do %>
-          <%= raw(PostView.embed_html(thread, @config)) %>
-        <% end %>
-        <%= if !PostView.has_embed?(thread) do %>
-          <%= for file <- PostView.all_files(thread) do %>
+      <div :if={PostView.media_entries(thread, @config) != []} class="files">
+        <%= for media <- PostView.media_entries(thread, @config) do %>
+          <%= if PostView.embed_entry?(media) do %>
+            <%= raw(media.embed_html) %>
+          <% else %>
+            <% file = media %>
             <div
               class={PostView.file_class(thread)}
               {case PostView.multifile_style(file, @config,
-                    multifile: length(PostView.all_files(thread)) > 1
+                    multifile: PostView.media_multifile?(thread)
                   ) do
               nil -> []
               style -> [style: style]
@@ -340,10 +340,25 @@
                 style={PostView.flag_style(@config)}
               />
             <% end %>
-            <time datetime={PostView.iso_timestamp(thread)}><%= PostView.formatted_timestamp(thread) %></time>
+            <time datetime={PostView.iso_timestamp(thread)}>
+              <%= PostView.formatted_timestamp(thread) %>
+            </time>
           </label>
           &nbsp;
-          <a class="post_no" id={"post_no_#{thread.id}"} onclick={"highlightReply(#{thread.id})"} href={PostView.thread_path(@board, thread, @config) <> "##{thread.id}"}>No.</a><a class="post_no" onclick={"citeReply(#{thread.id})"} href={PostView.reply_path(@board, thread, thread, @config, :quote)} data-quote-to={thread.id} data-quick-reply-thread={thread.id}><%= thread.id %></a>
+          <a
+            class="post_no"
+            id={"post_no_#{thread.id}"}
+            onclick={"highlightReply(#{thread.id})"}
+            href={PostView.thread_path(@board, thread, @config) <> "##{thread.id}"}
+          >
+            No.
+          </a><a
+            class="post_no"
+            onclick={"citeReply(#{thread.id})"}
+            href={PostView.reply_path(@board, thread, thread, @config, :quote)}
+            data-quote-to={thread.id}
+            data-quick-reply-thread={thread.id}
+          ><%= thread.id %></a>
           <%= for icon <- PostView.state_icons(thread, @config) do %>
             <img class="icon" title={icon.title} src={icon.path} alt={icon.title} />
           <% end %>
@@ -352,9 +367,16 @@
           <span :if={thread.cycle} style="display:none">[Cyclical]</span>
           <span :if={thread.sage} style="display:none">[Bumplocked]</span>
           <a href={PostView.thread_path(@board, thread, @config)}>[Reply]</a>
-          <%= raw(PostView.post_controls_html(thread, @board, @current_moderator, @secure_manage_token)) %>
+          <%= raw(
+            PostView.post_controls_html(thread, @board, @current_moderator, @secure_manage_token)
+          ) %>
         </p>
-        <div class="body"><%= raw(PostView.body_html(thread, @board, thread, @config)) %><span :if={@config.fileboard && PostView.show_fileboard_summary?(thread)} style="display:none">Fileboard: <%= PostView.fileboard_summary(thread) %></span></div>
+        <div class="body">
+          <%= raw(PostView.body_html(thread, @board, thread, @config)) %><span
+            :if={@config.fileboard && PostView.show_fileboard_summary?(thread)}
+            style="display:none"
+          >Fileboard: <%= PostView.fileboard_summary(thread) %></span>
+        </div>
         <span :if={PostView.omitted_text(summary)} class="omitted">
           <%= PostView.omitted_text(summary) %>
         </span>
@@ -373,8 +395,8 @@
               <span :if={reply.subject} class="subject"><%= reply.subject %></span>
               <span class="name"><%= PostView.display_name(reply, @config) %></span>
               <span :if={reply.tripcode} class="trip"><%= reply.tripcode %></span>
-            <%= raw(PostView.ip_link_html(reply, @board, @current_moderator)) %>
-            <%= for flag <- PostView.post_flags(reply, @config) do %>
+              <%= raw(PostView.ip_link_html(reply, @board, @current_moderator)) %>
+              <%= for flag <- PostView.post_flags(reply, @config) do %>
                 <img
                   class="flag"
                   src={flag.src}
@@ -382,22 +404,36 @@
                   title={flag.alt}
                   style={PostView.flag_style(@config)}
                 />
-            <% end %>
-              <time datetime={PostView.iso_timestamp(reply)}><%= PostView.formatted_timestamp(reply) %></time>
+              <% end %>
+              <time datetime={PostView.iso_timestamp(reply)}>
+                <%= PostView.formatted_timestamp(reply) %>
+              </time>
             </label>
             &nbsp;
-            <a class="post_no" id={"post_no_#{reply.id}"} onclick={"highlightReply(#{reply.id})"} href={PostView.thread_path(@board, thread, @config) <> "##{reply.id}"}>No.</a><a class="post_no" onclick={"citeReply(#{reply.id})"} href={PostView.reply_path(@board, thread, reply, @config, :quote)} data-quote-to={reply.id}><%= reply.id %></a>
+            <a
+              class="post_no"
+              id={"post_no_#{reply.id}"}
+              onclick={"highlightReply(#{reply.id})"}
+              href={PostView.thread_path(@board, thread, @config) <> "##{reply.id}"}
+            >
+              No.
+            </a><a
+              class="post_no"
+              onclick={"citeReply(#{reply.id})"}
+              href={PostView.reply_path(@board, thread, reply, @config, :quote)}
+              data-quote-to={reply.id}
+            ><%= reply.id %></a>
           </p>
           <div class="files">
-            <%= if PostView.has_embed?(reply) do %>
-              <%= raw(PostView.embed_html(reply, @config)) %>
-            <% end %>
-            <%= if !PostView.has_embed?(reply) do %>
-              <%= for file <- PostView.all_files(reply) do %>
+            <%= for media <- PostView.media_entries(reply, @config) do %>
+              <%= if PostView.embed_entry?(media) do %>
+                <%= raw(media.embed_html) %>
+              <% else %>
+                <% file = media %>
                 <div
                   class={PostView.file_class(reply)}
                   {case PostView.multifile_style(file, @config,
-                        multifile: length(PostView.all_files(reply)) > 1
+                        multifile: PostView.media_multifile?(reply)
                       ) do
                   nil -> []
                   style -> [style: style]
@@ -428,8 +464,17 @@
               <% end %>
             <% end %>
           </div>
-          <%= raw(PostView.post_controls_html(reply, @board, @current_moderator, @secure_manage_token)) %>
-          <div class="body" {case PostView.reply_body_style(reply) do nil -> []; style -> [style: style] end}><%= raw(PostView.body_html(reply, @board, thread, @config)) %></div></div><br />
+          <%= raw(
+            PostView.post_controls_html(reply, @board, @current_moderator, @secure_manage_token)
+          ) %>
+          <div
+            class="body"
+            {case PostView.reply_body_style(reply) do nil -> []; style -> [style: style] end}
+          >
+            <%= raw(PostView.body_html(reply, @board, thread, @config)) %>
+          </div>
+        </div>
+        <br />
       <% end %>
 
       <br class="clear" />
