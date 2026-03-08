@@ -54,3 +54,9 @@ body {
 #server-error {
   display: none !important;
 }
+
+#thread-links a,
+#thread-links a:visited,
+#thread-links a:hover {
+  text-decoration: none;
+}
