@@ -1,5 +1,7 @@
 ;(function () {
-  if (!window.Phoenix || !window.Phoenix.LiveView) return;
+  if (!window.Phoenix || !window.Phoenix.Socket || !window.LiveView || !window.LiveView.LiveSocket) {
+    return;
+  }
 
   var tokenMeta = document.querySelector("meta[name='csrf-token']");
   if (!tokenMeta) return;
@@ -50,7 +52,7 @@
     }
   };
 
-  var liveSocket = new window.Phoenix.LiveView.LiveSocket("/live", window.Phoenix.Socket, {
+  var liveSocket = new window.LiveView.LiveSocket("/live", window.Phoenix.Socket, {
     params: {_csrf_token: tokenMeta.getAttribute("content")},
     hooks: Hooks
   });
