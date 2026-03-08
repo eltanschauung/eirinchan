@@ -904,6 +904,137 @@ defmodule EirinchanWeb.ManagePageController do
     end
   end
 
+  def ban_post(conn, %{"uri" => uri, "post_id" => post_id} = params) do
+    with {:ok, moderator} <- ensure_moderator(conn),
+         {:ok, board} <- load_accessible_board(moderator, uri),
+         {:ok, post} <- Eirinchan.Posts.get_post(board, post_id) do
+      render(conn, :ban_post,
+        moderator: moderator,
+        board: board,
+        post: post,
+        error: nil,
+        params: %{
+          "reason" => Map.get(params, "reason", ""),
+          "expires_at" => Map.get(params, "expires_at", ""),
+          "delete_post" => Map.get(params, "delete", "0")
+        }
+      )
+    else
+      {:error, :unauthorized} -> redirect(conn, to: ~p"/manage/login")
+      {:error, :forbidden} -> render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
+      {:error, :not_found} -> render_dashboard_error(conn, "Post not found.", %{}, :not_found)
+    end
+  end
+
+  def create_post_ban(conn, %{"uri" => uri, "post_id" => post_id} = params) do
+    with {:ok, moderator} <- ensure_moderator(conn),
+         {:ok, board} <- load_accessible_board(moderator, uri),
+         {:ok, post} <- Eirinchan.Posts.get_post(board, post_id),
+         {:ok, _ban} <-
+           Bans.create_ban(%{
+             board_id: board.id,
+             mod_user_id: moderator.id,
+             ip_subnet: post.ip_subnet,
+             reason: params["reason"],
+             expires_at: blank_to_nil(params["expires_at"]),
+             active: true
+           }),
+         {:ok, _deleted} <- maybe_moderator_delete_post(board, post, params, conn.host) do
+      conn
+      |> put_flash(:info, "Ban created.")
+      |> redirect(to: moderation_return_path(board, post))
+    else
+      {:error, :unauthorized} -> redirect(conn, to: ~p"/manage/login")
+      {:error, :forbidden} -> render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
+      {:error, :not_found} -> render_dashboard_error(conn, "Post not found.", %{}, :not_found)
+      {:error, %Ecto.Changeset{} = changeset} ->
+        render_ban_post_error(conn, uri, post_id, format_changeset(changeset), params)
+    end
+  end
+
+  def edit_post(conn, %{"uri" => uri, "post_id" => post_id}) do
+    with {:ok, moderator} <- ensure_moderator(conn),
+         {:ok, board} <- load_accessible_board(moderator, uri),
+         true <- moderator.role == "admin",
+         {:ok, post} <- Eirinchan.Posts.get_post(board, post_id) do
+      render(conn, :edit_post,
+        moderator: moderator,
+        board: board,
+        post: post,
+        error: nil
+      )
+    else
+      {:error, :unauthorized} -> redirect(conn, to: ~p"/manage/login")
+      false -> render_dashboard_error(conn, "Administrator access required.", %{}, :forbidden)
+      {:error, :forbidden} -> render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
+      {:error, :not_found} -> render_dashboard_error(conn, "Post not found.", %{}, :not_found)
+    end
+  end
+
+  def update_post_browser(conn, %{"uri" => uri, "post_id" => post_id} = params) do
+    with {:ok, moderator} <- ensure_moderator(conn),
+         {:ok, board} <- load_accessible_board(moderator, uri),
+         true <- moderator.role == "admin",
+         {:ok, post} <-
+           Eirinchan.Posts.update_post(
+             board,
+             post_id,
+             Map.take(params, ["name", "email", "subject", "body"]),
+             config: effective_board_config(board, conn.host)
+           ) do
+      conn
+      |> put_flash(:info, "Post updated.")
+      |> redirect(to: moderation_return_path(board, post))
+    else
+      {:error, :unauthorized} -> redirect(conn, to: ~p"/manage/login")
+      false -> render_dashboard_error(conn, "Administrator access required.", %{}, :forbidden)
+      {:error, :forbidden} -> render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
+      {:error, :not_found} -> render_dashboard_error(conn, "Post not found.", %{}, :not_found)
+      {:error, %Ecto.Changeset{} = changeset} ->
+        render_edit_post_error(conn, uri, post_id, format_changeset(changeset), params)
+    end
+  end
+
+  def move_thread_form(conn, %{"uri" => uri, "thread_id" => thread_id}) do
+    with {:ok, moderator} <- ensure_moderator(conn),
+         {:ok, board} <- load_accessible_board(moderator, uri),
+         {:ok, thread} <- Eirinchan.Posts.get_post(board, thread_id),
+         true <- is_nil(thread.thread_id) do
+      render(conn, :move_thread,
+        moderator: moderator,
+        board: board,
+        thread: thread,
+        boards: Moderation.list_accessible_boards(moderator),
+        error: nil
+      )
+    else
+      {:error, :unauthorized} -> redirect(conn, to: ~p"/manage/login")
+      {:error, :forbidden} -> render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
+      false -> render_dashboard_error(conn, "Thread not found.", %{}, :not_found)
+      {:error, :not_found} -> render_dashboard_error(conn, "Thread not found.", %{}, :not_found)
+    end
+  end
+
+  def move_reply_form(conn, %{"uri" => uri, "post_id" => post_id}) do
+    with {:ok, moderator} <- ensure_moderator(conn),
+         {:ok, board} <- load_accessible_board(moderator, uri),
+         {:ok, post} <- Eirinchan.Posts.get_post(board, post_id),
+         false <- is_nil(post.thread_id) do
+      render(conn, :move_reply,
+        moderator: moderator,
+        board: board,
+        post: post,
+        boards: Moderation.list_accessible_boards(moderator),
+        error: nil
+      )
+    else
+      {:error, :unauthorized} -> redirect(conn, to: ~p"/manage/login")
+      {:error, :forbidden} -> render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
+      true -> render_dashboard_error(conn, "Reply not found.", %{}, :not_found)
+      {:error, :not_found} -> render_dashboard_error(conn, "Reply not found.", %{}, :not_found)
+    end
+  end
+
   def move_thread(conn, %{
         "uri" => uri,
         "thread_id" => thread_id,
@@ -1418,5 +1549,59 @@ defmodule EirinchanWeb.ManagePageController do
       {:error, %Jason.DecodeError{}} -> {:error, :invalid_json}
       false -> {:error, :invalid_json}
     end
+  end
+
+  defp maybe_moderator_delete_post(board, post, params, host) do
+    if Map.get(params, "delete_post") in ["1", "true", "on"] do
+      Eirinchan.Posts.moderate_delete_post(board, post.id, config: effective_board_config(board, host))
+    else
+      {:ok, post}
+    end
+  end
+
+  defp moderation_return_path(board, post) do
+    if is_nil(post.thread_id) do
+      "/#{board.uri}/res/#{post.id}.html"
+    else
+      "/#{board.uri}/res/#{post.thread_id}.html##{post.id}"
+    end
+  end
+
+  defp blank_to_nil(nil), do: nil
+  defp blank_to_nil(value) when is_binary(value) and value == "", do: nil
+  defp blank_to_nil(value), do: value
+
+  defp render_ban_post_error(conn, uri, post_id, message, params, status \\ :unprocessable_entity) do
+    board = Boards.get_board_by_uri(uri)
+    {:ok, post} = Eirinchan.Posts.get_post(board, post_id)
+
+    conn
+    |> put_status(status)
+    |> render(:ban_post,
+      moderator: conn.assigns[:current_moderator],
+      board: board,
+      post: post,
+      error: message,
+      params: %{
+        "reason" => Map.get(params, "reason", ""),
+        "expires_at" => Map.get(params, "expires_at", ""),
+        "delete_post" => Map.get(params, "delete_post", Map.get(params, "delete", "0"))
+      }
+    )
+  end
+
+  defp render_edit_post_error(conn, uri, post_id, message, params, status \\ :unprocessable_entity) do
+    board = Boards.get_board_by_uri(uri)
+    {:ok, post} = Eirinchan.Posts.get_post(board, post_id)
+    post = %{post | name: Map.get(params, "name", post.name), email: Map.get(params, "email", post.email), subject: Map.get(params, "subject", post.subject), body: Map.get(params, "body", post.body)}
+
+    conn
+    |> put_status(status)
+    |> render(:edit_post,
+      moderator: conn.assigns[:current_moderator],
+      board: board,
+      post: post,
+      error: message
+    )
   end
 end

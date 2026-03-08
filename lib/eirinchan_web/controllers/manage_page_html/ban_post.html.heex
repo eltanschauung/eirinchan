@@ -1,0 +1,40 @@
+<.flash_group flash={@flash} />
+<section>
+  <h1>Ban post #<%= @post.id %> on /<%= @board.uri %>/</h1>
+  <p><a href={~p"/manage"}>Back to Manage</a></p>
+  <p :if={@error} class="error"><%= @error %></p>
+</section>
+
+<section>
+  <p>IP: <%= @post.ip_subnet || "unknown" %></p>
+  <p :if={@post.body}>Post body: <%= @post.body %></p>
+
+  <form action={"/manage/boards/#{@board.uri}/posts/#{@post.id}/ban/browser"} method="post">
+    <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+    <table class="mod-form-table">
+      <tr>
+        <th>Reason</th>
+        <td><input type="text" name="reason" value={@params["reason"]} /></td>
+      </tr>
+      <tr>
+        <th>Expires At</th>
+        <td><input type="text" name="expires_at" value={@params["expires_at"]} /></td>
+      </tr>
+      <tr>
+        <th>Delete Post</th>
+        <td>
+          <input
+            type="checkbox"
+            name="delete_post"
+            value="1"
+            checked={@params["delete_post"] in ["1", "true", "on"]}
+          />
+        </td>
+      </tr>
+      <tr>
+        <td></td>
+        <td><input type="submit" value="Create Ban" /></td>
+      </tr>
+    </table>
+  </form>
+</section>

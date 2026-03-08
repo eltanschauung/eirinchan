@@ -291,6 +291,26 @@ defmodule EirinchanWeb.ThreadControllerTest do
     assert page =~ thread.tripcode
   end
 
+  test "thread pages show moderator controls and ip links for admins", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+    board = board_fixture()
+    thread = thread_fixture(board, %{ip_subnet: "198.51.100.7"})
+    _reply = reply_fixture(board, thread, %{ip_subnet: "198.51.100.7"})
+
+    page =
+      conn
+      |> login_moderator(moderator)
+      |> get("/#{board.uri}/res/#{thread.id}.html")
+      |> html_response(200)
+
+    assert page =~ ~s(class="controls op")
+    assert page =~ ~s(href="/mod.php?/IP/198.51.100.7")
+    assert page =~ "[D]"
+    assert page =~ "[Sticky]"
+    assert page =~ "[Lock]"
+    assert page =~ "[Edit]"
+  end
+
   test "thread page renders quote links and reply form hooks for cite insertion", %{conn: conn} do
     board = board_fixture()
     thread = thread_fixture(board, %{body: "Thread body"})

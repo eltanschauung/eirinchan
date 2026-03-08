@@ -297,6 +297,7 @@
           <span :if={post.subject} class="subject"><%= post.subject %></span>
           <span class="name"><%= PostView.display_name(post, @config) %></span>
           <span :if={post.tripcode} class="trip"><%= post.tripcode %></span>
+          <%= raw(PostView.ip_link_html(post, @board, @current_moderator)) %>
           <%= for flag <- PostView.post_flags(post, @config) do %>
             <img
               class="flag"
@@ -313,6 +314,7 @@
         <%= for icon <- PostView.state_icons(post, @config) do %>
           <img class="icon" title={icon.title} src={icon.path} alt={icon.title} />
         <% end %>
+        <%= raw(PostView.post_controls_html(post, @board, @current_moderator, @secure_manage_token)) %>
         </p>
 
         <div class="body"><%= raw(PostView.body_html(post, @board, post, @config)) %><span :if={post.tag} class="tag-line">Tag: <%= if is_map(@config.allowed_tags), do: Map.get(@config.allowed_tags, post.tag, post.tag), else: post.tag %></span><span :if={@config.fileboard && PostView.show_fileboard_summary?(post)} class="tag-line">Fileboard: <%= PostView.fileboard_summary(post) %></span></div>
@@ -332,6 +334,7 @@
             <span :if={reply.subject} class="subject"><%= reply.subject %></span>
             <span class="name"><%= PostView.display_name(reply, @config) %></span>
             <span :if={reply.tripcode} class="trip"><%= reply.tripcode %></span>
+            <%= raw(PostView.ip_link_html(reply, @board, @current_moderator)) %>
             <%= for flag <- PostView.post_flags(reply, @config) do %>
               <img
                 class="flag"
@@ -388,6 +391,7 @@
           <% end %>
         </div>
 
+        <%= raw(PostView.post_controls_html(reply, @board, @current_moderator, @secure_manage_token)) %>
         <div class="body" {case PostView.reply_body_style(reply) do nil -> []; style -> [style: style] end}><%= raw(PostView.body_html(reply, @board, post, @config)) %><span :if={reply.tag} class="tag-line">Tag: <%= if is_map(@config.allowed_tags), do: Map.get(@config.allowed_tags, reply.tag, reply.tag), else: reply.tag %></span><span :if={@config.fileboard && PostView.show_fileboard_summary?(reply)} class="tag-line">Fileboard: <%= PostView.fileboard_summary(reply) %></span></div>
       </div>
       <br />

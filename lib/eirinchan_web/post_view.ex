@@ -4,9 +4,11 @@ defmodule EirinchanWeb.PostView do
   import Phoenix.HTML, only: [html_escape: 1, safe_to_string: 1]
 
   alias Eirinchan.Boardlist
+  alias Eirinchan.Moderation
   alias Eirinchan.Posts.PostFile
   alias Eirinchan.Themes
   alias Eirinchan.ThreadPaths
+  alias EirinchanWeb.{IpPresentation, ManageSecurity}
 
   def template_assigns(board, post, config) do
     %{
@@ -204,6 +206,44 @@ defmodule EirinchanWeb.PostView do
     do: value |> DateTime.from_naive!("Etc/UTC") |> DateTime.to_unix()
 
   def unix_timestamp(_value), do: 0
+
+  def ip_link_html(post, board, moderator) do
+    if can_moderate?(moderator, board, :show_ip) and present?(post.ip_subnet) do
+      ip = IpPresentation.display_ip(post.ip_subnet, moderator)
+      ~s( [<a class="ip-link" style="margin:0;" href="/mod.php?/IP/#{html_escape_to_string(ip)}">#{html_escape_to_string(ip)}</a>])
+    else
+      nil
+    end
+  end
+
+  def post_controls_html(post, board, moderator, session_token) do
+    if can_render_controls?(moderator, board) do
+      links =
+        []
+        |> maybe_add_control(can_moderate?(moderator, board, :delete), confirm_control(post, board, session_token, :delete))
+        |> maybe_add_control(can_moderate?(moderator, board, :deletebyip), confirm_control(post, board, session_token, :deletebyip))
+        |> maybe_add_control(can_moderate?(moderator, board, :deletebyip_global), confirm_control(post, board, session_token, :deletebyip_global))
+        |> maybe_add_control(can_moderate?(moderator, board, :ban), plain_control(post, board, :ban))
+        |> maybe_add_control(can_moderate?(moderator, board, :bandelete), plain_control(post, board, :bandelete))
+        |> maybe_add_control(thread_op?(post) and can_moderate?(moderator, board, :sticky), toggle_control(post, board, session_token, :sticky))
+        |> maybe_add_control(thread_op?(post) and can_moderate?(moderator, board, :bumplock), toggle_control(post, board, session_token, :bumplock))
+        |> maybe_add_control(thread_op?(post) and can_moderate?(moderator, board, :lock), toggle_control(post, board, session_token, :lock))
+        |> maybe_add_control(can_moderate?(moderator, board, :move), plain_control(post, board, :move))
+        |> maybe_add_control(thread_op?(post) and can_moderate?(moderator, board, :cycle), toggle_control(post, board, session_token, :cycle))
+        |> maybe_add_control(can_moderate?(moderator, board, :editpost), plain_control(post, board, :editpost))
+
+      case links do
+        [] ->
+          nil
+
+        entries ->
+          class_name = if thread_op?(post), do: "controls op", else: "controls"
+          ~s(<span class="#{class_name}">#{Enum.join(entries, "&nbsp;")}</span>)
+      end
+    else
+      nil
+    end
+  end
 
   def file_size_text(file), do: human_file_size(Map.get(file, :file_size))
   def file_dimensions(file), do: dimensions(file)
@@ -415,6 +455,130 @@ defmodule EirinchanWeb.PostView do
   defp extra_files(%{extra_files: %Ecto.Association.NotLoaded{}}), do: []
   defp extra_files(%{extra_files: files}) when is_list(files), do: files
   defp extra_files(_post), do: []
+
+  defp can_render_controls?(nil, _board), do: false
+  defp can_render_controls?(_moderator, nil), do: false
+  defp can_render_controls?(moderator, board), do: Moderation.board_access?(moderator, board)
+
+  defp can_moderate?(nil, _board, _permission), do: false
+  defp can_moderate?(_moderator, board, _permission) when is_nil(board), do: false
+
+  defp can_moderate?(moderator, board, permission) do
+    Moderation.board_access?(moderator, board) and role_level(moderator.role) >= permission_level(permission)
+  end
+
+  defp role_level("admin"), do: 30
+  defp role_level("mod"), do: 20
+  defp role_level("janitor"), do: 10
+  defp role_level(_), do: 0
+
+  defp permission_level(:show_ip), do: 20
+  defp permission_level(:delete), do: 10
+  defp permission_level(:ban), do: 20
+  defp permission_level(:bandelete), do: 20
+  defp permission_level(:deletebyip), do: 20
+  defp permission_level(:deletebyip_global), do: 30
+  defp permission_level(:sticky), do: 20
+  defp permission_level(:cycle), do: 20
+  defp permission_level(:lock), do: 20
+  defp permission_level(:bumplock), do: 20
+  defp permission_level(:editpost), do: 30
+  defp permission_level(:move), do: 20
+
+  defp confirm_control(post, board, session_token, action) do
+    %{href: href, secure: secure_href, title: title, label: label, confirm: message} =
+      control_metadata(post, board, session_token, action)
+
+    ~s|<a onclick="if (event.which==2) return true;if (confirm('#{js_escape(message)}')) document.location='#{html_escape_to_string(secure_href)}';return false;" title="#{html_escape_to_string(title)}" href="#{html_escape_to_string(href)}">#{label}</a>|
+  end
+
+  defp plain_control(post, board, action) do
+    %{href: href, title: title, label: label} = control_metadata(post, board, nil, action)
+    ~s(<a title="#{html_escape_to_string(title)}" href="#{html_escape_to_string(href)}">#{label}</a>)
+  end
+
+  defp toggle_control(post, board, session_token, action), do: confirm_control(post, board, session_token, action)
+
+  defp control_metadata(post, board, session_token, action) do
+    action_path =
+      case action do
+        :delete -> "#{board.uri}/delete/#{post.id}"
+        :deletebyip -> "#{board.uri}/deletebyip/#{post.id}"
+        :deletebyip_global -> "#{board.uri}/deletebyip/#{post.id}/global"
+        :ban -> "#{board.uri}/ban/#{post.id}"
+        :bandelete -> "#{board.uri}/ban&delete/#{post.id}"
+        :sticky -> "#{board.uri}/#{if post.sticky, do: "unsticky", else: "sticky"}/#{post.id}"
+        :bumplock -> "#{board.uri}/#{if post.sage, do: "bumpunlock", else: "bumplock"}/#{post.id}"
+        :lock -> "#{board.uri}/#{if post.locked, do: "unlock", else: "lock"}/#{post.id}"
+        :move -> "#{board.uri}/#{if thread_op?(post), do: "move", else: "move_reply"}/#{post.id}"
+        :cycle -> "#{board.uri}/#{if post.cycle, do: "uncycle", else: "cycle"}/#{post.id}"
+        :editpost -> "#{board.uri}/edit/#{post.id}"
+      end
+
+    href = "/mod.php?/" <> action_path
+    secure_href =
+      case action do
+        act when act in [:delete, :deletebyip, :deletebyip_global, :sticky, :bumplock, :lock, :cycle] ->
+          token = ManageSecurity.sign_action(session_token, action_path)
+          href <> "/#{token}"
+
+        _ ->
+          href
+      end
+
+    %{
+      href: href,
+      secure: secure_href,
+      title: control_title(post, action),
+      label: control_label(post, action),
+      confirm: control_confirm(action)
+    }
+  end
+
+  defp control_title(_post, :delete), do: "Delete"
+  defp control_title(_post, :deletebyip), do: "Delete all posts by IP"
+  defp control_title(_post, :deletebyip_global), do: "Delete all posts by IP across all boards"
+  defp control_title(_post, :ban), do: "Ban"
+  defp control_title(_post, :bandelete), do: "Ban & Delete"
+  defp control_title(post, :sticky), do: if(post.sticky, do: "Make thread not sticky", else: "Make thread sticky")
+  defp control_title(post, :bumplock), do: if(post.sage, do: "Allow thread to be bumped", else: "Prevent thread from being bumped")
+  defp control_title(post, :lock), do: if(post.locked, do: "Unlock thread", else: "Lock thread")
+  defp control_title(post, :move), do: if(thread_op?(post), do: "Move thread to another board", else: "Move reply to another board")
+  defp control_title(post, :cycle), do: if(post.cycle, do: "Make thread not cycle", else: "Make thread cycle")
+  defp control_title(_post, :editpost), do: "Edit post"
+
+  defp control_label(_post, :delete), do: "[D]"
+  defp control_label(_post, :deletebyip), do: "[D+]"
+  defp control_label(_post, :deletebyip_global), do: "[D++]"
+  defp control_label(_post, :ban), do: "[B]"
+  defp control_label(_post, :bandelete), do: "[B&D]"
+  defp control_label(post, :sticky), do: if(post.sticky, do: "[-Sticky]", else: "[Sticky]")
+  defp control_label(post, :bumplock), do: if(post.sage, do: "[-Sage]", else: "[Sage]")
+  defp control_label(post, :lock), do: if(post.locked, do: "[-Lock]", else: "[Lock]")
+  defp control_label(_post, :move), do: "[Move]"
+  defp control_label(post, :cycle), do: if(post.cycle, do: "[-Cycle]", else: "[Cycle]")
+  defp control_label(_post, :editpost), do: "[Edit]"
+
+  defp control_confirm(:delete), do: "Are you sure you want to delete this?"
+  defp control_confirm(:deletebyip), do: "Are you sure you want to delete all posts by this IP address?"
+  defp control_confirm(:deletebyip_global), do: "Are you sure you want to delete all posts by this IP address, across all boards?"
+  defp control_confirm(:sticky), do: "Are you sure you want to change sticky state for this thread?"
+  defp control_confirm(:bumplock), do: "Are you sure you want to change bump lock state for this thread?"
+  defp control_confirm(:lock), do: "Are you sure you want to change lock state for this thread?"
+  defp control_confirm(:cycle), do: "Are you sure you want to change cycle state for this thread?"
+  defp control_confirm(_action), do: ""
+
+  defp maybe_add_control(list, true, html) when is_binary(html), do: list ++ [html]
+  defp maybe_add_control(list, _condition, _html), do: list
+
+  defp thread_op?(post), do: is_nil(post.thread_id)
+
+  defp js_escape(value) do
+    value
+    |> to_string()
+    |> String.replace("\\", "\\\\")
+    |> String.replace("'", "\\'")
+  end
 
   defp file_count(%{file_path: nil} = post), do: length(extra_files(post))
   defp file_count(post), do: 1 + length(extra_files(post))
