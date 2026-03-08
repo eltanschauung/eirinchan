@@ -83,8 +83,8 @@ minimum_copy_resize optimization parity: partial
 image redraw mode behavior parity: partial
 EXIF stripping behavior parity: partial
 EXIF orientation correction behavior parity: partial
-use_exiftool path behavior parity: partial
-strip_exif + orientation interaction parity: partial
+use_exiftool path behavior parity: skipped
+strip_exif + orientation interaction parity: skipped
 mime exploit detection rules parity: partial
 OCR pipeline integration (tesseract) parity: skipped
 ocr text appending into moderation/filter pipeline: skipped
@@ -254,7 +254,7 @@ stylesheet/theme chooser behavior parity: partial
 board/thread nav links parity (catalog, index, return links): partial
 
 [Infrastructure, Performance, and Operations]
-cache driver parity (php/apcu/memcached/redis/fs/none): partial
+cache driver parity (php/apcu/memcached/redis/fs/none): skipped
 lock/queue driver parity: partial
 resource versioning/cache-busting parity: partial
 auto maintenance task parity: partial

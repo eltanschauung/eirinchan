@@ -189,14 +189,6 @@ defmodule Eirinchan.Build do
     end)
   end
 
-  defp maybe_write_file(path, content, modified_at, %{cache: %{enabled: true}} = config) do
-    if fresh_output?(path, modified_at, config) do
-      :ok
-    else
-      write_file(path, content, config)
-    end
-  end
-
   defp maybe_write_file(path, content, _modified_at, config),
     do: write_file(path, content, config)
 
@@ -309,21 +301,6 @@ defmodule Eirinchan.Build do
         build_indexes(board, config: config, repo: repo)
     end
   end
-
-  defp fresh_output?(path, modified_at, %{cache: %{enabled: true, ttl_seconds: ttl}}) do
-    case File.stat(path, time: :posix) do
-      {:ok, stat} ->
-        file_time = DateTime.from_unix!(stat.mtime)
-        source_time = DateTime.truncate(modified_at, :second)
-        age_ok = ttl <= 0 or DateTime.diff(DateTime.utc_now(), file_time) <= ttl
-        DateTime.compare(file_time, source_time) != :lt and age_ok
-
-      _ ->
-        false
-    end
-  end
-
-  defp fresh_output?(_path, _modified_at, _config), do: false
 
   defp page_last_modified(%{threads: []}), do: DateTime.utc_now()
 

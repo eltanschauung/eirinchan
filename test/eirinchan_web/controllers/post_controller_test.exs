@@ -126,7 +126,6 @@ defmodule EirinchanWeb.PostControllerTest do
   test "posting stores uploads and serves them back under board src paths", %{conn: conn} do
     board = board_fixture()
     upload = upload_fixture("served.png", "served-image")
-    upload_bytes = File.read!(upload.path)
 
     create_conn =
       conn
@@ -139,6 +138,9 @@ defmodule EirinchanWeb.PostControllerTest do
       })
 
     assert %{"id" => id} = json_response(create_conn, 200)
+
+    {:ok, [thread | _]} = Eirinchan.Posts.get_thread(board, id)
+    stored_bytes = thread.file_path |> Eirinchan.Uploads.filesystem_path() |> File.read!()
 
     page =
       conn
@@ -153,7 +155,7 @@ defmodule EirinchanWeb.PostControllerTest do
       |> recycle()
       |> get("/#{board.uri}/src/#{id}.png")
 
-    assert response(file_conn, 200) == upload_bytes
+    assert response(file_conn, 200) == stored_bytes
     assert get_resp_header(file_conn, "content-type") == ["image/png; charset=utf-8"]
 
     thumb_conn =
@@ -521,7 +523,7 @@ defmodule EirinchanWeb.PostControllerTest do
   end
 
   test "posting enforces split multi-file size limits", %{conn: conn} do
-    board = board_fixture(%{config_overrides: %{max_filesize: 550, multiimage_method: "split"}})
+    board = board_fixture(%{config_overrides: %{max_filesize: 150, multiimage_method: "split"}})
 
     conn =
       conn

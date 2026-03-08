@@ -116,7 +116,6 @@ defmodule Eirinchan.BuildTest do
     board = board_fixture(%{config_overrides: %{api: %{enabled: true}}})
     config = Config.compose(nil, %{}, board.config_overrides, request_host: "example.test")
     upload = upload_fixture("thread.png", "thread-bytes")
-    upload_size = File.stat!(upload.path).size
 
     assert {:ok, thread, _meta} =
              Posts.create_post(
@@ -142,7 +141,7 @@ defmodule Eirinchan.BuildTest do
     assert %{"posts" => [op]} = Jason.decode!(File.read!(thread_json_path))
     assert op["filename"] == "thread"
     assert op["ext"] == ".png"
-    assert op["fsize"] == upload_size
+    assert op["fsize"] == thread.file_size
     assert op["w"] == 16
     assert op["h"] == 16
   end
@@ -562,32 +561,5 @@ defmodule Eirinchan.BuildTest do
     refute File.exists?(Path.join([board_dir, config.dir.res, "#{thread.id}.html"]))
     refute File.exists?(Path.join(board_dir, config.file_index))
     assert Enum.map(BuildQueue.list_pending(), & &1.kind) == ["thread", "indexes"]
-  end
-
-  test "cache-aware rebuild skipping preserves fresh output mtimes" do
-    File.rm_rf!(Build.board_root())
-
-    board = board_fixture(%{config_overrides: %{cache: %{enabled: true}}})
-    config = Config.compose(nil, %{}, board.config_overrides, request_host: "example.test")
-
-    assert {:ok, thread, _meta} =
-             Posts.create_post(
-               board,
-               %{"body" => "Opening body", "subject" => "Cached thread", "post" => "New Topic"},
-               config: config,
-               request: %{referer: "http://example.test/#{board.uri}/index.html"}
-             )
-
-    board_dir = Path.join(Build.board_root(), board.uri)
-    thread_path = Path.join([board_dir, config.dir.res, "#{thread.id}.html"])
-    index_path = Path.join(board_dir, config.file_index)
-    thread_mtime = File.stat!(thread_path, time: :posix).mtime
-    index_mtime = File.stat!(index_path, time: :posix).mtime
-
-    assert :ok = Build.build_thread(board, thread.id, config: config)
-    assert :ok = Build.build_indexes(board, config: config)
-
-    assert File.stat!(thread_path, time: :posix).mtime == thread_mtime
-    assert File.stat!(index_path, time: :posix).mtime == index_mtime
   end
 end

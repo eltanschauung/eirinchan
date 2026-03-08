@@ -14,7 +14,7 @@ defmodule Mix.Tasks.Eirinchan.Maintenance do
 
     case Maintenance.run(config) do
       {:ok, result} ->
-        Mix.shell().info("bans=#{result.bans} antispam=#{result.antispam} cache=#{result.cache}")
+        Mix.shell().info("bans=#{result.bans} antispam=#{result.antispam}")
 
       {:error, reason} ->
         Mix.raise("maintenance failed: #{inspect(reason)}")

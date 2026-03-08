@@ -11,6 +11,5 @@ defmodule Mix.Tasks.EirinchanMaintenanceTest do
 
     assert output =~ "bans="
     assert output =~ "antispam="
-    assert output =~ "cache="
   end
 end

@@ -86,6 +86,7 @@ defmodule Eirinchan.Posts do
            :ok <- validate_image_limit(board, thread, attrs, config, repo),
            :ok <- validate_duplicate_upload(board, thread, attrs, config, repo),
            {:ok, post} <- create_post_record(board, thread, attrs, repo, config, now) do
+        _ = maybe_prune_threads(board, config, repo)
         _ = Antispam.log_post(board, attrs, request, repo: repo)
         _ = Build.rebuild_after_post(board, post, config: config, repo: repo)
         {:ok, post, %{noko: noko}}
@@ -158,6 +159,74 @@ defmodule Eirinchan.Posts do
       _ -> {:error, :not_found}
     end
   end
+
+  defp maybe_prune_threads(board, config, repo) do
+    prune_overflow_threads(board, config, repo)
+    prune_early_404_threads(board, config, repo)
+    :ok
+  end
+
+  defp prune_overflow_threads(board, config, repo) do
+    max_threads = max(config.threads_per_page * config.max_pages, 0)
+
+    if max_threads > 0 do
+      repo.all(
+        from post in Post,
+          where: post.board_id == ^board.id and is_nil(post.thread_id),
+          order_by: [desc: post.sticky, desc: post.bump_at, desc: post.id],
+          offset: ^max_threads,
+          select: post.id
+      )
+      |> Enum.each(fn thread_id ->
+        _ = moderate_delete_post(board, thread_id, repo: repo, config: config)
+      end)
+    end
+  end
+
+  defp prune_early_404_threads(board, %{early_404: true} = config, repo) do
+    offset = round(config.early_404_page * config.threads_per_page)
+
+    if offset >= 0 do
+      reply_counts =
+        from(reply in Post,
+          where: not is_nil(reply.thread_id),
+          group_by: reply.thread_id,
+          select: %{thread_id: reply.thread_id, reply_count: count(reply.id)}
+        )
+
+      repo.all(
+        from thread in Post,
+          left_join: counts in subquery(reply_counts),
+          on: counts.thread_id == thread.id,
+          where: thread.board_id == ^board.id and is_nil(thread.thread_id),
+          order_by: [desc: thread.sticky, desc: thread.bump_at, desc: thread.id],
+          offset: ^offset,
+          select: %{thread_id: thread.id, reply_count: coalesce(counts.reply_count, 0)}
+      )
+      |> Enum.reduce(
+        if(config.early_404_staged, do: {config.early_404_page, 0}, else: {1, 0}),
+        fn row, {page, iter} ->
+          if row.reply_count < page * config.early_404_replies do
+            _ = moderate_delete_post(board, row.thread_id, repo: repo, config: config)
+          end
+
+          if config.early_404_staged do
+            next_iter = iter + 1
+
+            if next_iter == config.threads_per_page do
+              {page + 1, 0}
+            else
+              {page, next_iter}
+            end
+          else
+            {page, iter}
+          end
+        end
+      )
+    end
+  end
+
+  defp prune_early_404_threads(_board, _config, _repo), do: :ok
 
   @spec update_post(BoardRecord.t(), String.t() | integer(), map(), keyword()) ::
           {:ok, Post.t()} | {:error, :not_found | Ecto.Changeset.t() | :cite_insert_failed}
