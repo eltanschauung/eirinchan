@@ -304,6 +304,31 @@ defmodule EirinchanWeb.PostView do
     end
   end
 
+  def reply_html(post, board, thread, config, moderator \\ nil, session_token \\ nil) do
+    intro =
+      [
+        ~s(<a id="#{post.id}" class="post_anchor"></a>),
+        ~s(<input type="checkbox" class="delete" name="delete_#{post.id}" id="delete_#{post.id}" value="#{post.id}" data-post-select />),
+        ~s(<label for="delete_#{post.id}">),
+        if(present?(post.subject), do: ~s(<span class="subject">#{html_escape_to_string(post.subject)}</span>), else: ""),
+        name_html(post, config),
+        if(present?(post.tripcode), do: ~s(<span class="trip">#{html_escape_to_string(post.tripcode)}</span>), else: ""),
+        ip_link_html(post, board, moderator) || "",
+        post_flags_html(post, config),
+        time_html(post),
+        "</label>",
+        post_number_links_html(
+          post.id,
+          thread_path(board, thread, config) <> "##{post.id}",
+          reply_path(board, thread, post, config, :quote),
+          "data-quote-to": post.id
+        )
+      ]
+      |> Enum.join("")
+
+    ~s(<div class="post reply" id="reply_#{post.id}"><p class="intro">#{intro}</p><div class="files">#{files_html(post, config)}</div>#{post_controls_html(post, board, moderator, session_token) || ""}#{reply_body_container_html(post, board, thread, config)}</div><br class="clear" />)
+  end
+
   def file_size_text(file), do: human_file_size(Map.get(file, :file_size))
   def file_dimensions(file), do: dimensions(file)
   def file_class(post), do: if(media_count(post) > 1, do: "file multifile", else: "file")
@@ -336,6 +361,49 @@ defmodule EirinchanWeb.PostView do
       end)
 
     embed_entries ++ file_entries
+  end
+
+  defp files_html(post, config) do
+    Enum.map_join(media_entries(post, config), "", fn media ->
+      if embed_entry?(media) do
+        media.embed_html || ""
+      else
+        file = media
+        class_name = file_class(post)
+
+        style_attr =
+          case multifile_style(file, config, multifile: media_multifile?(post)) do
+            nil -> ""
+            style -> ~s( style="#{html_escape_to_string(style)}")
+          end
+
+        thumb_style_attr =
+          case thumb_style(file, config) do
+            nil -> ""
+            style -> ~s( style="#{html_escape_to_string(style)}")
+          end
+
+        dimensions =
+          case file_dimensions(file) do
+            nil -> ""
+            value -> ", " <> value
+          end
+
+        ~s|<div class="#{class_name}"#{style_attr}><p class="fileinfo">File: <a href="#{html_escape_to_string(file.file_path)}">#{html_escape_to_string(stored_file_name(file))}</a><span>(#{html_escape_to_string(file_size_text(file))}#{dimensions}, <span class="postfilename" title="#{html_escape_to_string(original_file_name(file))}">#{html_escape_to_string(display_file_name(file, config))}</span>)</span></p><a href="#{html_escape_to_string(file.file_path)}"><img class="post-image" src="#{html_escape_to_string(file.thumb_path || file.file_path)}"#{thumb_style_attr} alt="" /></a></div>|
+      end
+    end)
+  end
+
+  defp post_flags_html(post, config) do
+    Enum.map_join(post_flags(post, config), "", fn flag ->
+      style_attr =
+        case flag_style(config) do
+          nil -> ""
+          value -> ~s( style="#{html_escape_to_string(value)}")
+        end
+
+      ~s(<img class="flag" src="#{html_escape_to_string(flag.src)}" alt="#{html_escape_to_string(flag.alt)}" title="#{html_escape_to_string(flag.alt)}"#{style_attr} />)
+    end)
   end
 
   def embed_entry?(%{kind: :embed}), do: true

@@ -8,6 +8,7 @@ defmodule EirinchanWeb.PostController do
   alias Eirinchan.Posts
   alias Eirinchan.Reports
   alias Eirinchan.ThreadPaths
+  alias EirinchanWeb.PostView
   alias EirinchanWeb.RequestMeta
 
   plug EirinchanWeb.Plugs.LoadBoard
@@ -127,12 +128,38 @@ defmodule EirinchanWeb.PostController do
       end
 
     if params["json_response"] == "1" do
-      json(conn, %{
+      payload = %{
         id: post.id,
         thread_id: thread_id,
         redirect: redirect_path,
         noko: meta.noko
-      })
+      }
+
+      payload =
+        if post.thread_id do
+          case Posts.get_thread(board, thread_id) do
+            {:ok, [thread | _]} ->
+              Map.put(
+                payload,
+                :html,
+                PostView.reply_html(
+                  post,
+                  board,
+                  thread,
+                  config,
+                  conn.assigns[:current_moderator],
+                  conn.assigns[:secure_manage_token]
+                )
+              )
+
+            _ ->
+              payload
+          end
+        else
+          payload
+        end
+
+      json(conn, payload)
     else
       redirect(conn, to: redirect_path)
     end
