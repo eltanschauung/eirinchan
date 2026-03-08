@@ -343,7 +343,7 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     assert page =~ "Space"
   end
 
-  test "board page renders freeform user flag textarea when multiple_flags is enabled", %{conn: conn} do
+  test "board page renders freeform user flag input when multiple_flags is enabled", %{conn: conn} do
     board =
       board_fixture(%{
         config_overrides: %{
@@ -361,7 +361,7 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
 
     document = Floki.parse_document!(page)
 
-    assert Floki.find(document, ~s(textarea[name="user_flag"])) != []
+    assert Floki.find(document, ~s(input[name="user_flag"][type="text"])) != []
     assert page =~ "country,sau"
     assert Floki.find(document, ~s(select[name="user_flag"])) == []
   end

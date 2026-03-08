@@ -150,14 +150,14 @@
     <tr :if={@config.user_flag}>
       <th>Flag</th>
       <td>
-        <textarea
+        <input
           :if={@config.multiple_flags}
+          type="text"
           name="user_flag"
           id="user_flag"
-          rows="2"
-          cols="24"
           autocomplete="off"
-        ><%= @config.default_user_flag %></textarea>
+          value={@config.default_user_flag}
+        />
         <select :if={!@config.multiple_flags} name="user_flag" id="user_flag">
           <option value="">None</option>
           <%= for {flag, text} <- @config.user_flags do %>
