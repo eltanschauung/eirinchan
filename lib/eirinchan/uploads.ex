@@ -21,18 +21,19 @@ defmodule Eirinchan.Uploads do
       file_type = detect_mime_type(upload.path, normalized_name)
       image_metadata = maybe_image_metadata(upload.path, file_type)
 
-      {:ok,
-       %{
-         binary: binary,
-         ext: ext,
-         file_name: normalized_filename(normalized_name, config),
-         file_size: byte_size(binary),
-         file_type: file_type,
-         file_md5: :crypto.hash(:md5, binary) |> Base.encode64(),
-         image_width: image_metadata.width,
-         image_height: image_metadata.height,
-         spoiler: false
-       }}
+      metadata = %{
+        binary: binary,
+        ext: ext,
+        file_name: normalized_filename(normalized_name, config),
+        file_size: byte_size(binary),
+        file_type: file_type,
+        file_md5: :crypto.hash(:md5, binary) |> Base.encode64(),
+        image_width: image_metadata.width,
+        image_height: image_metadata.height,
+        spoiler: false
+      }
+
+      normalized_upload_metadata(upload.path, metadata)
     else
       {:error, _reason} -> {:error, :upload_failed}
     end
@@ -355,55 +356,33 @@ defmodule Eirinchan.Uploads do
     end)
   end
 
-  defp normalize_stored_upload(path, config, metadata) do
-    cond do
-      not image?(metadata) ->
-        :ok
-
-      config.redraw_image ->
-        redraw_stored_image(path, config)
-
-      config.strip_exif and config.use_exiftool and jpeg?(metadata) ->
-        with :ok <- maybe_auto_orient_without_redraw(path, config),
-             :ok <- strip_exif_with_exiftool(path) do
-          :ok
-        end
-
-      true ->
-        args = image_normalization_args(config, metadata)
-
-        if args == [] do
-          :ok
-        else
-          case System.cmd("mogrify", args ++ [path], stderr_to_stdout: true) do
-            {_output, 0} -> :ok
-            _ -> {:error, :upload_failed}
-          end
-        end
-    end
-  end
-
-  defp image_normalization_args(config, metadata) do
+  defp normalize_stored_upload(path, _config, metadata) do
     if image?(metadata) do
-      []
-      |> maybe_append_arg(config.auto_orient_images, "-auto-orient")
-      |> maybe_append_arg(config.strip_exif, "-strip")
-    else
-      []
-    end
-  end
-
-  defp maybe_append_arg(args, true, arg), do: args ++ [arg]
-  defp maybe_append_arg(args, _flag, _arg), do: args
-
-  defp maybe_auto_orient_without_redraw(path, config) do
-    if config.auto_orient_images do
-      case System.cmd("mogrify", ["-auto-orient", path], stderr_to_stdout: true) do
+      case System.cmd("mogrify", ["-auto-orient", "-strip", path], stderr_to_stdout: true) do
         {_output, 0} -> :ok
         _ -> {:error, :upload_failed}
       end
     else
       :ok
+    end
+  end
+
+  defp normalized_upload_metadata(path, metadata) do
+    if image?(metadata) do
+      temp_path = "#{path}.normalized"
+
+      with :ok <- File.cp(path, temp_path),
+           :ok <- normalize_stored_upload(temp_path, %{}, metadata),
+           {:ok, normalized} <- refresh_stored_metadata(temp_path, metadata) do
+        _ = File.rm(temp_path)
+        {:ok, normalized}
+      else
+        {:error, reason} ->
+          _ = File.rm(temp_path)
+          {:error, reason}
+      end
+    else
+      {:ok, metadata}
     end
   end
 
@@ -422,34 +401,6 @@ defmodule Eirinchan.Uploads do
        |> Map.put(:image_height, image_metadata.height)}
     else
       {:error, _reason} -> {:error, :upload_failed}
-    end
-  end
-
-  defp redraw_stored_image(path, config) do
-    rewritten_path = "#{path}.rewrite"
-
-    args =
-      [path]
-      |> maybe_append_arg(config.redraw_image or config.auto_orient_images, "-auto-orient")
-      |> Kernel.++(["+profile", "*", rewritten_path])
-
-    case System.cmd("convert", args, stderr_to_stdout: true) do
-      {_output, 0} ->
-        case File.rename(rewritten_path, path) do
-          :ok -> :ok
-          {:error, _reason} -> {:error, :upload_failed}
-        end
-
-      _ ->
-        _ = File.rm(rewritten_path)
-        {:error, :upload_failed}
-    end
-  end
-
-  defp strip_exif_with_exiftool(path) do
-    case System.cmd("exiftool", ["-overwrite_original", "-all=", path], stderr_to_stdout: true) do
-      {_output, 0} -> :ok
-      _ -> {:error, :upload_failed}
     end
   end
 
@@ -519,10 +470,6 @@ defmodule Eirinchan.Uploads do
           false
       end
   end
-
-  defp jpeg?(%{file_type: "image/jpeg"}), do: true
-  defp jpeg?(%{ext: ext}) when ext in [".jpg", ".jpeg"], do: true
-  defp jpeg?(_metadata), do: false
 
   defp generate_placeholder_thumbnail(destination, config, metadata) do
     case file_icon_source(config, metadata) do

@@ -1,7 +1,7 @@
 defmodule Eirinchan.Maintenance do
   @moduledoc false
 
-  alias Eirinchan.{Antispam, Bans, Cache}
+  alias Eirinchan.{Antispam, Bans}
 
   @table :eirinchan_maintenance
 
@@ -11,8 +11,7 @@ defmodule Eirinchan.Maintenance do
     {:ok,
      %{
        bans: Bans.purge_expired(repo: repo),
-       antispam: Antispam.purge_old(config, repo: repo),
-       cache: Cache.collect(config)
+       antispam: Antispam.purge_old(config, repo: repo)
      }}
   end
 

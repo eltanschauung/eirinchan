@@ -3,9 +3,9 @@ defmodule Eirinchan.MaintenanceTest do
 
   import Ecto.Query
 
-  alias Eirinchan.{Antispam, Bans, Cache, Maintenance}
+  alias Eirinchan.{Antispam, Bans, Maintenance}
 
-  test "run purges expired bans, old antispam, and expired filesystem cache" do
+  test "run purges expired bans and old antispam entries" do
     board = board_fixture()
 
     {:ok, _expired_ban} =
@@ -43,23 +43,15 @@ defmodule Eirinchan.MaintenanceTest do
       set: [inserted_at: stale_time]
     )
 
-    cache_root =
-      Path.join(System.tmp_dir!(), "eirinchan-maint-cache-#{System.unique_integer([:positive])}")
-
     config = %{
       auto_maintenance: true,
       maintenance_interval_seconds: 1,
-      antispam_retention_seconds: 172_800,
-      cache: %{enabled: "fs", fs_path: cache_root, prefix: "maint_"}
+      antispam_retention_seconds: 172_800
     }
 
-    assert :ok = Cache.put("stale", "value", 1, config)
-    Process.sleep(1100)
-
-    assert {:ok, %{bans: 1, antispam: 2, cache: 1}} = Maintenance.run(config, repo: Repo)
+    assert {:ok, %{bans: 1, antispam: 2}} = Maintenance.run(config, repo: Repo)
     assert length(Bans.list_bans(board_id: board.id, repo: Repo)) == 1
     assert Antispam.list_flood_entries("198.51.100.20", repo: Repo) == []
     assert Antispam.list_search_queries("198.51.100.20", repo: Repo) == []
-    assert Cache.get("stale", config) == nil
   end
 end

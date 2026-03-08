@@ -5,7 +5,13 @@ defmodule EirinchanWeb.ApiControllerTest do
 
   setup do
     original_path = Application.get_env(:eirinchan, :instance_config_path)
-    path = Path.join(System.tmp_dir!(), "eirinchan-api-themes-#{System.unique_integer([:positive])}.json")
+
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "eirinchan-api-themes-#{System.unique_integer([:positive])}.json"
+      )
+
     File.rm(path)
     Application.put_env(:eirinchan, :instance_config_path, path)
 
@@ -21,7 +27,6 @@ defmodule EirinchanWeb.ApiControllerTest do
     :ok = Eirinchan.Themes.enable_page_theme("catalog")
     board = board_fixture(%{config_overrides: %{threads_per_page: 1, threads_preview: 1}})
     upload = upload_fixture("thread.png", "thread")
-    upload_size = File.stat!(upload.path).size
 
     thread =
       thread_fixture(board, %{
@@ -89,7 +94,7 @@ defmodule EirinchanWeb.ApiControllerTest do
     assert op["resto"] == 0
     assert op["filename"] == "thread"
     assert op["ext"] == ".png"
-    assert op["fsize"] == upload_size
+    assert op["fsize"] == thread.file_size
     assert is_binary(op["md5"])
     assert op["w"] == 16
     assert op["h"] == 16

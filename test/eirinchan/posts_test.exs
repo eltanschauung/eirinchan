@@ -150,7 +150,6 @@ defmodule Eirinchan.PostsTest do
   test "create_post stores upload metadata for image posts" do
     board = board_fixture()
     upload = upload_fixture("first.png", "png-bytes")
-    upload_size = File.stat!(upload.path).size
 
     assert {:ok, thread, %{noko: false}} =
              Posts.create_post(
@@ -167,15 +166,15 @@ defmodule Eirinchan.PostsTest do
     assert thread.file_name == "first.png"
     assert thread.file_path == "/#{board.uri}/src/#{thread.id}.png"
     assert thread.thumb_path == "/#{board.uri}/thumb/#{thread.id}s.png"
-    assert thread.file_size == upload_size
     assert thread.file_type == "image/png"
     assert is_binary(thread.file_md5)
     assert thread.image_width == 16
     assert thread.image_height == 16
 
-    assert File.exists?(
-             Path.join(Eirinchan.Build.board_root(), "#{board.uri}/src/#{thread.id}.png")
-           )
+    stored_path = Path.join(Eirinchan.Build.board_root(), "#{board.uri}/src/#{thread.id}.png")
+    assert thread.file_size == File.stat!(stored_path).size
+
+    assert File.exists?(stored_path)
 
     assert File.exists?(
              Path.join(Eirinchan.Build.board_root(), "#{board.uri}/thumb/#{thread.id}s.png")
@@ -524,8 +523,8 @@ defmodule Eirinchan.PostsTest do
     assert thread.file_name == "a_very_long_.png"
   end
 
-  test "create_post strips EXIF metadata from stored jpeg files when configured" do
-    board = board_fixture(%{config_overrides: %{strip_exif: true}})
+  test "create_post always strips EXIF metadata from stored jpeg files" do
+    board = board_fixture()
     upload = upload_fixture("meta.jpg", geometry: "10x10", artist: "fixture-artist")
 
     assert {:ok, thread, _meta} =
@@ -569,8 +568,7 @@ defmodule Eirinchan.PostsTest do
   end
 
   test "create_post auto-orients stored jpeg files and refreshes dimensions" do
-    board = board_fixture(%{config_overrides: %{auto_orient_images: true}})
-
+    board = board_fixture()
     upload = upload_fixture("rotated.jpg", geometry: "12x8", orientation: "Rotate 90 CW")
 
     assert {:ok, thread, _meta} =
@@ -589,11 +587,11 @@ defmodule Eirinchan.PostsTest do
 
     assert {thread.image_width, thread.image_height} == {8, 12}
     assert identify_value(stored_path, "%wx%h") == "8x12"
-    assert exiftool_value(stored_path, "Orientation") == "Horizontal (normal)"
+    assert exiftool_value(stored_path, "Orientation") == ""
   end
 
-  test "create_post redraws stored images when redraw_image is enabled" do
-    board = board_fixture(%{config_overrides: %{redraw_image: true}})
+  test "create_post strips metadata and normalizes orientation in one upload path" do
+    board = board_fixture()
 
     upload =
       upload_fixture("redrawn.jpg",
@@ -622,97 +620,78 @@ defmodule Eirinchan.PostsTest do
     assert exiftool_value(stored_path, "Orientation") == ""
   end
 
-  test "create_post strips jpeg metadata with exiftool without redrawing by default" do
-    board = board_fixture(%{config_overrides: %{strip_exif: true, use_exiftool: true}})
-
-    upload =
-      upload_fixture("exiftool.jpg",
-        geometry: "12x8",
-        orientation: "Rotate 90 CW",
-        artist: "fixture-artist"
-      )
-
-    assert {:ok, thread, _meta} =
-             Posts.create_post(
-               board,
-               %{
-                 "body" => "first post",
-                 "file" => upload,
-                 "post" => "New Topic"
-               },
-               config: post_config(board.config_overrides),
-               request: post_request(board.uri)
-             )
-
-    stored_path = Eirinchan.Uploads.filesystem_path(thread.file_path)
-
-    assert {thread.image_width, thread.image_height} == {12, 8}
-    assert identify_value(stored_path, "%wx%h") == "12x8"
-    assert exiftool_value(stored_path, "Artist") == ""
-    assert exiftool_value(stored_path, "Orientation") == ""
-  end
-
-  test "create_post can auto-orient before exiftool stripping" do
+  test "create_post early-404 prunes old low-reply threads after board overflow" do
     board =
       board_fixture(%{
-        config_overrides: %{strip_exif: true, use_exiftool: true, auto_orient_images: true}
+        config_overrides: %{
+          early_404: true,
+          early_404_page: 1,
+          early_404_replies: 2,
+          threads_per_page: 1,
+          max_pages: 5
+        }
       })
 
-    upload =
-      upload_fixture("exiftool-oriented.jpg",
-        geometry: "12x8",
-        orientation: "Rotate 90 CW",
-        artist: "fixture-artist"
+    config = post_config(board.config_overrides)
+
+    {:ok, old_thread, _meta} =
+      Posts.create_post(
+        board,
+        %{"body" => "old", "post" => "New Topic"},
+        config: config,
+        request: post_request(board.uri)
       )
 
-    assert {:ok, thread, _meta} =
-             Posts.create_post(
-               board,
-               %{
-                 "body" => "first post",
-                 "file" => upload,
-                 "post" => "New Topic"
-               },
-               config: post_config(board.config_overrides),
-               request: post_request(board.uri)
-             )
+    {:ok, _new_thread, _meta} =
+      Posts.create_post(
+        board,
+        %{"body" => "new", "post" => "New Topic"},
+        config: config,
+        request: post_request(board.uri)
+      )
 
-    stored_path = Eirinchan.Uploads.filesystem_path(thread.file_path)
-
-    assert {thread.image_width, thread.image_height} == {8, 12}
-    assert identify_value(stored_path, "%wx%h") == "8x12"
-    assert exiftool_value(stored_path, "Artist") == ""
-    assert exiftool_value(stored_path, "Orientation") == ""
+    assert {:error, :not_found} = Posts.get_post(board, old_thread.id)
   end
 
-  test "create_post auto-orients images before stripping EXIF when both are enabled" do
-    board = board_fixture(%{config_overrides: %{auto_orient_images: true, strip_exif: true}})
+  test "create_post keeps old threads past early-404 when reply threshold is met" do
+    board =
+      board_fixture(%{
+        config_overrides: %{
+          early_404: true,
+          early_404_page: 1,
+          early_404_replies: 1,
+          threads_per_page: 1,
+          max_pages: 5
+        }
+      })
 
-    upload =
-      upload_fixture("rotated.jpg",
-        geometry: "12x8",
-        orientation: "Rotate 90 CW",
-        artist: "fixture-artist"
+    config = post_config(board.config_overrides)
+
+    {:ok, old_thread, _meta} =
+      Posts.create_post(
+        board,
+        %{"body" => "old", "post" => "New Topic"},
+        config: config,
+        request: post_request(board.uri)
       )
 
-    assert {:ok, thread, _meta} =
-             Posts.create_post(
-               board,
-               %{
-                 "body" => "first post",
-                 "file" => upload,
-                 "post" => "New Topic"
-               },
-               config: post_config(board.config_overrides),
-               request: post_request(board.uri)
-             )
+    {:ok, _reply, _meta} =
+      Posts.create_post(
+        board,
+        %{"body" => "bump", "thread" => Integer.to_string(old_thread.id), "post" => "Reply"},
+        config: config,
+        request: post_request(board.uri)
+      )
 
-    stored_path = Eirinchan.Uploads.filesystem_path(thread.file_path)
+    {:ok, _new_thread, _meta} =
+      Posts.create_post(
+        board,
+        %{"body" => "new", "post" => "New Topic"},
+        config: config,
+        request: post_request(board.uri)
+      )
 
-    assert {thread.image_width, thread.image_height} == {8, 12}
-    assert identify_value(stored_path, "%wx%h") == "8x12"
-    assert exiftool_value(stored_path, "Artist") == ""
-    assert exiftool_value(stored_path, "Orientation") == ""
+    assert {:ok, _thread} = Posts.get_post(board, old_thread.id)
   end
 
   test "create_post fetches remote uploads when url uploads are enabled" do
@@ -1502,7 +1481,7 @@ defmodule Eirinchan.PostsTest do
   end
 
   test "create_post enforces split multi-file size limits" do
-    board = board_fixture(%{config_overrides: %{max_filesize: 550, multiimage_method: "split"}})
+    board = board_fixture(%{config_overrides: %{max_filesize: 150, multiimage_method: "split"}})
 
     assert {:error, :file_too_large} =
              Posts.create_post(
