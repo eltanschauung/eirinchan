@@ -23,9 +23,13 @@ $('.image-hover').on('change', function(){
 	localStorage[setting] = $(this).children('input').is(':checked');
 });
 
-if (!localStorage.imageHover || !localStorage.catalogImageHover || !localStorage.imageHoverFollowCursor) {
-	localStorage.imageHover = 'false';
-	localStorage.catalogImageHover = 'false';
+if (typeof localStorage.imageHover === 'undefined') {
+	localStorage.imageHover = 'true';
+}
+if (typeof localStorage.catalogImageHover === 'undefined') {
+	localStorage.catalogImageHover = 'true';
+}
+if (typeof localStorage.imageHoverFollowCursor === 'undefined') {
 	localStorage.imageHoverFollowCursor = 'false';
 }
 
@@ -94,12 +98,12 @@ function initImageHover() { //Pashe, influenced by tux, et al, WTFPL
 
 function imageHoverStart(e) { //Pashe, anonish, WTFPL
 	var hoverImage = $("#chx_hoverImage");
+	var scrollTop = $(window).scrollTop();
+	var imgY = e.pageY;
+	var imgTop = imgY;
 	
 	if (hoverImage.length) {
 		if (getSetting("imageHoverFollowCursor")) {
-			var scrollTop = $(window).scrollTop();
-			var imgY = e.pageY;
-			var imgTop = imgY;
 			var windowWidth = $(window).width();
 			var imgWidth = hoverImage.width() + e.pageX;
 			
@@ -130,12 +134,15 @@ function imageHoverStart(e) { //Pashe, anonish, WTFPL
 	var $this = $(this);
 	
 	var fullUrl;
-	if ($this.parent().attr("href").match("src")) {
-		fullUrl = $this.parent().attr("href");
+	var $link = $this.closest("a");
+	if ($link.length && $link.attr("href") && $link.attr("href").match("src")) {
+		fullUrl = $link.attr("href");
 	} else if (isOnCatalog()) {
-		fullUrl = $this.attr("data-fullimage");
+		fullUrl = $this.attr("data-fullimage") || ($link.length ? $link.attr("href") : null);
 		if (!isImage(getFileExtension(fullUrl))) {fullUrl = $this.attr("src");}
 	}
+
+	if (!fullUrl) {return;}
 	
 	if (isVideo(getFileExtension(fullUrl))) {return;}
 	
@@ -145,6 +152,10 @@ function imageHoverStart(e) { //Pashe, anonish, WTFPL
 		var size = $this.parents('.file').find('.unimportant').text().match(/\b(\d+)x(\d+)\b/),
 			maxWidth = $(window).width(),
 			maxHeight = $(window).height();
+
+		if (!size) {
+			size = [$this.width() + "x" + $this.height(), $this.width(), $this.height()];
+		}
 
 		var scale = Math.min(1, maxWidth / size[1], maxHeight / size[2]);
 		hoverImage.css({
