@@ -339,6 +339,34 @@ defmodule EirinchanWeb.PostControllerTest do
     assert length(op["extra_files"]) == 1
   end
 
+  test "posting accepts numbered file params used by drag and drop uploader", %{conn: conn} do
+    board = board_fixture()
+
+    create_conn =
+      conn
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post(~p"/#{board.uri}/post", %{
+        "body" => "first post",
+        "file" => upload_fixture("first.png", "first"),
+        "file2" => upload_fixture("second.gif", "second"),
+        "json_response" => "1",
+        "post" => "New Topic"
+      })
+
+    assert %{"id" => id} = json_response(create_conn, 200)
+
+    thread_json =
+      conn
+      |> recycle()
+      |> put_req_header("accept", "application/json")
+      |> get("/api/#{board.uri}/res/#{id}")
+      |> json_response(200)
+
+    assert [op | _] = thread_json["posts"]
+    assert length(op["extra_files"]) == 1
+    assert hd(op["extra_files"])["ext"] == ".gif"
+  end
+
   test "posting accepts spoiler uploads and exposes spoiler metadata", %{conn: conn} do
     board = board_fixture()
 

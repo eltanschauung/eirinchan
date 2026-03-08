@@ -13,6 +13,7 @@ defmodule EirinchanWeb.PublicShell do
     "/js/ajax.js",
     "/js/navarrows2.js",
     "/js/file-selector.js",
+    "/js/upload-selection.js",
     "/js/expand.js",
     "/js/options.js",
     "/js/style-select.js",
@@ -122,7 +123,7 @@ defmodule EirinchanWeb.PublicShell do
   defp thread_thumb_url(board, thread, config) do
     case thread.thumb_path do
       nil ->
-      nil
+        nil
 
       thumb ->
         if String.starts_with?(thumb, "/") do

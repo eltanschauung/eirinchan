@@ -187,8 +187,11 @@
     <tr id="upload">
       <th>File</th>
       <td>
-        <input :if={@config.max_images > 1} type="file" name="files[]" multiple />
+        <input :if={@config.max_images > 1} type="file" name="files[]" id="upload_file" multiple />
         <input :if={@config.max_images <= 1} type="file" name="file" id="upload_file" />
+        <script type="text/javascript">
+          if (typeof init_file_selector !== 'undefined') init_file_selector(<%= @config.max_images %>);
+        </script>
       </td>
     </tr>
     <tr

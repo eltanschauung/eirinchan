@@ -76,6 +76,7 @@
               <img
                 :if={PostView.catalog_media_path(post, @config)}
                 src={PostView.catalog_media_path(post, @config)}
+                data-fullimage={PostView.catalog_fullimage_path(post, @config)}
                 loading="lazy"
                 id={"img-#{post.id}"}
                 data-subject={post.subject || ""}
