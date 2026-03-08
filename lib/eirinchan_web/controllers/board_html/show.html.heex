@@ -342,15 +342,7 @@
             <time datetime={PostView.iso_timestamp(thread)}><%= PostView.formatted_timestamp(thread) %></time>
           </label>
           &nbsp;
-          <a
-            class="post_no"
-            id={"post_no_#{thread.id}"}
-            onclick={"highlightReply(#{thread.id})"}
-            href={PostView.thread_path(@board, thread, @config) <> "##{thread.id}"}
-          >
-            No.
-          </a>
-          <a class="post_no" onclick={"citeReply(#{thread.id})"} href={PostView.reply_path(@board, thread, thread, @config, :quote)} data-quote-to={thread.id} data-quick-reply-thread={thread.id}><%= thread.id %></a>
+          <a class="post_no" id={"post_no_#{thread.id}"} onclick={"highlightReply(#{thread.id})"} href={PostView.thread_path(@board, thread, @config) <> "##{thread.id}"}>No.</a><a class="post_no" onclick={"citeReply(#{thread.id})"} href={PostView.reply_path(@board, thread, thread, @config, :quote)} data-quote-to={thread.id} data-quick-reply-thread={thread.id}><%= thread.id %></a>
           <%= for icon <- PostView.state_icons(thread, @config) do %>
             <img class="icon" title={icon.title} src={icon.path} alt={icon.title} />
           <% end %>
@@ -391,15 +383,7 @@
               <time datetime={PostView.iso_timestamp(reply)}><%= PostView.formatted_timestamp(reply) %></time>
             </label>
             &nbsp;
-            <a
-              class="post_no"
-              id={"post_no_#{reply.id}"}
-              onclick={"highlightReply(#{reply.id})"}
-              href={PostView.thread_path(@board, thread, @config) <> "##{reply.id}"}
-            >
-              No.
-            </a>
-            <a class="post_no" onclick={"citeReply(#{reply.id})"} href={PostView.reply_path(@board, thread, reply, @config, :quote)} data-quote-to={reply.id}><%= reply.id %></a>
+            <a class="post_no" id={"post_no_#{reply.id}"} onclick={"highlightReply(#{reply.id})"} href={PostView.thread_path(@board, thread, @config) <> "##{reply.id}"}>No.</a><a class="post_no" onclick={"citeReply(#{reply.id})"} href={PostView.reply_path(@board, thread, reply, @config, :quote)} data-quote-to={reply.id}><%= reply.id %></a>
           </p>
           <div class="files">
             <%= if PostView.has_embed?(reply) do %>
