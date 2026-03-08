@@ -319,7 +319,8 @@
           href={Eirinchan.ThreadPaths.thread_path(template.board, template.post, template.config) <> "##{post.id}"}
         >
           No.
-        </a><a
+        </a>
+        <a
           class="post_no"
           onclick={"citeReply(#{post.id})"}
           href={
@@ -390,7 +391,8 @@
             href={Eirinchan.ThreadPaths.thread_path(@board, post, @config) <> "##{reply.id}"}
           >
             No.
-          </a><a
+          </a>
+          <a
             class="post_no"
             onclick={"citeReply(#{reply.id})"}
             href={PostView.reply_path(@board, post, reply, @config, :quote)}
