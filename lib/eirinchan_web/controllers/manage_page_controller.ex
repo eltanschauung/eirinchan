@@ -1,5 +1,6 @@
 defmodule EirinchanWeb.ManagePageController do
   use EirinchanWeb, :controller
+  import Ecto.Query, only: [from: 2]
 
   alias Eirinchan.Announcement
   alias Eirinchan.Boardlist
@@ -12,7 +13,9 @@ defmodule EirinchanWeb.ManagePageController do
   alias Eirinchan.Installation
   alias Eirinchan.Moderation
   alias Eirinchan.News
+  alias Eirinchan.Posts.Post
   alias Eirinchan.Reports
+  alias Eirinchan.Repo
   alias Eirinchan.Runtime.Config
   alias Eirinchan.Settings
   alias Eirinchan.Themes
@@ -677,10 +680,12 @@ defmodule EirinchanWeb.ManagePageController do
           ip_subnet: params["ip"]
         )
 
-      render(conn, :recent_posts,
+      conn
+      |> assign(:javascript_urls, ["/js/mod/recent-posts.js"])
+      |> render(:recent_posts,
         moderator: moderator,
         boards: boards,
-        posts: posts,
+        entries: recent_post_entries(posts, boards, conn.host),
         filters: %{
           "board" => params["board"],
           "query" => params["query"],
@@ -699,7 +704,13 @@ defmodule EirinchanWeb.ManagePageController do
         nil ->
           render(conn, :reports,
             moderator: moderator,
-            reports: accessible_reports(moderator)
+            entries:
+              report_entries(
+                accessible_reports(moderator),
+                Moderation.list_accessible_boards(moderator),
+                conn.host,
+                conn.assigns[:secure_manage_token]
+              )
           )
 
         _uri ->
@@ -1513,6 +1524,56 @@ defmodule EirinchanWeb.ManagePageController do
 
   defp accessible_appeal_count(nil), do: 0
   defp accessible_appeal_count(moderator), do: moderator |> accessible_appeals() |> length()
+
+  defp recent_post_entries(posts, boards, host) do
+    posts = Repo.preload(posts, :extra_files)
+
+    thread_ids =
+      posts
+      |> Enum.map(&(&1.thread_id || &1.id))
+      |> Enum.uniq()
+
+    thread_map =
+      Repo.all(from post in Post, where: post.id in ^thread_ids)
+      |> Repo.preload(:extra_files)
+      |> Map.new(&{&1.id, &1})
+
+    config_by_board = config_map(boards, host)
+
+    Enum.map(posts, fn post ->
+      board = post.board
+      thread = Map.get(thread_map, post.thread_id || post.id, post)
+
+      %{
+        post: post,
+        board: board,
+        thread: thread,
+        config: Map.fetch!(config_by_board, board.id)
+      }
+    end)
+  end
+
+  defp report_entries(reports, boards, host, session_token) do
+    reports = Repo.preload(reports, [:board, post: [:extra_files], thread: [:extra_files]])
+    config_by_board = config_map(boards, host)
+
+    Enum.map(reports, fn report ->
+      board = report.board
+      post = report.post
+      thread = report.thread || post
+
+      %{
+        report: report,
+        board: board,
+        post: post,
+        thread: thread,
+        config: Map.fetch!(config_by_board, board.id),
+        dismiss_token: ManageSecurity.sign_action(session_token, "reports/#{report.id}/dismiss"),
+        dismiss_post_token:
+          ManageSecurity.sign_action(session_token, "reports/#{report.id}/dismiss&post")
+      }
+    end)
+  end
 
   defp authorize_appeal(%{role: "admin"}, _appeal), do: :ok
 

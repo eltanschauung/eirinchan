@@ -4,6 +4,7 @@ defmodule EirinchanWeb.LegacyModController do
   alias Eirinchan.Boards
   alias Eirinchan.Moderation
   alias Eirinchan.Posts
+  alias Eirinchan.Reports
   alias Eirinchan.Runtime.Config
   alias Eirinchan.Settings
   alias EirinchanWeb.ManageSecurity
@@ -18,6 +19,9 @@ defmodule EirinchanWeb.LegacyModController do
 
       "/IP/" <> ip ->
         redirect(conn, to: "/manage/ip/#{ip}/browser")
+
+      "/reports/" <> rest ->
+        dispatch_report_action(conn, String.split(rest, "/", trim: true))
 
       "/" <> rest ->
         dispatch_board_action(conn, String.split(rest, "/", trim: true))
@@ -147,6 +151,32 @@ defmodule EirinchanWeb.LegacyModController do
 
   defp dispatch_board_action(conn, _parts), do: send_resp(conn, :not_found, "Page not found")
 
+  defp dispatch_report_action(conn, [report_id, "dismiss", token]) do
+    with {:ok, moderator} <- authorized_moderator(conn),
+         report when not is_nil(report) <- Reports.get_report(report_id),
+         :ok <- authorize_report(moderator, report),
+         :ok <- verify_action_token(conn, "reports/#{report_id}/dismiss", token),
+         {:ok, _report} <- Reports.dismiss_report(report.board, report_id) do
+      redirect(conn, to: "/manage/reports/browser")
+    else
+      error -> legacy_error(conn, error)
+    end
+  end
+
+  defp dispatch_report_action(conn, [report_id, "dismiss&post", token]) do
+    with {:ok, moderator} <- authorized_moderator(conn),
+         report when not is_nil(report) <- Reports.get_report(report_id),
+         :ok <- authorize_report(moderator, report),
+         :ok <- verify_action_token(conn, "reports/#{report_id}/dismiss&post", token),
+         {:ok, _count} <- Reports.dismiss_reports_for_post(report.board, report.post_id) do
+      redirect(conn, to: "/manage/reports/browser")
+    else
+      error -> legacy_error(conn, error)
+    end
+  end
+
+  defp dispatch_report_action(conn, _parts), do: send_resp(conn, :not_found, "Page not found")
+
   defp authorized_board(conn, uri) do
     case {conn.assigns[:current_moderator], Boards.get_board_by_uri(uri)} do
       {nil, _} ->
@@ -164,6 +194,9 @@ defmodule EirinchanWeb.LegacyModController do
     end
   end
 
+  defp authorized_moderator(%Plug.Conn{assigns: %{current_moderator: nil}}), do: {:error, :unauthorized}
+  defp authorized_moderator(%Plug.Conn{assigns: %{current_moderator: moderator}}), do: {:ok, moderator}
+
   defp require_role(%{role: "admin"}, _level), do: :ok
   defp require_role(%{role: "mod"}, level) when level <= 20, do: :ok
   defp require_role(%{role: "janitor"}, level) when level <= 10, do: :ok
@@ -176,6 +209,14 @@ defmodule EirinchanWeb.LegacyModController do
       {:error, :forbidden}
     end
   end
+
+  defp authorize_report(%{role: "admin"}, _report), do: :ok
+
+  defp authorize_report(moderator, %{board: board}) when not is_nil(board) do
+    if Moderation.board_access?(moderator, board), do: :ok, else: {:error, :forbidden}
+  end
+
+  defp authorize_report(_moderator, _report), do: {:error, :not_found}
 
   defp update_thread_action(board, post_id, action, host) do
     attrs =

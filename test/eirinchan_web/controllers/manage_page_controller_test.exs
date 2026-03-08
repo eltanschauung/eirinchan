@@ -555,7 +555,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
         }
       )
 
-    {:ok, _other_post, _meta} =
+    {:ok, other_post, _meta} =
       Eirinchan.Posts.create_post(
         other_board,
         %{"body" => "other board", "subject" => "meta", "post" => "New Topic"},
@@ -578,9 +578,15 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       |> html_response(200)
 
     assert page =~ "Recent Posts"
+    assert page =~ ~s(<script type="text/javascript" src="/js/mod/recent-posts.js")
+    assert page =~ ~s(class="post-wrapper")
+    assert page =~ ~s(class="eita-link")
+    assert page =~ ~s(class="thread")
+    assert page =~ ~s(class="post op")
+    assert page =~ ~s(class="controls op")
     assert page =~ Integer.to_string(matching_post.id)
     assert page =~ "green leaf"
-    refute page =~ "other board"
+    refute page =~ ~s(id="op_#{other_post.id}")
   end
 
   test "browser dashboard exposes global report queue and ban appeals management", %{conn: conn} do
@@ -631,6 +637,11 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert reports_page =~ "Report queue (1)"
     assert reports_page =~ "Spam"
     assert reports_page =~ "/#{board.uri}/"
+    assert reports_page =~ ~s(class="report")
+    assert reports_page =~ ~s(class="post-wrapper")
+    assert reports_page =~ ~s(class="post op")
+    assert reports_page =~ "/mod.php?/reports/#{report_id}/dismiss/"
+    assert reports_page =~ ~s(class="controls op")
 
     dismiss_conn =
       conn
@@ -743,7 +754,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       |> get("/manage/recent-posts/browser")
       |> html_response(200)
 
-    assert recent_page =~ "cloaked-"
+    assert recent_page =~ ~s(class="post-wrapper")
     refute recent_page =~ "198.51.100.7"
 
     history_page =

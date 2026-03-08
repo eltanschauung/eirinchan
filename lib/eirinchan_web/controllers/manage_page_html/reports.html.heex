@@ -1,35 +1,51 @@
 <.flash_group flash={@flash} />
 <section>
-  <h1>Report queue (<%= length(@reports) %>)</h1>
+  <h1>Report queue (<%= length(@entries) %>)</h1>
   <p><a href={~p"/manage"}>Back to Manage</a></p>
 </section>
 
 <section>
-  <%= if @reports == [] do %>
+  <%= if @entries == [] do %>
     <p>No open reports.</p>
   <% else %>
-    <%= for report <- @reports do %>
-      <article>
-        <h2>Report #<%= report.id %> for post #<%= report.post_id %></h2>
-        <p :if={report.board}>
-          Board:
-          <a href={"/#{report.board.uri}/res/#{report.thread_id}.html##{report.post_id}"}>
-            /<%= report.board.uri %>/
-          </a>
-        </p>
-        <p>Reason: <%= report.reason %></p>
-        <p :if={report.post && report.post.body}>Post body: <%= report.post.body %></p>
-        <form action={"/manage/reports/browser/#{report.id}"} method="post">
-          <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
-          <input type="hidden" name="_method" value="delete" />
-          <button type="submit">Dismiss Report</button>
-        </form>
-        <form action={"/manage/reports/browser/post/#{report.post_id}"} method="post">
-          <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
-          <input type="hidden" name="_method" value="delete" />
-          <button type="submit">Dismiss All For Post</button>
-        </form>
-      </article>
+    <%= for entry <- @entries do %>
+      <div class="report">
+        <hr />
+        Board:
+        <a href={EirinchanWeb.PostView.thread_path(entry.board, entry.thread, entry.config)}>
+          /<%= entry.board.uri %>/
+        </a>
+        <br />
+        Reason: <%= entry.report.reason %>
+        <br />
+        Report date: <%= EirinchanWeb.PostView.formatted_timestamp(entry.report) %>
+        <br />
+        <hr />
+        <a
+          title="Discard abuse report"
+          href={"/mod.php?/reports/#{entry.report.id}/dismiss/#{entry.dismiss_token}"}
+        >Dismiss</a>
+        |&nbsp;
+        <a
+          title="Dismiss all reports for the post"
+          href={"/mod.php?/reports/#{entry.report.id}/dismiss&post/#{entry.dismiss_post_token}"}
+        >Dismiss Post</a>
+      </div>
+      <div class="post-wrapper" data-board={entry.board.uri}>
+        <a
+          class="eita-link"
+          id={"eita-report-#{entry.board.uri}-#{entry.thread.id}-#{entry.post.id}"}
+          href={EirinchanWeb.PostView.thread_path(entry.board, entry.thread, entry.config) <> "##{entry.post.id}"}
+        >/ <%= entry.board.uri %> /<%= entry.post.id %></a><br />
+        <.moderation_post
+          post={entry.post}
+          board={entry.board}
+          thread={entry.thread}
+          config={entry.config}
+          moderator={@moderator}
+          secure_manage_token={@secure_manage_token}
+        />
+      </div>
     <% end %>
   <% end %>
 </section>

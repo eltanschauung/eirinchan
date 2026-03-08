@@ -2,6 +2,7 @@ defmodule EirinchanWeb.LegacyModControllerTest do
   use EirinchanWeb.ConnCase, async: true
 
   alias Eirinchan.Posts
+  alias Eirinchan.Reports
 
   test "legacy IP route redirects moderators to the IP history page", %{conn: conn} do
     moderator = moderator_fixture(%{role: "admin"})
@@ -41,6 +42,34 @@ defmodule EirinchanWeb.LegacyModControllerTest do
 
     assert redirected_to(conn) == "/#{board.uri}"
     assert {:error, :not_found} = Posts.get_post(board, thread.id)
+  end
+
+  test "legacy report dismiss route dismisses reports", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+    board = board_fixture()
+    thread = thread_fixture(board)
+
+    report_conn =
+      conn
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post("/#{board.uri}/post", %{
+        "report_post_id" => Integer.to_string(thread.id),
+        "reason" => "spam",
+        "json_response" => "1"
+      })
+
+    assert %{"report_id" => report_id} = json_response(report_conn, 200)
+
+    conn = login_moderator(conn, moderator)
+
+    conn =
+      get(
+        conn,
+        "/mod.php?/reports/#{report_id}/dismiss/#{signed_token(conn, "reports/#{report_id}/dismiss")}"
+      )
+
+    assert redirected_to(conn) == "/manage/reports/browser"
+    assert Reports.get_report(report_id).dismissed_at
   end
 
   defp signed_token(conn, path) do
