@@ -52,6 +52,17 @@ defmodule Eirinchan.Reports do
     repo.all(query)
   end
 
+  @spec get_report(String.t() | integer(), keyword()) :: Report.t() | nil
+  def get_report(report_id, opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+
+    repo.one(
+      from report in Report,
+        where: report.id == ^normalize_id(report_id),
+        preload: [:post, :thread, :board]
+    )
+  end
+
   @spec dismiss_report(BoardRecord.t(), String.t() | integer(), keyword()) ::
           {:ok, Report.t()} | {:error, :not_found | Ecto.Changeset.t()}
   def dismiss_report(%BoardRecord{} = board, report_id, opts \\ []) do

@@ -87,6 +87,11 @@ defmodule EirinchanWeb.Router do
     get "/messages/browser", ManagePageController, :messages
     post "/messages/browser", ManagePageController, :create_message
     get "/recent-posts/browser", ManagePageController, :recent_posts
+    get "/reports/browser", ManagePageController, :reports
+    delete "/reports/browser/:id", ManagePageController, :dismiss_report
+    delete "/reports/browser/post/:post_id", ManagePageController, :dismiss_reports_for_post
+    get "/ban-appeals/browser", ManagePageController, :ban_appeals
+    patch "/ban-appeals/browser/:id", ManagePageController, :resolve_ban_appeal
     patch "/boards/:uri/threads/:thread_id/browser/move", ManagePageController, :move_thread
     patch "/boards/:uri/posts/:post_id/browser/move", ManagePageController, :move_reply
     get "/ip/:ip/browser", ManagePageController, :ip_history

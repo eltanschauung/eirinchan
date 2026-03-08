@@ -55,6 +55,8 @@ defmodule EirinchanWeb.ManagePageController do
       render(conn, :dashboard,
         moderator: moderator,
         boards: Moderation.list_accessible_boards(moderator),
+        report_count: accessible_report_count(moderator),
+        appeal_count: accessible_appeal_count(moderator),
         unread_messages: Moderation.count_unread_messages(moderator),
         announcement: Announcement.current(),
         custom_pages: CustomPages.list_pages(),
@@ -690,23 +692,23 @@ defmodule EirinchanWeb.ManagePageController do
     end
   end
 
-  def reports(conn, %{"uri" => uri}) do
-    with {:ok, moderator} <- ensure_moderator(conn),
-         {:ok, board} <- load_accessible_board(moderator, uri) do
-      render(conn, :reports,
-        moderator: moderator,
-        board: board,
-        reports: Reports.list_reports(board)
-      )
+  def reports(conn, params) do
+    with {:ok, moderator} <- ensure_moderator(conn) do
+      case Map.get(params, "uri") do
+        nil ->
+          render(conn, :reports,
+            moderator: moderator,
+            reports: accessible_reports(moderator)
+          )
+
+        _uri ->
+          conn
+          |> put_flash(:info, "Reports are managed from the global report queue.")
+          |> redirect(to: ~p"/manage/reports/browser")
+      end
     else
       {:error, :unauthorized} ->
         redirect(conn, to: ~p"/manage/login")
-
-      {:error, :forbidden} ->
-        render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
-
-      {:error, :not_found} ->
-        render_dashboard_error(conn, "Board not found.", %{}, :not_found)
     end
   end
 
@@ -860,38 +862,42 @@ defmodule EirinchanWeb.ManagePageController do
     end
   end
 
-  def dismiss_report(conn, %{"uri" => uri, "id" => id}) do
+  def dismiss_report(conn, %{"id" => id} = params) do
     with {:ok, moderator} <- ensure_moderator(conn),
-         {:ok, board} <- load_accessible_board(moderator, uri),
-         {:ok, _report} <- Reports.dismiss_report(board, id) do
+         report when not is_nil(report) <- Reports.get_report(id),
+         :ok <- authorize_report(moderator, report),
+         {:ok, _report} <- Reports.dismiss_report(report.board, id) do
       conn
       |> put_flash(:info, "Report dismissed.")
-      |> redirect(to: "/manage/boards/#{board.uri}/reports/browser")
+      |> redirect(to: report_redirect_path(params))
     else
       {:error, :unauthorized} ->
         redirect(conn, to: ~p"/manage/login")
 
       {:error, :forbidden} ->
         render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
+
+      nil ->
+        render_dashboard_error(conn, "Report not found.", %{}, :not_found)
 
       {:error, :not_found} ->
         render_dashboard_error(conn, "Report not found.", %{}, :not_found)
     end
   end
 
-  def dismiss_reports_for_post(conn, %{"uri" => uri, "post_id" => post_id}) do
+  def dismiss_reports_for_post(conn, %{"post_id" => post_id} = params) do
     with {:ok, moderator} <- ensure_moderator(conn),
-         {:ok, board} <- load_accessible_board(moderator, uri),
-         {:ok, _count} <- Reports.dismiss_reports_for_post(board, post_id) do
+         report when not is_nil(report) <- accessible_report_for_post(moderator, post_id),
+         {:ok, _count} <- Reports.dismiss_reports_for_post(report.board, post_id) do
       conn
       |> put_flash(:info, "Reports dismissed.")
-      |> redirect(to: "/manage/boards/#{board.uri}/reports/browser")
+      |> redirect(to: report_redirect_path(params))
     else
       {:error, :unauthorized} ->
         redirect(conn, to: ~p"/manage/login")
 
-      {:error, :forbidden} ->
-        render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
+      nil ->
+        render_dashboard_error(conn, "Post not found.", %{}, :not_found)
 
       {:error, :not_found} ->
         render_dashboard_error(conn, "Post not found.", %{}, :not_found)
@@ -985,31 +991,30 @@ defmodule EirinchanWeb.ManagePageController do
     end
   end
 
-  def ban_appeals(conn, %{"uri" => uri}) do
-    with {:ok, moderator} <- ensure_moderator(conn),
-         {:ok, board} <- load_accessible_board(moderator, uri) do
-      render(conn, :ban_appeals,
-        moderator: moderator,
-        board: board,
-        appeals: Bans.list_appeals(board_id: board.id)
-      )
+  def ban_appeals(conn, params) do
+    with {:ok, moderator} <- ensure_moderator(conn) do
+      case Map.get(params, "uri") do
+        nil ->
+          render(conn, :ban_appeals,
+            moderator: moderator,
+            appeals: accessible_appeals(moderator)
+          )
+
+        _uri ->
+          conn
+          |> put_flash(:info, "Ban appeals are managed from the global appeals queue.")
+          |> redirect(to: ~p"/manage/ban-appeals/browser")
+      end
     else
       {:error, :unauthorized} ->
         redirect(conn, to: ~p"/manage/login")
-
-      {:error, :forbidden} ->
-        render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
-
-      {:error, :not_found} ->
-        render_dashboard_error(conn, "Board not found.", %{}, :not_found)
     end
   end
 
-  def resolve_ban_appeal(conn, %{"uri" => uri, "id" => id} = params) do
+  def resolve_ban_appeal(conn, %{"id" => id} = params) do
     with {:ok, moderator} <- ensure_moderator(conn),
-         {:ok, board} <- load_accessible_board(moderator, uri),
          appeal when not is_nil(appeal) <- Bans.get_appeal(id),
-         true <- appeal.ban && appeal.ban.board_id == board.id,
+         :ok <- authorize_appeal(moderator, appeal),
          {:ok, _appeal} <-
            Bans.resolve_appeal(appeal.id, %{
              status: Map.get(params, "status", "resolved"),
@@ -1017,7 +1022,7 @@ defmodule EirinchanWeb.ManagePageController do
            }) do
       conn
       |> put_flash(:info, "Appeal updated.")
-      |> redirect(to: "/manage/boards/#{board.uri}/ban-appeals/browser")
+      |> redirect(to: appeal_redirect_path(params))
     else
       {:error, :unauthorized} ->
         redirect(conn, to: ~p"/manage/login")
@@ -1027,9 +1032,6 @@ defmodule EirinchanWeb.ManagePageController do
 
       nil ->
         render_dashboard_error(conn, "Appeal not found.", %{}, :not_found)
-
-      false ->
-        render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
 
       {:error, :not_found} ->
         render_dashboard_error(conn, "Appeal not found.", %{}, :not_found)
@@ -1055,6 +1057,8 @@ defmodule EirinchanWeb.ManagePageController do
         |> render(:dashboard,
           moderator: conn.assigns[:current_moderator],
           boards: Moderation.list_accessible_boards(conn.assigns[:current_moderator]),
+          report_count: accessible_report_count(conn.assigns[:current_moderator]),
+          appeal_count: accessible_appeal_count(conn.assigns[:current_moderator]),
           unread_messages: Moderation.count_unread_messages(conn.assigns[:current_moderator]),
           announcement: Announcement.current(),
           custom_pages: CustomPages.list_pages(),
@@ -1069,6 +1073,8 @@ defmodule EirinchanWeb.ManagePageController do
         |> render(:dashboard,
           moderator: conn.assigns.current_moderator,
           boards: Moderation.list_accessible_boards(conn.assigns.current_moderator),
+          report_count: accessible_report_count(conn.assigns.current_moderator),
+          appeal_count: accessible_appeal_count(conn.assigns.current_moderator),
           unread_messages: Moderation.count_unread_messages(conn.assigns.current_moderator),
           announcement: Announcement.current(),
           custom_pages: CustomPages.list_pages(),
@@ -1179,6 +1185,8 @@ defmodule EirinchanWeb.ManagePageController do
     |> render(:dashboard,
       moderator: conn.assigns[:current_moderator],
       boards: Moderation.list_accessible_boards(conn.assigns[:current_moderator]),
+      report_count: accessible_report_count(conn.assigns[:current_moderator]),
+      appeal_count: accessible_appeal_count(conn.assigns[:current_moderator]),
       unread_messages: Moderation.count_unread_messages(conn.assigns[:current_moderator]),
       announcement: Announcement.current(),
       custom_pages: CustomPages.list_pages(),
@@ -1326,6 +1334,67 @@ defmodule EirinchanWeb.ManagePageController do
   defp config_map(boards, host) do
     Map.new(boards, fn board -> {board.id, effective_board_config(board, host)} end)
   end
+
+  defp accessible_reports(%{role: "admin"}), do: Reports.list_reports()
+
+  defp accessible_reports(moderator) do
+    board_ids =
+      moderator
+      |> Moderation.list_accessible_boards()
+      |> Enum.map(& &1.id)
+      |> MapSet.new()
+
+    Reports.list_reports()
+    |> Enum.filter(&MapSet.member?(board_ids, &1.board_id))
+  end
+
+  defp accessible_report_count(nil), do: 0
+  defp accessible_report_count(moderator), do: moderator |> accessible_reports() |> length()
+
+  defp accessible_report_for_post(moderator, post_id) do
+    accessible_reports(moderator)
+    |> Enum.find(fn report -> Integer.to_string(report.post_id) == String.trim(to_string(post_id)) end)
+  end
+
+  defp authorize_report(%{role: "admin"}, _report), do: :ok
+
+  defp authorize_report(moderator, %{board: board}) when not is_nil(board) do
+    if Moderation.board_access?(moderator, board), do: :ok, else: {:error, :forbidden}
+  end
+
+  defp authorize_report(_moderator, _report), do: {:error, :not_found}
+
+  defp accessible_appeals(%{role: "admin"}), do: Bans.list_appeals(status: "open")
+
+  defp accessible_appeals(moderator) do
+    board_ids =
+      moderator
+      |> Moderation.list_accessible_boards()
+      |> Enum.map(& &1.id)
+      |> MapSet.new()
+
+    Bans.list_appeals(status: "open")
+    |> Enum.filter(fn appeal ->
+      appeal.ban && MapSet.member?(board_ids, appeal.ban.board_id)
+    end)
+  end
+
+  defp accessible_appeal_count(nil), do: 0
+  defp accessible_appeal_count(moderator), do: moderator |> accessible_appeals() |> length()
+
+  defp authorize_appeal(%{role: "admin"}, _appeal), do: :ok
+
+  defp authorize_appeal(moderator, %{ban: %{board: board}}) when not is_nil(board) do
+    if Moderation.board_access?(moderator, board), do: :ok, else: {:error, :forbidden}
+  end
+
+  defp authorize_appeal(_moderator, _appeal), do: {:error, :not_found}
+
+  defp report_redirect_path(%{"uri" => uri}), do: "/manage/boards/#{uri}/reports/browser"
+  defp report_redirect_path(_params), do: "/manage/reports/browser"
+
+  defp appeal_redirect_path(%{"uri" => uri}), do: "/manage/boards/#{uri}/ban-appeals/browser"
+  defp appeal_redirect_path(_params), do: "/manage/ban-appeals/browser"
 
   defp load_custom_page(id), do: Eirinchan.Repo.get(Eirinchan.CustomPages.Page, id)
 
