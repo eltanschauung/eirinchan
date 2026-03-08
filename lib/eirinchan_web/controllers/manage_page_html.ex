@@ -34,22 +34,7 @@ defmodule EirinchanWeb.ManagePageHTML do
               id={"delete_#{@post.id}"}
             />
             <label for={"delete_#{@post.id}"}>
-              <span :if={@post.subject} class="subject"><%= @post.subject %></span>
-              <%= raw(PostView.name_html(@post, @config)) %>
-              <span :if={@post.tripcode} class="trip"><%= @post.tripcode %></span>
-              <%= raw(PostView.ip_link_html(@post, @board, @moderator)) %>
-              <%= for flag <- PostView.post_flags(@post, @config) do %>
-                <img
-                  class="flag"
-                  src={flag.src}
-                  alt={flag.alt}
-                  title={flag.alt}
-                  style={PostView.flag_style(@config)}
-                />
-              <% end %>
-              <time datetime={PostView.iso_timestamp(@post)}>
-                <%= PostView.formatted_timestamp(@post) %>
-              </time>
+              <%= raw(PostView.intro_identity_html(@post, @board, @config, @moderator)) %>
             </label>
             &nbsp;
             <a
@@ -59,8 +44,7 @@ defmodule EirinchanWeb.ManagePageHTML do
               href={PostView.thread_path(@board, @post, @config) <> "##{@post.id}"}
             >
               No.
-            </a>
-            <a
+            </a><a
               class="post_no"
               onclick={"citeReply(#{@post.id})"}
               href={PostView.reply_path(@board, @post, @post, @config, :quote)}
@@ -85,22 +69,7 @@ defmodule EirinchanWeb.ManagePageHTML do
           <a id={to_string(@post.id)} class="post_anchor"></a>
           <input type="checkbox" class="delete" name={"delete_#{@post.id}"} id={"delete_#{@post.id}"} />
           <label for={"delete_#{@post.id}"}>
-            <span :if={@post.subject} class="subject"><%= @post.subject %></span>
-            <%= raw(PostView.name_html(@post, @config)) %>
-            <span :if={@post.tripcode} class="trip"><%= @post.tripcode %></span>
-            <%= raw(PostView.ip_link_html(@post, @board, @moderator)) %>
-            <%= for flag <- PostView.post_flags(@post, @config) do %>
-              <img
-                class="flag"
-                src={flag.src}
-                alt={flag.alt}
-                title={flag.alt}
-                style={PostView.flag_style(@config)}
-              />
-            <% end %>
-            <time datetime={PostView.iso_timestamp(@post)}>
-              <%= PostView.formatted_timestamp(@post) %>
-            </time>
+            <%= raw(PostView.intro_identity_html(@post, @board, @config, @moderator)) %>
           </label>
           &nbsp;
           <a
@@ -110,8 +79,7 @@ defmodule EirinchanWeb.ManagePageHTML do
             href={PostView.thread_path(@board, @thread, @config) <> "##{@post.id}"}
           >
             No.
-          </a>
-          <a
+          </a><a
             class="post_no"
             onclick={"citeReply(#{@post.id})"}
             href={PostView.reply_path(@board, @thread, @post, @config, :quote)}
