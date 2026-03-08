@@ -221,7 +221,7 @@ defmodule EirinchanWeb.PageController do
     [
       boards: boards,
       boardlist_top_html: PostView.boardlist_html(PostView.boardlist_groups(boards)),
-      footer_html: "<footer><p class=\"unimportant\" style=\"margin-top:20px;text-align:center;\">Powered by Eirinchan.</p></footer>",
+      footer_html: EirinchanWeb.BoardChrome.footer_html(),
       public_shell: true,
       viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",
       base_stylesheet: "/stylesheets/style.css",
