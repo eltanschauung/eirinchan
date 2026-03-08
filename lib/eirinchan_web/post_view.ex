@@ -566,6 +566,19 @@ defmodule EirinchanWeb.PostView do
     end
   end
 
+  def catalog_fullimage_path(post, _config) do
+    cond do
+      has_embed?(post) ->
+        youtube_thumbnail(post.embed)
+
+      present?(post.file_path) ->
+        post.file_path
+
+      true ->
+        nil
+    end
+  end
+
   def omitted_text(summary) do
     parts =
       []

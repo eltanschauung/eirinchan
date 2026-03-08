@@ -1078,7 +1078,27 @@ defmodule Eirinchan.Posts do
   end
 
   defp collect_uploads(attrs) do
-    [Map.get(attrs, "file"), Map.get(attrs, "files"), Map.get(attrs, "files[]")]
+    numbered_uploads =
+      attrs
+      |> Enum.filter(fn
+        {<<"file", rest::binary>>, %Plug.Upload{}} when rest != "" ->
+          String.match?(rest, ~r/^\d+$/)
+
+        _ ->
+          false
+      end)
+      |> Enum.sort_by(fn {key, _upload} ->
+        key
+        |> String.replace_prefix("file", "")
+        |> String.to_integer()
+      end)
+      |> Enum.map(&elem(&1, 1))
+
+    [
+      Map.get(attrs, "file"),
+      Map.get(attrs, "files"),
+      Map.get(attrs, "files[]") | numbered_uploads
+    ]
     |> Enum.flat_map(fn
       nil ->
         []

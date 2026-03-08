@@ -533,4 +533,29 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     assert page =~ "Fileboard: 1 file"
     assert catalog_page =~ "notes.png"
   end
+
+  test "catalog cards expose full image paths for image hover", %{conn: conn} do
+    :ok = Eirinchan.Themes.enable_page_theme("catalog")
+    board = board_fixture()
+
+    %{id: id} =
+      conn
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post(~p"/#{board.uri}/post", %{
+        "body" => "hover me",
+        "file" => upload_fixture("hover.png", "hover"),
+        "json_response" => "1",
+        "post" => "New Topic"
+      })
+      |> json_response(200)
+      |> then(&%{id: &1["id"]})
+
+    catalog_page =
+      conn
+      |> recycle()
+      |> get("/#{board.uri}/catalog.html")
+      |> html_response(200)
+
+    assert catalog_page =~ ~s(data-fullimage="/#{board.uri}/src/#{id}.png")
+  end
 end
