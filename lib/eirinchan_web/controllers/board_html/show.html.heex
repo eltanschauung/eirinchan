@@ -326,7 +326,6 @@
             name={"delete_#{thread.id}"}
             id={"delete_#{thread.id}"}
           />
-          <a href="#" class="post-btn" title="Post menu">▶</a>
           <label for={"delete_#{thread.id}"}>
             <span :if={thread.subject} class="subject"><%= thread.subject %></span>
             <span class="name"><%= PostView.display_name(thread, @config) %></span>
@@ -340,9 +339,7 @@
                 style={PostView.flag_style(@config)}
               />
             <% end %>
-            <time datetime={PostView.iso_timestamp(thread)}>
-              <%= PostView.formatted_timestamp(thread) %>
-            </time>
+            <time datetime={PostView.iso_timestamp(thread)}><%= PostView.formatted_timestamp(thread) %></time>
           </label>
           &nbsp;
           <a
@@ -353,15 +350,7 @@
           >
             No.
           </a>
-          <a
-            class="post_no"
-            onclick={"citeReply(#{thread.id})"}
-            href={PostView.reply_path(@board, thread, thread, @config, :quote)}
-            data-quote-to={thread.id}
-            data-quick-reply-thread={thread.id}
-          >
-            <%= thread.id %>
-          </a>
+          <a class="post_no" onclick={"citeReply(#{thread.id})"} href={PostView.reply_path(@board, thread, thread, @config, :quote)} data-quote-to={thread.id} data-quick-reply-thread={thread.id}><%= thread.id %></a>
           <%= for icon <- PostView.state_icons(thread, @config) do %>
             <img class="icon" title={icon.title} src={icon.path} alt={icon.title} />
           <% end %>
@@ -386,7 +375,6 @@
               name={"delete_#{reply.id}"}
               id={"delete_#{reply.id}"}
             />
-            <a href="#" class="post-btn" title="Post menu">▶</a>
             <label for={"delete_#{reply.id}"}>
               <span :if={reply.subject} class="subject"><%= reply.subject %></span>
               <span class="name"><%= PostView.display_name(reply, @config) %></span>
@@ -400,9 +388,7 @@
                   style={PostView.flag_style(@config)}
                 />
             <% end %>
-              <time datetime={PostView.iso_timestamp(reply)}>
-                <%= PostView.formatted_timestamp(reply) %>
-              </time>
+              <time datetime={PostView.iso_timestamp(reply)}><%= PostView.formatted_timestamp(reply) %></time>
             </label>
             &nbsp;
             <a
@@ -413,14 +399,7 @@
             >
               No.
             </a>
-            <a
-              class="post_no"
-              onclick={"citeReply(#{reply.id})"}
-              href={PostView.reply_path(@board, thread, reply, @config, :quote)}
-              data-quote-to={reply.id}
-            >
-              <%= reply.id %>
-            </a>
+            <a class="post_no" onclick={"citeReply(#{reply.id})"} href={PostView.reply_path(@board, thread, reply, @config, :quote)} data-quote-to={reply.id}><%= reply.id %></a>
           </p>
           <div class="files">
             <%= if PostView.has_embed?(reply) do %>
@@ -462,13 +441,7 @@
               <% end %>
             <% end %>
           </div>
-          <div
-            class="body"
-            {case PostView.reply_body_style(reply) do
-              nil -> []
-              style -> [style: style]
-            end}
-          ><%= raw(PostView.body_html(reply, @board, thread, @config)) %></div></div><br />
+          <div class="body" {case PostView.reply_body_style(reply) do nil -> []; style -> [style: style] end}><%= raw(PostView.body_html(reply, @board, thread, @config)) %></div></div><br />
       <% end %>
 
       <br class="clear" />
