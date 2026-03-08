@@ -90,6 +90,17 @@ defmodule EirinchanWeb.PostView do
     thread_path(board, thread, config) <> suffix
   end
 
+  def post_number_links_html(post_id, post_href, quote_href, attrs \\ []) do
+    quote_attrs =
+      attrs
+      |> Enum.map(fn {key, value} ->
+        ~s( #{key}="#{html_escape_to_string(value)}")
+      end)
+      |> Enum.join("")
+
+    ~s|&nbsp;<a class="post_no" id="post_no_#{post_id}" onclick="highlightReply(#{post_id})" href="#{html_escape_to_string(post_href)}">No.</a><a class="post_no" onclick="citeReply(#{post_id})" href="#{html_escape_to_string(quote_href)}"#{quote_attrs}>#{post_id}</a>|
+  end
+
   def boardlist_groups(boards) do
     Boardlist.configured_groups(boards)
   end

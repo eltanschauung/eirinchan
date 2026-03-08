@@ -327,42 +327,30 @@
             id={"delete_#{thread.id}"}
           />
           <label for={"delete_#{thread.id}"}>
-            <span
-              :if={thread.subject}
-              class="subject"
-            ><%= thread.subject %></span>
+            <span :if={thread.subject} class="subject"><%= thread.subject %></span>
             <%= raw(PostView.name_html(thread, @config)) %>
-            <span
-              :if={thread.tripcode}
-              class="trip"
-            ><%= thread.tripcode %></span>
+            <span :if={thread.tripcode} class="trip"><%= thread.tripcode %></span>
             <%= raw(PostView.ip_link_html(thread, @board, @current_moderator)) %>
             <%= for flag <- PostView.post_flags(thread, @config) do %>
               <img
-              class="flag"
-              src={flag.src}
-              alt={flag.alt}
-              title={flag.alt}
-              style={PostView.flag_style(@config)}
-            />
+                class="flag"
+                src={flag.src}
+                alt={flag.alt}
+                title={flag.alt}
+                style={PostView.flag_style(@config)}
+              />
             <% end %>
             <%= raw(PostView.time_html(thread)) %>
-          </label>&nbsp;
-          <a
-            class="post_no"
-            id={"post_no_#{thread.id}"}
-            onclick={"highlightReply(#{thread.id})"}
-            href={PostView.thread_path(@board, thread, @config) <> "##{thread.id}"}
-          >
-            No.
-          </a>
-          <a
-            class="post_no"
-            onclick={"citeReply(#{thread.id})"}
-            href={PostView.reply_path(@board, thread, thread, @config, :quote)}
-            data-quote-to={thread.id}
-            data-quick-reply-thread={thread.id}
-          ><%= thread.id %></a>
+          </label>
+          <%= raw(
+            PostView.post_number_links_html(
+              thread.id,
+              PostView.thread_path(@board, thread, @config) <> "##{thread.id}",
+              PostView.reply_path(@board, thread, thread, @config, :quote),
+              "data-quote-to": thread.id,
+              "data-quick-reply-thread": thread.id
+            )
+          ) %>
           <%= for icon <- PostView.state_icons(thread, @config) do %>
             <img class="icon" title={icon.title} src={icon.path} alt={icon.title} />
           <% end %>
@@ -393,41 +381,29 @@
               id={"delete_#{reply.id}"}
             />
             <label for={"delete_#{reply.id}"}>
-              <span
-                :if={reply.subject}
-                class="subject"
-              ><%= reply.subject %></span>
+              <span :if={reply.subject} class="subject"><%= reply.subject %></span>
               <%= raw(PostView.name_html(reply, @config)) %>
-              <span
-                :if={reply.tripcode}
-                class="trip"
-              ><%= reply.tripcode %></span>
+              <span :if={reply.tripcode} class="trip"><%= reply.tripcode %></span>
               <%= raw(PostView.ip_link_html(reply, @board, @current_moderator)) %>
               <%= for flag <- PostView.post_flags(reply, @config) do %>
                 <img
-                class="flag"
-                src={flag.src}
-                alt={flag.alt}
-                title={flag.alt}
-                style={PostView.flag_style(@config)}
-              />
+                  class="flag"
+                  src={flag.src}
+                  alt={flag.alt}
+                  title={flag.alt}
+                  style={PostView.flag_style(@config)}
+                />
               <% end %>
               <%= raw(PostView.time_html(reply)) %>
-            </label>&nbsp;
-            <a
-              class="post_no"
-              id={"post_no_#{reply.id}"}
-              onclick={"highlightReply(#{reply.id})"}
-              href={PostView.thread_path(@board, thread, @config) <> "##{reply.id}"}
-            >
-              No.
-            </a>
-            <a
-              class="post_no"
-              onclick={"citeReply(#{reply.id})"}
-              href={PostView.reply_path(@board, thread, reply, @config, :quote)}
-              data-quote-to={reply.id}
-            ><%= reply.id %></a>
+            </label>
+            <%= raw(
+              PostView.post_number_links_html(
+                reply.id,
+                PostView.thread_path(@board, thread, @config) <> "##{reply.id}",
+                PostView.reply_path(@board, thread, reply, @config, :quote),
+                "data-quote-to": reply.id
+              )
+            ) %>
           </p>
           <div class="files">
             <%= for media <- PostView.media_entries(reply, @config) do %>

@@ -299,44 +299,34 @@
         <label for={"delete_#{post.id}"}>
           <span :if={post.subject} class="subject"><%= post.subject %></span>
           <%= raw(PostView.name_html(post, @config)) %>
-          <span
-            :if={post.tripcode}
-            class="trip"
-          ><%= post.tripcode %></span>
+          <span :if={post.tripcode} class="trip"><%= post.tripcode %></span>
           <%= raw(PostView.ip_link_html(post, @board, @current_moderator)) %>
           <%= for flag <- PostView.post_flags(post, @config) do %>
             <img
-            class="flag"
-            src={flag.src}
-            alt={flag.alt}
-            title={flag.alt}
-            style={PostView.flag_style(@config)}
-          />
+              class="flag"
+              src={flag.src}
+              alt={flag.alt}
+              title={flag.alt}
+              style={PostView.flag_style(@config)}
+            />
           <% end %>
           <%= raw(PostView.time_html(post)) %>
-        </label>&nbsp;
-        <a
-          class="post_no"
-          id={"post_no_#{post.id}"}
-          onclick={"highlightReply(#{post.id})"}
-          href={Eirinchan.ThreadPaths.thread_path(template.board, template.post, template.config) <> "##{post.id}"}
-        >
-          No.
-        </a>
-        <a
-          class="post_no"
-          onclick={"citeReply(#{post.id})"}
-          href={
+        </label>
+        <%= raw(
+          PostView.post_number_links_html(
+            post.id,
+            Eirinchan.ThreadPaths.thread_path(template.board, template.post, template.config) <>
+              "##{post.id}",
             PostView.reply_path(
               template.board,
               template.post,
               template.post,
               template.config,
               :quote
-            )
-          }
-          data-quote-to={post.id}
-        ><%= post.id %></a>
+            ),
+            "data-quote-to": post.id
+          )
+        ) %>
         <%= for icon <- PostView.state_icons(post, @config) do %>
           <img class="icon" title={icon.title} src={icon.path} alt={icon.title} />
         <% end %>
@@ -359,38 +349,29 @@
             id={"delete_#{reply.id}"}
           />
           <label for={"delete_#{reply.id}"}>
-          <span :if={reply.subject} class="subject"><%= reply.subject %></span>
-          <%= raw(PostView.name_html(reply, @config)) %>
-          <span
-              :if={reply.tripcode}
-              class="trip"
-            ><%= reply.tripcode %></span>
-          <%= raw(PostView.ip_link_html(reply, @board, @current_moderator)) %>
-          <%= for flag <- PostView.post_flags(reply, @config) do %>
-            <img
-              class="flag"
-              src={flag.src}
-              alt={flag.alt}
-              title={flag.alt}
-              style={PostView.flag_style(@config)}
-            />
-          <% end %>
-          <%= raw(PostView.time_html(reply)) %>
-        </label>&nbsp;
-          <a
-            class="post_no"
-            id={"post_no_#{reply.id}"}
-            onclick={"highlightReply(#{reply.id})"}
-            href={Eirinchan.ThreadPaths.thread_path(@board, post, @config) <> "##{reply.id}"}
-          >
-            No.
-          </a>
-          <a
-            class="post_no"
-            onclick={"citeReply(#{reply.id})"}
-            href={PostView.reply_path(@board, post, reply, @config, :quote)}
-            data-quote-to={reply.id}
-          ><%= reply.id %></a>
+            <span :if={reply.subject} class="subject"><%= reply.subject %></span>
+            <%= raw(PostView.name_html(reply, @config)) %>
+            <span :if={reply.tripcode} class="trip"><%= reply.tripcode %></span>
+            <%= raw(PostView.ip_link_html(reply, @board, @current_moderator)) %>
+            <%= for flag <- PostView.post_flags(reply, @config) do %>
+              <img
+                class="flag"
+                src={flag.src}
+                alt={flag.alt}
+                title={flag.alt}
+                style={PostView.flag_style(@config)}
+              />
+            <% end %>
+            <%= raw(PostView.time_html(reply)) %>
+          </label>
+          <%= raw(
+            PostView.post_number_links_html(
+              reply.id,
+              Eirinchan.ThreadPaths.thread_path(@board, post, @config) <> "##{reply.id}",
+              PostView.reply_path(@board, post, reply, @config, :quote),
+              "data-quote-to": reply.id
+            )
+          ) %>
         </p>
 
         <div class="files">
