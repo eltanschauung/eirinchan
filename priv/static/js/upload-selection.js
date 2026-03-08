@@ -27,10 +27,6 @@ $(function(){
     $(".add_image").hide();
     $(".dropzone-wrap").hide();
 
-    $('[id^=upload_file]').each(function(i, v) {
-        $(v).val('');
-    });
-
     if (enabled_oekaki) {
       if (window.oekaki.initialized) {
         window.oekaki.deinit();
