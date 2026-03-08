@@ -44,7 +44,8 @@ defmodule EirinchanWeb.ManagePageHTML do
               href={PostView.thread_path(@board, @post, @config) <> "##{@post.id}"}
             >
               No.
-            </a><a
+            </a>
+            <a
               class="post_no"
               onclick={"citeReply(#{@post.id})"}
               href={PostView.reply_path(@board, @post, @post, @config, :quote)}
@@ -56,9 +57,7 @@ defmodule EirinchanWeb.ManagePageHTML do
             <a href={PostView.thread_path(@board, @post, @config)}>[Reply]</a>
             <%= raw(PostView.post_controls_html(@post, @board, @moderator, @secure_manage_token)) %>
           </p>
-          <div class="body">
-            <%= raw(PostView.body_html(@post, @board, @post, @config)) %>
-          </div>
+          <%= raw(PostView.body_container_html(@post, @board, @post, @config, op?: true)) %>
         </div>
 
         <br class="clear" />
@@ -79,7 +78,8 @@ defmodule EirinchanWeb.ManagePageHTML do
             href={PostView.thread_path(@board, @thread, @config) <> "##{@post.id}"}
           >
             No.
-          </a><a
+          </a>
+          <a
             class="post_no"
             onclick={"citeReply(#{@post.id})"}
             href={PostView.reply_path(@board, @thread, @post, @config, :quote)}
@@ -92,7 +92,7 @@ defmodule EirinchanWeb.ManagePageHTML do
         <%= raw(PostView.post_controls_html(@post, @board, @moderator, @secure_manage_token)) %>
         <div
           class="body"
-          {case PostView.reply_body_style(@post) do
+          {case PostView.reply_body_style(@post, @config) do
             nil -> []
             style -> [style: style]
           end}
