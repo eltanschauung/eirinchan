@@ -18,4 +18,22 @@ defmodule EirinchanWeb.PostViewTest do
     assert assigns.post == post
     assert assigns.config == config
   end
+
+  test "name_html wraps the name in a mailto link when email is present" do
+    config = Config.compose()
+    post = %Post{name: "Anonymous", email: "sage"}
+
+    assert PostView.name_html(post, config) =~ ~s(<a class="email" href="mailto:sage">)
+    assert PostView.name_html(post, config) =~ ~s(<span class="name">Anonymous</span>)
+  end
+
+  test "name_html respects hide_sage and hide_email" do
+    post = %Post{name: "Anonymous", email: "sage"}
+
+    assert PostView.name_html(post, Map.put(Config.compose(), :hide_sage, true)) ==
+             ~s(<span class="name">Anonymous</span>)
+
+    assert PostView.name_html(post, Map.put(Config.compose(), :hide_email, true)) ==
+             ~s(<span class="name">Anonymous</span>)
+  end
 end

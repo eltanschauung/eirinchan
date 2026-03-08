@@ -328,7 +328,7 @@
           />
           <label for={"delete_#{thread.id}"}>
             <span :if={thread.subject} class="subject"><%= thread.subject %></span>
-            <span class="name"><%= PostView.display_name(thread, @config) %></span>
+            <%= raw(PostView.name_html(thread, @config)) %>
             <span :if={thread.tripcode} class="trip"><%= thread.tripcode %></span>
             <%= raw(PostView.ip_link_html(thread, @board, @current_moderator)) %>
             <%= for flag <- PostView.post_flags(thread, @config) do %>
@@ -391,7 +391,7 @@
             />
             <label for={"delete_#{reply.id}"}>
               <span :if={reply.subject} class="subject"><%= reply.subject %></span>
-              <span class="name"><%= PostView.display_name(reply, @config) %></span>
+              <%= raw(PostView.name_html(reply, @config)) %>
               <span :if={reply.tripcode} class="trip"><%= reply.tripcode %></span>
               <%= raw(PostView.ip_link_html(reply, @board, @current_moderator)) %>
               <%= for flag <- PostView.post_flags(reply, @config) do %>
