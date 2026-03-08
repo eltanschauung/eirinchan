@@ -310,7 +310,7 @@ defmodule EirinchanWeb.PostView do
   def file_dimensions(file), do: dimensions(file)
   def file_class(post), do: if(media_count(post) > 1, do: "file multifile", else: "file")
   def post_container_style(post), do: if(media_count(post) > 1, do: "clear:both", else: nil)
-  def reply_body_style(reply), do: if(media_count(reply) > 1, do: "clear:both", else: nil)
+  def reply_body_style(reply, config), do: body_style(reply, config)
 
   def media_entries(post, config) do
     embed_entries =
@@ -485,6 +485,7 @@ defmodule EirinchanWeb.PostView do
 
   def body_container_html(post, board, thread, config, opts \\ []) do
     body = body_html(post, board, thread, config)
+    style_attr = body_style_attr(post, config, opts)
 
     tag_html =
       case post.tag do
@@ -509,17 +510,12 @@ defmodule EirinchanWeb.PostView do
         ""
       end
 
-    ~s(<div class="body">#{body}#{tag_html}#{fileboard_html}</div>)
+    ~s(<div class="body"#{style_attr}>#{body}#{tag_html}#{fileboard_html}</div>)
   end
 
   def reply_body_container_html(post, board, thread, config) do
-    style_attr =
-      case reply_body_style(post) do
-        nil -> ""
-        style -> ~s( style="#{html_escape_to_string(style)}")
-      end
-
     body = body_html(post, board, thread, config)
+    style_attr = body_style_attr(post, config)
 
     tag_html =
       case post.tag do
@@ -656,6 +652,72 @@ defmodule EirinchanWeb.PostView do
   defp permission_level(:bumplock), do: 20
   defp permission_level(:editpost), do: 30
   defp permission_level(:move), do: 20
+
+  defp body_style(post, config, opts \\ []) do
+    cond do
+      media_count(post) > 1 ->
+        "clear:both"
+
+      ergonomic_body_clear?(post, config, opts) ->
+        "clear:left;margin-left:0;padding-right:0.5em;margin-top:0.35em"
+
+      true ->
+        nil
+    end
+  end
+
+  defp body_style_attr(post, config, opts \\ []) do
+    case body_style(post, config, opts) do
+      nil -> ""
+      style -> ~s( style="#{html_escape_to_string(style)}")
+    end
+  end
+
+  defp ergonomic_body_clear?(post, config, opts) do
+    media_count(post) > 0 and
+      body_complex_enough?(post) and
+      media_display_width(post, config, opts) >= 200
+  end
+
+  defp body_complex_enough?(%{body: body}) when is_binary(body) do
+    lines =
+      body
+      |> String.split("\n", trim: false)
+      |> length()
+
+    longest_line =
+      body
+      |> String.split("\n", trim: false)
+      |> Enum.map(&String.length/1)
+      |> Enum.max(fn -> 0 end)
+
+    lines >= 4 or String.length(body) >= 160 or longest_line >= 48
+  end
+
+  defp body_complex_enough?(_post), do: false
+
+  defp media_display_width(post, config, opts) do
+    op? = Keyword.get(opts, :op?, thread_op?(post))
+
+    case media_entries(post, config) do
+      [%{kind: :embed} | _] ->
+        config.embed_width || 0
+
+      [file | _] ->
+        case fit_dimensions(
+               Map.get(file, :image_width),
+               Map.get(file, :image_height),
+               if(op?, do: config.thumb_op_width, else: config.thumb_width),
+               if(op?, do: config.thumb_op_height, else: config.thumb_height)
+             ) do
+          {width, _height} -> width
+          nil -> 0
+        end
+
+      [] ->
+        0
+    end
+  end
 
   defp subject_html(%{subject: subject}) when is_binary(subject) and subject != "" do
     ~s(<span class="subject">#{html_escape_to_string(subject)}</span>)

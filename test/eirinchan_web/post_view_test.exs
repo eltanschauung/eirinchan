@@ -36,4 +36,44 @@ defmodule EirinchanWeb.PostViewTest do
     assert PostView.name_html(post, Map.put(Config.compose(), :hide_email, true)) ==
              ~s(<span class="name">Anonymous</span>)
   end
+
+  test "reply body clears below large media for multiline text" do
+    config = Config.compose()
+
+    post = %Post{
+      thread_id: 1,
+      body: "line1\nline2\nline3\nline4\nline5",
+      file_path: "/bant/src/example.jpg",
+      thumb_path: "/bant/thumb/example.jpg",
+      image_width: 2200,
+      image_height: 1700,
+      file_name: "example.jpg",
+      file_type: "image/jpeg",
+      file_md5: "abc"
+    }
+
+    html = PostView.reply_body_container_html(post, %BoardRecord{uri: "bant"}, post, config)
+
+    assert html =~ ~s(style="clear:left;margin-left:0;padding-right:0.5em;margin-top:0.35em")
+  end
+
+  test "short replies keep wrapped layout beside media" do
+    config = Config.compose()
+
+    post = %Post{
+      thread_id: 1,
+      body: "short reply",
+      file_path: "/bant/src/example.jpg",
+      thumb_path: "/bant/thumb/example.jpg",
+      image_width: 2200,
+      image_height: 1700,
+      file_name: "example.jpg",
+      file_type: "image/jpeg",
+      file_md5: "abc"
+    }
+
+    html = PostView.reply_body_container_html(post, %BoardRecord{uri: "bant"}, post, config)
+
+    refute html =~ ~s(clear:left)
+  end
 end
