@@ -34,11 +34,6 @@ $(window).ready(function() {
 				$submit.removeAttr('disabled');
 			};
 
-			var clearReplyFields = function() {
-				$(form).find('input[name="subject"],input[name="file_url"],\
-					textarea[name="body"],input[type="file"]').val('').change();
-			};
-			
 			var formData = new FormData(this);
 			formData.append('json_response', '1');
 			formData.append('post', submit_txt);
@@ -85,54 +80,11 @@ $(window).ready(function() {
 							resetSubmit();
 						}
 					} else if (post_response.redirect && post_response.id) {
-						if (!$(form).find('input[name="thread"]').length
-							|| (!settings.get('always_noko_replies', true) && !post_response.noko)) {
-							document.location = post_response.redirect;
+						if ($(form).find('input[name="thread"]').length) {
+							document.location = post_response.redirect + '#' + post_response.id;
 						} else {
-							var finishReply = function() {
-								var $reply = $('div.post#reply_' + post_response.id);
-								if (!$reply.length) {
-									document.location = post_response.redirect + '#' + post_response.id;
-									return;
-								}
-
-								highlightReply(post_response.id);
-								window.location.hash = post_response.id;
-								$(window).scrollTop($reply.offset().top);
-
-								clearReplyFields();
-								resetSubmit();
-								$(document).trigger("ajax_after_post", post_response);
-							};
-
-							$submit.val(_('Posted...'));
-
-							$.ajax({
-								url: document.location,
-								success: function(data) {
-									$(data).find('div.post.reply').each(function() {
-										var id = $(this).attr('id');
-										if($('#' + id).length == 0) {
-											$(this).insertAfter($('div.post:last').next()).after('<br class="clear">');
-											$(document).trigger('new_post', this);
-											// watch.js & auto-reload.js retrigger
-											setTimeout(function() { $(window).trigger("scroll"); }, 100);
-										}
-									});
-
-									finishReply();
-								},
-								error: function() {
-									document.location = post_response.redirect + '#' + post_response.id;
-								},
-								cache: false,
-								contentType: false,
-								processData: false
-							}, 'html');
-						}
-						if (!$(form).find('input[name="thread"]').length
-							|| (!settings.get('always_noko_replies', true) && !post_response.noko)) {
 							$(document).trigger("ajax_after_post", post_response);
+							document.location = post_response.redirect;
 						}
 					} else {
 						alert(_('An unknown error occured when posting!'));
