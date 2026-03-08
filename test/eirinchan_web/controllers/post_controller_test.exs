@@ -192,6 +192,22 @@ defmodule EirinchanWeb.PostControllerTest do
     assert page =~ "img.youtube.com/vi/dQw4w9WgXcQ/0.jpg"
   end
 
+  test "posting accepts YouTube embeds from the bare board route referer", %{conn: conn} do
+    board = board_fixture()
+
+    create_conn =
+      conn
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}")
+      |> post(~p"/#{board.uri}/post", %{
+        "body" => "embed body",
+        "embed" => "https://www.youtube.com/watch?v=yujV_rWiU-0",
+        "json_response" => "1",
+        "post" => "New Topic"
+      })
+
+    assert %{"id" => id, "thread_id" => id} = json_response(create_conn, 200)
+  end
+
   test "posting rejects invalid embed urls", %{conn: conn} do
     board = board_fixture()
 
