@@ -307,9 +307,7 @@
               style={PostView.flag_style(@config)}
             />
           <% end %>
-          <time datetime={PostView.iso_timestamp(post)}>
-            <%= PostView.formatted_timestamp(post) %>
-          </time>
+          <%= raw(PostView.time_html(post)) %>
         </label>
         &nbsp;
         <a
@@ -333,7 +331,9 @@
             )
           }
           data-quote-to={post.id}
-        ><%= post.id %></a>
+        >
+          <%= post.id %>
+        </a>
         <%= for icon <- PostView.state_icons(post, @config) do %>
           <img class="icon" title={icon.title} src={icon.path} alt={icon.title} />
         <% end %>
@@ -342,17 +342,7 @@
         ) %>
       </p>
 
-      <div class="body">
-        <%= raw(PostView.body_html(post, @board, post, @config)) %><span
-          :if={post.tag}
-          class="tag-line"
-        >Tag: <%= if is_map(@config.allowed_tags), do: Map.get(@config.allowed_tags, post.tag, post.tag), else: post.tag %></span><span
-          :if={@config.fileboard && PostView.show_fileboard_summary?(post)}
-          class="tag-line"
-        >
-          Fileboard: <%= PostView.fileboard_summary(post) %>
-        </span>
-      </div>
+      <%= raw(PostView.body_container_html(post, @board, post, @config)) %>
     </div>
 
     <%= for reply <- @summary.replies do %>
@@ -379,9 +369,7 @@
                 style={PostView.flag_style(@config)}
               />
             <% end %>
-            <time datetime={PostView.iso_timestamp(reply)}>
-              <%= PostView.formatted_timestamp(reply) %>
-            </time>
+            <%= raw(PostView.time_html(reply)) %>
           </label>
           &nbsp;
           <a
@@ -397,7 +385,9 @@
             onclick={"citeReply(#{reply.id})"}
             href={PostView.reply_path(@board, post, reply, @config, :quote)}
             data-quote-to={reply.id}
-          ><%= reply.id %></a>
+          >
+            <%= reply.id %>
+          </a>
         </p>
 
         <div class="files">
@@ -444,20 +434,7 @@
         <%= raw(
           PostView.post_controls_html(reply, @board, @current_moderator, @secure_manage_token)
         ) %>
-        <div
-          class="body"
-          {case PostView.reply_body_style(reply) do nil -> []; style -> [style: style] end}
-        >
-          <%= raw(PostView.body_html(reply, @board, post, @config)) %><span
-            :if={reply.tag}
-            class="tag-line"
-          >Tag: <%= if is_map(@config.allowed_tags), do: Map.get(@config.allowed_tags, reply.tag, reply.tag), else: reply.tag %></span><span
-            :if={@config.fileboard && PostView.show_fileboard_summary?(reply)}
-            class="tag-line"
-          >
-            Fileboard: <%= PostView.fileboard_summary(reply) %>
-          </span>
-        </div>
+        <%= raw(PostView.reply_body_container_html(reply, @board, post, @config)) %>
       </div>
       <br />
     <% end %>
