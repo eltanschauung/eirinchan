@@ -76,6 +76,19 @@ defmodule EirinchanWeb.PostView do
     end
   end
 
+  def intro_identity_html(post, board, config, moderator) do
+    [
+      subject_html(post),
+      name_html(post, config),
+      tripcode_html(post),
+      ip_link_html(post, board, moderator),
+      flags_html(post, config),
+      time_html(post)
+    ]
+    |> Enum.reject(&(&1 in [nil, ""]))
+    |> Enum.join("")
+  end
+
   def board_heading(board), do: "/#{board.uri}/ - #{board.title}"
 
   def thread_path(board, post, config), do: ThreadPaths.thread_path(board, post, config)
@@ -643,6 +656,32 @@ defmodule EirinchanWeb.PostView do
   defp permission_level(:bumplock), do: 20
   defp permission_level(:editpost), do: 30
   defp permission_level(:move), do: 20
+
+  defp subject_html(%{subject: subject}) when is_binary(subject) and subject != "" do
+    ~s(<span class="subject">#{html_escape_to_string(subject)}</span>)
+  end
+
+  defp subject_html(_post), do: nil
+
+  defp tripcode_html(%{tripcode: tripcode}) when is_binary(tripcode) and tripcode != "" do
+    ~s(<span class="trip">#{html_escape_to_string(tripcode)}</span>)
+  end
+
+  defp tripcode_html(_post), do: nil
+
+  defp flags_html(post, config) do
+    post
+    |> post_flags(config)
+    |> Enum.map_join(fn flag ->
+      style_attr =
+        case flag_style(config) do
+          nil -> ""
+          style -> ~s( style="#{html_escape_to_string(style)}")
+        end
+
+      ~s(<img class="flag" src="#{html_escape_to_string(flag.src)}" alt="#{html_escape_to_string(flag.alt)}" title="#{html_escape_to_string(flag.alt)}"#{style_attr} />)
+    end)
+  end
 
   defp email_link?(email, config) when is_binary(email) do
     trimmed = String.trim(email)
