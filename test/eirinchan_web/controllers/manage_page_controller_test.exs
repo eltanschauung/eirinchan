@@ -28,6 +28,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert dashboard =~ "Signed in as"
     assert dashboard =~ moderator.username
     assert dashboard =~ "Report queue (0)"
+    assert dashboard =~ "Feedback (0)"
     assert dashboard =~ "Ban appeals (0)"
     assert dashboard =~ ~s(class="boardlist")
   end
@@ -674,10 +675,15 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert redirected_to(resolve_conn) == "/manage/ban-appeals/browser"
   end
 
-  test "browser ban form uses vichan-style length input and accepts compact durations", %{conn: conn} do
+  test "browser ban form uses vichan-style length input and accepts compact durations", %{
+    conn: conn
+  } do
     moderator = moderator_fixture(%{role: "admin"})
     board = board_fixture(%{uri: "tea#{System.unique_integer([:positive])}", title: "Tea"})
-    other_board = board_fixture(%{uri: "leaf#{System.unique_integer([:positive])}", title: "Leaf"})
+
+    other_board =
+      board_fixture(%{uri: "leaf#{System.unique_integer([:positive])}", title: "Leaf"})
+
     thread = thread_fixture(board, %{body: "Thread body", ip_subnet: "198.51.100.7"})
 
     page =
