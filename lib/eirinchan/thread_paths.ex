@@ -3,7 +3,7 @@ defmodule Eirinchan.ThreadPaths do
   Helpers for vichan-style thread filenames and board-relative paths.
   """
 
-  alias Eirinchan.Boards.BoardRecord
+  alias Eirinchan.Boards.{Board, BoardRecord}
   alias Eirinchan.Posts.Post
 
   @spec parse_thread_id(String.t() | integer()) :: {:ok, integer()} | :error
@@ -35,17 +35,30 @@ defmodule Eirinchan.ThreadPaths do
     String.replace(config.file_page, "%d", Integer.to_string(id))
   end
 
-  @spec thread_path(BoardRecord.t(), Post.t(), map()) :: String.t()
+  @spec thread_path(BoardRecord.t() | Board.t(), Post.t(), map()) :: String.t()
   def thread_path(%BoardRecord{uri: board_uri}, %Post{} = thread, config) do
     "/#{board_uri}/#{config.dir.res}#{thread_filename(thread, config)}"
   end
 
-  @spec board_page_path(BoardRecord.t(), pos_integer(), map()) :: String.t()
+  def thread_path(%Board{uri: board_uri}, %Post{} = thread, config) do
+    "/#{board_uri}/#{config.dir.res}#{thread_filename(thread, config)}"
+  end
+
+  @spec board_page_path(BoardRecord.t() | Board.t(), pos_integer(), map()) :: String.t()
   def board_page_path(%BoardRecord{uri: board_uri}, page_num, _config) when page_num <= 1 do
     "/#{board_uri}"
   end
 
+  def board_page_path(%Board{uri: board_uri}, page_num, _config) when page_num <= 1 do
+    "/#{board_uri}"
+  end
+
   def board_page_path(%BoardRecord{uri: board_uri}, page_num, config) do
+    filename = String.replace(config.file_page, "%d", Integer.to_string(page_num))
+    "/#{board_uri}/#{filename}"
+  end
+
+  def board_page_path(%Board{uri: board_uri}, page_num, config) do
     filename = String.replace(config.file_page, "%d", Integer.to_string(page_num))
     "/#{board_uri}/#{filename}"
   end

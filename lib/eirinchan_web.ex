@@ -24,6 +24,8 @@ defmodule EirinchanWeb do
         images
         js
         main.js
+        phoenix.min.js
+        phoenix_live_view.min.js
         recent.css
         static
         stylesheets
