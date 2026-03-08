@@ -3,9 +3,11 @@ defmodule EirinchanWeb.ManagePageControllerTest do
 
   test "login page renders and browser login redirects to the dashboard", %{conn: conn} do
     moderator = moderator_fixture(%{username: "admin", password: "secret123"})
+    _board = board_fixture(%{uri: "bant", title: "International Random"})
 
     login_page = conn |> get("/manage/login") |> html_response(200)
     assert login_page =~ "Moderator Login"
+    assert login_page =~ ~s(class="boardlist")
 
     conn =
       conn
@@ -27,6 +29,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert dashboard =~ moderator.username
     assert dashboard =~ "Report queue (0)"
     assert dashboard =~ "Ban appeals (0)"
+    assert dashboard =~ ~s(class="boardlist")
   end
 
   test "browser dashboard redirects to setup when no admin exists", %{conn: conn} do
