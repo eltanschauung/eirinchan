@@ -38,73 +38,27 @@
 </section>
 
 <section>
-  <%= if @posts == [] do %>
+  <%= if @entries == [] do %>
     <p>No posts matched.</p>
   <% else %>
-    <%= for post <- @posts do %>
-      <article>
-        <h2>#<%= post.id %> on /<%= post.board.uri %>/</h2>
-        <p :if={post.subject}><strong><%= post.subject %></strong></p>
-        <p :if={post.body}><%= post.body %></p>
-        <p>
-          IP:
-          <%= if post.ip_subnet do %>
-            <%= if EirinchanWeb.IpPresentation.show_raw_ip?(@moderator) do %>
-              <a href={"/manage/boards/#{post.board.uri}/ip/#{post.ip_subnet}/browser"}>
-                <%= post.ip_subnet %>
-              </a>
-            <% else %>
-              <%= EirinchanWeb.IpPresentation.display_ip(post.ip_subnet, @moderator) %>
-            <% end %>
-          <% else %>
-            unknown
-          <% end %>
-        </p>
-        <p>Posted: <%= post.inserted_at %></p>
-
-        <section :if={@moderator.role in ["admin", "mod"]}>
-          <h3>Move</h3>
-          <%= if is_nil(post.thread_id) do %>
-            <form
-              action={"/manage/boards/#{post.board.uri}/threads/#{post.id}/browser/move"}
-              method="post"
-            >
-              <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
-              <input type="hidden" name="_method" value="patch" />
-              <label>
-                <span>Target Board</span>
-                <select name="target_board_uri">
-                  <%= for board <- @boards do %>
-                    <option value={board.uri}>/<%= board.uri %>/</option>
-                  <% end %>
-                </select>
-              </label>
-              <button type="submit">Move Thread</button>
-            </form>
-          <% else %>
-            <form
-              action={"/manage/boards/#{post.board.uri}/posts/#{post.id}/browser/move"}
-              method="post"
-            >
-              <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
-              <input type="hidden" name="_method" value="patch" />
-              <label>
-                <span>Target Board</span>
-                <select name="target_board_uri">
-                  <%= for board <- @boards do %>
-                    <option value={board.uri}>/<%= board.uri %>/</option>
-                  <% end %>
-                </select>
-              </label>
-              <label>
-                <span>Target Thread ID</span>
-                <input type="text" name="target_thread_id" />
-              </label>
-              <button type="submit">Move Reply</button>
-            </form>
-          <% end %>
-        </section>
-      </article>
+    <h4>Viewing last <%= @filters["limit"] %> posts</h4>
+    <%= for entry <- @entries do %>
+      <div class="post-wrapper" data-board={entry.board.uri}>
+        <hr />
+        <a
+          class="eita-link"
+          id={"eita-#{entry.board.uri}-#{entry.thread.id}"}
+          href={EirinchanWeb.PostView.thread_path(entry.board, entry.thread, entry.config) <> "##{entry.post.id}"}
+        >/ <%= entry.board.uri %> /<%= entry.post.id %></a><br />
+        <.moderation_post
+          post={entry.post}
+          board={entry.board}
+          thread={entry.thread}
+          config={entry.config}
+          moderator={@moderator}
+          secure_manage_token={@secure_manage_token}
+        />
+      </div>
     <% end %>
   <% end %>
 </section>
