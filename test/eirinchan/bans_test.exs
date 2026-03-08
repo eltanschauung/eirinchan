@@ -52,4 +52,18 @@ defmodule Eirinchan.BansTest do
     assert resolved.status == "resolved"
     assert resolved.resolution_note == "Reviewed"
   end
+
+  test "parses vichan-style ban lengths" do
+    assert {:ok, expires_at} = Bans.parse_length("1h")
+    assert DateTime.diff(expires_at, DateTime.utc_now(), :second) in 3598..3602
+
+    assert {:ok, expires_at} = Bans.parse_length("2 days")
+    assert DateTime.diff(expires_at, DateTime.utc_now(), :second) in 172798..172802
+  end
+
+  test "create_ban accepts vichan-style length input" do
+    assert {:ok, ban} = Bans.create_ban(%{ip_subnet: "203.0.113.4", reason: "Spam", length: "1h"})
+    assert %DateTime{} = ban.expires_at
+    assert DateTime.diff(ban.expires_at, DateTime.utc_now(), :second) in 3598..3602
+  end
 end

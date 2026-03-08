@@ -27,6 +27,7 @@ defmodule EirinchanWeb.BanManagementController do
              ip_subnet: params["ip_subnet"],
              reason: params["reason"],
              expires_at: params["expires_at"],
+             length: params["length"],
              active: Map.get(params, "active", true)
            }) do
       conn
@@ -44,7 +45,10 @@ defmodule EirinchanWeb.BanManagementController do
          %{} = ban <- Bans.get_ban(id),
          true <- ban.board_id == board.id,
          {:ok, ban} <-
-           Bans.update_ban(ban, Map.take(params, ["ip_subnet", "reason", "expires_at", "active"])) do
+           Bans.update_ban(
+             ban,
+             Map.take(params, ["ip_subnet", "reason", "expires_at", "length", "active"])
+           ) do
       render(conn, :show, ban: ban)
     else
       nil -> {:error, :not_found}
