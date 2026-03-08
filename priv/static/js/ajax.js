@@ -35,6 +35,29 @@ $(window).ready(function() {
 				$submit.removeAttr('disabled');
 			};
 
+			var completeReplyArrival = function(postId, onReady, attempts) {
+				var remaining = typeof attempts === 'number' ? attempts : 20;
+				var $reply = $('div.post#reply_' + postId).first();
+
+				if ($reply.length) {
+					window.requestAnimationFrame(function() {
+						window.requestAnimationFrame(function() {
+							onReady($reply);
+						});
+					});
+					return;
+				}
+
+				if (remaining <= 0) {
+					onReady($reply);
+					return;
+				}
+
+				setTimeout(function() {
+					completeReplyArrival(postId, onReady, remaining - 1);
+				}, 25);
+			};
+
 			var clearReplyFields = function() {
 				$(form).find('input[name="subject"],input[name="file_url"],\
 					textarea[name="body"],input[type="file"]').val('').change();
@@ -115,28 +138,50 @@ $(window).ready(function() {
 								$insertedReply = $('div.post#reply_' + post_response.id).first();
 							}
 
-							var $target = $insertedReply.length ? $insertedReply : $('div.post#reply_' + post_response.id).first();
-							if ($target.length) {
-								highlightReply(post_response.id);
-								window.location.hash = post_response.id;
-								$(window).scrollTop($target.offset().top);
-								clearReplyFields();
-								resetSubmit();
-								$(document).trigger("ajax_after_post", post_response);
-								setTimeout(function() {
-									try {
-										if ($target.length) {
+							completeReplyArrival(post_response.id, function($target) {
+								if ($target.length) {
+									var anchor = document.getElementById(String(post_response.id)) || $target[0];
+
+									clearReplyFields();
+									resetSubmit();
+									$(document).trigger("ajax_after_post", post_response);
+
+									setTimeout(function() {
+										try {
 											$(document).trigger('new_post', $target[0]);
+										} catch (e) {
+											console.error(e);
 										}
-										$(window).trigger("scroll");
+									}, 0);
+
+									try {
+										if (history && history.replaceState) {
+											history.replaceState(null, document.title, window.location.pathname + window.location.search + '#' + post_response.id);
+										} else {
+											window.location.hash = post_response.id;
+										}
+									} catch (_e) {
+										window.location.hash = post_response.id;
+									}
+
+									if (anchor.scrollIntoView) {
+										anchor.scrollIntoView({block: "start"});
+									} else {
+										$(window).scrollTop($target.offset().top);
+									}
+
+									try {
+										highlightReply(post_response.id);
 									} catch (e) {
 										console.error(e);
 									}
-								}, 0);
-							} else {
-								resetSubmit();
-								document.location = window.location.pathname + window.location.search + '#' + post_response.id;
-							}
+
+									setTimeout(function() { $(window).trigger("scroll"); }, 50);
+								} else {
+									resetSubmit();
+									document.location = window.location.pathname + window.location.search + '#' + post_response.id;
+								}
+							});
 						} else {
 							$(document).trigger("ajax_after_post", post_response);
 							document.location = post_response.redirect;
