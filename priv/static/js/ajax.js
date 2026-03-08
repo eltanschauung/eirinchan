@@ -24,9 +24,20 @@ $(window).ready(function() {
 			if (do_not_ajax)
 				return true;
 			var form = this;
+			var $submit = $(form).find('input[type="submit"]');
 			var submit_txt = $(this).find('input[type="submit"]').val();
 			if (window.FormData === undefined)
 				return true;
+
+			var resetSubmit = function() {
+				$submit.val(submit_txt);
+				$submit.removeAttr('disabled');
+			};
+
+			var clearReplyFields = function() {
+				$(form).find('input[name="subject"],input[name="file_url"],\
+					textarea[name="body"],input[type="file"]').val('').change();
+			};
 			
 			var formData = new FormData(this);
 			formData.append('json_response', '1');
@@ -71,14 +82,31 @@ $(window).ready(function() {
 							$(form).submit();
 						} else {
 							alert(post_response.error);
-							$(form).find('input[type="submit"]').val(submit_txt);
-							$(form).find('input[type="submit"]').removeAttr('disabled');
+							resetSubmit();
 						}
 					} else if (post_response.redirect && post_response.id) {
 						if (!$(form).find('input[name="thread"]').length
 							|| (!settings.get('always_noko_replies', true) && !post_response.noko)) {
 							document.location = post_response.redirect;
 						} else {
+							var finishReply = function() {
+								var $reply = $('div.post#reply_' + post_response.id);
+								if (!$reply.length) {
+									document.location = post_response.redirect + '#' + post_response.id;
+									return;
+								}
+
+								highlightReply(post_response.id);
+								window.location.hash = post_response.id;
+								$(window).scrollTop($reply.offset().top);
+
+								clearReplyFields();
+								resetSubmit();
+								$(document).trigger("ajax_after_post", post_response);
+							};
+
+							$submit.val(_('Posted...'));
+
 							$.ajax({
 								url: document.location,
 								success: function(data) {
@@ -91,34 +119,30 @@ $(window).ready(function() {
 											setTimeout(function() { $(window).trigger("scroll"); }, 100);
 										}
 									});
-									
-									highlightReply(post_response.id);
-									window.location.hash = post_response.id;
-									$(window).scrollTop($('div.post#reply_' + post_response.id).offset().top);
-									
-									$(form).find('input[type="submit"]').val(submit_txt);
-									$(form).find('input[type="submit"]').removeAttr('disabled');
-									$(form).find('input[name="subject"],input[name="file_url"],\
-										textarea[name="body"],input[type="file"]').val('').change();
+
+									finishReply();
+								},
+								error: function() {
+									document.location = post_response.redirect + '#' + post_response.id;
 								},
 								cache: false,
 								contentType: false,
 								processData: false
 							}, 'html');
 						}
-						$(form).find('input[type="submit"]').val(_('Posted...'));
-						$(document).trigger("ajax_after_post", post_response);
+						if (!$(form).find('input[name="thread"]').length
+							|| (!settings.get('always_noko_replies', true) && !post_response.noko)) {
+							$(document).trigger("ajax_after_post", post_response);
+						}
 					} else {
 						alert(_('An unknown error occured when posting!'));
-						$(form).find('input[type="submit"]').val(submit_txt);
-						$(form).find('input[type="submit"]').removeAttr('disabled');
+						resetSubmit();
 					}
 				},
 				error: function(xhr, status, er) {
 					console.log(xhr);
 					alert(_('The server took too long to submit your post. Your post was probably still submitted. If it wasn\'t, we might be experiencing issues right now -- please try your post again later. Error information: ') + "<div><textarea>" + JSON.stringify(xhr) + "</textarea></div>");
-					$(form).find('input[type="submit"]').val(submit_txt);
-					$(form).find('input[type="submit"]').removeAttr('disabled');
+					resetSubmit();
 				},
 				data: formData,
 				cache: false,
@@ -126,8 +150,8 @@ $(window).ready(function() {
 				processData: false
 			}, 'json');
 			
-			$(form).find('input[type="submit"]').val(_('Posting...'));
-			$(form).find('input[type="submit"]').attr('disabled', true);
+			$submit.val(_('Posting...'));
+			$submit.attr('disabled', true);
 			
 			return false;
 		});
