@@ -63,6 +63,26 @@ function isOnThread() {
 	return window.active_page === "thread";
 }
 
+function resolveFullImageUrl($thumb) {
+	if (isOnCatalog()) {
+		return $thumb.attr("data-fullimage") || null;
+	}
+
+	var $file = $thumb.closest(".file, .files > div, .post, .thread");
+	var $fileInfoLink = $file.find("p.fileinfo a").first();
+
+	if ($fileInfoLink.length && $fileInfoLink.attr("href")) {
+		return $fileInfoLink.attr("href");
+	}
+
+	var $link = $thumb.closest("a");
+	if ($link.length && $link.attr("href")) {
+		return $link.attr("href");
+	}
+
+	return null;
+}
+
 function getSetting(key) {
 	return (localStorage[key] == 'true');
 }
@@ -133,13 +153,10 @@ function imageHoverStart(e) { //Pashe, anonish, WTFPL
 	
 	var $this = $(this);
 	
-	var fullUrl;
-	var $link = $this.closest("a");
-	if ($link.length && $link.attr("href") && $link.attr("href").match("src")) {
-		fullUrl = $link.attr("href");
-	} else if (isOnCatalog()) {
-		fullUrl = $this.attr("data-fullimage") || ($link.length ? $link.attr("href") : null);
-		if (!isImage(getFileExtension(fullUrl))) {fullUrl = $this.attr("src");}
+	var fullUrl = resolveFullImageUrl($this);
+
+	if (isOnCatalog() && fullUrl && !isImage(getFileExtension(fullUrl))) {
+		fullUrl = $this.attr("src");
 	}
 
 	if (!fullUrl) {return;}
@@ -181,7 +198,6 @@ function imageHoverStart(e) { //Pashe, anonish, WTFPL
 		});
 	}
 	hoverImage.appendTo($("body"));
-	if (isOnThread()) {$this.css("cursor", "none");}
 }
 
 function imageHoverEnd() { //Pashe, WTFPL
