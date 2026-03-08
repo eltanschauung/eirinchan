@@ -100,7 +100,13 @@ defmodule Eirinchan.Posts.Post do
   end
 
   defp normalize_body(nil), do: ""
-  defp normalize_body(value), do: String.trim(value)
+
+  defp normalize_body(value) do
+    value
+    |> String.replace("\r\n", "\n")
+    |> String.replace("\r", "\n")
+    |> String.trim()
+  end
 
   defp ensure_body(changeset) do
     if get_field(changeset, :body) == nil do
