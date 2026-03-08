@@ -48,49 +48,6 @@ defmodule EirinchanWeb.PublicShell do
     "/js/download-original.js"
   ]
 
-  @thread_live_javascript_urls [
-    "/main.js",
-    "/js/jquery.min.js",
-    "/js/phoenix.min.js",
-    "/js/phoenix_live_view.min.js",
-    "/js/thread-live.js",
-    "/js/inline-expanding.js",
-    "/js/youtube.js",
-    "/js/save-user_flag.js",
-    "/js/strftime.min.js",
-    "/js/navarrows2.js",
-    "/js/expand.js",
-    "/js/options.js",
-    "/js/style-select.js",
-    "/js/options/general.js",
-    "/js/options/user-js.js",
-    "/js/options/user-css.js",
-    "/js/instance.settings.js",
-    "/js/jquery-ui.custom.min.js",
-    "/js/filters.js",
-    "/js/post-filter.js",
-    "/js/local-time.js",
-    "/js/titlebar-notifications.js",
-    "/js/image-hover.js",
-    "/js/post-hover.js",
-    "/js/show-backlinks.js",
-    "/js/show-op.js",
-    "/js/show-own-posts-options.js",
-    "/js/archive.js",
-    "/js/mobile-style.js",
-    "/js/fix-report-delete-submit.js",
-    "/js/quick-post-controls.js",
-    "/js/download-original.js",
-    "/js/unspoiler3.js",
-    "/js/ruffle.js",
-    "/js/expand-swf.js",
-    "/js/catalog-search.js",
-    "/js/webm-settings.js",
-    "/js/expand-video.js",
-    "/js/show-own-posts.js",
-    "/js/own-board.js"
-  ]
-
   @catalog_javascript_urls @base_javascript_urls ++
                              ["/js/jquery.mixitup.min.js", "/js/catalog.js"]
 
@@ -133,7 +90,6 @@ defmodule EirinchanWeb.PublicShell do
 
   def javascript_urls, do: @base_javascript_urls
   def javascript_urls(:catalog), do: @catalog_javascript_urls
-  def javascript_urls(:thread_live), do: @thread_live_javascript_urls
   def javascript_urls(_page), do: @base_javascript_urls
 
   def thread_meta_html(board, thread, config) do

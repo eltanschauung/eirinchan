@@ -8,7 +8,6 @@ defmodule EirinchanWeb.ThreadController do
   alias Eirinchan.ThreadPaths
   alias EirinchanWeb.BoardChrome
   alias EirinchanWeb.PublicShell
-  alias EirinchanWeb.RequestMeta
 
   plug EirinchanWeb.Plugs.LoadBoard
 
@@ -55,21 +54,13 @@ defmodule EirinchanWeb.ThreadController do
                 theme_options: conn.assigns[:theme_options]
               ),
             head_after_assets_html: PublicShell.thread_meta_html(board, summary.thread, config),
-            javascript_urls: PublicShell.javascript_urls(:thread_live),
+            javascript_urls: PublicShell.javascript_urls(:thread),
             body_end_html: PublicShell.body_end_html(),
             primary_stylesheet: board_primary_stylesheet(conn),
             primary_stylesheet_id: "stylesheet",
             extra_stylesheets: board_extra_stylesheets(board),
             hide_theme_switcher: true,
-            skip_app_stylesheet: true,
-            live_socket: true,
-            thread_live_session: %{
-              "board_uri" => board.uri,
-              "thread_id" => summary.thread.id,
-              "request_host" => RequestMeta.request_host(conn),
-              "current_moderator_id" => conn.assigns[:current_moderator] && conn.assigns.current_moderator.id,
-              "secure_manage_token" => conn.assigns[:secure_manage_token]
-            }
+            skip_app_stylesheet: true
           )
         end
 
