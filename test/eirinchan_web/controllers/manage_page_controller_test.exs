@@ -674,6 +674,37 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert redirected_to(resolve_conn) == "/manage/ban-appeals/browser"
   end
 
+  test "browser ban form uses vichan-style length input and accepts compact durations", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+    board = board_fixture(%{uri: "tea#{System.unique_integer([:positive])}", title: "Tea"})
+    thread = thread_fixture(board, %{body: "Thread body", ip_subnet: "198.51.100.7"})
+
+    page =
+      conn
+      |> login_moderator(moderator)
+      |> get("/manage/boards/#{board.uri}/posts/#{thread.id}/ban/browser")
+      |> html_response(200)
+
+    assert page =~ ~s(name="length")
+    assert page =~ "2d1h30m"
+    refute page =~ "Expires At"
+
+    create_conn =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> post("/manage/boards/#{board.uri}/posts/#{thread.id}/ban/browser", %{
+        "reason" => "Spam",
+        "length" => "1h"
+      })
+
+    assert redirected_to(create_conn) == "/#{board.uri}/res/#{thread.id}.html"
+
+    [ban] = Eirinchan.Bans.list_bans(board_id: board.id)
+    assert ban.ip_subnet == "198.51.100.7"
+    assert DateTime.diff(ban.expires_at, DateTime.utc_now(), :second) in 3598..3602
+  end
+
   test "browser IP history page supports notes and delete-by-ip actions", %{conn: conn} do
     moderator = moderator_fixture(%{role: "admin"})
     board = board_fixture(%{uri: "tea#{System.unique_integer([:positive])}", title: "Tea"})

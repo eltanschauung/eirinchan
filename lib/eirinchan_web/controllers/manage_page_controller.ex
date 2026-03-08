@@ -927,7 +927,7 @@ defmodule EirinchanWeb.ManagePageController do
         error: nil,
         params: %{
           "reason" => Map.get(params, "reason", ""),
-          "expires_at" => Map.get(params, "expires_at", ""),
+          "length" => Map.get(params, "length", ""),
           "delete_post" => Map.get(params, "delete", "0")
         }
       )
@@ -948,7 +948,7 @@ defmodule EirinchanWeb.ManagePageController do
              mod_user_id: moderator.id,
              ip_subnet: post.ip_subnet,
              reason: params["reason"],
-             expires_at: blank_to_nil(params["expires_at"]),
+             length: params["length"],
              active: true
            }),
          {:ok, _deleted} <- maybe_moderator_delete_post(board, post, params, conn.host) do
@@ -1629,10 +1629,6 @@ defmodule EirinchanWeb.ManagePageController do
     end
   end
 
-  defp blank_to_nil(nil), do: nil
-  defp blank_to_nil(value) when is_binary(value) and value == "", do: nil
-  defp blank_to_nil(value), do: value
-
   defp render_ban_post_error(conn, uri, post_id, message, params, status \\ :unprocessable_entity) do
     board = Boards.get_board_by_uri(uri)
     {:ok, post} = Eirinchan.Posts.get_post(board, post_id)
@@ -1646,7 +1642,7 @@ defmodule EirinchanWeb.ManagePageController do
       error: message,
       params: %{
         "reason" => Map.get(params, "reason", ""),
-        "expires_at" => Map.get(params, "expires_at", ""),
+        "length" => Map.get(params, "length", ""),
         "delete_post" => Map.get(params, "delete_post", Map.get(params, "delete", "0"))
       }
     )

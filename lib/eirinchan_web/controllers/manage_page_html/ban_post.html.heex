@@ -17,8 +17,11 @@
         <td><input type="text" name="reason" value={@params["reason"]} /></td>
       </tr>
       <tr>
-        <th>Expires At</th>
-        <td><input type="text" name="expires_at" value={@params["expires_at"]} /></td>
+        <th><label for="length">Length</label></th>
+        <td>
+          <input type="text" name="length" id="length" size="20" maxlength="40" value={@params["length"]} />
+          <span class="unimportant">(eg. "2d1h30m" or "2 days")</span>
+        </td>
       </tr>
       <tr>
         <th>Delete Post</th>

@@ -9,6 +9,8 @@ defmodule Eirinchan.Bans do
   alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.Repo
 
+  @duration_pattern ~r/^((\d+)\s?ye?a?r?s?)?\s?+((\d+)\s?mon?t?h?s?)?\s?+((\d+)\s?we?e?k?s?)?\s?+((\d+)\s?da?y?s?)?((\d+)\s?ho?u?r?s?)?\s?+((\d+)\s?mi?n?u?t?e?s?)?\s?+((\d+)\s?se?c?o?n?d?s?)?$/
+
   @spec create_ban(map(), keyword()) :: {:ok, Ban.t()} | {:error, Ecto.Changeset.t()}
   def create_ban(attrs, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
@@ -26,6 +28,27 @@ defmodule Eirinchan.Bans do
     |> Ban.changeset(normalize_attrs(attrs))
     |> repo.update()
   end
+
+  @spec parse_length(nil | String.t() | DateTime.t()) :: {:ok, DateTime.t() | nil} | {:error, :invalid_length}
+  def parse_length(nil), do: {:ok, nil}
+  def parse_length(%DateTime{} = datetime), do: {:ok, datetime}
+
+  def parse_length(length) when is_binary(length) do
+    trimmed = String.trim(length)
+
+    cond do
+      trimmed == "" ->
+        {:ok, nil}
+
+      true ->
+        with {:error, :invalid_length} <- parse_absolute_datetime(trimmed),
+             {:error, :invalid_length} <- parse_relative_length(trimmed) do
+          {:error, :invalid_length}
+        end
+    end
+  end
+
+  def parse_length(_length), do: {:error, :invalid_length}
 
   @spec list_bans(keyword()) :: [Ban.t()]
   def list_bans(opts \\ []) do
@@ -204,10 +227,29 @@ defmodule Eirinchan.Bans do
   end
 
   defp normalize_attrs(attrs) do
-    Enum.into(attrs, %{}, fn
-      {key, value} when is_atom(key) -> {Atom.to_string(key), value}
-      pair -> pair
-    end)
+    attrs =
+      Enum.into(attrs, %{}, fn
+        {key, value} when is_atom(key) -> {Atom.to_string(key), value}
+        pair -> pair
+      end)
+
+    case Map.fetch(attrs, "length") do
+      {:ok, length} ->
+        case parse_length(length) do
+          {:ok, expires_at} ->
+            attrs
+            |> Map.put("expires_at", expires_at)
+            |> Map.delete("length")
+
+          {:error, :invalid_length} ->
+            attrs
+            |> Map.put("expires_at", "__invalid_length__")
+            |> Map.delete("length")
+        end
+
+      :error ->
+        attrs
+    end
   end
 
   defp normalize_id(value) when is_integer(value), do: value
@@ -223,4 +265,52 @@ defmodule Eirinchan.Bans do
 
   defp normalize_ip(ip) when is_binary(ip), do: String.trim(ip)
   defp normalize_ip(_ip), do: nil
+
+  defp parse_absolute_datetime(value) do
+    cond do
+      match?({:ok, _dt, _offset}, DateTime.from_iso8601(value)) ->
+        {:ok, elem(DateTime.from_iso8601(value), 1)}
+
+      match?({:ok, _ndt}, NaiveDateTime.from_iso8601(value)) ->
+        {:ok, NaiveDateTime.from_iso8601!(value) |> DateTime.from_naive!("Etc/UTC")}
+
+      match?({:ok, _dt, _offset}, DateTime.from_iso8601(value <> ":00Z")) ->
+        {:ok, elem(DateTime.from_iso8601(value <> ":00Z"), 1)}
+
+      match?({:ok, _ndt}, NaiveDateTime.from_iso8601(value <> ":00")) ->
+        {:ok, NaiveDateTime.from_iso8601!(value <> ":00") |> DateTime.from_naive!("Etc/UTC")}
+
+      true ->
+        {:error, :invalid_length}
+    end
+  rescue
+    _ -> {:error, :invalid_length}
+  end
+
+  defp parse_relative_length(value) do
+    condensed = String.replace(value, ~r/\s+/, " ")
+
+    case Regex.run(@duration_pattern, condensed) do
+      nil ->
+        {:error, :invalid_length}
+
+      matches ->
+        seconds =
+          [{2, 365 * 24 * 60 * 60}, {4, 30 * 24 * 60 * 60}, {6, 7 * 24 * 60 * 60},
+           {8, 24 * 60 * 60}, {10, 60 * 60}, {12, 60}, {14, 1}]
+          |> Enum.reduce(0, fn {index, unit_seconds}, acc ->
+            case Enum.at(matches, index) do
+              nil -> acc
+              "" -> acc
+              value -> acc + String.to_integer(value) * unit_seconds
+            end
+          end)
+
+        if seconds > 0 do
+          {:ok, DateTime.utc_now() |> DateTime.add(seconds, :second) |> DateTime.truncate(:second)}
+        else
+          {:error, :invalid_length}
+        end
+    end
+  end
 end
