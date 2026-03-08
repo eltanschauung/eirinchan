@@ -677,6 +677,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
   test "browser ban form uses vichan-style length input and accepts compact durations", %{conn: conn} do
     moderator = moderator_fixture(%{role: "admin"})
     board = board_fixture(%{uri: "tea#{System.unique_integer([:positive])}", title: "Tea"})
+    other_board = board_fixture(%{uri: "leaf#{System.unique_integer([:positive])}", title: "Leaf"})
     thread = thread_fixture(board, %{body: "Thread body", ip_subnet: "198.51.100.7"})
 
     page =
@@ -685,8 +686,14 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       |> get("/manage/boards/#{board.uri}/posts/#{thread.id}/ban/browser")
       |> html_response(200)
 
+    assert page =~ ~s(name="ip")
+    assert page =~ ~s(name="public_message")
+    assert page =~ "USER WAS BANNED FOR THIS POST"
     assert page =~ ~s(name="length")
     assert page =~ "2d1h30m"
+    assert page =~ ~s(id="ban-allboards")
+    assert page =~ ~s(id="ban-board-#{board.uri}")
+    assert page =~ ~s(id="ban-board-#{other_board.uri}")
     refute page =~ "Expires At"
 
     create_conn =
@@ -694,14 +701,16 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       |> recycle()
       |> login_moderator(moderator)
       |> post("/manage/boards/#{board.uri}/posts/#{thread.id}/ban/browser", %{
+        "ip" => "198.51.100.0/24",
         "reason" => "Spam",
-        "length" => "1h"
+        "length" => "1h",
+        "board" => board.uri
       })
 
     assert redirected_to(create_conn) == "/#{board.uri}/res/#{thread.id}.html"
 
     [ban] = Eirinchan.Bans.list_bans(board_id: board.id)
-    assert ban.ip_subnet == "198.51.100.7"
+    assert ban.ip_subnet == "198.51.100.0/24"
     assert DateTime.diff(ban.expires_at, DateTime.utc_now(), :second) in 3598..3602
   end
 

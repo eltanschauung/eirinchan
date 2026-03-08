@@ -66,4 +66,18 @@ defmodule Eirinchan.BansTest do
     assert %DateTime{} = ban.expires_at
     assert DateTime.diff(ban.expires_at, DateTime.utc_now(), :second) in 3598..3602
   end
+
+  test "matches CIDR subnet bans generically" do
+    board = board_fixture()
+
+    assert {:ok, _ban} =
+             Bans.create_ban(%{
+               board_id: board.id,
+               ip_subnet: "0.0.0.0/24",
+               reason: "Subnet"
+             })
+
+    assert %{} = Bans.active_ban_for_request(board, {99, 254, 200, 1})
+    assert Bans.active_ban_for_request(board, {99, 255, 0, 1}) == nil
+  end
 end

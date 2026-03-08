@@ -6,37 +6,111 @@
 </section>
 
 <section>
-  <p>IP: <%= @post.ip_subnet || "unknown" %></p>
-  <p :if={@post.body}>Post body: <%= @post.body %></p>
-
   <form action={"/manage/boards/#{@board.uri}/posts/#{@post.id}/ban/browser"} method="post">
     <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
-    <table class="mod-form-table">
+    <input type="hidden" name="token" value={@secure_manage_token} />
+    <input type="hidden" name="delete" value={@params["delete"]} />
+
+    <table>
       <tr>
-        <th>Reason</th>
-        <td><input type="text" name="reason" value={@params["reason"]} /></td>
+        <th>
+          <label for="ip">IP <span class="unimportant">(or subnet)</span></label>
+        </th>
+        <td>
+          <%= if Eirinchan.Moderation.board_access?(@moderator, @board) do %>
+            <input
+              type="text"
+              name="ip"
+              id="ip"
+              size="30"
+              maxlength="40"
+              value={@params["ip"]}
+            />
+          <% else %>
+            <em>hidden</em>
+          <% end %>
+        </td>
+      </tr>
+      <tr>
+        <th><label for="reason">Reason</label></th>
+        <td><textarea name="reason" id="reason" rows="5" cols="30"><%= @params["reason"] %></textarea></td>
+      </tr>
+      <tr :if={@params["delete"] != "1"}>
+        <th><label for="message">Message</label></th>
+        <td>
+          <input
+            type="checkbox"
+            id="public_message"
+            name="public_message"
+            value="1"
+            checked={@params["public_message"] in ["1", "true", "on"]}
+          />
+          <input
+            type="text"
+            name="message"
+            id="message"
+            size="35"
+            maxlength="200"
+            value={@params["message"]}
+            disabled={not (@params["public_message"] in ["1", "true", "on"])}
+          />
+          <span class="unimportant">(public; attached to post)</span>
+          <script type="text/javascript">
+            document.getElementById('message').disabled = !document.getElementById('public_message').checked;
+            document.getElementById('public_message').onchange = function() {
+              document.getElementById('message').disabled = !this.checked;
+            }
+          </script>
+        </td>
       </tr>
       <tr>
         <th><label for="length">Length</label></th>
         <td>
-          <input type="text" name="length" id="length" size="20" maxlength="40" value={@params["length"]} />
+          <input
+            type="text"
+            name="length"
+            id="length"
+            size="20"
+            maxlength="40"
+            value={@params["length"]}
+          />
           <span class="unimportant">(eg. "2d1h30m" or "2 days")</span>
         </td>
       </tr>
       <tr>
-        <th>Delete Post</th>
+        <th>Board</th>
         <td>
-          <input
-            type="checkbox"
-            name="delete_post"
-            value="1"
-            checked={@params["delete_post"] in ["1", "true", "on"]}
-          />
+          <ul style="list-style:none;padding:2px 5px">
+            <li>
+              <input
+                type="radio"
+                name="board"
+                value="*"
+                id="ban-allboards"
+                checked={@params["board"] in [nil, "", "*"]}
+              />
+              <label style="display:inline" for="ban-allboards"><em>all boards</em></label>
+            </li>
+            <%= for target_board <- @boards do %>
+              <li>
+                <input
+                  type="radio"
+                  name="board"
+                  value={target_board.uri}
+                  id={"ban-board-#{target_board.uri}"}
+                  checked={@params["board"] == target_board.uri}
+                />
+                <label style="display:inline" for={"ban-board-#{target_board.uri}"}>
+                  /<%= target_board.uri %>/ - <%= target_board.title %>
+                </label>
+              </li>
+            <% end %>
+          </ul>
         </td>
       </tr>
       <tr>
         <td></td>
-        <td><input type="submit" value="Create Ban" /></td>
+        <td><input name="new_ban" type="submit" value="New Ban" /></td>
       </tr>
     </table>
   </form>

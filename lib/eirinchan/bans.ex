@@ -50,6 +50,24 @@ defmodule Eirinchan.Bans do
 
   def parse_length(_length), do: {:error, :invalid_length}
 
+  @spec valid_ip_mask?(term()) :: boolean()
+  def valid_ip_mask?(value) when is_binary(value) do
+    mask = String.trim(value)
+
+    cond do
+      mask == "" ->
+        false
+
+      String.contains?(mask, "/") ->
+        match?({:ok, _ip, _prefix}, parse_cidr(mask))
+
+      true ->
+        match?({:ok, _ip}, parse_ip(mask))
+    end
+  end
+
+  def valid_ip_mask?(_value), do: false
+
   @spec list_bans(keyword()) :: [Ban.t()]
   def list_bans(opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
@@ -195,35 +213,23 @@ defmodule Eirinchan.Bans do
   defp ban_matches?(%Ban{ip_subnet: nil}, _remote_ip), do: false
 
   defp ban_matches?(%Ban{ip_subnet: ip_subnet}, remote_ip) do
+    mask = normalize_ip_mask(ip_subnet)
+
     cond do
-      String.ends_with?(ip_subnet, "/16") ->
-        String.starts_with?(remote_ip, ip_prefix(ip_subnet, 2))
+      is_nil(mask) ->
+        false
 
-      String.ends_with?(ip_subnet, "/24") ->
-        String.starts_with?(remote_ip, ip_prefix(ip_subnet, 3))
-
-      String.ends_with?(ip_subnet, "/48") ->
-        String.starts_with?(remote_ip, ipv6_prefix(ip_subnet, 3))
+      String.contains?(mask, "/") ->
+        with {:ok, remote_ip} <- parse_ip(remote_ip),
+             {:ok, mask_ip, prefix} <- parse_cidr(mask) do
+          ip_in_cidr?(remote_ip, mask_ip, prefix)
+        else
+          _ -> false
+        end
 
       true ->
-        remote_ip == ip_subnet
+        remote_ip == mask
     end
-  end
-
-  defp ip_prefix(ip_subnet, octets) do
-    ip_subnet
-    |> String.replace(~r/\/\d+$/, "")
-    |> String.split(".")
-    |> Enum.take(octets)
-    |> Enum.join(".")
-  end
-
-  defp ipv6_prefix(ip_subnet, groups) do
-    ip_subnet
-    |> String.replace(~r/::\/\d+$/, "")
-    |> String.split(":")
-    |> Enum.take(groups)
-    |> Enum.join(":")
   end
 
   defp normalize_attrs(attrs) do
@@ -233,19 +239,28 @@ defmodule Eirinchan.Bans do
         pair -> pair
       end)
 
-    case Map.fetch(attrs, "length") do
-      {:ok, length} ->
-        case parse_length(length) do
-          {:ok, expires_at} ->
-            attrs
-            |> Map.put("expires_at", expires_at)
-            |> Map.delete("length")
+    attrs =
+      case Map.fetch(attrs, "length") do
+        {:ok, length} ->
+          case parse_length(length) do
+            {:ok, expires_at} ->
+              attrs
+              |> Map.put("expires_at", expires_at)
+              |> Map.delete("length")
 
-          {:error, :invalid_length} ->
-            attrs
-            |> Map.put("expires_at", "__invalid_length__")
-            |> Map.delete("length")
-        end
+            {:error, :invalid_length} ->
+              attrs
+              |> Map.put("expires_at", "__invalid_length__")
+              |> Map.delete("length")
+          end
+
+        :error ->
+          attrs
+      end
+
+    case Map.fetch(attrs, "ip_subnet") do
+      {:ok, mask} ->
+        Map.put(attrs, "ip_subnet", normalize_ip_mask(mask))
 
       :error ->
         attrs
@@ -265,6 +280,59 @@ defmodule Eirinchan.Bans do
 
   defp normalize_ip(ip) when is_binary(ip), do: String.trim(ip)
   defp normalize_ip(_ip), do: nil
+
+  defp normalize_ip_mask(value) when is_binary(value) do
+    value
+    |> String.trim()
+    |> case do
+      "" -> nil
+      trimmed -> trimmed
+    end
+  end
+
+  defp normalize_ip_mask(_value), do: nil
+
+  defp parse_ip(value) do
+    case :inet.parse_address(String.to_charlist(value)) do
+      {:ok, ip} -> {:ok, ip}
+      {:error, _reason} -> {:error, :invalid_ip}
+    end
+  end
+
+  defp parse_cidr(value) do
+    with [address, prefix] <- String.split(value, "/", parts: 2),
+         {:ok, ip} <- parse_ip(address),
+         {prefix, ""} <- Integer.parse(prefix),
+         true <- valid_prefix_length?(ip, prefix) do
+      {:ok, ip, prefix}
+    else
+      _ -> {:error, :invalid_cidr}
+    end
+  end
+
+  defp valid_prefix_length?({_, _, _, _}, prefix), do: prefix in 0..32
+  defp valid_prefix_length?({_, _, _, _, _, _, _, _}, prefix), do: prefix in 0..128
+  defp valid_prefix_length?(_, _prefix), do: false
+
+  defp ip_in_cidr?(remote_ip, cidr_ip, prefix) do
+    remote_bin = ip_to_binary(remote_ip)
+    cidr_bin = ip_to_binary(cidr_ip)
+
+    bit_size(remote_bin) == bit_size(cidr_bin) and prefix_match?(remote_bin, cidr_bin, prefix)
+  end
+
+  defp ip_to_binary({a, b, c, d}), do: <<a, b, c, d>>
+
+  defp ip_to_binary({a, b, c, d, e, f, g, h}),
+    do: <<a::16, b::16, c::16, d::16, e::16, f::16, g::16, h::16>>
+
+  defp prefix_match?(_left, _right, 0), do: true
+
+  defp prefix_match?(left, right, prefix) do
+    <<left_prefix::bitstring-size(prefix), _::bitstring>> = left
+    <<right_prefix::bitstring-size(prefix), _::bitstring>> = right
+    left_prefix == right_prefix
+  end
 
   defp parse_absolute_datetime(value) do
     cond do
