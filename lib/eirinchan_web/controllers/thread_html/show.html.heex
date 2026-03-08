@@ -284,16 +284,17 @@
         style -> [style: style]
       end}
     >
-      <p class="intro">
-        <input
-          type="checkbox"
-          class="delete"
-          name={"delete_#{post.id}"}
-          id={"delete_#{post.id}"}
-          value={post.id}
-          data-post-select
-        />
-        <label for={"delete_#{post.id}"}>
+        <p class="intro">
+          <input
+            type="checkbox"
+            class="delete"
+            name={"delete_#{post.id}"}
+            id={"delete_#{post.id}"}
+            value={post.id}
+            data-post-select
+          />
+          <a href="#" class="post-btn" title="Post menu">▶</a>
+          <label for={"delete_#{post.id}"}>
           <span :if={post.subject} class="subject"><%= post.subject %></span>
           <span class="name"><%= PostView.display_name(post, @config) %></span>
           <span :if={post.tripcode} class="trip"><%= post.tripcode %></span>
@@ -338,20 +339,10 @@
         <%= for icon <- PostView.state_icons(post, @config) do %>
           <img class="icon" title={icon.title} src={icon.path} alt={icon.title} />
         <% end %>
-      </p>
+        </p>
 
-      <div class="body">
-        <%= raw(PostView.body_html(post, @board, post, @config)) %>
-        <span :if={post.tag} class="tag-line">
-          Tag: <%= if is_map(@config.allowed_tags),
-            do: Map.get(@config.allowed_tags, post.tag, post.tag),
-            else: post.tag %>
-        </span>
-        <span :if={@config.fileboard && PostView.show_fileboard_summary?(post)} class="tag-line">
-          Fileboard: <%= PostView.fileboard_summary(post) %>
-        </span>
+        <div class="body"><%= raw(PostView.body_html(post, @board, post, @config)) %><span :if={post.tag} class="tag-line">Tag: <%= if is_map(@config.allowed_tags), do: Map.get(@config.allowed_tags, post.tag, post.tag), else: post.tag %></span><span :if={@config.fileboard && PostView.show_fileboard_summary?(post)} class="tag-line">Fileboard: <%= PostView.fileboard_summary(post) %></span></div>
       </div>
-    </div>
 
     <%= for reply <- @summary.replies do %>
       <div class="post reply" id={"reply_#{reply.id}"}>
@@ -362,9 +353,8 @@
             class="delete"
             name={"delete_#{reply.id}"}
             id={"delete_#{reply.id}"}
-            value={reply.id}
-            data-post-select
           />
+          <a href="#" class="post-btn" title="Post menu">▶</a>
           <label for={"delete_#{reply.id}"}>
             <span :if={reply.subject} class="subject"><%= reply.subject %></span>
             <span class="name"><%= PostView.display_name(reply, @config) %></span>
@@ -401,7 +391,7 @@
           </a>
         </p>
 
-        <div :if={PostView.has_embed?(reply) || PostView.all_files(reply) != []} class="files">
+        <div class="files">
           <%= if PostView.has_embed?(reply) do %>
             <%= raw(PostView.embed_html(reply, @config)) %>
           <% end %>
@@ -449,18 +439,7 @@
             style -> [style: style]
           end}
         >
-          <%= raw(PostView.body_html(reply, @board, post, @config)) %>
-          <span :if={reply.tag} class="tag-line">
-            Tag: <%= if is_map(@config.allowed_tags),
-              do: Map.get(@config.allowed_tags, reply.tag, reply.tag),
-              else: reply.tag %>
-          </span>
-          <span
-            :if={@config.fileboard && PostView.show_fileboard_summary?(reply)}
-            class="tag-line"
-          >
-            Fileboard: <%= PostView.fileboard_summary(reply) %>
-          </span>
+          <%= raw(PostView.body_html(reply, @board, post, @config)) %><span :if={reply.tag} class="tag-line">Tag: <%= if is_map(@config.allowed_tags), do: Map.get(@config.allowed_tags, reply.tag, reply.tag), else: reply.tag %></span><span :if={@config.fileboard && PostView.show_fileboard_summary?(reply)} class="tag-line">Fileboard: <%= PostView.fileboard_summary(reply) %></span>
         </div>
       </div>
       <br />
