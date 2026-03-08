@@ -1,0 +1,33 @@
+<.flash_group flash={@flash} />
+<section>
+  <h1>Move reply #<%= @post.id %> from /<%= @board.uri %>/</h1>
+  <p><a href={~p"/manage"}>Back to Manage</a></p>
+  <p :if={@error} class="error"><%= @error %></p>
+</section>
+
+<section>
+  <form action={"/manage/boards/#{@board.uri}/posts/#{@post.id}/browser/move"} method="post">
+    <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+    <input type="hidden" name="_method" value="patch" />
+    <table class="mod-form-table">
+      <tr>
+        <th>Target Board</th>
+        <td>
+          <select name="target_board_uri">
+            <%= for board <- @boards do %>
+              <option value={board.uri}>/<%= board.uri %>/</option>
+            <% end %>
+          </select>
+        </td>
+      </tr>
+      <tr>
+        <th>Target Thread ID</th>
+        <td><input type="text" name="target_thread_id" /></td>
+      </tr>
+      <tr>
+        <td></td>
+        <td><input type="submit" value="Move Reply" /></td>
+      </tr>
+    </table>
+  </form>
+</section>

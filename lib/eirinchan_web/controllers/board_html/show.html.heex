@@ -330,6 +330,7 @@
             <span :if={thread.subject} class="subject"><%= thread.subject %></span>
             <span class="name"><%= PostView.display_name(thread, @config) %></span>
             <span :if={thread.tripcode} class="trip"><%= thread.tripcode %></span>
+            <%= raw(PostView.ip_link_html(thread, @board, @current_moderator)) %>
             <%= for flag <- PostView.post_flags(thread, @config) do %>
               <img
                 class="flag"
@@ -351,6 +352,7 @@
           <span :if={thread.cycle} style="display:none">[Cyclical]</span>
           <span :if={thread.sage} style="display:none">[Bumplocked]</span>
           <a href={PostView.thread_path(@board, thread, @config)}>[Reply]</a>
+          <%= raw(PostView.post_controls_html(thread, @board, @current_moderator, @secure_manage_token)) %>
         </p>
         <div class="body"><%= raw(PostView.body_html(thread, @board, thread, @config)) %><span :if={@config.fileboard && PostView.show_fileboard_summary?(thread)} style="display:none">Fileboard: <%= PostView.fileboard_summary(thread) %></span></div>
         <span :if={PostView.omitted_text(summary)} class="omitted">
@@ -371,6 +373,7 @@
               <span :if={reply.subject} class="subject"><%= reply.subject %></span>
               <span class="name"><%= PostView.display_name(reply, @config) %></span>
               <span :if={reply.tripcode} class="trip"><%= reply.tripcode %></span>
+            <%= raw(PostView.ip_link_html(reply, @board, @current_moderator)) %>
             <%= for flag <- PostView.post_flags(reply, @config) do %>
                 <img
                   class="flag"
@@ -425,6 +428,7 @@
               <% end %>
             <% end %>
           </div>
+          <%= raw(PostView.post_controls_html(reply, @board, @current_moderator, @secure_manage_token)) %>
           <div class="body" {case PostView.reply_body_style(reply) do nil -> []; style -> [style: style] end}><%= raw(PostView.body_html(reply, @board, thread, @config)) %></div></div><br />
       <% end %>
 
