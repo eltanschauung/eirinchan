@@ -26,12 +26,18 @@ $(window).ready(function() {
 			var form = this;
 			var $submit = $(form).find('input[type="submit"]');
 			var submit_txt = $(this).find('input[type="submit"]').val();
+			var is_reply_form = $(form).find('input[name="thread"]').length > 0;
 			if (window.FormData === undefined)
 				return true;
 
 			var resetSubmit = function() {
 				$submit.val(submit_txt);
 				$submit.removeAttr('disabled');
+			};
+
+			var clearReplyFields = function() {
+				$(form).find('input[name="subject"],input[name="file_url"],\
+					textarea[name="body"],input[type="file"]').val('').change();
 			};
 
 			var formData = new FormData(this);
@@ -80,8 +86,63 @@ $(window).ready(function() {
 							resetSubmit();
 						}
 					} else if (post_response.redirect && post_response.id) {
-						if ($(form).find('input[name="thread"]').length) {
-							document.location = post_response.redirect + '#' + post_response.id;
+						if (is_reply_form) {
+							$submit.val(_('Posted...'));
+							$.ajax({
+								url: window.location.pathname + window.location.search,
+								type: 'GET',
+								dataType: 'html',
+								success: function(data) {
+									var $reply = $(data).find('div.post#reply_' + post_response.id).first();
+									var $current_reply = $('div.post#reply_' + post_response.id).first();
+									var inserted = false;
+
+									if ($reply.length && !$current_reply.length) {
+										var $lastPost = $('div.thread > div.post.reply:last');
+										var $newReply = $reply.clone();
+										var $clear = $('<br class="clear">');
+
+										if ($lastPost.length) {
+											var $after = $lastPost.nextAll('br.clear:first');
+											if ($after.length) {
+												$after.after($newReply, $clear);
+											} else {
+												$lastPost.after($newReply, $clear);
+											}
+										} else {
+											var $op = $('div.thread > div.post.op, div.thread > div.op').first();
+											var $afterOp = $op.nextAll('br.clear:first');
+											if ($afterOp.length) {
+												$afterOp.after($newReply, $clear);
+											} else {
+												$op.after($newReply, $clear);
+											}
+										}
+
+										$(document).trigger('new_post', $newReply[0]);
+										inserted = true;
+									}
+
+									var $target = $('div.post#reply_' + post_response.id).first();
+									if ($target.length) {
+										highlightReply(post_response.id);
+										window.location.hash = 'q' + post_response.id;
+										$(window).scrollTop($target.offset().top);
+										setTimeout(function() { $(window).trigger("scroll"); }, 100);
+										clearReplyFields();
+										resetSubmit();
+										$(document).trigger("ajax_after_post", post_response);
+									} else {
+										resetSubmit();
+										document.location = window.location.pathname + window.location.search + '#q' + post_response.id;
+									}
+								},
+								error: function() {
+									resetSubmit();
+									document.location = window.location.pathname + window.location.search + '#q' + post_response.id;
+								},
+								cache: false
+							});
 						} else {
 							$(document).trigger("ajax_after_post", post_response);
 							document.location = post_response.redirect;
