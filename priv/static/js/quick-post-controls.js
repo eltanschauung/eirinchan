@@ -42,6 +42,7 @@ $(document).ready(function(){
 			post_form
 				.attr('action', $('form[name="post"]:first').attr('action'))
 				.append($('input[name=board]:first').clone())
+				.append($('input[name=_csrf_token]:first').clone())
 				.find('input:not([type="checkbox"]):not([type="submit"]):not([type="hidden"])').keypress(function(e) {
 					if(e.which == 13) {
 						e.preventDefault();
@@ -87,4 +88,3 @@ $(document).ready(function(){
 		$(post).find('input[type=checkbox].delete').each(init_qpc);
 	});
 });
-
