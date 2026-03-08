@@ -45,6 +45,9 @@ $(function(){
     $(".file_separator").show();
     $("[id^=upload_file]").show();
     $(".add_image").show();
+    if (enabled_embed) {
+      $("#upload_embed").show();
+    }
   };
 
   enable_url = function() {
@@ -56,8 +59,9 @@ $(function(){
   };
 
   enable_embed = function() {
-    disable_all();
+    enable_file();
     $("#upload_embed").show();
+    $("#upload_embed").find('input[name=\"embed\"]').focus();
   };
 
   enable_oekaki = function() {

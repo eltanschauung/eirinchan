@@ -192,6 +192,38 @@ defmodule EirinchanWeb.PostControllerTest do
     assert page =~ "img.youtube.com/vi/dQw4w9WgXcQ/0.jpg"
   end
 
+  test "posting accepts embeds and file uploads together with embed rendered first", %{conn: conn} do
+    board = board_fixture()
+    upload = upload_fixture("embed-file.png", "embed-file")
+
+    create_conn =
+      conn
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post(~p"/#{board.uri}/post", %{
+        "body" => "embed and file",
+        "embed" => "https://youtu.be/dQw4w9WgXcQ",
+        "file" => upload,
+        "json_response" => "1",
+        "post" => "New Topic"
+      })
+
+    assert %{"id" => id, "thread_id" => id} = json_response(create_conn, 200)
+
+    page =
+      conn
+      |> recycle()
+      |> get("/#{board.uri}")
+      |> html_response(200)
+
+    assert page =~ ~s(class="video-container")
+    assert page =~ "/#{board.uri}/src/#{id}.png"
+
+    {embed_index, _} = :binary.match(page, "video-container")
+    {file_index, _} = :binary.match(page, "/#{board.uri}/src/#{id}.png")
+
+    assert embed_index < file_index
+  end
+
   test "posting accepts YouTube embeds from the bare board route referer", %{conn: conn} do
     board = board_fixture()
     conn = %{conn | host: "www.example.com", port: 4001}

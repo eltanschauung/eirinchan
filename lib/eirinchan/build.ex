@@ -542,34 +542,19 @@ defmodule Eirinchan.Build do
   defp render_fileboard_summary(_post, _config), do: ""
 
   defp render_media(post, config) do
-    cond do
-      PostView.has_embed?(post) ->
-        PostView.embed_html(post, config) || ""
+    PostView.media_entries(post, config)
+    |> Enum.map_join("", fn
+      %{kind: :embed, embed_html: embed_html} ->
+        embed_html || ""
 
-      true ->
-        post
-        |> media_entries()
-        |> Enum.map_join("", fn file ->
-          full_src = html_escape(file.file_path)
-          thumb_src = html_escape(file.thumb_path || file.file_path)
-          label = html_escape(file.file_name || Path.basename(file.file_path))
+      file ->
+        full_src = html_escape(file.file_path)
+        thumb_src = html_escape(file.thumb_path || file.file_path)
+        label = html_escape(file.file_name || Path.basename(file.file_path))
 
-          ~s(<figure class="post-file"><a href="#{full_src}"><img src="#{thumb_src}" alt="#{label}" loading="lazy" /></a><figcaption><a href="#{full_src}">#{label}</a></figcaption></figure>)
-        end)
-    end
+        ~s(<figure class="post-file"><a href="#{full_src}"><img src="#{thumb_src}" alt="#{label}" loading="lazy" /></a><figcaption><a href="#{full_src}">#{label}</a></figcaption></figure>)
+    end)
   end
-
-  defp media_entries(%{file_path: nil, extra_files: files}) when is_list(files), do: files
-  defp media_entries(%{file_path: nil}), do: []
-
-  defp media_entries(post) do
-    [Map.take(post, [:file_name, :file_path, :thumb_path]) | extra_files(post)]
-    |> Enum.reject(fn file -> is_nil(file.file_path) end)
-  end
-
-  defp extra_files(%{extra_files: %Ecto.Association.NotLoaded{}}), do: []
-  defp extra_files(%{extra_files: files}) when is_list(files), do: files
-  defp extra_files(_post), do: []
 
   defp render_omitted(%{omitted_posts: omitted_posts, omitted_images: omitted_images})
        when omitted_posts > 0 do

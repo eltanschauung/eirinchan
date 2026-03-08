@@ -973,15 +973,7 @@ defmodule Eirinchan.Posts do
   end
 
   defp prepare_uploads(attrs, config) do
-    if present_embed?(attrs) do
-      {:ok,
-       attrs
-       |> Map.put("file", nil)
-       |> Map.put("__upload_entries__", [])
-       |> Map.put("__upload_metadata__", nil)}
-    else
-      prepare_file_uploads(attrs, config)
-    end
+    prepare_file_uploads(attrs, config)
   end
 
   defp prepare_file_uploads(attrs, config) do

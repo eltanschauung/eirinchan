@@ -238,16 +238,16 @@
 
   <div class="thread" id={"thread_#{post.id}"} data-board={@board.uri}>
     <a id={to_string(post.id)} class="post_anchor"></a>
-    <div :if={PostView.has_embed?(post) || PostView.all_files(post) != []} class="files">
-      <%= if PostView.has_embed?(post) do %>
-        <%= raw(PostView.embed_html(post, @config)) %>
-      <% end %>
-      <%= if !PostView.has_embed?(post) do %>
-        <%= for file <- PostView.all_files(post) do %>
+    <div :if={PostView.media_entries(post, @config) != []} class="files">
+      <%= for media <- PostView.media_entries(post, @config) do %>
+        <%= if PostView.embed_entry?(media) do %>
+          <%= raw(media.embed_html) %>
+        <% else %>
+          <% file = media %>
           <div
             class={PostView.file_class(post)}
             {case PostView.multifile_style(file, @config,
-                  multifile: length(PostView.all_files(post)) > 1
+                  multifile: PostView.media_multifile?(post)
                 ) do
             nil -> []
             style -> [style: style]
@@ -284,16 +284,16 @@
         style -> [style: style]
       end}
     >
-        <p class="intro">
-          <input
-            type="checkbox"
-            class="delete"
-            name={"delete_#{post.id}"}
-            id={"delete_#{post.id}"}
-            value={post.id}
-            data-post-select
-          />
-          <label for={"delete_#{post.id}"}>
+      <p class="intro">
+        <input
+          type="checkbox"
+          class="delete"
+          name={"delete_#{post.id}"}
+          id={"delete_#{post.id}"}
+          value={post.id}
+          data-post-select
+        />
+        <label for={"delete_#{post.id}"}>
           <span :if={post.subject} class="subject"><%= post.subject %></span>
           <span class="name"><%= PostView.display_name(post, @config) %></span>
           <span :if={post.tripcode} class="trip"><%= post.tripcode %></span>
@@ -307,18 +307,52 @@
               style={PostView.flag_style(@config)}
             />
           <% end %>
-          <time datetime={PostView.iso_timestamp(post)}><%= PostView.formatted_timestamp(post) %></time>
-          </label>
+          <time datetime={PostView.iso_timestamp(post)}>
+            <%= PostView.formatted_timestamp(post) %>
+          </time>
+        </label>
         &nbsp;
-        <a class="post_no" id={"post_no_#{post.id}"} onclick={"highlightReply(#{post.id})"} href={Eirinchan.ThreadPaths.thread_path(template.board, template.post, template.config) <> "##{post.id}"}>No.</a><a class="post_no" onclick={"citeReply(#{post.id})"} href={PostView.reply_path(template.board, template.post, template.post, template.config, :quote)} data-quote-to={post.id}><%= post.id %></a>
+        <a
+          class="post_no"
+          id={"post_no_#{post.id}"}
+          onclick={"highlightReply(#{post.id})"}
+          href={Eirinchan.ThreadPaths.thread_path(template.board, template.post, template.config) <> "##{post.id}"}
+        >
+          No.
+        </a><a
+          class="post_no"
+          onclick={"citeReply(#{post.id})"}
+          href={
+            PostView.reply_path(
+              template.board,
+              template.post,
+              template.post,
+              template.config,
+              :quote
+            )
+          }
+          data-quote-to={post.id}
+        ><%= post.id %></a>
         <%= for icon <- PostView.state_icons(post, @config) do %>
           <img class="icon" title={icon.title} src={icon.path} alt={icon.title} />
         <% end %>
-        <%= raw(PostView.post_controls_html(post, @board, @current_moderator, @secure_manage_token)) %>
-        </p>
+        <%= raw(
+          PostView.post_controls_html(post, @board, @current_moderator, @secure_manage_token)
+        ) %>
+      </p>
 
-        <div class="body"><%= raw(PostView.body_html(post, @board, post, @config)) %><span :if={post.tag} class="tag-line">Tag: <%= if is_map(@config.allowed_tags), do: Map.get(@config.allowed_tags, post.tag, post.tag), else: post.tag %></span><span :if={@config.fileboard && PostView.show_fileboard_summary?(post)} class="tag-line">Fileboard: <%= PostView.fileboard_summary(post) %></span></div>
+      <div class="body">
+        <%= raw(PostView.body_html(post, @board, post, @config)) %><span
+          :if={post.tag}
+          class="tag-line"
+        >Tag: <%= if is_map(@config.allowed_tags), do: Map.get(@config.allowed_tags, post.tag, post.tag), else: post.tag %></span><span
+          :if={@config.fileboard && PostView.show_fileboard_summary?(post)}
+          class="tag-line"
+        >
+          Fileboard: <%= PostView.fileboard_summary(post) %>
+        </span>
       </div>
+    </div>
 
     <%= for reply <- @summary.replies do %>
       <div class="post reply" id={"reply_#{reply.id}"}>
@@ -344,22 +378,36 @@
                 style={PostView.flag_style(@config)}
               />
             <% end %>
-            <time datetime={PostView.iso_timestamp(reply)}><%= PostView.formatted_timestamp(reply) %></time>
+            <time datetime={PostView.iso_timestamp(reply)}>
+              <%= PostView.formatted_timestamp(reply) %>
+            </time>
           </label>
           &nbsp;
-          <a class="post_no" id={"post_no_#{reply.id}"} onclick={"highlightReply(#{reply.id})"} href={Eirinchan.ThreadPaths.thread_path(@board, post, @config) <> "##{reply.id}"}>No.</a><a class="post_no" onclick={"citeReply(#{reply.id})"} href={PostView.reply_path(@board, post, reply, @config, :quote)} data-quote-to={reply.id}><%= reply.id %></a>
+          <a
+            class="post_no"
+            id={"post_no_#{reply.id}"}
+            onclick={"highlightReply(#{reply.id})"}
+            href={Eirinchan.ThreadPaths.thread_path(@board, post, @config) <> "##{reply.id}"}
+          >
+            No.
+          </a><a
+            class="post_no"
+            onclick={"citeReply(#{reply.id})"}
+            href={PostView.reply_path(@board, post, reply, @config, :quote)}
+            data-quote-to={reply.id}
+          ><%= reply.id %></a>
         </p>
 
         <div class="files">
-          <%= if PostView.has_embed?(reply) do %>
-            <%= raw(PostView.embed_html(reply, @config)) %>
-          <% end %>
-          <%= if !PostView.has_embed?(reply) do %>
-            <%= for file <- PostView.all_files(reply) do %>
+          <%= for media <- PostView.media_entries(reply, @config) do %>
+            <%= if PostView.embed_entry?(media) do %>
+              <%= raw(media.embed_html) %>
+            <% else %>
+              <% file = media %>
               <div
                 class={PostView.file_class(reply)}
                 {case PostView.multifile_style(file, @config,
-                      multifile: length(PostView.all_files(reply)) > 1
+                      multifile: PostView.media_multifile?(reply)
                     ) do
                 nil -> []
                 style -> [style: style]
@@ -391,8 +439,23 @@
           <% end %>
         </div>
 
-        <%= raw(PostView.post_controls_html(reply, @board, @current_moderator, @secure_manage_token)) %>
-        <div class="body" {case PostView.reply_body_style(reply) do nil -> []; style -> [style: style] end}><%= raw(PostView.body_html(reply, @board, post, @config)) %><span :if={reply.tag} class="tag-line">Tag: <%= if is_map(@config.allowed_tags), do: Map.get(@config.allowed_tags, reply.tag, reply.tag), else: reply.tag %></span><span :if={@config.fileboard && PostView.show_fileboard_summary?(reply)} class="tag-line">Fileboard: <%= PostView.fileboard_summary(reply) %></span></div>
+        <%= raw(
+          PostView.post_controls_html(reply, @board, @current_moderator, @secure_manage_token)
+        ) %>
+        <div
+          class="body"
+          {case PostView.reply_body_style(reply) do nil -> []; style -> [style: style] end}
+        >
+          <%= raw(PostView.body_html(reply, @board, post, @config)) %><span
+            :if={reply.tag}
+            class="tag-line"
+          >Tag: <%= if is_map(@config.allowed_tags), do: Map.get(@config.allowed_tags, reply.tag, reply.tag), else: reply.tag %></span><span
+            :if={@config.fileboard && PostView.show_fileboard_summary?(reply)}
+            class="tag-line"
+          >
+            Fileboard: <%= PostView.fileboard_summary(reply) %>
+          </span>
+        </div>
       </div>
       <br />
     <% end %>

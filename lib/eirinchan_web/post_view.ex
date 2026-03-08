@@ -40,12 +40,12 @@ defmodule EirinchanWeb.PostView do
   end
 
   def fileboard_summary(post) do
-    count = file_count(post)
+    count = media_count(post)
     noun = if count == 1, do: "file", else: "files"
     "#{count} #{noun}"
   end
 
-  def show_fileboard_summary?(post), do: file_count(post) > 0
+  def show_fileboard_summary?(post), do: media_count(post) > 0
 
   def feedback_actions do
     [
@@ -210,6 +210,7 @@ defmodule EirinchanWeb.PostView do
   def ip_link_html(post, board, moderator) do
     if can_moderate?(moderator, board, :show_ip) and present?(post.ip_subnet) do
       ip = IpPresentation.display_ip(post.ip_subnet, moderator)
+
       ~s( [<a class="ip-link" style="margin:0;" href="/mod.php?/IP/#{html_escape_to_string(ip)}">#{html_escape_to_string(ip)}</a>])
     else
       nil
@@ -220,17 +221,50 @@ defmodule EirinchanWeb.PostView do
     if can_render_controls?(moderator, board) do
       links =
         []
-        |> maybe_add_control(can_moderate?(moderator, board, :delete), confirm_control(post, board, session_token, :delete))
-        |> maybe_add_control(can_moderate?(moderator, board, :deletebyip), confirm_control(post, board, session_token, :deletebyip))
-        |> maybe_add_control(can_moderate?(moderator, board, :deletebyip_global), confirm_control(post, board, session_token, :deletebyip_global))
-        |> maybe_add_control(can_moderate?(moderator, board, :ban), plain_control(post, board, :ban))
-        |> maybe_add_control(can_moderate?(moderator, board, :bandelete), plain_control(post, board, :bandelete))
-        |> maybe_add_control(thread_op?(post) and can_moderate?(moderator, board, :sticky), toggle_control(post, board, session_token, :sticky))
-        |> maybe_add_control(thread_op?(post) and can_moderate?(moderator, board, :bumplock), toggle_control(post, board, session_token, :bumplock))
-        |> maybe_add_control(thread_op?(post) and can_moderate?(moderator, board, :lock), toggle_control(post, board, session_token, :lock))
-        |> maybe_add_control(can_moderate?(moderator, board, :move), plain_control(post, board, :move))
-        |> maybe_add_control(thread_op?(post) and can_moderate?(moderator, board, :cycle), toggle_control(post, board, session_token, :cycle))
-        |> maybe_add_control(can_moderate?(moderator, board, :editpost), plain_control(post, board, :editpost))
+        |> maybe_add_control(
+          can_moderate?(moderator, board, :delete),
+          confirm_control(post, board, session_token, :delete)
+        )
+        |> maybe_add_control(
+          can_moderate?(moderator, board, :deletebyip),
+          confirm_control(post, board, session_token, :deletebyip)
+        )
+        |> maybe_add_control(
+          can_moderate?(moderator, board, :deletebyip_global),
+          confirm_control(post, board, session_token, :deletebyip_global)
+        )
+        |> maybe_add_control(
+          can_moderate?(moderator, board, :ban),
+          plain_control(post, board, :ban)
+        )
+        |> maybe_add_control(
+          can_moderate?(moderator, board, :bandelete),
+          plain_control(post, board, :bandelete)
+        )
+        |> maybe_add_control(
+          thread_op?(post) and can_moderate?(moderator, board, :sticky),
+          toggle_control(post, board, session_token, :sticky)
+        )
+        |> maybe_add_control(
+          thread_op?(post) and can_moderate?(moderator, board, :bumplock),
+          toggle_control(post, board, session_token, :bumplock)
+        )
+        |> maybe_add_control(
+          thread_op?(post) and can_moderate?(moderator, board, :lock),
+          toggle_control(post, board, session_token, :lock)
+        )
+        |> maybe_add_control(
+          can_moderate?(moderator, board, :move),
+          plain_control(post, board, :move)
+        )
+        |> maybe_add_control(
+          thread_op?(post) and can_moderate?(moderator, board, :cycle),
+          toggle_control(post, board, session_token, :cycle)
+        )
+        |> maybe_add_control(
+          can_moderate?(moderator, board, :editpost),
+          plain_control(post, board, :editpost)
+        )
 
       case links do
         [] ->
@@ -247,9 +281,42 @@ defmodule EirinchanWeb.PostView do
 
   def file_size_text(file), do: human_file_size(Map.get(file, :file_size))
   def file_dimensions(file), do: dimensions(file)
-  def file_class(post), do: if(length(all_files(post)) > 1, do: "file multifile", else: "file")
-  def post_container_style(post), do: if(length(all_files(post)) > 1, do: "clear:both", else: nil)
-  def reply_body_style(reply), do: if(length(all_files(reply)) > 1, do: "clear:both", else: nil)
+  def file_class(post), do: if(media_count(post) > 1, do: "file multifile", else: "file")
+  def post_container_style(post), do: if(media_count(post) > 1, do: "clear:both", else: nil)
+  def reply_body_style(reply), do: if(media_count(reply) > 1, do: "clear:both", else: nil)
+
+  def media_entries(post, config) do
+    embed_entries =
+      if has_embed?(post) do
+        [
+          %{
+            kind: :embed,
+            position: 0,
+            embed: post.embed,
+            embed_html: embed_html(post, config),
+            thumb_path: youtube_thumbnail(post.embed)
+          }
+        ]
+      else
+        []
+      end
+
+    file_entries =
+      post
+      |> all_files()
+      |> Enum.with_index(length(embed_entries))
+      |> Enum.map(fn {file, index} ->
+        Map.put(file, :kind, :file)
+        |> Map.put(:position, index)
+      end)
+
+    embed_entries ++ file_entries
+  end
+
+  def embed_entry?(%{kind: :embed}), do: true
+  def embed_entry?(_entry), do: false
+
+  def media_multifile?(post), do: media_count(post) > 1
 
   def catalog_label(post, config) do
     cond do
@@ -464,7 +531,8 @@ defmodule EirinchanWeb.PostView do
   defp can_moderate?(_moderator, board, _permission) when is_nil(board), do: false
 
   defp can_moderate?(moderator, board, permission) do
-    Moderation.board_access?(moderator, board) and role_level(moderator.role) >= permission_level(permission)
+    Moderation.board_access?(moderator, board) and
+      role_level(moderator.role) >= permission_level(permission)
   end
 
   defp role_level("admin"), do: 30
@@ -494,10 +562,12 @@ defmodule EirinchanWeb.PostView do
 
   defp plain_control(post, board, action) do
     %{href: href, title: title, label: label} = control_metadata(post, board, nil, action)
+
     ~s(<a title="#{html_escape_to_string(title)}" href="#{html_escape_to_string(href)}">#{label}</a>)
   end
 
-  defp toggle_control(post, board, session_token, action), do: confirm_control(post, board, session_token, action)
+  defp toggle_control(post, board, session_token, action),
+    do: confirm_control(post, board, session_token, action)
 
   defp control_metadata(post, board, session_token, action) do
     action_path =
@@ -516,9 +586,11 @@ defmodule EirinchanWeb.PostView do
       end
 
     href = "/mod.php?/" <> action_path
+
     secure_href =
       case action do
-        act when act in [:delete, :deletebyip, :deletebyip_global, :sticky, :bumplock, :lock, :cycle] ->
+        act
+        when act in [:delete, :deletebyip, :deletebyip_global, :sticky, :bumplock, :lock, :cycle] ->
           token = ManageSecurity.sign_action(session_token, action_path)
           href <> "/#{token}"
 
@@ -540,11 +612,22 @@ defmodule EirinchanWeb.PostView do
   defp control_title(_post, :deletebyip_global), do: "Delete all posts by IP across all boards"
   defp control_title(_post, :ban), do: "Ban"
   defp control_title(_post, :bandelete), do: "Ban & Delete"
-  defp control_title(post, :sticky), do: if(post.sticky, do: "Make thread not sticky", else: "Make thread sticky")
-  defp control_title(post, :bumplock), do: if(post.sage, do: "Allow thread to be bumped", else: "Prevent thread from being bumped")
+
+  defp control_title(post, :sticky),
+    do: if(post.sticky, do: "Make thread not sticky", else: "Make thread sticky")
+
+  defp control_title(post, :bumplock),
+    do: if(post.sage, do: "Allow thread to be bumped", else: "Prevent thread from being bumped")
+
   defp control_title(post, :lock), do: if(post.locked, do: "Unlock thread", else: "Lock thread")
-  defp control_title(post, :move), do: if(thread_op?(post), do: "Move thread to another board", else: "Move reply to another board")
-  defp control_title(post, :cycle), do: if(post.cycle, do: "Make thread not cycle", else: "Make thread cycle")
+
+  defp control_title(post, :move),
+    do:
+      if(thread_op?(post), do: "Move thread to another board", else: "Move reply to another board")
+
+  defp control_title(post, :cycle),
+    do: if(post.cycle, do: "Make thread not cycle", else: "Make thread cycle")
+
   defp control_title(_post, :editpost), do: "Edit post"
 
   defp control_label(_post, :delete), do: "[D]"
@@ -560,10 +643,19 @@ defmodule EirinchanWeb.PostView do
   defp control_label(_post, :editpost), do: "[Edit]"
 
   defp control_confirm(:delete), do: "Are you sure you want to delete this?"
-  defp control_confirm(:deletebyip), do: "Are you sure you want to delete all posts by this IP address?"
-  defp control_confirm(:deletebyip_global), do: "Are you sure you want to delete all posts by this IP address, across all boards?"
-  defp control_confirm(:sticky), do: "Are you sure you want to change sticky state for this thread?"
-  defp control_confirm(:bumplock), do: "Are you sure you want to change bump lock state for this thread?"
+
+  defp control_confirm(:deletebyip),
+    do: "Are you sure you want to delete all posts by this IP address?"
+
+  defp control_confirm(:deletebyip_global),
+    do: "Are you sure you want to delete all posts by this IP address, across all boards?"
+
+  defp control_confirm(:sticky),
+    do: "Are you sure you want to change sticky state for this thread?"
+
+  defp control_confirm(:bumplock),
+    do: "Are you sure you want to change bump lock state for this thread?"
+
   defp control_confirm(:lock), do: "Are you sure you want to change lock state for this thread?"
   defp control_confirm(:cycle), do: "Are you sure you want to change cycle state for this thread?"
   defp control_confirm(_action), do: ""
@@ -582,6 +674,7 @@ defmodule EirinchanWeb.PostView do
 
   defp file_count(%{file_path: nil} = post), do: length(extra_files(post))
   defp file_count(post), do: 1 + length(extra_files(post))
+  defp media_count(post), do: file_count(post) + if(has_embed?(post), do: 1, else: 0)
 
   defp flag_path(code, config) when is_binary(code) do
     config.uri_flags
