@@ -329,45 +329,6 @@ defmodule EirinchanWeb.PostView do
     ~s(<div class="post reply" id="reply_#{post.id}"><p class="intro">#{intro}</p><div class="files">#{files_html(post, config)}</div>#{post_controls_html(post, board, moderator, session_token) || ""}#{reply_body_container_html(post, board, thread, config)}</div><br class="clear" />)
   end
 
-  def op_html(post, board, config, moderator \\ nil, session_token \\ nil) do
-    files =
-      if media_entries(post, config) == [] do
-        ""
-      else
-        ~s(<a id="#{post.id}" class="post_anchor"></a><div class="files">#{files_html(post, config, op?: true)}</div>)
-      end
-
-    style_attr =
-      case post_container_style(post) do
-        nil -> ""
-        style -> ~s( style="#{html_escape_to_string(style)}")
-      end
-
-    intro =
-      [
-        ~s(<input type="checkbox" class="delete" name="delete_#{post.id}" id="delete_#{post.id}" value="#{post.id}" data-post-select />),
-        ~s(<label for="delete_#{post.id}">),
-        if(present?(post.subject), do: ~s(<span class="subject">#{html_escape_to_string(post.subject)}</span>), else: ""),
-        name_html(post, config),
-        if(present?(post.tripcode), do: ~s(<span class="trip">#{html_escape_to_string(post.tripcode)}</span>), else: ""),
-        ip_link_html(post, board, moderator) || "",
-        post_flags_html(post, config),
-        time_html(post),
-        "</label>",
-        post_number_links_html(
-          post.id,
-          thread_path(board, post, config) <> "##{post.id}",
-          reply_path(board, post, post, config, :quote),
-          "data-quote-to": post.id
-        ),
-        state_icons_html(post, config),
-        post_controls_html(post, board, moderator, session_token) || ""
-      ]
-      |> Enum.join("")
-
-    ~s(#{files}<div class="post op" id="op_#{post.id}"#{style_attr}><p class="intro">#{intro}</p>#{body_container_html(post, board, post, config, op?: true)}</div>)
-  end
-
   def file_size_text(file), do: human_file_size(Map.get(file, :file_size))
   def file_dimensions(file), do: dimensions(file)
   def file_class(post), do: if(media_count(post) > 1, do: "file multifile", else: "file")
@@ -402,14 +363,13 @@ defmodule EirinchanWeb.PostView do
     embed_entries ++ file_entries
   end
 
-  defp files_html(post, config, opts \\ []) do
+  defp files_html(post, config) do
     Enum.map_join(media_entries(post, config), "", fn media ->
       if embed_entry?(media) do
         media.embed_html || ""
       else
         file = media
         class_name = file_class(post)
-        op? = Keyword.get(opts, :op?, false)
 
         style_attr =
           case multifile_style(file, config, multifile: media_multifile?(post)) do
@@ -418,7 +378,7 @@ defmodule EirinchanWeb.PostView do
           end
 
         thumb_style_attr =
-          case thumb_style(file, config, op?: op?) do
+          case thumb_style(file, config) do
             nil -> ""
             style -> ~s( style="#{html_escape_to_string(style)}")
           end
@@ -443,12 +403,6 @@ defmodule EirinchanWeb.PostView do
         end
 
       ~s(<img class="flag" src="#{html_escape_to_string(flag.src)}" alt="#{html_escape_to_string(flag.alt)}" title="#{html_escape_to_string(flag.alt)}"#{style_attr} />)
-    end)
-  end
-
-  defp state_icons_html(post, config) do
-    Enum.map_join(state_icons(post, config), "", fn icon ->
-      ~s(<img class="icon" title="#{html_escape_to_string(icon.title)}" src="#{html_escape_to_string(icon.path)}" alt="#{html_escape_to_string(icon.title)}" />)
     end)
   end
 

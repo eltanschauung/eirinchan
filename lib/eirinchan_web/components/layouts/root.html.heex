@@ -10,11 +10,7 @@
       name="viewport"
       content={assigns[:viewport_content] || "width=device-width, initial-scale=1"}
     />
-    <meta
-      :if={!assigns[:public_shell] || assigns[:live_socket]}
-      name="csrf-token"
-      content={get_csrf_token()}
-    />
+    <meta :if={!assigns[:public_shell]} name="csrf-token" content={get_csrf_token()} />
     <link
       :if={assigns[:base_stylesheet]}
       rel="stylesheet"

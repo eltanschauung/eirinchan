@@ -27,7 +27,6 @@ defmodule EirinchanWeb.ConnCase do
       # Import conveniences for testing with connections
       import Plug.Conn
       import Phoenix.ConnTest
-      import Phoenix.LiveViewTest
       import EirinchanWeb.ConnCase
       import Eirinchan.BoardsFixtures
       import Eirinchan.ModerationFixtures
