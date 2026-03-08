@@ -1,6 +1,6 @@
 <.flash_group flash={@flash} />
 <section>
-  <h1>Ban Appeals for /<%= @board.uri %>/</h1>
+  <h1>Ban appeals (<%= length(@appeals) %>)</h1>
   <p><a href={~p"/manage"}>Back to Manage</a></p>
 </section>
 
@@ -11,14 +11,15 @@
     <%= for appeal <- @appeals do %>
       <article>
         <h2>Appeal #<%= appeal.id %></h2>
+        <p :if={appeal.ban && appeal.ban.board}>
+          Board:
+          <a href={"/#{appeal.ban.board.uri}"}>/<%= appeal.ban.board.uri %>/</a>
+        </p>
         <p>Status: <%= appeal.status %></p>
         <p>Ban reason: <%= appeal.ban && appeal.ban.reason %></p>
         <p>Appeal: <%= appeal.body %></p>
         <p :if={appeal.resolution_note}>Resolution: <%= appeal.resolution_note %></p>
-        <form
-          action={"/manage/boards/#{@board.uri}/ban-appeals/browser/#{appeal.id}"}
-          method="post"
-        >
+        <form action={"/manage/ban-appeals/browser/#{appeal.id}"} method="post">
           <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
           <input type="hidden" name="_method" value="patch" />
           <label>

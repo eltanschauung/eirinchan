@@ -25,6 +25,8 @@ defmodule EirinchanWeb.ManagePageControllerTest do
 
     assert dashboard =~ "Signed in as"
     assert dashboard =~ moderator.username
+    assert dashboard =~ "Report queue (0)"
+    assert dashboard =~ "Ban appeals (0)"
   end
 
   test "browser dashboard redirects to setup when no admin exists", %{conn: conn} do
@@ -578,7 +580,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     refute page =~ "other board"
   end
 
-  test "browser board pages expose report queue and ban appeals management", %{conn: conn} do
+  test "browser dashboard exposes global report queue and ban appeals management", %{conn: conn} do
     moderator = moderator_fixture(%{role: "admin"})
     board = board_fixture(%{uri: "tea#{System.unique_integer([:positive])}", title: "Tea"})
     thread = thread_fixture(board, %{body: "Thread body"})
@@ -604,44 +606,58 @@ defmodule EirinchanWeb.ManagePageControllerTest do
 
     {:ok, appeal} = Eirinchan.Bans.create_appeal(ban.id, %{body: "Please review"})
 
+    dashboard =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> get("/manage")
+      |> html_response(200)
+
+    assert dashboard =~ "Report queue (1)"
+    assert dashboard =~ "Ban appeals (1)"
+    refute dashboard =~ "[reports]"
+    refute dashboard =~ "[appeals]"
+
     reports_page =
       conn
       |> recycle()
       |> login_moderator(moderator)
-      |> get("/manage/boards/#{board.uri}/reports/browser")
+      |> get("/manage/reports/browser")
       |> html_response(200)
 
-    assert reports_page =~ "Reports for /#{board.uri}/"
+    assert reports_page =~ "Report queue (1)"
     assert reports_page =~ "Spam"
+    assert reports_page =~ "/#{board.uri}/"
 
     dismiss_conn =
       conn
       |> recycle()
       |> login_moderator(moderator)
-      |> delete("/manage/boards/#{board.uri}/reports/browser/#{report_id}")
+      |> delete("/manage/reports/browser/#{report_id}")
 
-    assert redirected_to(dismiss_conn) == "/manage/boards/#{board.uri}/reports/browser"
+    assert redirected_to(dismiss_conn) == "/manage/reports/browser"
 
     appeals_page =
       conn
       |> recycle()
       |> login_moderator(moderator)
-      |> get("/manage/boards/#{board.uri}/ban-appeals/browser")
+      |> get("/manage/ban-appeals/browser")
       |> html_response(200)
 
-    assert appeals_page =~ "Ban Appeals for /#{board.uri}/"
+    assert appeals_page =~ "Ban appeals (1)"
     assert appeals_page =~ "Please review"
+    assert appeals_page =~ "/#{board.uri}/"
 
     resolve_conn =
       conn
       |> recycle()
       |> login_moderator(moderator)
-      |> patch("/manage/boards/#{board.uri}/ban-appeals/browser/#{appeal.id}", %{
+      |> patch("/manage/ban-appeals/browser/#{appeal.id}", %{
         "status" => "resolved",
         "resolution_note" => "Reviewed in browser"
       })
 
-    assert redirected_to(resolve_conn) == "/manage/boards/#{board.uri}/ban-appeals/browser"
+    assert redirected_to(resolve_conn) == "/manage/ban-appeals/browser"
   end
 
   test "browser IP history page supports notes and delete-by-ip actions", %{conn: conn} do

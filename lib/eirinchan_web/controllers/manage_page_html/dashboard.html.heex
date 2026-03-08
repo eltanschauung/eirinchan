@@ -25,6 +25,8 @@
 <fieldset>
   <legend>Administration</legend>
   <ul>
+    <li><a href={~p"/manage/reports/browser"}>Report queue (<%= @report_count %>)</a></li>
+    <li><a href={~p"/manage/ban-appeals/browser"}>Ban appeals (<%= @appeal_count %>)</a></li>
     <li :if={@moderator.role == "admin"}>
       <a href={~p"/manage/config/browser"}>Instance configuration</a>
     </li>
@@ -60,8 +62,6 @@
             <small>- <%= board.subtitle %></small>
           <% end %>
           <small>
-            [<a href={"/manage/boards/#{board.uri}/reports/browser"}>reports</a>]
-            [<a href={"/manage/boards/#{board.uri}/ban-appeals/browser"}>appeals</a>]
             [<a href={"/manage/boards/#{board.uri}/config/browser"}>config</a>]
           </small>
 

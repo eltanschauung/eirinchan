@@ -1,6 +1,6 @@
 <.flash_group flash={@flash} />
 <section>
-  <h1>Reports for /<%= @board.uri %>/</h1>
+  <h1>Report queue (<%= length(@reports) %>)</h1>
   <p><a href={~p"/manage"}>Back to Manage</a></p>
 </section>
 
@@ -11,17 +11,20 @@
     <%= for report <- @reports do %>
       <article>
         <h2>Report #<%= report.id %> for post #<%= report.post_id %></h2>
+        <p :if={report.board}>
+          Board:
+          <a href={"/#{report.board.uri}/res/#{report.thread_id}.html##{report.post_id}"}>
+            /<%= report.board.uri %>/
+          </a>
+        </p>
         <p>Reason: <%= report.reason %></p>
         <p :if={report.post && report.post.body}>Post body: <%= report.post.body %></p>
-        <form action={"/manage/boards/#{@board.uri}/reports/browser/#{report.id}"} method="post">
+        <form action={"/manage/reports/browser/#{report.id}"} method="post">
           <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
           <input type="hidden" name="_method" value="delete" />
           <button type="submit">Dismiss Report</button>
         </form>
-        <form
-          action={"/manage/boards/#{@board.uri}/reports/browser/post/#{report.post_id}"}
-          method="post"
-        >
+        <form action={"/manage/reports/browser/post/#{report.post_id}"} method="post">
           <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
           <input type="hidden" name="_method" value="delete" />
           <button type="submit">Dismiss All For Post</button>
