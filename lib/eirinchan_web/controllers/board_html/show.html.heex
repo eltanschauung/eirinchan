@@ -327,9 +327,27 @@
             id={"delete_#{thread.id}"}
           />
           <label for={"delete_#{thread.id}"}>
-            <%= raw(PostView.intro_identity_html(thread, @board, @config, @current_moderator)) %>
-          </label>
-          &nbsp;
+            <span
+              :if={thread.subject}
+              class="subject"
+            ><%= thread.subject %></span>
+            <%= raw(PostView.name_html(thread, @config)) %>
+            <span
+              :if={thread.tripcode}
+              class="trip"
+            ><%= thread.tripcode %></span>
+            <%= raw(PostView.ip_link_html(thread, @board, @current_moderator)) %>
+            <%= for flag <- PostView.post_flags(thread, @config) do %>
+              <img
+              class="flag"
+              src={flag.src}
+              alt={flag.alt}
+              title={flag.alt}
+              style={PostView.flag_style(@config)}
+            />
+            <% end %>
+            <%= raw(PostView.time_html(thread)) %>
+          </label>&nbsp;
           <a
             class="post_no"
             id={"post_no_#{thread.id}"}
@@ -337,7 +355,8 @@
             href={PostView.thread_path(@board, thread, @config) <> "##{thread.id}"}
           >
             No.
-          </a><a
+          </a>
+          <a
             class="post_no"
             onclick={"citeReply(#{thread.id})"}
             href={PostView.reply_path(@board, thread, thread, @config, :quote)}
@@ -374,9 +393,27 @@
               id={"delete_#{reply.id}"}
             />
             <label for={"delete_#{reply.id}"}>
-              <%= raw(PostView.intro_identity_html(reply, @board, @config, @current_moderator)) %>
-            </label>
-            &nbsp;
+              <span
+                :if={reply.subject}
+                class="subject"
+              ><%= reply.subject %></span>
+              <%= raw(PostView.name_html(reply, @config)) %>
+              <span
+                :if={reply.tripcode}
+                class="trip"
+              ><%= reply.tripcode %></span>
+              <%= raw(PostView.ip_link_html(reply, @board, @current_moderator)) %>
+              <%= for flag <- PostView.post_flags(reply, @config) do %>
+                <img
+                class="flag"
+                src={flag.src}
+                alt={flag.alt}
+                title={flag.alt}
+                style={PostView.flag_style(@config)}
+              />
+              <% end %>
+              <%= raw(PostView.time_html(reply)) %>
+            </label>&nbsp;
             <a
               class="post_no"
               id={"post_no_#{reply.id}"}
@@ -384,7 +421,8 @@
               href={PostView.thread_path(@board, thread, @config) <> "##{reply.id}"}
             >
               No.
-            </a><a
+            </a>
+            <a
               class="post_no"
               onclick={"citeReply(#{reply.id})"}
               href={PostView.reply_path(@board, thread, reply, @config, :quote)}
