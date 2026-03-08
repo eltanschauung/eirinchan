@@ -1,7 +1,9 @@
 defmodule EirinchanWeb.SetupController do
   use EirinchanWeb, :controller
 
+  alias Eirinchan.Boards
   alias Eirinchan.Installation
+  alias EirinchanWeb.PostView
 
   plug :assign_setup_shell
 
@@ -41,6 +43,7 @@ defmodule EirinchanWeb.SetupController do
   defp assign_setup_shell(conn, _opts) do
     conn
     |> assign(:page_title, "Eirinchan Setup")
+    |> assign(:global_boardlist_html, shell_boardlist_html())
     |> assign(:base_stylesheet, "/stylesheets/style.css")
     |> assign(:primary_stylesheet, "/stylesheets/yotsuba.css")
     |> assign(:primary_stylesheet_id, "stylesheet")
@@ -50,5 +53,11 @@ defmodule EirinchanWeb.SetupController do
     |> assign(:skip_app_stylesheet, true)
     |> assign(:skip_flash_group, true)
     |> assign(:hide_theme_switcher, true)
+  end
+
+  defp shell_boardlist_html do
+    Boards.list_boards()
+    |> PostView.default_boardlist_groups()
+    |> PostView.boardlist_html()
   end
 end

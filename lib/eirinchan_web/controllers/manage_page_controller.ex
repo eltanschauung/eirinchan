@@ -16,7 +16,7 @@ defmodule EirinchanWeb.ManagePageController do
   alias Eirinchan.Runtime.Config
   alias Eirinchan.Settings
   alias Eirinchan.Themes
-  alias EirinchanWeb.ManageSecurity
+  alias EirinchanWeb.{ManageSecurity, PostView}
 
   plug :assign_manage_shell
 
@@ -456,6 +456,7 @@ defmodule EirinchanWeb.ManagePageController do
 
   defp assign_manage_shell(conn, _opts) do
     conn
+    |> assign(:global_boardlist_html, shell_boardlist_html())
     |> assign(:base_stylesheet, "/stylesheets/style.css")
     |> assign(:primary_stylesheet, "/stylesheets/yotsuba.css")
     |> assign(:primary_stylesheet_id, "stylesheet")
@@ -1603,5 +1604,11 @@ defmodule EirinchanWeb.ManagePageController do
       post: post,
       error: message
     )
+  end
+
+  defp shell_boardlist_html do
+    Boards.list_boards()
+    |> PostView.default_boardlist_groups()
+    |> PostView.boardlist_html()
   end
 end

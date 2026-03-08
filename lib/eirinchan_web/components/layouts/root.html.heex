@@ -72,6 +72,9 @@
     class={assigns[:body_class] || "8chan vichan"}
     data-stylesheet={assigns[:body_data_stylesheet]}
   >
+    <%= if assigns[:global_boardlist_html] do %>
+      <%= Phoenix.HTML.raw(assigns[:global_boardlist_html]) %>
+    <% end %>
     <%= @inner_content %>
     <div
       :if={
