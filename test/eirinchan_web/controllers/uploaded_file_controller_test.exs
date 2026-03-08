@@ -16,11 +16,12 @@ defmodule EirinchanWeb.UploadedFileControllerTest do
       })
 
     assert %{"id" => id} = json_response(create_conn, 200)
+    {:ok, [thread | _]} = Eirinchan.Posts.get_thread(board, id)
 
     conn =
       conn
       |> recycle()
-      |> get("/#{board.uri}/thumb/#{id}s.png")
+      |> get(thread.thumb_path)
 
     assert response(conn, 200) != ""
     assert get_resp_header(conn, "cache-control") == ["public, max-age=31536000, immutable"]

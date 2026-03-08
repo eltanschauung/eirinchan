@@ -63,7 +63,7 @@ defmodule Eirinchan.Uploads do
         metadata,
         suffix
       ) do
-    base_name = if is_binary(suffix), do: "#{post.id}-#{suffix}", else: "#{post.id}"
+    base_name = timestamp_base_name(post, suffix)
     storage_name = "#{base_name}#{metadata.ext}"
     destination = Path.join([board_root(), board.uri, config.dir.img, storage_name])
     thumb_name = "#{base_name}s.png"
@@ -248,6 +248,25 @@ defmodule Eirinchan.Uploads do
       File.rename(source, destination)
     end
   end
+
+  defp timestamp_base_name(post, suffix) do
+    timestamp =
+      post
+      |> post_timestamp()
+      |> DateTime.to_unix(:millisecond)
+      |> Integer.to_string()
+
+    base = "#{timestamp}-#{post.id}"
+
+    if is_binary(suffix), do: "#{base}-#{suffix}", else: base
+  end
+
+  defp post_timestamp(%Post{inserted_at: %DateTime{} = inserted_at}), do: inserted_at
+
+  defp post_timestamp(%Post{inserted_at: %NaiveDateTime{} = inserted_at}),
+    do: DateTime.from_naive!(inserted_at, "Etc/UTC")
+
+  defp post_timestamp(_post), do: DateTime.utc_now()
 
   defp normalize_remote_uri(url) do
     uri = url |> String.trim() |> URI.parse()

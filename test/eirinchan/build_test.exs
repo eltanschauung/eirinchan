@@ -136,7 +136,7 @@ defmodule Eirinchan.BuildTest do
 
     assert File.read!(index_path) =~ thread.thumb_path
     assert File.read!(thread_path) =~ thread.thumb_path
-    assert File.exists?(Path.join(board_dir, "thumb/#{thread.id}s.png"))
+    assert File.exists?(Eirinchan.Uploads.filesystem_path(thread.thumb_path))
 
     assert %{"posts" => [op]} = Jason.decode!(File.read!(thread_json_path))
     assert op["filename"] == "thread"
@@ -207,7 +207,7 @@ defmodule Eirinchan.BuildTest do
     thread_json_path = Path.join([board_dir, config.dir.res, "#{thread.id}.json"])
 
     assert File.read!(index_path) =~ thread.thumb_path
-    assert File.exists?(Path.join(board_dir, "thumb/#{thread.id}s.png"))
+    assert File.exists?(Eirinchan.Uploads.filesystem_path(thread.thumb_path))
 
     assert %{"posts" => [op]} = Jason.decode!(File.read!(thread_json_path))
     assert op["filename"] == "notes"
