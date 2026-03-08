@@ -548,11 +548,10 @@ defmodule Eirinchan.Build do
         embed_html || ""
 
       file ->
-        full_src = html_escape(file.file_path)
-        thumb_src = html_escape(file.thumb_path || file.file_path)
         label = html_escape(file.file_name || Path.basename(file.file_path))
+        image_html = PostView.file_image_html(file, config)
 
-        ~s(<figure class="post-file"><a href="#{full_src}"><img src="#{thumb_src}" alt="#{label}" loading="lazy" /></a><figcaption><a href="#{full_src}">#{label}</a></figcaption></figure>)
+        ~s(<figure class="post-file">#{image_html}<figcaption><a href="#{html_escape(file.file_path)}">#{label}</a></figcaption></figure>)
     end)
   end
 

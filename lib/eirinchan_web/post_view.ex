@@ -332,6 +332,22 @@ defmodule EirinchanWeb.PostView do
   def file_size_text(file), do: human_file_size(Map.get(file, :file_size))
   def file_dimensions(file), do: dimensions(file)
   def file_class(post), do: if(media_count(post) > 1, do: "file multifile", else: "file")
+
+  def file_image_html(file, config, opts \\ []) do
+    thumb_style_attr =
+      case thumb_style(file, config, opts) do
+        nil -> ""
+        style -> ~s( style="#{html_escape_to_string(style)}")
+      end
+
+    class_attr =
+      case file_link_class(file) do
+        nil -> ""
+        value -> ~s( class="#{html_escape_to_string(value)}")
+      end
+
+    ~s|<a href="#{html_escape_to_string(file.file_path)}" target="_blank"#{class_attr}><img class="post-image" src="#{html_escape_to_string(file.thumb_path || file.file_path)}"#{thumb_style_attr} alt="" /></a>|
+  end
   def post_container_style(post), do: if(media_count(post) > 1, do: "clear:both", else: nil)
   def reply_body_style(reply, config), do: body_style(reply, config)
 
@@ -377,19 +393,13 @@ defmodule EirinchanWeb.PostView do
             style -> ~s( style="#{html_escape_to_string(style)}")
           end
 
-        thumb_style_attr =
-          case thumb_style(file, config) do
-            nil -> ""
-            style -> ~s( style="#{html_escape_to_string(style)}")
-          end
-
         dimensions =
           case file_dimensions(file) do
             nil -> ""
             value -> ", " <> value
           end
 
-        ~s|<div class="#{class_name}"#{style_attr}><p class="fileinfo">File: <a href="#{html_escape_to_string(file.file_path)}">#{html_escape_to_string(stored_file_name(file))}</a><span>(#{html_escape_to_string(file_size_text(file))}#{dimensions}, <span class="postfilename" title="#{html_escape_to_string(original_file_name(file))}">#{html_escape_to_string(display_file_name(file, config))}</span>)</span></p><a href="#{html_escape_to_string(file.file_path)}"><img class="post-image" src="#{html_escape_to_string(file.thumb_path || file.file_path)}"#{thumb_style_attr} alt="" /></a></div>|
+        ~s|<div class="#{class_name}"#{style_attr}><p class="fileinfo">File: <a href="#{html_escape_to_string(file.file_path)}">#{html_escape_to_string(stored_file_name(file))}</a><span>(#{html_escape_to_string(file_size_text(file))}#{dimensions}, <span class="postfilename" title="#{html_escape_to_string(original_file_name(file))}">#{html_escape_to_string(display_file_name(file, config))}</span>)</span></p>#{file_image_html(file, config)}</div>|
       end
     end)
   end
@@ -458,6 +468,10 @@ defmodule EirinchanWeb.PostView do
     end
   end
 
+  def file_link_class(file) do
+    if expandable_image?(file), do: nil, else: "file"
+  end
+
   def original_file_name(file) do
     file_display_name(file)
   end
@@ -516,6 +530,23 @@ defmodule EirinchanWeb.PostView do
          ) do
       {width, height} -> "width:#{width}px;height:#{height}px"
       nil -> nil
+    end
+  end
+
+  defp expandable_image?(file) do
+    ext =
+      file
+      |> file_display_name()
+      |> String.downcase()
+      |> Path.extname()
+
+    image_exts = [".jpg", ".jpeg", ".gif", ".png", ".webp"]
+
+    cond do
+      ext in [".webm", ".mp4"] -> false
+      ext in image_exts -> true
+      is_binary(file[:file_type]) -> String.starts_with?(file.file_type, "image/")
+      true -> false
     end
   end
 
