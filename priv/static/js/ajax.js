@@ -95,7 +95,7 @@ $(window).ready(function() {
 								success: function(data) {
 									var $reply = $(data).find('div.post#reply_' + post_response.id).first();
 									var $current_reply = $('div.post#reply_' + post_response.id).first();
-									var inserted = false;
+									var $insertedReply = $();
 
 									if ($reply.length && !$current_reply.length) {
 										var $lastPost = $('div.thread > div.post.reply:last');
@@ -118,20 +118,27 @@ $(window).ready(function() {
 												$op.after($newReply, $clear);
 											}
 										}
-
-										$(document).trigger('new_post', $newReply[0]);
-										inserted = true;
+										$insertedReply = $newReply;
 									}
 
-									var $target = $('div.post#reply_' + post_response.id).first();
+									var $target = $insertedReply.length ? $insertedReply : $('div.post#reply_' + post_response.id).first();
 									if ($target.length) {
 										highlightReply(post_response.id);
 										window.location.hash = 'q' + post_response.id;
 										$(window).scrollTop($target.offset().top);
-										setTimeout(function() { $(window).trigger("scroll"); }, 100);
 										clearReplyFields();
 										resetSubmit();
 										$(document).trigger("ajax_after_post", post_response);
+										setTimeout(function() {
+											try {
+												if ($insertedReply.length) {
+													$(document).trigger('new_post', $insertedReply[0]);
+												}
+												$(window).trigger("scroll");
+											} catch (e) {
+												console.error(e);
+											}
+										}, 0);
 									} else {
 										resetSubmit();
 										document.location = window.location.pathname + window.location.search + '#q' + post_response.id;
