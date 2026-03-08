@@ -76,4 +76,13 @@ defmodule EirinchanWeb.PostViewTest do
 
     refute html =~ ~s(clear:left)
   end
+
+  test "body_html normalizes windows line endings before inserting br tags" do
+    config = Config.compose()
+    post = %Post{body: "a\r\nb\r\nc"}
+
+    html = PostView.body_html(post, %BoardRecord{uri: "bant"}, post, config)
+
+    assert html == "a<br/>b<br/>c"
+  end
 end

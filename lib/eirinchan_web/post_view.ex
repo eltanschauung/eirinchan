@@ -470,6 +470,8 @@ defmodule EirinchanWeb.PostView do
   def body_html(post, board, thread, config) do
     post.body
     |> Kernel.||("")
+    |> String.replace("\r\n", "\n")
+    |> String.replace("\r", "\n")
     |> html_escape()
     |> safe_to_string()
     |> String.split("\n", trim: false)
