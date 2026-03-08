@@ -35,7 +35,7 @@ defmodule EirinchanWeb.ManagePageHTML do
             />
             <label for={"delete_#{@post.id}"}>
               <span :if={@post.subject} class="subject"><%= @post.subject %></span>
-              <span class="name"><%= PostView.display_name(@post, @config) %></span>
+              <%= raw(PostView.name_html(@post, @config)) %>
               <span :if={@post.tripcode} class="trip"><%= @post.tripcode %></span>
               <%= raw(PostView.ip_link_html(@post, @board, @moderator)) %>
               <%= for flag <- PostView.post_flags(@post, @config) do %>
@@ -59,7 +59,8 @@ defmodule EirinchanWeb.ManagePageHTML do
               href={PostView.thread_path(@board, @post, @config) <> "##{@post.id}"}
             >
               No.
-            </a><a
+            </a>
+            <a
               class="post_no"
               onclick={"citeReply(#{@post.id})"}
               href={PostView.reply_path(@board, @post, @post, @config, :quote)}
@@ -85,7 +86,7 @@ defmodule EirinchanWeb.ManagePageHTML do
           <input type="checkbox" class="delete" name={"delete_#{@post.id}"} id={"delete_#{@post.id}"} />
           <label for={"delete_#{@post.id}"}>
             <span :if={@post.subject} class="subject"><%= @post.subject %></span>
-            <span class="name"><%= PostView.display_name(@post, @config) %></span>
+            <%= raw(PostView.name_html(@post, @config)) %>
             <span :if={@post.tripcode} class="trip"><%= @post.tripcode %></span>
             <%= raw(PostView.ip_link_html(@post, @board, @moderator)) %>
             <%= for flag <- PostView.post_flags(@post, @config) do %>
@@ -109,7 +110,8 @@ defmodule EirinchanWeb.ManagePageHTML do
             href={PostView.thread_path(@board, @thread, @config) <> "##{@post.id}"}
           >
             No.
-          </a><a
+          </a>
+          <a
             class="post_no"
             onclick={"citeReply(#{@post.id})"}
             href={PostView.reply_path(@board, @thread, @post, @config, :quote)}

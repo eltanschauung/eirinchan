@@ -62,6 +62,20 @@ defmodule EirinchanWeb.PostView do
     end
   end
 
+  def name_html(post, config) do
+    name_html(display_name(post, config), Map.get(post, :email), config)
+  end
+
+  def name_html(name, email, config) do
+    inner = ~s(<span class="name">#{html_escape_to_string(name)}</span>)
+
+    if email_link?(email, config) do
+      ~s(<a class="email" href="mailto:#{html_escape_to_string(email)}">#{inner}</a>)
+    else
+      inner
+    end
+  end
+
   def board_heading(board), do: "/#{board.uri}/ - #{board.title}"
 
   def thread_path(board, post, config), do: ThreadPaths.thread_path(board, post, config)
@@ -629,6 +643,16 @@ defmodule EirinchanWeb.PostView do
   defp permission_level(:bumplock), do: 20
   defp permission_level(:editpost), do: 30
   defp permission_level(:move), do: 20
+
+  defp email_link?(email, config) when is_binary(email) do
+    trimmed = String.trim(email)
+
+    trimmed != "" and
+      Map.get(config, :hide_email, false) != true and
+      (Map.get(config, :hide_sage, false) != true or trimmed != "sage")
+  end
+
+  defp email_link?(_email, _config), do: false
 
   defp confirm_control(post, board, session_token, action) do
     %{href: href, secure: secure_href, title: title, label: label, confirm: message} =
