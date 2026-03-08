@@ -3,7 +3,13 @@ defmodule EirinchanWeb.PageControllerTest do
 
   setup do
     original_path = Application.get_env(:eirinchan, :instance_config_path)
-    path = Path.join(System.tmp_dir!(), "eirinchan-page-themes-#{System.unique_integer([:positive])}.json")
+
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "eirinchan-page-themes-#{System.unique_integer([:positive])}.json"
+      )
+
     File.rm(path)
     Application.put_env(:eirinchan, :instance_config_path, path)
 
@@ -35,7 +41,7 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ ~s(data-stylesheet="yotsuba.css")
     assert page =~ ~s(var active_page = "index", board_name = null;)
     assert page =~ ~s(src="/main.js)
-    assert page =~ "Powered by Eirinchan."
+    assert page =~ "Tinyboard + vichan 5.1.5 + Eirinchan"
   end
 
   test "GET / redirects to setup when no admin exists", %{conn: conn} do
@@ -75,7 +81,7 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ "FAQ"
     assert page =~ ~s(class="boardlist")
     assert page =~ ~s(var active_page = "news", board_name = null;)
-    assert page =~ "Powered by Eirinchan."
+    assert page =~ "Tinyboard + vichan 5.1.5 + Eirinchan"
   end
 
   test "GET /pages/:slug renders a custom page", %{conn: conn} do
