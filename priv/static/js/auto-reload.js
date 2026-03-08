@@ -32,8 +32,13 @@ $(document).ready(function(){
 	
 	var countdown_interval;
 
-	// Add an update link
-	$('.boardlist.bottom').prev().after("<span id='updater'><a href='#' id='update_thread' style='padding-left:10px'>["+_("Update")+"]</a> (<input type='checkbox' id='auto_update_status' checked> "+_("Auto")+") <span id='update_secs'></span></span>");
+	// Add the update controls inline with the existing thread links.
+	var updater_html = " <span id='updater'><a href='#' id='update_thread'>["+_("Update")+"]</a> (<input type='checkbox' id='auto_update_status' checked> "+_("Auto")+") <span id='update_secs'></span></span>";
+	if ($('#thread-links').length) {
+		$('#thread-links').append(updater_html);
+	} else {
+		$('.boardlist.bottom').prev().after("<span id='updater'><a href='#' id='update_thread' style='padding-left:10px'>["+_("Update")+"]</a> (<input type='checkbox' id='auto_update_status' checked> "+_("Auto")+") <span id='update_secs'></span></span>");
+	}
 
 	// Grab the settings
 	var settings = new script_settings('auto-reload');
