@@ -326,6 +326,7 @@
             name={"delete_#{thread.id}"}
             id={"delete_#{thread.id}"}
           />
+          <a href="#" class="post-btn" title="Post menu">▶</a>
           <label for={"delete_#{thread.id}"}>
             <span :if={thread.subject} class="subject"><%= thread.subject %></span>
             <span class="name"><%= PostView.display_name(thread, @config) %></span>
@@ -370,15 +371,7 @@
           <span :if={thread.sage} style="display:none">[Bumplocked]</span>
           <a href={PostView.thread_path(@board, thread, @config)}>[Reply]</a>
         </p>
-        <div class="body">
-          <%= raw(PostView.body_html(thread, @board, thread, @config)) %>
-          <span
-            :if={@config.fileboard && PostView.show_fileboard_summary?(thread)}
-            style="display:none"
-          >
-            Fileboard: <%= PostView.fileboard_summary(thread) %>
-          </span>
-        </div>
+        <div class="body"><%= raw(PostView.body_html(thread, @board, thread, @config)) %><span :if={@config.fileboard && PostView.show_fileboard_summary?(thread)} style="display:none">Fileboard: <%= PostView.fileboard_summary(thread) %></span></div>
         <span :if={PostView.omitted_text(summary)} class="omitted">
           <%= PostView.omitted_text(summary) %>
         </span>
@@ -393,6 +386,7 @@
               name={"delete_#{reply.id}"}
               id={"delete_#{reply.id}"}
             />
+            <a href="#" class="post-btn" title="Post menu">▶</a>
             <label for={"delete_#{reply.id}"}>
               <span :if={reply.subject} class="subject"><%= reply.subject %></span>
               <span class="name"><%= PostView.display_name(reply, @config) %></span>
@@ -428,7 +422,7 @@
               <%= reply.id %>
             </a>
           </p>
-          <div :if={PostView.has_embed?(reply) || PostView.all_files(reply) != []} class="files">
+          <div class="files">
             <%= if PostView.has_embed?(reply) do %>
               <%= raw(PostView.embed_html(reply, @config)) %>
             <% end %>
@@ -474,11 +468,7 @@
               nil -> []
               style -> [style: style]
             end}
-          >
-            <%= raw(PostView.body_html(reply, @board, thread, @config)) %>
-          </div>
-        </div>
-        <br />
+          ><%= raw(PostView.body_html(reply, @board, thread, @config)) %></div></div><br />
       <% end %>
 
       <br class="clear" />
