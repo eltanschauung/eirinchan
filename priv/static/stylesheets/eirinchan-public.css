@@ -63,7 +63,13 @@ a:hover {
 
 body.active-catalog #thread-links {
   float: none;
-  display: inline-block;
+}
+
+body.active-catalog #thread-links,
+body.active-catalog .thread-links-clone {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 body.active-catalog .catalog-updater-meta {
@@ -84,8 +90,4 @@ body.active-catalog .catalog-nav-row {
 
 body.active-catalog .catalog-nav-row .pages {
   margin: 0;
-}
-
-body.active-catalog .thread-links-clone {
-  display: inline-block;
 }
