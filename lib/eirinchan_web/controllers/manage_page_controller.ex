@@ -235,6 +235,19 @@ defmodule EirinchanWeb.ManagePageController do
     end
   end
 
+  def feedback(conn, _params) do
+    with {:ok, moderator} <- ensure_moderator(conn) do
+      render(conn, :feedback,
+        moderator: moderator,
+        feedback: Feedback.list_feedback(),
+        unread_count: Feedback.unread_count()
+      )
+    else
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+    end
+  end
+
   def create_message(conn, params) do
     with {:ok, moderator} <- ensure_moderator(conn),
          {:ok, _message} <-

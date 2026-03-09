@@ -1,0 +1,66 @@
+<div class="boardlist">
+  [<a href={~p"/manage"}>Dashboard</a>]
+  [<a href={~p"/manage/reports/browser"}>Report queue</a>]
+  [<a href={~p"/manage/ban-appeals/browser"}>Ban appeals</a>]
+</div>
+
+<h1>Feedback</h1>
+<p class="unimportant">Unread: <%= @unread_count %></p>
+
+<%= if @feedback == [] do %>
+  <p>No feedback.</p>
+<% else %>
+  <%= for entry <- @feedback do %>
+    <div class="thread">
+      <div class="post reply" id={"feedback_#{entry.id}"}>
+        <p class="intro">
+          <span class="subject">Feedback #<%= entry.id %></span>
+          <span class="name"><%= entry.name || "Anonymous" %></span>
+          <%= if entry.email && String.trim(entry.email) != "" do %>
+            <span class="email">&lt;<%= entry.email %>&gt;</span>
+          <% end %>
+          <time datetime={PostView.iso_timestamp(entry)}><%= PostView.formatted_timestamp(entry) %></time>
+          <%= if entry.read_at do %>
+            <span class="unimportant">[Read]</span>
+          <% end %>
+          <span class="unimportant">[<%= entry.ip_subnet %>]</span>
+        </p>
+        <div class="body"><%= entry.body %></div>
+
+        <%= if entry.comments != [] do %>
+          <div class="files">
+            <%= for comment <- entry.comments do %>
+              <div class="reply-container">
+                <p class="intro">
+                  <span class="subject">Note</span>
+                  <time datetime={PostView.iso_timestamp(comment)}>
+                    <%= PostView.formatted_timestamp(comment) %>
+                  </time>
+                </p>
+                <div class="body"><%= comment.body %></div>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+
+        <form action={~p"/manage/feedback/#{entry.id}/read"} method="post" style="display:inline-block">
+          <input type="hidden" name="_method" value="patch" />
+          <input type="hidden" name="_csrf_token" value={Phoenix.Controller.get_csrf_token()} />
+          <input type="submit" value="Mark as Read" />
+        </form>
+
+        <form action={~p"/manage/feedback/#{entry.id}/comments"} method="post" style="display:inline-block">
+          <input type="hidden" name="_csrf_token" value={Phoenix.Controller.get_csrf_token()} />
+          <input type="text" name="body" size="30" placeholder="Add Note" />
+          <input type="submit" value="Add Note" />
+        </form>
+
+        <form action={~p"/manage/feedback/#{entry.id}"} method="post" style="display:inline-block">
+          <input type="hidden" name="_method" value="delete" />
+          <input type="hidden" name="_csrf_token" value={Phoenix.Controller.get_csrf_token()} />
+          <input type="submit" value="Delete" />
+        </form>
+      </div>
+    </div>
+  <% end %>
+<% end %>
