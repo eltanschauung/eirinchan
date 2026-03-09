@@ -33,12 +33,6 @@
   <% end %>
 </div>
 
-<nav class="boardlist compact-boardlist feedback-boardlist">
-  <%= for board <- @boards do %>
-    <span class="sub">[<a href={"/#{board.uri}"}>/ <%= board.uri %> /</a>]</span>
-  <% end %>
-</nav>
-
 <%= if assigns[:errors] do %>
   <section class="public-panel feedback-errors">
     <%= for {field, messages} <- @errors do %>
@@ -64,7 +58,7 @@
         <td>
           <textarea name="body" rows="10" class="feedback-textarea"><%= get_in(assigns, [:params, "body"]) %></textarea>
           <span class="unimportant">
-            Keep it concise and include steps to reproduce when reporting bugs.
+            Submit any kind of feedback you want! Feedback is anonymous.
           </span>
         </td>
       </tr>
