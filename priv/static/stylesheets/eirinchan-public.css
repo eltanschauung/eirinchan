@@ -61,10 +61,6 @@ a:hover {
   text-decoration: none;
 }
 
-body.active-catalog #thread-interactions {
-  text-align: center;
-}
-
 body.active-catalog #thread-links {
   float: none;
   display: inline-block;

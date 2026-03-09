@@ -24,7 +24,7 @@
 auto_reload_enabled = true; // for watch.js to interop
 
 $(document).ready(function(){
-	var is_thread_page = $('div.banner').length != 0 && $(".post.op").size() == 1;
+	var is_thread_page = $('div.banner').length != 0 && $(".post.op").length == 1;
 	var is_catalog_page = $('body').hasClass('active-catalog') && $('#Grid').length == 1;
 
 	if(!is_thread_page && !is_catalog_page)
