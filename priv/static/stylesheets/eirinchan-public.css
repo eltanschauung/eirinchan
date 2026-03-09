@@ -110,10 +110,12 @@ body.active-catalog .catalog-nav-row .pages {
 }
 
 .flag-page-shell .image-canvas {
+  width: 256px;
   max-width: 256px;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
+  margin: 0 auto;
 }
 
 .flag-page-shell .image-canvas img {
