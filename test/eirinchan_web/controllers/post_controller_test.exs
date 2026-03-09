@@ -167,6 +167,27 @@ defmodule EirinchanWeb.PostControllerTest do
     assert get_resp_header(thumb_conn, "content-type") == ["image/png; charset=utf-8"]
   end
 
+  test "posting accepts animated gif uploads", %{conn: conn} do
+    board = board_fixture()
+    upload = animated_gif_upload_fixture("animated.gif")
+
+    create_conn =
+      conn
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post(~p"/#{board.uri}/post", %{
+        "body" => "animated gif post",
+        "file" => upload,
+        "json_response" => "1",
+        "post" => "New Topic"
+      })
+
+    assert %{"id" => id} = json_response(create_conn, 200)
+
+    {:ok, [thread | _]} = Eirinchan.Posts.get_thread(board, id)
+    assert thread.file_type == "image/gif"
+    assert thread.thumb_path =~ ~r/\.png$/
+  end
+
   test "posting accepts YouTube embeds and renders the lazy embed block", %{conn: conn} do
     board = board_fixture()
 

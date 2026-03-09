@@ -424,10 +424,10 @@ defmodule Eirinchan.Uploads do
   end
 
   defp image_metadata(path) do
-    case System.cmd("identify", ["-format", "%w %h", path], stderr_to_stdout: true) do
+    case System.cmd("identify", ["-format", "%w %h", first_frame_path(path)], stderr_to_stdout: true) do
       {output, 0} ->
-        case String.split(String.trim(output), ~r/\s+/, parts: 2) do
-          [width, height] ->
+        case Regex.scan(~r/\d+/, output) |> Enum.map(&hd/1) do
+          [width, height | _rest] ->
             {:ok, %{width: String.to_integer(width), height: String.to_integer(height)}}
 
           _ ->
@@ -463,12 +463,20 @@ defmodule Eirinchan.Uploads do
 
       case System.cmd(
              "convert",
-             [source, "-auto-orient", "-thumbnail", geometry, destination],
+             [first_frame_path(source), "-auto-orient", "-thumbnail", geometry, destination],
              stderr_to_stdout: true
            ) do
         {_output, 0} -> :ok
         _ -> {:error, :upload_failed}
       end
+    end
+  end
+
+  defp first_frame_path(path) when is_binary(path) do
+    if String.downcase(Path.extname(path)) == ".gif" do
+      path <> "[0]"
+    else
+      path
     end
   end
 
