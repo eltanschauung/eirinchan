@@ -1,6 +1,8 @@
 defmodule EirinchanWeb.ManagePageControllerTest do
   use EirinchanWeb.ConnCase, async: true
 
+  alias Eirinchan.Feedback
+
   test "login page renders and browser login redirects to the dashboard", %{conn: conn} do
     moderator = moderator_fixture(%{username: "admin", password: "secret123"})
     _board = board_fixture(%{uri: "bant", title: "International Random"})
@@ -31,6 +33,30 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert dashboard =~ "Feedback (0)"
     assert dashboard =~ "Ban appeals (0)"
     assert dashboard =~ ~s(class="boardlist")
+  end
+
+  test "feedback browser page renders the moderation queue", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+
+    conn =
+      conn
+      |> post("/feedback", %{"body" => "Needs review", "json_response" => "1"})
+
+    assert %{"feedback_id" => feedback_id} = json_response(conn, 200)
+    assert Feedback.get_feedback(feedback_id)
+
+    page =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> get("/manage/feedback/browser")
+      |> html_response(200)
+
+    assert page =~ "Feedback"
+    assert page =~ "Needs review"
+    assert page =~ "Mark as Read"
+    assert page =~ "Add Note"
+    assert page =~ "Delete"
   end
 
   test "browser dashboard redirects to setup when no admin exists", %{conn: conn} do
