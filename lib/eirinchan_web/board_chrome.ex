@@ -33,6 +33,6 @@ defmodule EirinchanWeb.BoardChrome do
   def boardlist_groups(_boards, chrome_groups), do: chrome_groups
 
   def footer_html do
-    ~s|<footer><p class="unimportant" style="margin-top:20px;text-align:center;">- Tinyboard + vichan 5.1.5 + Eirinchan -<br />Tinyboard Copyright &copy; 2010-2014 Tinyboard Development Group<br />vichan Copyright &copy; 2012-2026 vichan-devel<br />All trademarks, copyrights, comments, and images on this page are owned by and are the responsibility of their respective parties.</p></footer>|
+    ~s|<footer><p class="unimportant" style="margin-top:20px;text-align:center;">- Tinyboard + vichan 5.2.2 + Eirinchan -<br />Tinyboard Copyright &copy; 2010-2014 Tinyboard Development Group<br />vichan Copyright &copy; 2012-2026 vichan-devel<br />All trademarks, copyrights, comments, and images on this page are owned by and are the responsibility of their respective parties.</p></footer>|
   end
 end
