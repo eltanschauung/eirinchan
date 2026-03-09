@@ -104,7 +104,7 @@ options_tablist = $("<div id='options_tablist'></div>").appendTo(options_div);
 
 $(function(){
   options_button = $("<a href='javascript:void(0)' title='"+_("Options")+"'>["+_("Options")+"]</a>").css("float", "right");
-  admin_button = $("<a href='/manage' title='"+_("Admin")+"'>["+_("Admin")+"]</a>").css({"float": "right", "margin-right": "0.35em"});
+  admin_button = $("<a href='/manage' title='"+_("Admin")+"'>["+_("Admin")+"]</a>").css({"float": "right", "margin-left": "0.35em"});
 
   if ($(".boardlist.compact-boardlist").length) {
     options_button.addClass("cb-item cb-fa").html("<i class='fa fa-gear'></i>");
@@ -112,12 +112,12 @@ $(function(){
   }
 
   if ($(".boardlist:first").length) {
+    admin_button.appendTo($(".boardlist:first"));
     options_button.appendTo($(".boardlist:first"));
-    admin_button.insertBefore(options_button);
   }
   else {
+    admin_button.prependTo($(document.body));
     options_button.prependTo($(document.body));
-    admin_button.insertBefore(options_button);
   }
 
   options_button.on("click", Options.show);
