@@ -160,7 +160,7 @@ $(document).ready(function(){
 	
 	var poll_catalog = function(manualUpdate) {
 		stop_auto_update();
-		$('#update_secs').text(_("Updating..."));
+		$('#update_secs').text("0");
 
 		$.ajax({
 			url: document.location,
@@ -233,7 +233,7 @@ $(document).ready(function(){
 
 	var poll_thread = function(manualUpdate) {
 		stop_auto_update();
-		$('#update_secs').text(_("Updating..."));
+		$('#update_secs').text("0");
 	
 		$.ajax({
 			url: document.location,
