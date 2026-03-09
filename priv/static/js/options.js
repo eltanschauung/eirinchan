@@ -104,16 +104,20 @@ options_tablist = $("<div id='options_tablist'></div>").appendTo(options_div);
 
 $(function(){
   options_button = $("<a href='javascript:void(0)' title='"+_("Options")+"'>["+_("Options")+"]</a>").css("float", "right");
+  admin_button = $("<a href='/manage' title='"+_("Admin")+"'>["+_("Admin")+"]</a>").css("float", "right");
 
   if ($(".boardlist.compact-boardlist").length) {
     options_button.addClass("cb-item cb-fa").html("<i class='fa fa-gear'></i>");
+    admin_button.addClass("cb-item").text(_("Admin"));
   }
 
   if ($(".boardlist:first").length) {
     options_button.appendTo($(".boardlist:first"));
+    admin_button.insertBefore(options_button);
   }
   else {
     options_button.prependTo($(document.body));
+    admin_button.insertBefore(options_button);
   }
 
   options_button.on("click", Options.show);
