@@ -273,6 +273,8 @@ defmodule Eirinchan.Installation do
       current
       |> Map.put_new(:uri_flags, "static/flags/%s.png")
       |> Map.put_new(:geoip2_database_path, Application.app_dir(:eirinchan, "priv/geoip2/GeoLite2-Country.mmdb"))
+      |> Map.put_new(:noko50_count, 50)
+      |> Map.put_new(:noko50_min, 1_000_000)
 
     Settings.persist_instance_config(defaults)
   end
