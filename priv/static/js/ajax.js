@@ -26,7 +26,7 @@ $(window).ready(function() {
 			var form = this;
 			var $submit = $(form).find('input[type="submit"]');
 			var submit_txt = $(this).find('input[type="submit"]').val();
-			var is_reply_form = $(form).find('input[name="thread"]').length > 0;
+			var is_reply_form = $(form).find('input[name="thread_id"], input[name="thread"]').length > 0;
 			if (window.FormData === undefined)
 				return true;
 
@@ -37,7 +37,7 @@ $(window).ready(function() {
 
 			var triggerAjaxAfterPost = function(post_response) {
 				try {
-					triggerAjaxAfterPost(post_response)
+					$(document).trigger('ajax_after_post', post_response);
 				} catch (e) {
 					console.error(e);
 				}
