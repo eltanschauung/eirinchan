@@ -16,13 +16,15 @@ defmodule Eirinchan.ThreadPaths do
     end
   end
 
-  @spec thread_filename(Post.t(), map()) :: String.t()
-  def thread_filename(%Post{id: id, slug: slug}, config) do
+  @spec thread_filename(Post.t(), map(), keyword()) :: String.t()
+  def thread_filename(%Post{id: id, slug: slug}, config, opts \\ []) do
+    noko50? = Keyword.get(opts, :noko50, false)
+
     template =
       if is_binary(slug) and slug != "" do
-        config.file_page_slug
+        if noko50?, do: config.file_page50_slug, else: config.file_page_slug
       else
-        config.file_page
+        if noko50?, do: config.file_page50, else: config.file_page
       end
 
     template
@@ -35,9 +37,9 @@ defmodule Eirinchan.ThreadPaths do
     String.replace(config.file_page, "%d", Integer.to_string(id))
   end
 
-  @spec thread_path(BoardRecord.t(), Post.t(), map()) :: String.t()
-  def thread_path(%BoardRecord{uri: board_uri}, %Post{} = thread, config) do
-    "/#{board_uri}/#{config.dir.res}#{thread_filename(thread, config)}"
+  @spec thread_path(BoardRecord.t(), Post.t(), map(), keyword()) :: String.t()
+  def thread_path(%BoardRecord{uri: board_uri}, %Post{} = thread, config, opts \\ []) do
+    "/#{board_uri}/#{config.dir.res}#{thread_filename(thread, config, opts)}"
   end
 
   @spec board_page_path(BoardRecord.t(), pos_integer(), map()) :: String.t()

@@ -767,19 +767,35 @@ defmodule Eirinchan.Posts do
           {:ok, map()} | {:error, :not_found}
   def get_thread_view(%BoardRecord{} = board, thread_id, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
+    config = Keyword.get(opts, :config, Config.compose())
+    last_posts = normalize_last_posts(Keyword.get(opts, :last_posts), config)
 
     with {:ok, [thread | replies]} <- get_thread(board, thread_id, repo: repo) do
       reply_image_count = Enum.sum(Enum.map(replies, &post_image_count/1))
+      total_reply_count = length(replies)
+      has_noko50 = total_reply_count >= config.noko50_min
+      shown_replies = if(has_noko50, do: maybe_truncate_replies(replies, last_posts), else: replies)
 
       {:ok,
        %{
          thread: thread,
-         replies: replies,
-         reply_count: length(replies),
+         replies: shown_replies,
+         reply_count: total_reply_count,
          image_count: reply_image_count + post_image_count(thread),
-         omitted_posts: 0,
-         omitted_images: 0,
-         last_modified: thread.bump_at || thread.inserted_at
+         omitted_posts: if(last_posts, do: max(total_reply_count - length(shown_replies), 0), else: 0),
+         omitted_images:
+           if(last_posts,
+             do:
+               max(
+                 reply_image_count - Enum.sum(Enum.map(shown_replies, &post_image_count/1)),
+                 0
+               ),
+             else: 0
+           ),
+         last_modified: thread.bump_at || thread.inserted_at,
+         has_noko50: has_noko50,
+         is_noko50: not is_nil(last_posts) and has_noko50,
+         last_count: last_posts || config.noko50_count
        }}
     end
   end
@@ -2228,6 +2244,15 @@ defmodule Eirinchan.Posts do
   end
 
   defp normalize_thread_id(value), do: ThreadPaths.parse_thread_id(value)
+
+  defp normalize_last_posts(nil, _config), do: nil
+  defp normalize_last_posts(false, _config), do: nil
+  defp normalize_last_posts(true, config), do: config.noko50_count
+  defp normalize_last_posts(value, _config) when is_integer(value) and value > 0, do: value
+  defp normalize_last_posts(_value, _config), do: nil
+
+  defp maybe_truncate_replies(replies, nil), do: replies
+  defp maybe_truncate_replies(replies, count), do: Enum.take(replies, -count)
 
   defp thread_summary(board, thread, config, repo) do
     preview_count = config.threads_preview

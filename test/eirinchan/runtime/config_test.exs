@@ -12,7 +12,7 @@ defmodule Eirinchan.Runtime.ConfigTest do
       file_page: "%d.html",
       file_page50: "%d+50.html",
       file_page_slug: "%d-%s.html",
-      file_page50_slug: "%d+50-%s.html",
+      file_page50_slug: "%d-%s+50.html",
       file_mod: "mod.php",
       file_script: "main.js",
       board_path: "%s/",
@@ -68,6 +68,11 @@ defmodule Eirinchan.Runtime.ConfigTest do
     assert Regex.match?(
              config.referer_match,
              "https://example.test/chan/tech/res/42-thread-slug.html"
+           )
+
+    assert Regex.match?(
+             config.referer_match,
+             "https://example.test/chan/tech/res/42-thread-slug+50.html"
            )
 
     port_config =
