@@ -1,55 +1,13 @@
 defmodule EirinchanWeb.PublicShell do
   @moduledoc false
 
-  @base_javascript_urls [
-    "/main.js",
-    "/js/jquery.min.js",
-    "/js/inline-expanding.js",
-    "/js/jquery.min.js",
-    "/js/youtube.js",
-    "/js/save-user_flag.js",
-    "/js/thread-stats.js",
-    "/js/strftime.min.js",
-    "/js/ajax.js",
-    "/js/navarrows2.js",
-    "/js/file-selector.js",
-    "/js/upload-selection.js",
-    "/js/expand.js",
-    "/js/options.js",
-    "/js/style-select.js",
-    "/js/options/general.js",
-    "/js/options/user-js.js",
-    "/js/options/user-css.js",
-    "/js/instance.settings.js",
-    "/js/jquery-ui.custom.min.js",
-    "/js/quick-reply.js",
-    "/js/filters.js",
-    "/js/post-filter.js",
-    "/js/local-time.js",
-    "/js/titlebar-notifications.js",
-    "/js/auto-reload.js",
-    "/js/image-hover.js",
-    "/js/post-hover.js",
-    "/js/show-backlinks.js",
-    "/js/show-op.js",
-    "/js/show-own-posts-options.js",
-    "/js/archive.js",
-    "/js/mobile-style.js",
-    "/js/fix-report-delete-submit.js",
-    "/js/quick-post-controls.js",
-    "/js/download-original.js",
-    "/js/unspoiler3.js",
-    "/js/ruffle.js",
-    "/js/expand-swf.js",
-    "/js/catalog-search.js",
-    "/js/webm-settings.js",
-    "/js/webm-settings.js",
-    "/js/expand-video.js",
-    "/js/download-original.js"
-  ]
+  alias Eirinchan.Runtime.Config
+  alias Eirinchan.Settings
 
-  @catalog_javascript_urls @base_javascript_urls ++
-                             ["/js/jquery.mixitup.min.js", "/js/catalog.js"]
+  @catalog_required_scripts [
+    "js/jquery.mixitup.min.js",
+    "js/catalog.js"
+  ]
 
   def head_html(active_page, opts \\ []) do
     board_name =
@@ -65,6 +23,7 @@ defmodule EirinchanWeb.PublicShell do
       end
 
     selected_style = Keyword.get(opts, :theme_label, "Yotsuba")
+    resource_version = Keyword.get(opts, :resource_version, "")
 
     styles_json =
       opts
@@ -82,15 +41,35 @@ defmodule EirinchanWeb.PublicShell do
       |> Jason.encode!()
 
     """
-    <script type="text/javascript">var active_page = "#{active_page}", board_name = #{board_name}#{thread_fragment};</script><script type="text/javascript">var configRoot="/";var inMod = false;var modRoot="/"+(inMod ? "mod.php?/" : "");var resourceVersion="";</script>
+    <script type="text/javascript">var active_page = "#{active_page}", board_name = #{board_name}#{thread_fragment};</script><script type="text/javascript">var configRoot="/";var inMod = false;var modRoot="/"+(inMod ? "mod.php?/" : "");var resourceVersion=#{Jason.encode!(resource_version)};</script>
     <script type="text/javascript">var selectedstyle = #{Jason.encode!(selected_style)}; var styles = #{styles_json};</script>
     """
     |> String.trim()
   end
 
-  def javascript_urls, do: @base_javascript_urls
-  def javascript_urls(:catalog), do: @catalog_javascript_urls
-  def javascript_urls(_page), do: @base_javascript_urls
+  def javascript_urls(active_page) do
+    javascript_urls(active_page, javascript_config(active_page))
+  end
+
+  def javascript_urls(active_page, config) do
+    main = [config.url_javascript]
+
+    if Map.get(config, :additional_javascript_compile, false) do
+      main
+    else
+      scripts =
+        config
+        |> additional_javascript()
+        |> maybe_add_catalog_scripts(active_page)
+        |> Enum.map(&additional_javascript_url(config, &1))
+
+      main ++ scripts
+    end
+  end
+
+  defp javascript_config(_active_page) do
+    Config.compose(nil, Settings.current_instance_config(), %{})
+  end
 
   def thread_meta_html(board, thread, config) do
     meta_subject = thread.subject || strip_html(thread.body || "")
@@ -118,6 +97,44 @@ defmodule EirinchanWeb.PublicShell do
     "<script type=\"text/javascript\">ready();</script>"
   end
 
+  defp additional_javascript(config) do
+    config
+    |> Map.get(:additional_javascript, [])
+    |> List.wrap()
+    |> Enum.map(&to_string/1)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+  end
+
+  defp maybe_add_catalog_scripts(scripts, :catalog) do
+    Enum.reduce(@catalog_required_scripts, scripts, fn script, acc ->
+      if script in acc, do: acc, else: acc ++ [script]
+    end)
+  end
+
+  defp maybe_add_catalog_scripts(scripts, _active_page), do: scripts
+
+  defp additional_javascript_url(config, script) do
+    cond do
+      String.starts_with?(script, "http://") or String.starts_with?(script, "https://") ->
+        script
+
+      String.starts_with?(script, "//") ->
+        script
+
+      String.starts_with?(script, "/") ->
+        script
+
+      true ->
+        base = Map.get(config, :additional_javascript_url, config.root || "/")
+
+        cond do
+          String.ends_with?(base, "/") -> base <> script
+          true -> base <> "/" <> script
+        end
+    end
+  end
+
   defp board_heading(board), do: "/#{board.uri}/ - #{board.title}"
 
   defp thread_thumb_url(board, thread, config) do
@@ -141,8 +158,6 @@ defmodule EirinchanWeb.PublicShell do
     value
     |> Phoenix.HTML.html_escape()
     |> Phoenix.HTML.safe_to_string()
-    |> String.replace(~r/<[^>]*>/, "")
-    |> String.slice(0, 256)
   end
 
   defp escape(value) do

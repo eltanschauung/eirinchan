@@ -67,10 +67,11 @@ defmodule EirinchanWeb.BoardController do
           head_html:
             PublicShell.head_html("catalog",
               board_name: board.uri,
+              resource_version: conn.assigns[:asset_version],
               theme_label: conn.assigns[:theme_label],
               theme_options: conn.assigns[:theme_options]
             ),
-          javascript_urls: PublicShell.javascript_urls(:catalog),
+          javascript_urls: PublicShell.javascript_urls(:catalog, config),
           body_end_html: PublicShell.body_end_html(),
           primary_stylesheet: board_primary_stylesheet(conn),
           primary_stylesheet_id: "stylesheet",
@@ -111,10 +112,11 @@ defmodule EirinchanWeb.BoardController do
           head_html:
             PublicShell.head_html("index",
               board_name: board.uri,
+              resource_version: conn.assigns[:asset_version],
               theme_label: conn.assigns[:theme_label],
               theme_options: conn.assigns[:theme_options]
             ),
-          javascript_urls: PublicShell.javascript_urls(:index),
+          javascript_urls: PublicShell.javascript_urls(:index, config),
           body_end_html: PublicShell.body_end_html(),
           primary_stylesheet: board_primary_stylesheet(conn),
           primary_stylesheet_id: "stylesheet",

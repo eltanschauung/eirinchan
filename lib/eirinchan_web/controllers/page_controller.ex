@@ -169,6 +169,7 @@ defmodule EirinchanWeb.PageController do
       body_data_stylesheet: public_data_stylesheet(conn),
       head_html:
         PublicShell.head_html(active_page,
+          resource_version: conn.assigns[:asset_version],
           theme_label: conn.assigns[:theme_label],
           theme_options: conn.assigns[:theme_options]
         ),
@@ -229,6 +230,7 @@ defmodule EirinchanWeb.PageController do
       body_data_stylesheet: public_data_stylesheet(conn),
       head_html:
         PublicShell.head_html(active_page,
+          resource_version: conn.assigns[:asset_version],
           theme_label: conn.assigns[:theme_label],
           theme_options: conn.assigns[:theme_options]
         ),

@@ -24,6 +24,8 @@ defmodule Eirinchan.Runtime.Config do
     file_catalog: "catalog.html",
     file_mod: "mod.php",
     file_script: "main.js",
+    additional_javascript: ["js/jquery.min.js", "js/inline-expanding.js"],
+    additional_javascript_compile: false,
     generation_strategy: "immediate",
     fileboard: false,
     board_path: "%s/",
