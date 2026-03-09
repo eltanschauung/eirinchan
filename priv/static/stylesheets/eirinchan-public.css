@@ -65,3 +65,7 @@ body.active-catalog #thread-links {
   float: none;
   display: inline-block;
 }
+
+body.active-catalog .catalog-updater-meta {
+  display: none;
+}
