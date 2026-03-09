@@ -228,8 +228,15 @@
       </tr>
     </table>
   </form>
-  <div style="text-align:center;" id="indexLink">
-    <a href={Eirinchan.ThreadPaths.board_page_path(@board, 1, @config)}>Return to Index</a>
+  <div id="thread-interactions">
+    <span id="thread-links">
+      <a
+        id="thread-return"
+        href={Eirinchan.ThreadPaths.board_page_path(@board, 1, @config)}
+      >
+        [Return to Index]
+      </a>
+    </span>
   </div>
 </header>
 

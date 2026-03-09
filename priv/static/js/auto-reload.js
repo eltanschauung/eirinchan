@@ -24,11 +24,11 @@
 auto_reload_enabled = true; // for watch.js to interop
 
 $(document).ready(function(){
-	if($('div.banner').length == 0)
-		return; // not index
-		
-	if($(".post.op").size() != 1)
-		return; //not thread page
+	var is_thread_page = $('div.banner').length != 0 && $(".post.op").size() == 1;
+	var is_catalog_page = $('body').hasClass('active-catalog') && $('#Grid').length == 1;
+
+	if(!is_thread_page && !is_catalog_page)
+		return;
 	
 	var countdown_interval;
 
@@ -108,6 +108,10 @@ $(document).ready(function(){
 	}
 
 	var recheck_activated = function() {
+		if (is_catalog_page) {
+			return;
+		}
+
 		if (new_posts && window_active &&
 			$(window).scrollTop() + $(window).height() >=
 			$('div.boardlist.bottom').position().top) {
@@ -144,7 +148,80 @@ $(document).ready(function(){
 		}
 	}
 	
-	var poll = function(manualUpdate) {
+	var poll_catalog = function(manualUpdate) {
+		stop_auto_update();
+		$('#update_secs').text(_("Updating..."));
+
+		$.ajax({
+			url: document.location,
+			success: function(data) {
+				var new_threads = 0;
+				var current_ids = {};
+
+				$('#Grid .mix').each(function() {
+					current_ids[$(this).attr('data-id')] = true;
+				});
+
+				var replacement = $(data).find('#Grid');
+				if (replacement.length == 0) {
+					$('#update_secs').text(_("Unknown error"));
+					if ($('#auto_update_status').is(':checked')) {
+						poll_interval_delay = poll_interval_errordelay;
+						auto_update(poll_interval_delay);
+					}
+					return;
+				}
+
+				replacement.find('.mix').each(function() {
+					var id = $(this).attr('data-id');
+					if (id && !current_ids[id]) {
+						new_threads++;
+					}
+				});
+
+				$('#Grid').replaceWith(replacement);
+
+				if ($('#auto_update_status').is(':checked')) {
+					if(new_threads == 0) {
+						if (manualUpdate == false) {
+							poll_interval_delay *= 2;
+
+							if(poll_interval_delay > poll_interval_maxdelay) {
+								poll_interval_delay = poll_interval_maxdelay;
+							}
+						}
+					} else {
+						poll_interval_delay = poll_interval_mindelay;
+					}
+
+					auto_update(poll_interval_delay);
+				} else {
+					if (new_threads > 0)
+						$('#update_secs').text(fmt(_("Catalog updated with {0} new thread(s)"), [new_threads]));
+					else
+						$('#update_secs').text(_("No new threads found"));
+				}
+			},
+			error: function(xhr, status_text, error_text) {
+				if (status_text == "error" && error_text) {
+					$('#update_secs').text("Error: "+error_text);
+				} else if (status_text) {
+					$('#update_secs').text(_("Error: ")+status_text);
+				} else {
+					$('#update_secs').text(_("Unknown error"));
+				}
+
+				if ($('#auto_update_status').is(':checked')) {
+					poll_interval_delay = poll_interval_errordelay;
+					auto_update(poll_interval_delay);
+				}
+			}
+		});
+
+		return false;
+	};
+
+	var poll_thread = function(manualUpdate) {
 		stop_auto_update();
 		$('#update_secs').text(_("Updating..."));
 	
@@ -227,23 +304,31 @@ $(document).ready(function(){
 		return false;
 	};
 	
-	$(window).scroll(function() {
-		recheck_activated();
-		
-		// if the newest post is not visible
-		if($(this).scrollTop() + $(this).height() <
-			$('div.post:last').position().top + $('div.post:last').height()) {
-			end_of_page = false;
-			return;
-		} else {
-			if($("#auto_update_status").is(':checked') && timeDiff(poll_interval_mindelay)) {
-				poll(manualUpdate = true);
+	if (is_thread_page) {
+		$(window).scroll(function() {
+			recheck_activated();
+			
+			// if the newest post is not visible
+			if($(this).scrollTop() + $(this).height() <
+				$('div.post:last').position().top + $('div.post:last').height()) {
+				end_of_page = false;
+				return;
+			} else {
+				if($("#auto_update_status").is(':checked') && timeDiff(poll_interval_mindelay)) {
+					poll_thread(manualUpdate = true);
+				}
+				end_of_page = true;
 			}
-			end_of_page = true;
-		}
-	});
+		});
+	}
 
-	$('#update_thread').on('click', function() { poll(manualUpdate = true); return false; });
+	$('#update_thread').on('click', function() {
+		if (is_catalog_page) {
+			return poll_catalog(manualUpdate = true);
+		}
+
+		return poll_thread(manualUpdate = true);
+	});
 
 	if($("#auto_update_status").is(':checked')) {
 		auto_update(poll_interval_delay);
