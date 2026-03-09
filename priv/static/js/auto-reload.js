@@ -102,11 +102,19 @@ $(document).ready(function(){
 
 	var decrement_timer = function() {
 		poll_current_time = poll_current_time - 1000;
-		$('#update_secs').text(poll_current_time/1000);
-		
 		if (poll_current_time <= 0) {
-			poll(manualUpdate = false);
+			poll_current_time = 0;
+			$('#update_secs').text("0");
+			stop_auto_update();
+			if (is_catalog_page) {
+				poll_catalog(manualUpdate = false);
+			} else {
+				poll_thread(manualUpdate = false);
+			}
+			return;
 		}
+
+		$('#update_secs').text(poll_current_time/1000);
 	}
 
 	var recheck_activated = function() {
