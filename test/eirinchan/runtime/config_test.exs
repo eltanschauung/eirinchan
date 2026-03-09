@@ -193,6 +193,22 @@ defmodule Eirinchan.Runtime.ConfigTest do
     assert config.post_form_embed
   end
 
+  test "provides catalog pagination defaults" do
+    config =
+      Config.compose(
+        %{
+          root: "/",
+          dir: %{img: "img/", thumb: "thumb/", res: "res/"}
+        },
+        %{},
+        %{}
+      )
+
+    refute config.catalog_pagination
+    assert config.catalog_threads_per_page == 100
+    assert config.file_catalog_page == "catalog/%d.html"
+  end
+
   test "matches vichan dnsbl defaults" do
     config =
       Config.compose(

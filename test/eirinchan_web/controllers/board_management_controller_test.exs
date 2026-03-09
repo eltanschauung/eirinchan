@@ -247,6 +247,45 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     assert catalog_page =~ ~s(name="delete_post_id")
   end
 
+  test "catalog page paginates independently when enabled", %{conn: conn} do
+    :ok = Eirinchan.Themes.enable_page_theme("catalog")
+
+    board =
+      board_fixture(%{
+        config_overrides: %{threads_per_page: 1, catalog_pagination: true, catalog_threads_per_page: 2}
+      })
+
+    for subject <- ["First thread", "Second thread", "Third thread"] do
+      conn
+      |> recycle()
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post(~p"/#{board.uri}/post", %{
+        "body" => "#{subject} body",
+        "subject" => subject,
+        "post" => "New Topic"
+      })
+    end
+
+    first_page =
+      conn
+      |> recycle()
+      |> get("/#{board.uri}/catalog.html")
+      |> html_response(200)
+
+    second_page =
+      conn
+      |> recycle()
+      |> get("/#{board.uri}/catalog/2.html")
+      |> html_response(200)
+
+    assert first_page =~ ~s(href="/#{board.uri}/catalog/2.html")
+    assert first_page =~ "Third thread"
+    assert first_page =~ "Second thread"
+    refute first_page =~ "First thread"
+    assert second_page =~ "First thread"
+    refute second_page =~ "Second thread"
+  end
+
   test "catalog page renders the distribution chrome shell", %{conn: conn} do
     :ok = Eirinchan.Themes.enable_page_theme("catalog")
     board = board_fixture(%{uri: "bant", title: "International Random"})

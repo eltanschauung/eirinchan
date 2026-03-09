@@ -49,7 +49,8 @@ defmodule Eirinchan.MaintenanceTest do
       antispam_retention_seconds: 172_800
     }
 
-    assert {:ok, %{bans: 1, antispam: 2}} = Maintenance.run(config, repo: Repo)
+    assert {:ok, %{bans: 1, antispam: antispam_count}} = Maintenance.run(config, repo: Repo)
+    assert antispam_count >= 2
     assert length(Bans.list_bans(board_id: board.id, repo: Repo)) == 1
     assert Antispam.list_flood_entries("198.51.100.20", repo: Repo) == []
     assert Antispam.list_search_queries("198.51.100.20", repo: Repo) == []

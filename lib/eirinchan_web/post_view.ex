@@ -173,6 +173,19 @@ defmodule EirinchanWeb.PostView do
     ~s(<div class="pages">#{previous_html}  #{page_links}#{if next_html != "", do: "  " <> next_html, else: ""}#{catalog_link}</div>)
   end
 
+  def catalog_pages_html(page_data) do
+    page_links =
+      Enum.map_join(page_data.pages, " ", fn page ->
+        if page.num == page_data.page do
+          ~s([<a class="selected">#{page.num}</a>])
+        else
+          ~s([<a href="#{html_escape_to_string(page.link)}">#{page.num}</a>])
+        end
+      end)
+
+    ~s(<div class="pages">#{page_links}</div>)
+  end
+
   def post_flags(post, config) do
     if Map.get(config, :display_flags, true) do
       do_post_flags(post, config)

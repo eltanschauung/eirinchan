@@ -11,7 +11,9 @@ defmodule EirinchanWeb.BoardController do
   plug EirinchanWeb.Plugs.LoadBoard when action in [:show]
   plug EirinchanWeb.Plugs.LoadBoard when action in [:show_page]
   plug EirinchanWeb.Plugs.LoadBoard when action in [:catalog]
+  plug EirinchanWeb.Plugs.LoadBoard when action in [:catalog_page]
   plug :require_catalog_theme when action in [:catalog]
+  plug :require_catalog_theme when action in [:catalog_page]
 
   def show(conn, _params) do
     render_page(conn, 1)
@@ -40,13 +42,35 @@ defmodule EirinchanWeb.BoardController do
   end
 
   def catalog(conn, _params) do
+    render_catalog_page(conn, 1)
+  end
+
+  def catalog_page(conn, %{"page_num_html" => page_num_html}) do
+    page_num =
+      page_num_html
+      |> String.replace_suffix(".html", "")
+      |> case do
+        value ->
+          case Integer.parse(value) do
+            {parsed, ""} -> parsed
+            _ -> nil
+          end
+      end
+
+    if is_integer(page_num) and page_num > 1 do
+      render_catalog_page(conn, page_num)
+    else
+      send_resp(conn, :not_found, "Page not found")
+    end
+  end
+
+  defp render_catalog_page(conn, page_num) do
     board = conn.assigns.current_board
     config = conn.assigns.current_board_config
     _ = Build.ensure_indexes(board, config: config)
 
-    case Posts.list_page_data(board, config: config) do
-      {:ok, pages} ->
-        threads = Enum.flat_map(pages, & &1.threads)
+    case Posts.list_catalog_page(board, page_num, config: config) do
+      {:ok, page_data} ->
         chrome = BoardChrome.for_board(board)
 
         render(conn, :catalog,
@@ -54,7 +78,8 @@ defmodule EirinchanWeb.BoardController do
           board: board,
           board_title: board.title,
           announcement: Announcement.current(),
-          threads: threads,
+          page_data: page_data,
+          threads: page_data.threads,
           config: config,
           boards: Boards.list_boards(),
           board_chrome: chrome,

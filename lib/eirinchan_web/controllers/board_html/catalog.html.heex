@@ -275,6 +275,10 @@
 
 <h2 style="display:none">Catalog</h2>
 
+<%= if @page_data.total_pages > 1 do %>
+  <%= raw(PostView.catalog_pages_html(@page_data)) %>
+<% end %>
+
 <div class="threads">
   <div id="Grid">
     <%= if @threads == [] do %>
@@ -327,6 +331,10 @@
     <% end %>
   </div>
 </div>
+
+<%= if @page_data.total_pages > 1 do %>
+  <%= raw(PostView.catalog_pages_html(@page_data)) %>
+<% end %>
 
 <hr />
 <a name="bottom"></a>
