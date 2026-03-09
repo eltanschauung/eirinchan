@@ -246,20 +246,6 @@
   <hr />
 <% end %>
 
-<span>Sort by: </span>
-<select id="sort_by" style="display: inline-block">
-  <option selected value="bump:desc">Bump order</option>
-  <option value="time:desc">Creation date</option>
-  <option value="reply:desc">Reply count</option>
-</select>
-<span> Image size: </span>
-<select id="image_size" style="display: inline-block">
-  <option selected value="large">Default</option>
-  <option value="small">Small</option>
-</select>
-
-<h2 style="display:none">Catalog</h2>
-
 <div class="catalog-nav-box">
   <div class="catalog-nav-row">
     <span id="thread-links">
@@ -280,6 +266,20 @@
     <%= raw(PostView.catalog_pages_html(@page_data)) %>
   </div>
 </div>
+
+<span>Sort by: </span>
+<select id="sort_by" style="display: inline-block">
+  <option selected value="bump:desc">Bump order</option>
+  <option value="time:desc">Creation date</option>
+  <option value="reply:desc">Reply count</option>
+</select>
+<span> Image size: </span>
+<select id="image_size" style="display: inline-block">
+  <option selected value="large">Default</option>
+  <option value="small">Small</option>
+</select>
+
+<h2 style="display:none">Catalog</h2>
 
 <div class="threads">
   <div id="Grid">
