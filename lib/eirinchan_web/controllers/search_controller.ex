@@ -74,7 +74,11 @@ defmodule EirinchanWeb.SearchController do
       announcement: Announcement.current(),
       board_chrome: BoardChrome.for_board(%{uri: "bant"}),
       custom_pages: CustomPages.list_pages(),
+      current_moderator: conn.assigns[:current_moderator],
+      secure_manage_token: conn.assigns[:secure_manage_token],
       results: results,
+      result_count: length(results),
+      grouped_results: group_search_results(results),
       error: error
     )
   end
@@ -168,14 +172,23 @@ defmodule EirinchanWeb.SearchController do
         post: post,
         thread: thread,
         board: post.board,
-        op?: is_nil(post.thread_id),
-        object_type: if(is_nil(post.thread_id), do: "Thread", else: "Reply"),
-        result_url: result_url(post),
-        thread_url: "/#{post.board.uri}/res/#{thread.id}.html#p#{thread.id}",
-        excerpt: excerpt(post.body),
-        thread_excerpt: excerpt(thread.body)
+        result_url: result_url(post)
       }
     end)
+  end
+
+  defp group_search_results(results) do
+    results
+    |> Enum.group_by(& &1.board.id)
+    |> Enum.map(fn {_board_id, board_results} ->
+      first = hd(board_results)
+
+      %{
+        board: first.board,
+        results: board_results
+      }
+    end)
+    |> Enum.sort_by(& &1.board.uri)
   end
 
   defp result_url(%{board: board, thread_id: nil, id: id}),
@@ -183,12 +196,4 @@ defmodule EirinchanWeb.SearchController do
 
   defp result_url(%{board: board, thread_id: thread_id, id: id}),
     do: "/#{board.uri}/res/#{thread_id}.html#p#{id}"
-
-  defp excerpt(nil), do: nil
-
-  defp excerpt(body) do
-    body
-    |> String.trim()
-    |> String.slice(0, 200)
-  end
 end

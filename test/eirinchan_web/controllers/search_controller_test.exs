@@ -30,8 +30,9 @@ defmodule EirinchanWeb.SearchControllerTest do
 
     assert page =~ "Search"
     assert page =~ "green tea leaf"
-    assert page =~ "Thread ##{thread.id}"
     assert page =~ "/#{board.uri}/res/#{thread.id}.html"
+    assert page =~ "1 result in"
+    assert page =~ "/ #{board.uri} / - #{board.title}"
     refute page =~ "meta tea"
   end
 
@@ -145,7 +146,7 @@ defmodule EirinchanWeb.SearchControllerTest do
         request: %{referer: "http://example.test/#{board.uri}/index.html"}
       )
 
-    {:ok, reply, _meta} =
+    {:ok, _reply, _meta} =
       Eirinchan.Posts.create_post(
         board,
         %{
@@ -163,11 +164,9 @@ defmodule EirinchanWeb.SearchControllerTest do
       |> get("/search", %{"q" => "reply body", "board" => board.uri})
       |> html_response(200)
 
-    assert page =~ "Reply ##{reply.id}"
-    assert page =~ "Matched Reply"
-    assert page =~ "Thread subject"
-    assert page =~ "/#{board.uri}/res/#{thread.id}.html#p#{reply.id}"
-    assert page =~ "/#{board.uri}/res/#{thread.id}.html#p#{thread.id}"
+    assert page =~ "reply body match"
+    assert page =~ "/#{board.uri}/res/#{thread.id}.html"
+    assert page =~ "1 result in"
   end
 
   test "public search supports wildcard and phrase search semantics", %{conn: conn} do

@@ -54,23 +54,30 @@
 </section>
 
 <section class="public-panel search-results-panel">
-  <h2>Results</h2>
+  <p :if={@results != []} style="text-align:center">
+    Showing <%= @result_count %> result<%= if @result_count != 1, do: "s" %>.
+  </p>
   <%= if @results == [] do %>
     <p>No results.</p>
   <% else %>
-    <%= for result <- @results do %>
-      <article class="search-entry">
-        <h3>
-          <a href={result.result_url}><%= result.object_type %> #<%= result.post.id %></a>
-          on /<%= result.board.uri %>/
-        </h3>
-        <p :if={!result.op?} class="unimportant">Matched Reply</p>
-        <p class="unimportant"><a href={result.thread_url}>View thread</a></p>
-        <p :if={result.thread.subject}><strong><%= result.thread.subject %></strong></p>
-        <p :if={result.thread_excerpt} class="unimportant"><%= result.thread_excerpt %></p>
-        <div :if={result.excerpt} class="body"><%= result.excerpt %></div>
-      </article>
-      <hr />
+    <%= for group <- @grouped_results do %>
+      <fieldset style="margin-bottom:20px">
+        <legend>
+          <%= length(group.results) %> result<%= if length(group.results) != 1, do: "s" %> in
+          <a href={"/#{group.board.uri}/index.html"}>/ <%= group.board.uri %> / - <%= group.board.title %></a>
+        </legend>
+        <%= for result <- group.results do %>
+          <EirinchanWeb.ManagePageHTML.moderation_post
+            post={result.post}
+            board={result.board}
+            thread={result.thread}
+            config={Eirinchan.Runtime.Config.compose(nil, %{}, result.board.config_overrides || %{})}
+            moderator={@current_moderator}
+            secure_manage_token={@secure_manage_token}
+          />
+          <hr />
+        <% end %>
+      </fieldset>
     <% end %>
   <% end %>
 </section>
