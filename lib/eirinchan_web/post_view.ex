@@ -305,17 +305,24 @@ defmodule EirinchanWeb.PostView do
   end
 
   def reply_html(post, board, thread, config, moderator \\ nil, session_token \\ nil) do
+    identity =
+      [
+        if(present?(post.subject), do: ~s(<span class="subject">#{html_escape_to_string(post.subject)}</span>), else: nil),
+        name_html(post, config),
+        if(present?(post.tripcode), do: ~s(<span class="trip">#{html_escape_to_string(post.tripcode)}</span>), else: nil),
+        ip_link_html(post, board, moderator),
+        post_flags_html(post, config),
+        time_html(post)
+      ]
+      |> Enum.reject(&blank_fragment?/1)
+      |> Enum.join(" ")
+
     intro =
       [
         ~s(<a id="#{post.id}" class="post_anchor"></a>),
         ~s(<input type="checkbox" class="delete" name="delete_#{post.id}" id="delete_#{post.id}" value="#{post.id}" data-post-select />),
         ~s(<label for="delete_#{post.id}">),
-        if(present?(post.subject), do: ~s(<span class="subject">#{html_escape_to_string(post.subject)}</span>), else: ""),
-        name_html(post, config),
-        if(present?(post.tripcode), do: ~s(<span class="trip">#{html_escape_to_string(post.tripcode)}</span>), else: ""),
-        ip_link_html(post, board, moderator) || "",
-        post_flags_html(post, config),
-        time_html(post),
+        identity,
         "</label>",
         post_number_links_html(
           post.id,
@@ -1078,6 +1085,11 @@ defmodule EirinchanWeb.PostView do
 
   defp human_file_size(size) when is_integer(size) and size >= 0, do: "#{size} B"
   defp human_file_size(_size), do: nil
+
+  defp blank_fragment?(nil), do: true
+  defp blank_fragment?(""), do: true
+  defp blank_fragment?(value) when is_binary(value), do: String.trim(value) == ""
+  defp blank_fragment?(_value), do: false
 
   defp dimensions(%{image_width: width, image_height: height})
        when is_integer(width) and is_integer(height),
