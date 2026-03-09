@@ -77,6 +77,10 @@ body.active-catalog .thread-links-clone > a {
   padding-right: 0;
 }
 
+body.active-catalog #thread-links > a {
+  padding-right: 5px;
+}
+
 body.active-catalog .catalog-updater-meta {
   display: none;
 }
