@@ -69,15 +69,20 @@ function getThumbElement(file) {
 }
 
 function addThumb(file) {
-
 	var fileName = (file.name.length < 24) ? file.name : file.name.substr(0, 22) + '…';
 	var fileType = file.type.split('/')[0];
 	var fileExt = file.type.split('/')[1];
+
 	var $container = $('<div>')
 		.addClass('tmb-container')
 		.data('file-ref', file)
 		.append(
+		$('<div>').addClass('tmb-controls').append(
 			$('<div>').addClass('remove-btn').html('✖'),
+			$('<div>').addClass('move-up-btn').html('⬆'),
+			$('<div>').addClass('move-down-btn').html('⬇'),
+			$('<div>').addClass('strip-fn-btn').text('strip filename')
+		),
 			$('<div>').addClass('file-tmb'),
 			$('<div>').addClass('tmb-filename').html(fileName)
 		)
@@ -85,13 +90,37 @@ function addThumb(file) {
 
 	var $fileThumb = $container.find('.file-tmb');
 	if (fileType == 'image') {
-		// if image file, generate thumbnail
 		var objURL = window.URL.createObjectURL(file);
 		$fileThumb.css('background-image', 'url('+ objURL +')');
 	} else {
 		$fileThumb.html('<span>' + fileExt.toUpperCase() + '</span>');
 	}
+	updateArrowVisibility();
 }
+
+$(document).on('click', '.move-up-btn', function(e) {
+	e.stopPropagation();
+	var $current = $(this).closest('.tmb-container');
+	var file = $current.data('file-ref');
+	var index = files.indexOf(file);
+	if (index > 0) {
+		[files[index - 1], files[index]] = [files[index], files[index - 1]];
+		$current.insertBefore($current.prev());
+		updateArrowVisibility();
+	}
+});
+
+$(document).on('click', '.move-down-btn', function(e) {
+	e.stopPropagation();
+	var $current = $(this).closest('.tmb-container');
+	var file = $current.data('file-ref');
+	var index = files.indexOf(file);
+	if (index < files.length - 1) {
+		[files[index], files[index + 1]] = [files[index + 1], files[index]];
+		$current.insertAfter($current.next());
+		updateArrowVisibility();
+	}
+});
 
 $(document).on('ajax_before_post', function (e, formData) {
 	for (var i=0; i<max_images; i++) {
@@ -106,6 +135,24 @@ $(document).on('ajax_before_post', function (e, formData) {
 $(document).on('ajax_after_post', function () {
 	files = [];
 	$('.file-thumbs').empty();
+});
+
+$(document).on('click', '.strip-fn-btn', function (e) {
+	e.stopPropagation();
+	const $container = $(this).closest('.tmb-container');
+	const file = $container.data('file-ref');
+
+	// Rename file: this creates a new File object with the same data
+	const newName = `${Math.floor(Date.now() / 1000)}.${file.name.split('.').pop()}`;
+	const newFile = new File([file], newName, { type: file.type });
+
+	// Replace in files array
+	const index = files.indexOf(file);
+	if (index !== -1) {
+		files[index] = newFile;
+		$container.data('file-ref', newFile);
+		$container.find('.tmb-filename').text(newName);
+	}
 });
 
 var dragCounter = 0;
@@ -147,13 +194,12 @@ var dropHandlers = {
 // attach handlers
 $(document).on(dropHandlers);
 
-$(document).on('click', '.dropzone .remove-btn', function (e) {
+$(document).on('click', '.remove-btn', function (e) {
 	e.stopPropagation();
-
-	var file = $(e.target).parent().data('file-ref');
-
+	var file = $(e.target).closest('.tmb-container').data('file-ref');
 	getThumbElement(file).remove();
 	removeFile(file);
+	updateArrowVisibility();
 });
 
 $(document).on('keypress click', '.dropzone', function (e) {
@@ -188,10 +234,18 @@ $(document).on('paste', function (e) {
 				continue;
 
 			//convert blob to file
-			var file = new File([clipboard.items[i].getAsFile()], 'ClipboardImage.png', {type: 'image/png'});
+			var file = new File([clipboard.items[i].getAsFile()], 'file.png', {type: 'image/png'});
 			addFile(file);
 		}
 	}
 });
+
+function updateArrowVisibility() {
+	$('.tmb-container').each(function(index, element) {
+		const $el = $(element);
+		$el.find('.move-up-btn').toggle(index !== 0);
+		$el.find('.move-down-btn').toggle(index !== $('.tmb-container').length - 1);
+	});
+}
 
 }
