@@ -19,21 +19,22 @@
   <div class="subtitle">
     <%= if @board.uri == "bant", do: "", else: @board_chrome.subtitle || @board.subtitle %>
   </div>
-  <form
-    name="post"
-    onsubmit="return dopost(this);"
-    enctype="multipart/form-data"
-    action="/post.php"
-    method="post"
-    id="new-thread-form"
-    data-remember-stuff
-    data-board-uri={@board.uri}
-    data-draft-key="new"
-  >
-    <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
-    <input type="hidden" name="board" value={@board.uri} />
+ </header>
+ <form
+   name="post"
+   onsubmit="return dopost(this);"
+   enctype="multipart/form-data"
+   action="/post.php"
+   method="post"
+   id="new-thread-form"
+   data-remember-stuff
+   data-board-uri={@board.uri}
+   data-draft-key="new"
+ >
+   <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+   <input type="hidden" name="board" value={@board.uri} />
 
-    <table>
+   <table>
       <tr :if={!@config.field_disable_name}>
         <th>Name</th>
         <td>
@@ -228,9 +229,8 @@
           />
         </td>
       </tr>
-    </table>
-  </form>
-</header>
+   </table>
+ </form>
 
 <%= if @board_chrome.top_news_html do %>
   <%= raw(@board_chrome.top_news_html) %>
