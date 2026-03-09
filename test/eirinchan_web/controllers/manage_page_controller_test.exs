@@ -8,7 +8,10 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     _board = board_fixture(%{uri: "bant", title: "International Random"})
 
     login_page = conn |> get("/manage/login") |> html_response(200)
-    assert login_page =~ "Moderator Login"
+    refute login_page =~ "Moderator Login"
+    assert login_page =~ ~s(name="username")
+    assert login_page =~ ~s(name="password")
+    assert login_page =~ ~s(value="Continue")
     assert login_page =~ ~s(class="boardlist")
 
     conn =
