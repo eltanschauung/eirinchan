@@ -116,6 +116,23 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     assert response =~ ~s(name="embed")
   end
 
+  test "board page renders archive link from board config", %{conn: conn} do
+    board =
+      board_fixture(%{
+        uri: "arc",
+        title: "Archive Test",
+        config_overrides: %{archive_url: "https://archive.example.test/arc/"}
+      })
+
+    response =
+      conn
+      |> get(~p"/#{board.uri}")
+      |> html_response(200)
+
+    assert response =~ ~s(href="https://archive.example.test/arc/")
+    assert response =~ ">Archive<"
+  end
+
   test "board pages honor explicit post form row toggles", %{conn: conn} do
     board =
       board_fixture(%{
