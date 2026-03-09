@@ -247,10 +247,6 @@
   <div class="blotter"><%= raw(@config.global_message) %></div>
 <% end %>
 
-<%= if @page_data.total_pages > 1 do %>
-  <%= raw(PostView.pages_html(@page_data, @board.uri)) %>
-<% end %>
-
 <hr />
 <!-- Start Search Form -->
 <form style="display:inline;" action="/search.php" method="get">
@@ -261,6 +257,11 @@
     <%= for link <- EirinchanWeb.BoardChrome.search_links(@board.uri) do %>
       <a style="text-decoration:none;" href={link.href}><%= link.label %></a>
     <% end %>
+    <a
+      :if={is_binary(@config.archive_url) and @config.archive_url != ""}
+      style="text-decoration:none;"
+      href={@config.archive_url}
+    >Archive</a>
   </p>
 </form>
 <!-- End Search Form -->

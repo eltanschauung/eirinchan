@@ -23,6 +23,7 @@ defmodule Eirinchan.Runtime.Config do
     file_page50_slug: "%d-%s+50.html",
     file_catalog: "catalog.html",
     file_catalog_page: "catalog/%d.html",
+    archive_url: false,
     file_mod: "mod.php",
     file_script: "main.js",
     additional_javascript: ["js/jquery.min.js", "js/inline-expanding.js"],
