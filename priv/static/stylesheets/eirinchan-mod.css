@@ -79,11 +79,14 @@ body.mod-page .mod-board-editor {
 
 body.mod-page .mod-form-table,
 body.setup-page .mod-form-table,
-body.setup-page .installer-form table,
-body.mod-page .mod-login-form table {
+body.setup-page .installer-form table {
   width: 100%;
   max-width: 860px;
   margin: 0 auto;
+}
+
+body.mod-page .mod-login-form table {
+  margin: 25px auto 0 auto;
 }
 
 body.mod-page .mod-form-table.compact {
