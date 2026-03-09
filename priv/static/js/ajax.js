@@ -35,6 +35,14 @@ $(window).ready(function() {
 				$submit.removeAttr('disabled');
 			};
 
+			var triggerAjaxAfterPost = function(post_response) {
+				try {
+					triggerAjaxAfterPost(post_response)
+				} catch (e) {
+					console.error(e);
+				}
+			};
+
 			var completeReplyArrival = function(postId, onReady, attempts) {
 				var remaining = typeof attempts === 'number' ? attempts : 20;
 				var $reply = $('div.post#reply_' + postId).first();
@@ -144,7 +152,7 @@ $(window).ready(function() {
 
 									clearReplyFields();
 									resetSubmit();
-									$(document).trigger("ajax_after_post", post_response);
+									triggerAjaxAfterPost(post_response)
 
 									setTimeout(function() {
 										try {
@@ -183,7 +191,7 @@ $(window).ready(function() {
 								}
 							});
 						} else {
-							$(document).trigger("ajax_after_post", post_response);
+							triggerAjaxAfterPost(post_response)
 							document.location = post_response.redirect;
 						}
 					} else {
