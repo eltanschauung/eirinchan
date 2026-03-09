@@ -33,11 +33,13 @@ $(document).ready(function(){
 	var countdown_interval;
 
 	// Add the update controls inline with the existing thread links.
-	var updater_html = " <span id='updater'><a href='#' id='update_thread'>["+_("Update")+"]</a> (<input type='checkbox' id='auto_update_status' checked> "+_("Auto")+") <span id='update_secs'></span></span>";
-	if ($('#thread-links').length) {
-		$('#thread-links').append(updater_html);
-	} else {
-		$('.boardlist.bottom').prev().after("<span id='updater'><a href='#' id='update_thread' style='padding-left:10px'>["+_("Update")+"]</a> (<input type='checkbox' id='auto_update_status' checked> "+_("Auto")+") <span id='update_secs'></span></span>");
+	var updater_html = " <span id='updater'><a href='#' id='update_thread'>["+_("Update")+"]</a> (<input type='checkbox' id='auto_update_status' checked> "+_("Auto")+") <span id='update_secs'>10</span></span>";
+	if ($('#updater').length === 0) {
+		if ($('#thread-links').length) {
+			$('#thread-links').append(updater_html);
+		} else {
+			$('.boardlist.bottom').prev().after("<span id='updater'><a href='#' id='update_thread' style='padding-left:10px'>["+_("Update")+"]</a> (<input type='checkbox' id='auto_update_status' checked> "+_("Auto")+") <span id='update_secs'>10</span></span>");
+		}
 	}
 
 	// Grab the settings
