@@ -281,4 +281,25 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ "Return to"
     assert page =~ ~s(href="/#{board.uri}")
   end
+
+  test "GET /flags renders the top-level flag page", %{conn: conn} do
+    author = moderator_fixture(%{username: "flagglobal"})
+
+    {:ok, _page} =
+      Eirinchan.CustomPages.create_page(%{
+        slug: "flag",
+        title: "Flag",
+        body: "Custom flags",
+        mod_user_id: author.id
+      })
+
+    page =
+      conn
+      |> get("/flags")
+      |> html_response(200)
+
+    assert page =~ "Pick custom flags for your posts"
+    assert page =~ "/flag/compiled/"
+    assert page =~ ~s(id="user_flag")
+  end
 end

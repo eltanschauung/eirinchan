@@ -13,6 +13,9 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert login_page =~ ~s(name="password")
     assert login_page =~ ~s(value="Continue")
     assert login_page =~ ~s(class="boardlist")
+    assert login_page =~ ~s(src="/main.js)
+    assert login_page =~ ~s(src="/js/jquery.min.js)
+    assert login_page =~ ~s(src="/js/options.js)
 
     conn =
       conn

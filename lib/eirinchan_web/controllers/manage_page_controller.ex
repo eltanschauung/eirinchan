@@ -475,6 +475,7 @@ defmodule EirinchanWeb.ManagePageController do
   defp assign_manage_shell(conn, _opts) do
     conn
     |> assign(:global_boardlist_html, shell_boardlist_html())
+    |> assign(:javascript_urls, ["/main.js", "/js/jquery.min.js", "/js/options.js"])
     |> assign(:base_stylesheet, "/stylesheets/style.css")
     |> assign(:primary_stylesheet, "/stylesheets/yotsuba.css")
     |> assign(:primary_stylesheet_id, "stylesheet")
