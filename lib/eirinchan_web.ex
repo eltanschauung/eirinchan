@@ -20,6 +20,7 @@ defmodule EirinchanWeb do
   def static_paths,
     do: ~w(
         assets
+        flag
         fonts
         images
         js

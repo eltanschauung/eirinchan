@@ -100,3 +100,65 @@ body.active-catalog .catalog-nav-row {
 body.active-catalog .catalog-nav-row .pages {
   margin: 0;
 }
+
+
+.flag-page-shell .center-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 15px;
+}
+
+.flag-page-shell .image-canvas {
+  max-width: 256px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.flag-page-shell .image-canvas img {
+  max-width: 100%;
+  height: auto;
+  padding: 1px;
+  cursor: pointer;
+}
+
+.flag-page-blotter {
+  margin-left: 15%;
+  margin-right: 15%;
+}
+
+.flag-page-controls {
+  display: flex;
+  flex-wrap: wrap;
+  width: 80%;
+  margin-right: 10%;
+  margin-left: 10%;
+  align-items: stretch;
+  gap: 2px;
+}
+
+.flag-page-controls .postblock {
+  color: #800;
+  font-weight: 700;
+  border: 1px solid #800;
+  padding: 0 5px;
+  font-size: 10pt;
+  flex: 1;
+  max-width: 10%;
+  background-color: #ea8;
+}
+
+.flag-page-controls input {
+  flex: 4;
+  max-width: 70%;
+}
+
+.flag-page-controls #buttons {
+  max-width: 20%;
+}
+
+.flag-page-controls button {
+  margin-left: 2px;
+  max-width: 60px;
+}

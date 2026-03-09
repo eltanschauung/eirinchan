@@ -138,15 +138,24 @@ defmodule EirinchanWeb.PageController do
           send_resp(conn, :not_found, "Page not found")
 
         page ->
-          render(
-            conn,
-            :page,
-            Keyword.merge(
-              public_page_assigns(conn, "active-page", "page"),
-              layout: false,
-              page: page
-            )
-          )
+          render_custom_page(conn, page)
+      end
+    end
+  end
+
+  def board_flag(conn, %{"board" => uri}) do
+    if Installation.setup_required?() do
+      redirect(conn, to: ~p"/setup")
+    else
+      case {Boards.get_board_by_uri(uri), CustomPages.get_page_by_slug("flag")} do
+        {nil, _} ->
+          send_resp(conn, :not_found, "Page not found")
+
+        {_, nil} ->
+          send_resp(conn, :not_found, "Page not found")
+
+        {board, page} ->
+          render_custom_page(conn, page, board: board)
       end
     end
   end
@@ -198,6 +207,40 @@ defmodule EirinchanWeb.PageController do
 
   defp public_extra_stylesheets(_board),
     do: ["/stylesheets/eirinchan-public.css", "/stylesheets/eirinchan-bant.css"]
+
+  defp render_custom_page(conn, page, opts \\ []) do
+    board = Keyword.get(opts, :board)
+    assigns =
+      Keyword.merge(
+        public_page_assigns(conn, "active-page", "page"),
+        layout: false,
+        page: page,
+        flag_board: board,
+        flag_assets: flag_assets(),
+        flag_storage_key: "flag_" <> if(board, do: board.uri, else: "bant")
+      )
+
+    if page.slug == "flag" do
+      render(conn, :flag, assigns)
+    else
+      render(conn, :page, assigns)
+    end
+  end
+
+  defp flag_assets do
+    compiled_dir = Path.join([:code.priv_dir(:eirinchan), "static", "flag", "compiled"])
+
+    compiled_dir
+    |> File.ls!()
+    |> Enum.filter(&String.match?(&1, ~r/\.(png|gif|jpe?g)$/i))
+    |> Enum.sort()
+    |> Enum.map(fn file ->
+      %{
+        name: Path.rootname(file),
+        url: "/flag/compiled/#{URI.encode(file)}"
+      }
+    end)
+  end
 
   defp render_recent_theme(conn, active_page) do
     settings = Themes.theme_settings("recent")

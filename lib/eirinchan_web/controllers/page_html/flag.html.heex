@@ -1,0 +1,100 @@
+<%= raw(
+  PostView.boardlist_html(@board_chrome.boardlist_groups || PostView.boardlist_groups(@boards))
+) %>
+
+<script type="text/javascript">
+  if (typeof do_boardlist !== 'undefined') do_boardlist();
+</script>
+
+<img
+  :if={@primary_board && @primary_board.uri == "bant"}
+  class="board_image"
+  src="/b.php"
+  style="width:300px;height:100px"
+  alt=""
+/>
+
+<header>
+  <h1><%= @page.title %></h1>
+  <div class="subtitle"></div>
+</header>
+
+<div class="ban flag-page-shell">
+  <div id="content" style="text-align:center;margin-top:2em;margin-bottom:2em;">
+    <p><i>Pick custom flags for your posts.</i></p>
+
+    <div class="center-container">
+      <div class="image-canvas">
+        <%= for asset <- @flag_assets do %>
+          <img src={asset.url} alt={asset.name} title={asset.name} />
+        <% end %>
+      </div>
+    </div>
+
+    <div id="blotter" class="flag-page-blotter">
+      <p>
+        To flag your posts, write flag names into the field below, separated by a comma.
+        <code>country</code> is a special case that displays your country. If the field is empty,
+        you will use the current default.
+      </p>
+    </div>
+
+    <div id="exampleBox" class="flag-page-controls">
+      <div class="postblock">Flags</div>
+      <input
+        name="user_flag"
+        type="text"
+        maxlength="300"
+        placeholder="country,tenshi,orin3,yuyuko"
+        autocomplete="off"
+        id="user_flag"
+      />
+      <div id="buttons">
+        <button type="button" id="applyButton">Apply</button>
+        <button type="button" id="clearButton">Clear</button>
+      </div>
+    </div>
+    <br />
+    <p><i>Tip:</i> You can click the flags.</p>
+    <p>Return to <a style="text-decoration:none;" href={if @flag_board, do: "/#{@flag_board.uri}", else: "/"}>the main board.</a></p>
+  </div>
+</div>
+
+<%= if @board_chrome.footer_html do %>
+  <%= raw(@board_chrome.footer_html) %>
+<% end %>
+
+<script type="text/javascript">
+  (function() {
+    var userFlagInput = document.getElementById('user_flag');
+    if (!userFlagInput) return;
+
+    var storageKey = <%= inspect(@flag_storage_key) %>;
+    var saved = window.localStorage.getItem(storageKey);
+    userFlagInput.value = saved || 'country';
+
+    document.querySelectorAll('.image-canvas img').forEach(function(img) {
+      img.addEventListener('click', function() {
+        if (userFlagInput.value) {
+          userFlagInput.value += ',' + img.alt;
+        } else {
+          userFlagInput.value = 'country,' + img.alt;
+        }
+      });
+    });
+
+    var clearButton = document.getElementById('clearButton');
+    if (clearButton) {
+      clearButton.addEventListener('click', function() {
+        userFlagInput.value = 'country';
+      });
+    }
+
+    var applyButton = document.getElementById('applyButton');
+    if (applyButton) {
+      applyButton.addEventListener('click', function() {
+        window.localStorage.setItem(storageKey, userFlagInput.value);
+      });
+    }
+  })();
+</script>
