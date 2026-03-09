@@ -72,6 +72,11 @@ body.active-catalog .thread-links-clone {
   gap: 0.2rem;
 }
 
+body.active-catalog #thread-links > a,
+body.active-catalog .thread-links-clone > a {
+  padding-right: 0;
+}
+
 body.active-catalog .catalog-updater-meta {
   display: none;
 }
