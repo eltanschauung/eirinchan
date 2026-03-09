@@ -41,6 +41,28 @@ defmodule Eirinchan.UploadsFixtures do
     }
   end
 
+  def animated_gif_upload_fixture(filename \\ "animated.gif") do
+    base =
+      Path.join(
+        System.tmp_dir!(),
+        "eirinchan-upload-anim-#{System.unique_integer([:positive])}-#{Path.basename(filename, ".gif")}"
+      )
+
+    frame1 = base <> "-f1.png"
+    frame2 = base <> "-f2.png"
+    gif_path = base <> ".gif"
+
+    {_, 0} = System.cmd("convert", ["-size", "20x20", "xc:red", frame1])
+    {_, 0} = System.cmd("convert", ["-size", "20x20", "xc:blue", frame2])
+    {_, 0} = System.cmd("convert", ["-delay", "20", "-loop", "0", frame1, frame2, gif_path])
+
+    %Plug.Upload{
+      path: gif_path,
+      filename: filename,
+      content_type: "image/gif"
+    }
+  end
+
   def duplicate_upload_fixture(%Plug.Upload{} = upload, filename \\ nil) do
     duplicate_name = filename || upload.filename
 
