@@ -130,7 +130,7 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
       |> html_response(200)
 
     assert response =~ ~s(href="https://archive.example.test/arc/")
-    assert response =~ ">Archive<"
+    assert response =~ ">[Archive]<"
   end
 
   test "board pages honor explicit post form row toggles", %{conn: conn} do
@@ -320,7 +320,8 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     assert page =~ "Return to Index"
     assert page =~ "Sort by:"
     assert page =~ ~s(id="Grid")
-    assert page =~ "Tinyboard + vichan 5.1.5 + Eirinchan"
+    assert page =~ "Tinyboard + vichan 5.2.2 +"
+    assert page =~ ~s(href="https://github.com/username/eirinchan-v1")
   end
 
   test "catalog page renders formatted body excerpts", %{conn: conn} do
