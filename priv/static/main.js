@@ -83,6 +83,64 @@
     }
   }
 
+  function escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function removeAlertHandler() {
+    var handler = document.getElementById('alert_handler');
+
+    if (handler && handler.parentNode) {
+      handler.parentNode.removeChild(handler);
+    }
+  }
+
+  function showAlert(message) {
+    removeAlertHandler();
+
+    var handler = document.createElement('div');
+    handler.id = 'alert_handler';
+    handler.style.visibility = 'visible';
+
+    var background = document.createElement('div');
+    background.id = 'alert_background';
+    background.addEventListener('click', removeAlertHandler);
+    handler.appendChild(background);
+
+    var dialog = document.createElement('div');
+    dialog.id = 'alert_div';
+
+    var close = document.createElement('a');
+    close.id = 'alert_close';
+    close.href = 'javascript:void(0)';
+    close.textContent = '×';
+    close.addEventListener('click', removeAlertHandler);
+    dialog.appendChild(close);
+
+    var content = document.createElement('div');
+    content.id = 'alert_message';
+    content.innerHTML = typeof message === 'string' ? message : escapeHtml(message);
+    dialog.appendChild(content);
+
+    var button = document.createElement('button');
+    button.className = 'alert_button';
+    button.type = 'button';
+    button.textContent = 'OK';
+    button.addEventListener('click', removeAlertHandler);
+    dialog.appendChild(button);
+
+    handler.appendChild(dialog);
+    document.body.appendChild(handler);
+
+    button.focus();
+    return handler;
+  }
+
   window._ = window._ || identity;
   window.fmt = window.fmt || function (string, args) {
     return string.replace(/\{([0-9]+)\}/g, function (_, index) {
@@ -180,6 +238,7 @@
     };
 
   window.initStyleChooser = window.initStyleChooser || appendStyleChooser;
+  window.showAlert = window.showAlert || showAlert;
   window.getCookie =
     window.getCookie ||
     function (cookieName) {
@@ -195,4 +254,8 @@
       window.initStyleChooser();
       restoreSavedStyle();
     };
+
+  window.alert = function (message) {
+    showAlert(message);
+  };
 })();

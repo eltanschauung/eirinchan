@@ -138,7 +138,7 @@ defmodule Eirinchan.Runtime.Config do
     default_user_flag: "country",
     user_flags: %{},
     duplicate_file_mode: false,
-    max_filesize: 5_000_000,
+    max_filesize: 10 * 1024 * 1024,
     multiimage_method: "split",
     max_filename_display_length: 30,
     thumb_width: 250,
