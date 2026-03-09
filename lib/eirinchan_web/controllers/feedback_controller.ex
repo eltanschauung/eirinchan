@@ -63,11 +63,12 @@ defmodule EirinchanWeb.FeedbackController do
     |> assign(
       :head_html,
       PublicShell.head_html("feedback",
+        resource_version: conn.assigns[:asset_version],
         theme_label: conn.assigns[:theme_label],
         theme_options: conn.assigns[:theme_options]
       )
     )
-    |> assign(:javascript_urls, PublicShell.javascript_urls())
+    |> assign(:javascript_urls, PublicShell.javascript_urls(:feedback))
     |> assign(:body_end_html, PublicShell.body_end_html())
     |> assign(:extra_stylesheets, [
       "/stylesheets/eirinchan-public.css",
