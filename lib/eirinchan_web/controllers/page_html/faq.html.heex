@@ -1,0 +1,150 @@
+<%= raw(
+  PostView.boardlist_html(@board_chrome.boardlist_groups || PostView.boardlist_groups(@boards))
+) %>
+
+<script type="text/javascript">
+  if (typeof do_boardlist !== 'undefined') do_boardlist();
+</script>
+
+<header>
+  <h1><%= @page.title %></h1>
+  <div class="subtitle"><h2>Ask questions, get answers.</h2></div>
+</header>
+
+<div class="box-wrap faq-page-shell">
+  <div class="box middle" style="margin-bottom:40px;">
+    <h2><i>What is bnat?</i></h2>
+    <div class="content">
+      <p1>
+        This is an international imageboard populated by fans of Touhou Project
+        (<a href="https://en.touhouwiki.net/wiki/Touhou_Project">東方Project</a>) and other
+        otaku franchises such as Dragon Ball and Umineko no Naku Koro ni. Users are free to post
+        anything they wish as long as they <py>1. Obey US Law </py> and <px>2. Don't disrupt the fun times</px>;
+        meaning that filth and NSFW will probably be spoilered or deleted.
+        <hr style="margin:6px;opacity:0;" />
+        The purpose of the lax rules and subject is to create a more interesting environment, which has helped
+        the website grow to encompass other subjects such as music, food and art. Nonetheless this website will
+        always be for otaku.
+        <hr style="margin:6px;opacity:0;" />
+        Users are encouraged to begin posting <px><b>RIGHT NOW</b></px> because etching out an existence as an
+        imageboard is difficult despite the website's success. Visit <a href="/bant">>>>/bant/</a> for the normal
+        board or <a href="/j3">>>>/j3/</a> for random discussion and site meta.
+      </p1>
+      <br /><br />
+      <p1>
+        Click "Options" to view site features like image hover and custom CSS. Visit
+        <a href="https://auth.bantculture.com">auth</a> and guess a password to become able to make posts.
+        The catalog is called Orin. Click "last 100 posts" to read the bottom part of a thread.
+        <br /><br />
+        Archived threads: <a href="https://archive.is/bantculture.com">archive.is/bantculture.com</a>
+      </p1>
+    </div>
+  </div>
+
+  <div class="box middle">
+    <h2><i>What are those flag things?</i></h2>
+    <div class="content">
+      <p1>
+        The custom flags are a holdover from a javascript extension of the related 4chan board. The extension allowed
+        users to display custom flags, mostly Touhou ones, along with their country. Because imageboards are dead
+        except for sulfurous subjects the flag system was carried over to improve our early chances of survival and
+        to preserve our customs.
+      </p1>
+      <br />
+      <h1><img class="subtitle" src="/faq/output_canvas.png" style="max-width:285px;height:auto;text-align:center;margin:0;" /></h1>
+      <hr style="margin:6px;opacity:0;" />
+      <p1>
+        Using them is optional and makes you stand out but visit <a href="/bant/flag">>>>/flag/</a> to see what's up.
+        "country" is default and displays your country; submit more at <a href="/j3">/j3/</a>
+      </p1>
+    </div>
+  </div>
+
+  <div class="box middle">
+    <h2><i>I tried posting and was sent to a password screen, what's up?</i></h2>
+    <div class="content">
+      <p1>
+        Imageboards are extremely common targets for illegal content, raids and bot spam; to keep the website safe,
+        it was designed to be behind password access. For a long time this was dropped but automated spam caught up
+        with the site and it will now remain behind this system indefinitely. However, users are now able to browse
+        the site without password use; posting is the only thing restricted!
+      </p1>
+      <h1><img class="subtitle" src="https://gyate.net/_images/4f4e5550087540de7eb94f042eb83875/1907%20-%20forward_facing%20full_bodied%20haniyasushin_keiki%20hecatia_lapislazuli%20legacy_of_lunatic_kingdom%20wily_beast_and_weakest_creature.png" style="max-width:285px;height:auto;text-align:center;margin:0;" /></h1>
+      <hr style="margin:6px;opacity:0;" />
+      <p1>
+        If you find yourself there, you can try guessing a password, or to avoid getting locked out in the future,
+        you can go there now and enter "whaleyed". Keep in mind this specific password may be disabled in the future.
+      </p1>
+      <hr style="margin:6px;opacity:0;" />
+      <a href="https://auth.bantculture.com">Click here to visit the auth page.</a>
+    </div>
+  </div>
+
+  <div class="box middle">
+    <h2><i>How do I use stickers or make my text look cooler?</i></h2>
+    <div class="content">
+      <p1>Visit <a href="/pages/formatting">Formatting</a>, it's got everything you need. In the future, you can navigate there from the homepage.</p1>
+      <hr style="margin:6px;opacity:0;" />
+      <h1><img class="subtitle" src="https://gyate.net/_images/7746c55ed8a7c813f7217eed1b507e51/12774%20-%20bamboo%20bunny%20food%20houraisan_kaguya%20imperishable_night%20peeking%20rabbit%20vegetable%20wholesome.png" style="max-width:136px;height:auto;text-align:center;margin:0;" /></h1>
+    </div>
+  </div>
+
+  <div class="box middle" id="prunes">
+    <h2><i>How does pruning work?</i></h2>
+    <div class="content">
+      <p1>
+        There are <del>40</del> <b><i>ONE THOUSAND</i></b> pages and 15 threads per page, meaning a thread will never
+        be pruned (automatically deleted) when a new one is posted. Threads will instead be deleted if they enter page
+        50 with less than 50 replies;
+      </p1>
+      <p1>
+        this prevents concluded discussions from clogging the site and makes threads with large numbers of replies less
+        likely to disappear. On average, it takes 40 days for a thread to reach page 50. Boards are capped at 3 threads/hour
+        to protect content.
+      </p1>
+      <h1><img class="subtitle" src="https://gyate.net/_images/bfed1172738a90384cabc99913ef6201/12582%20-%20full_bodied%20guinea_pig%20molecar%20perfect_cherry_blossom%20potato_%28pui_pui_molecar%29%20rodent%20saigyouji_yuyuko%20ten_desires%20wholesome.png" style="max-width:196px;height:auto;text-align:center;margin:0;" /></h1>
+      <hr style="margin:6px;opacity:0;" />
+    </div>
+  </div>
+
+  <div class="box middle">
+    <h2>wow this place is cool!<i> How can I help?</i></h2>
+    <div class="content">
+      <p1>
+        Imageboards are actually cheap to run, which means anyone asking for donations was scamming you. The real way to
+        support this website is to post regularly and interact with others; never leave a bitch hanging! Despite the website
+        being large by imageboard standards, it's always a concern that discussion will dry up and we will go the way of the dodo.
+      </p1>
+      <hr style="margin:6px;opacity:0;" />
+      <p1>Also, show the website to your friends.</p1>
+      <h1><img class="subtitle" src="https://gyate.net/_images/eeda0482d663cfcf5b281c49db7b3052/7247%20-%20baby%20double_dealing_character%20english%20fact%20full_bodied%20horns%20kijin_seija%20meme%20seijababy%20sign%20toddler%20wtf.png" style="max-width:285px;height:auto;text-align:center;margin:0;" /></h1>
+    </div>
+  </div>
+
+  <div class="box middle" id="whale" style="margin-top:40px;">
+    <h2><i>What is Yukari Whale?</i></h2>
+    <div class="content">
+      <p1>
+        This is the most important bant meme, Yukari whale (not actually a whale). Sometimes called Fuwarin, it's Yakumo Yukari
+        from Touhou Project in the form of fanmade character "sukusuku hakutaku". Likes sweets and tea, dislikes coffee and spicy food.
+        Originally from 2chan. She lives in Yurukusanae with a caterpillar and there is a creature which survives by eating her poop.
+      </p1>
+      <br />
+      <p1>
+        <a href="https://web.archive.org/web/20240111013529/https://zettaiyurusanae.wiki.fc2.com/wiki/%E3%81%B5%E3%82%8F%E3%82%8A%E3%82%93">See Scripture</a>
+      </p1>
+      <img src="/faq/whale.jpg" style="margin:0px;width:100%;height:72%;" />
+    </div>
+  </div>
+
+  <div class="box middle">
+    <h2><i>Why is the website's name so retarded and unmarketable?</i></h2>
+    <div class="content">
+      <p1>It was funny at the time. Anyone upset by it definitely wouldn't stay here so there's no point in rebranding. Maybe.</p1>
+    </div>
+  </div>
+</div>
+
+<%= if @board_chrome.footer_html do %>
+  <%= raw(@board_chrome.footer_html) %>
+<% end %>

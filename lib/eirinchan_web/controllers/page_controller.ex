@@ -143,6 +143,23 @@ defmodule EirinchanWeb.PageController do
     end
   end
 
+  def faq(conn, _params) do
+    if Installation.setup_required?() do
+      redirect(conn, to: ~p"/setup")
+    else
+      page =
+        CustomPages.get_page_by_slug("faq") ||
+          %{
+            slug: "faq",
+            title: "FAQ",
+            body: "",
+            mod_user: nil
+          }
+
+      render_custom_page(conn, page)
+    end
+  end
+
   def board_flag(conn, %{"board" => uri}) do
     if Installation.setup_required?() do
       redirect(conn, to: ~p"/setup")
@@ -210,6 +227,11 @@ defmodule EirinchanWeb.PageController do
 
   defp render_custom_page(conn, page, opts \\ []) do
     board = Keyword.get(opts, :board)
+    extra_stylesheets =
+      public_page_assigns(conn, "active-page", "page")
+      |> Keyword.fetch!(:extra_stylesheets)
+      |> maybe_add_page_stylesheet(page)
+
     assigns =
       Keyword.merge(
         public_page_assigns(conn, "active-page", "page"),
@@ -217,15 +239,19 @@ defmodule EirinchanWeb.PageController do
         page: page,
         flag_board: board,
         flag_assets: flag_assets(),
-        flag_storage_key: "flag_" <> if(board, do: board.uri, else: "bant")
+        flag_storage_key: "flag_" <> if(board, do: board.uri, else: "bant"),
+        extra_stylesheets: extra_stylesheets
       )
 
-    if page.slug == "flag" do
-      render(conn, :flag, assigns)
-    else
-      render(conn, :page, assigns)
+    case page.slug do
+      "flag" -> render(conn, :flag, assigns)
+      "faq" -> render(conn, :faq, assigns)
+      _ -> render(conn, :page, assigns)
     end
   end
+
+  defp maybe_add_page_stylesheet(stylesheets, %{slug: "faq"}), do: stylesheets ++ ["/faq/recent.css"]
+  defp maybe_add_page_stylesheet(stylesheets, _page), do: stylesheets
 
   defp flag_assets do
     compiled_dir = Path.join([:code.priv_dir(:eirinchan), "static", "flag", "compiled"])

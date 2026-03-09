@@ -214,6 +214,7 @@ defmodule EirinchanWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+    get "/faq", PageController, :faq
     get "/news", PageController, :news
     get "/catalog", PageController, :catalog
     get "/ukko", PageController, :ukko

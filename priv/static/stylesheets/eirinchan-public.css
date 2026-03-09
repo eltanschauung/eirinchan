@@ -164,3 +164,28 @@ body.active-catalog .catalog-nav-row .pages {
   margin-left: 2px;
   max-width: 60px;
 }
+
+.faq-page-shell py {
+  color: green;
+  font-weight: bold;
+}
+
+.faq-page-shell px {
+  color: blue;
+  font-weight: bold;
+}
+
+.faq-page-shell p1 {
+  font-size: 115%;
+  color: black;
+}
+
+.faq-page-shell .box ul li {
+  color: black;
+  list-style: disc;
+  margin-left: 10px;
+}
+
+.faq-page-shell .content {
+  padding: 4px;
+}

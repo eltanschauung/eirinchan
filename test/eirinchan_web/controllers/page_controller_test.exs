@@ -104,6 +104,41 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ "pagewriter"
   end
 
+  test "GET /faq renders the copied FAQ page", %{conn: conn} do
+    moderator_fixture()
+
+    page =
+      conn
+      |> get("/faq")
+      |> html_response(200)
+
+    assert page =~ "What is bnat?"
+    assert page =~ "What are those flag things?"
+    assert page =~ "/faq/output_canvas.png"
+    assert page =~ "/faq/whale.jpg"
+    assert page =~ ~s(href="/faq/recent.css)
+  end
+
+  test "GET /pages/faq uses the FAQ template when the page exists", %{conn: conn} do
+    author = moderator_fixture(%{username: "faqwriter"})
+
+    {:ok, _page} =
+      Eirinchan.CustomPages.create_page(%{
+        slug: "faq",
+        title: "FAQ",
+        body: "Copied FAQ",
+        mod_user_id: author.id
+      })
+
+    page =
+      conn
+      |> get("/pages/faq")
+      |> html_response(200)
+
+    assert page =~ "What is bnat?"
+    assert page =~ "/faq/output_canvas.png"
+  end
+
   test "GET /catalog renders a global catalog across boards", %{conn: conn} do
     :ok = Eirinchan.Themes.enable_page_theme("catalog")
     moderator_fixture()
