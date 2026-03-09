@@ -228,21 +228,6 @@
       </tr>
     </table>
   </form>
-  <div style="text-align:center;" id="indexLink">
-    <span id="thread-links">
-      <a
-        id="thread-return"
-        href={Eirinchan.ThreadPaths.board_page_path(@board, 1, @config)}
-      >
-        [Return to Index]
-      </a>
-      <a id="thread-bottom" href="#bottom">[Go to bottom]</a><span id="updater"><a href="#" id="update_thread">[Update]</a><span class="catalog-updater-meta"> (<input
-            type="checkbox"
-            id="auto_update_status"
-            checked
-          /> Auto) <span id="update_secs">10</span></span></span>
-    </span>
-  </div>
 </header>
 
 <%= if @board_chrome.top_news_html do %>
@@ -275,9 +260,26 @@
 
 <h2 style="display:none">Catalog</h2>
 
-<%= if @page_data.total_pages > 1 do %>
-  <%= raw(PostView.catalog_pages_html(@page_data)) %>
-<% end %>
+<div class="catalog-nav-box">
+  <div class="catalog-nav-row">
+    <span id="thread-links">
+      <a
+        id="thread-return"
+        href={Eirinchan.ThreadPaths.board_page_path(@board, 1, @config)}
+      >
+        [Return to Index]
+      </a>
+      <a id="thread-bottom" href="#bottom">[Go to bottom]</a><span id="updater"><a href="#" id="update_thread">[Update]</a><span class="catalog-updater-meta"> (<input
+            type="checkbox"
+            id="auto_update_status"
+            checked
+          /> Auto) <span id="update_secs">10</span></span></span>
+    </span>
+  </div>
+  <div :if={@page_data.total_pages > 1} class="catalog-nav-row">
+    <%= raw(PostView.catalog_pages_html(@page_data)) %>
+  </div>
+</div>
 
 <div class="threads">
   <div id="Grid">
@@ -332,9 +334,20 @@
   </div>
 </div>
 
-<%= if @page_data.total_pages > 1 do %>
-  <%= raw(PostView.catalog_pages_html(@page_data)) %>
-<% end %>
+<div class="catalog-nav-box">
+  <div class="catalog-nav-row">
+    <span class="thread-links-clone">
+      <a href={Eirinchan.ThreadPaths.board_page_path(@board, 1, @config)}>
+        [Return to Index]
+      </a>
+      <a href="#bottom">[Go to bottom]</a>
+      <span class="catalog-update-clone">[Update]</span>
+    </span>
+  </div>
+  <div :if={@page_data.total_pages > 1} class="catalog-nav-row">
+    <%= raw(PostView.catalog_pages_html(@page_data)) %>
+  </div>
+</div>
 
 <hr />
 <a name="bottom"></a>

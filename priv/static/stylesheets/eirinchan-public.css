@@ -69,3 +69,23 @@ body.active-catalog #thread-links {
 body.active-catalog .catalog-updater-meta {
   display: none;
 }
+
+body.active-catalog .catalog-nav-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  margin: 0.5rem 0;
+}
+
+body.active-catalog .catalog-nav-row {
+  text-align: center;
+}
+
+body.active-catalog .catalog-nav-row .pages {
+  margin: 0;
+}
+
+body.active-catalog .thread-links-clone {
+  display: inline-block;
+}
