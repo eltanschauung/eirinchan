@@ -20,7 +20,7 @@ defmodule Eirinchan.Boardlist do
 
   @spec update_from_json(binary(), list()) :: {:ok, list()} | {:error, :invalid_json}
   def update_from_json(raw_json, boards) when is_binary(raw_json) and is_list(boards) do
-    with {:ok, decoded} <- Jason.decode(raw_json),
+    with {:ok, decoded} <- Jason.decode(raw_json, objects: :ordered_objects),
          true <- is_list(decoded),
          groups <- Enum.map(decoded, &normalize_group(&1, boards)),
          true <- Enum.all?(groups, &(is_list(&1) and &1 != [])),
@@ -36,30 +36,29 @@ defmodule Eirinchan.Boardlist do
 
   @spec encode_for_edit(list()) :: binary()
   def encode_for_edit(boards) when is_list(boards) do
-    boards
-    |> configured_groups()
-    |> Enum.map(fn group ->
-      Enum.map(group, fn link ->
-        case Map.get(link, :kind, :link) do
-          :board -> link.label
-          _ -> %{link.label => link.href}
-        end
-      end)
-      |> collapse_group()
-    end)
-    |> Jason.encode!(pretty: true)
+    groups = configured_groups(boards)
+
+    ["[
+", Enum.intersperse(Enum.map(groups, &encode_group/1), ",
+"), "
+]"]
+    |> IO.iodata_to_binary()
   end
 
-  defp collapse_group(items) do
-    cond do
-      Enum.all?(items, &is_binary/1) ->
-        items
-
-      true ->
-        Enum.reduce(items, %{}, fn
-          item, acc when is_map(item) -> Map.merge(acc, item)
-          _item, acc -> acc
-        end)
+  defp encode_group(group) when is_list(group) do
+    if Enum.all?(group, &(Map.get(&1, :kind, :link) == :board)) do
+      Jason.encode_to_iodata!(Enum.map(group, & &1.label), pretty: true)
+    else
+      [
+        "{",
+        Enum.intersperse(
+          Enum.map(group, fn link ->
+            [Jason.encode_to_iodata!(link.label), ": ", Jason.encode_to_iodata!(link.href)]
+          end),
+          ", "
+        ),
+        "}"
+      ]
     end
   end
 
@@ -79,9 +78,17 @@ defmodule Eirinchan.Boardlist do
   end
 
   defp normalize_group(group, boards) when is_list(group) do
-    group
-    |> Enum.map(&normalize_item(&1, boards))
-    |> Enum.reject(&is_nil/1)
+    cond do
+      Enum.all?(group, &match?({key, _value} when is_binary(key), &1)) ->
+        group
+        |> Enum.map(&normalize_pair(&1, boards))
+        |> Enum.reject(&is_nil/1)
+
+      true ->
+        group
+        |> Enum.map(&normalize_item(&1, boards))
+        |> Enum.reject(&is_nil/1)
+    end
   end
 
   defp normalize_group(group, boards) when is_map(group) do
