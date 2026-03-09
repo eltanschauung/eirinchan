@@ -229,6 +229,7 @@ defmodule EirinchanWeb.Router do
     get "/:board/threads.json", ApiController, :threads
     get "/:board/catalog/:page_num_html", BoardController, :catalog_page
     get "/:board/catalog.html", BoardController, :catalog
+    get "/:board/flag", PageController, :board_flag
     get "/:board/:page_num_html", BoardController, :show_page
     get "/:board", BoardController, :show
     post "/:board/post", PostController, :create
