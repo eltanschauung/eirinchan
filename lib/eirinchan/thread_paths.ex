@@ -51,4 +51,14 @@ defmodule Eirinchan.ThreadPaths do
     filename = String.replace(config.file_page, "%d", Integer.to_string(page_num))
     "/#{board_uri}/#{filename}"
   end
+
+  @spec catalog_page_path(BoardRecord.t(), pos_integer(), map()) :: String.t()
+  def catalog_page_path(%BoardRecord{uri: board_uri}, page_num, _config) when page_num <= 1 do
+    "/#{board_uri}/catalog.html"
+  end
+
+  def catalog_page_path(%BoardRecord{uri: board_uri}, page_num, config) do
+    filename = String.replace(config.file_catalog_page, "%d", Integer.to_string(page_num))
+    "/#{board_uri}/#{filename}"
+  end
 end

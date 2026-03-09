@@ -659,6 +659,61 @@ defmodule Eirinchan.Posts do
     end
   end
 
+  @spec list_catalog_page(BoardRecord.t(), pos_integer(), keyword()) ::
+          {:ok, map()} | {:error, :not_found}
+  def list_catalog_page(%BoardRecord{} = board, page, opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+    config = Keyword.get(opts, :config, Config.compose())
+
+    total_threads =
+      repo.aggregate(
+        from(post in Post, where: post.board_id == ^board.id and is_nil(post.thread_id)),
+        :count,
+        :id
+      )
+
+    page_size =
+      if config.catalog_pagination do
+        max(config.catalog_threads_per_page, 1)
+      else
+        max(total_threads, 1)
+      end
+
+    total_pages =
+      total_threads
+      |> Kernel./(page_size)
+      |> Float.ceil()
+      |> trunc()
+      |> max(1)
+
+    if page < 1 or page > total_pages do
+      {:error, :not_found}
+    else
+      offset = (page - 1) * page_size
+
+      threads =
+        repo.all(
+          from post in Post,
+            where: post.board_id == ^board.id and is_nil(post.thread_id),
+            order_by: [desc: post.sticky, desc_nulls_last: post.bump_at, desc: post.inserted_at],
+            limit: ^page_size,
+            offset: ^offset
+        )
+        |> repo.preload(:extra_files)
+
+      summaries = Enum.map(threads, &thread_summary(board, &1, config, repo))
+
+      {:ok,
+       %{
+         board: board,
+         threads: summaries,
+         page: page,
+         total_pages: total_pages,
+         pages: build_catalog_pages(board, total_pages, config)
+       }}
+    end
+  end
+
   @spec list_threads_page(BoardRecord.t(), pos_integer(), keyword()) ::
           {:ok, map()} | {:error, :not_found}
   def list_threads_page(%BoardRecord{} = board, page, opts \\ []) do
@@ -2475,6 +2530,15 @@ defmodule Eirinchan.Posts do
           else
             "/#{board.uri}/#{String.replace(config.file_page, "%d", Integer.to_string(num))}"
           end
+      }
+    end
+  end
+
+  defp build_catalog_pages(board, total_pages, config) do
+    for num <- 1..total_pages do
+      %{
+        num: num,
+        link: Eirinchan.ThreadPaths.catalog_page_path(board, num, config)
       }
     end
   end

@@ -154,7 +154,7 @@ defmodule Eirinchan.Build do
     first_page = hd(page_data_list)
 
     with :ok <- write_index_pages(board, page_data_list, config),
-         :ok <- write_catalog_page(board, page_data_list, config),
+         :ok <- write_catalog_pages(board, config, repo),
          :ok <- write_api_pages(board, page_data_list, config) do
       remove_stale_index_pages(board, first_page.total_pages, config)
     end
@@ -212,13 +212,36 @@ defmodule Eirinchan.Build do
     end)
   end
 
-  defp write_catalog_page(board, page_data_list, config) do
+  defp write_catalog_pages(board, config, repo) do
     if Themes.page_theme_enabled?("catalog") do
-      html = render_catalog(board, page_data_list, config)
-      output = Path.join([board_root(), board.uri, config.file_catalog])
-      maybe_write_file(output, html, pages_last_modified(page_data_list), config)
+      catalog_pages = build_catalog_pages(board, config, repo)
+
+      Enum.reduce_while(catalog_pages, :ok, fn page_data, :ok ->
+        filename =
+          if page_data.page == 1 do
+            config.file_catalog
+          else
+            String.replace(config.file_catalog_page, "%d", Integer.to_string(page_data.page))
+          end
+
+        html = render_catalog(board, page_data, config)
+        output = Path.join([board_root(), board.uri, filename])
+
+        case maybe_write_file(output, html, page_last_modified(page_data), config) do
+          :ok -> {:cont, :ok}
+          error -> {:halt, error}
+        end
+      end)
+      |> case do
+        :ok ->
+          remove_stale_catalog_pages(board, length(catalog_pages), config)
+
+        error ->
+          error
+      end
     else
       File.rm(Path.join([board_root(), board.uri, config.file_catalog]))
+      remove_stale_catalog_pages(board, 0, config)
       :ok
     end
   end
@@ -341,6 +364,27 @@ defmodule Eirinchan.Build do
     :ok
   end
 
+  defp remove_stale_catalog_pages(board, total_pages, config) do
+    stale_paths =
+      2..100
+      |> Enum.map(fn page ->
+        path =
+          String.replace(config.file_catalog_page, "%d", Integer.to_string(page))
+
+        Path.join([board_root(), board.uri, path])
+      end)
+      |> Enum.drop(max(total_pages - 1, 0))
+
+    Enum.each(stale_paths, fn path ->
+      if File.exists?(path) do
+        File.rm(path)
+        Purge.purge_output_path(path, config, board_root: board_root())
+      end
+    end)
+
+    :ok
+  end
+
   defp render_index(board, page_data, config) do
     boardlist = render_boardlist(Boards.list_boards())
 
@@ -411,12 +455,12 @@ defmodule Eirinchan.Build do
     """
   end
 
-  defp render_catalog(board, page_data_list, config) do
+  defp render_catalog(board, page_data, config) do
     boardlist = render_boardlist(Boards.list_boards())
+    nav = render_catalog_pages(page_data.pages, page_data.page)
 
     items =
-      page_data_list
-      |> Enum.flat_map(& &1.threads)
+      page_data.threads
       |> Enum.map_join("\n", fn summary ->
         title = html_escape(PostView.post_title(board, summary.thread, config))
         body = render_body(summary.thread, board, summary.thread, config)
@@ -436,10 +480,42 @@ defmodule Eirinchan.Build do
     <h1>/#{html_escape(board.uri)}/ - #{html_escape(board.title)}</h1>
     <p><a href="/#{html_escape(board.uri)}">Return</a></p>
     #{boardlist}
+    #{nav}
     #{items}
+    #{nav}
     </body>
     </html>
     """
+  end
+
+  defp build_catalog_pages(board, config, repo) do
+    case Posts.list_catalog_page(board, 1, config: config, repo: repo) do
+      {:ok, first_page} ->
+        Enum.map(1..first_page.total_pages, fn page ->
+          if page == 1 do
+            first_page
+          else
+            {:ok, data} = Posts.list_catalog_page(board, page, config: config, repo: repo)
+            data
+          end
+        end)
+
+      {:error, :not_found} ->
+        []
+    end
+  end
+
+  defp render_catalog_pages(pages, current_page) do
+    links =
+      Enum.map_join(pages, " ", fn page ->
+        if page.num == current_page do
+          ~s([<a class="selected">#{page.num}</a>])
+        else
+          ~s([<a href="#{page.link}">#{page.num}</a>])
+        end
+      end)
+
+    ~s(<div class="pages">#{links}</div>)
   end
 
   defp thread_output_filenames(%{thread: thread}, config) do
