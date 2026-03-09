@@ -323,6 +323,14 @@
         <%= for icon <- PostView.state_icons(post, @config) do %>
           <img class="icon" title={icon.title} src={icon.path} alt={icon.title} />
         <% end %>
+        <%= if @summary.is_noko50 do %>
+          <a href={Eirinchan.ThreadPaths.thread_path(@board, post, @config)}>[View All]</a>
+        <% end %>
+        <%= if @summary.has_noko50 and not @summary.is_noko50 do %>
+          <a href={Eirinchan.ThreadPaths.thread_path(@board, post, @config, noko50: true)}>
+            [Last <%= @summary.last_count %> Posts]
+          </a>
+        <% end %>
         <%= raw(
           PostView.post_controls_html(post, @board, @current_moderator, @secure_manage_token)
         ) %>

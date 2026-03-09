@@ -212,6 +212,54 @@ defmodule EirinchanWeb.ThreadControllerTest do
     assert page =~ "Tag: Anime"
   end
 
+  test "thread pages render and serve last x posts views", %{conn: conn} do
+    board =
+      board_fixture(%{
+        config_overrides: %{noko50_count: 2, noko50_min: 3, slugify: true}
+      })
+
+    config = Config.compose(nil, %{}, board.config_overrides, request_host: "www.example.com")
+    request = %{referer: "http://www.example.com/#{board.uri}/index.html"}
+
+    assert {:ok, thread, _meta} =
+             Posts.create_post(
+               board,
+               %{"body" => "Opening body", "subject" => "Thread body", "post" => "New Topic"},
+               config: config,
+               request: request
+             )
+
+    for body <- ["Reply one", "Reply two", "Reply three"] do
+      assert {:ok, _reply, _meta} =
+               Posts.create_post(
+                 board,
+                 %{
+                   "thread" => Integer.to_string(thread.id),
+                   "body" => body,
+                   "post" => "New Reply"
+                 },
+                 config: config,
+                 request: request
+               )
+    end
+
+    full_page = conn |> get(ThreadPaths.thread_path(board, thread, config)) |> html_response(200)
+    assert full_page =~ ~s([Last 2 Posts])
+    assert full_page =~ "Reply one"
+    assert full_page =~ "Reply three"
+
+    last_page =
+      conn
+      |> recycle()
+      |> get(ThreadPaths.thread_path(board, thread, config, noko50: true))
+      |> html_response(200)
+
+    assert last_page =~ ~s([View All])
+    refute last_page =~ "Reply one"
+    assert last_page =~ "Reply two"
+    assert last_page =~ "Reply three"
+  end
+
   test "thread pages render the boardlist", %{conn: conn} do
     board_fixture(%{uri: "meta", title: "Meta"})
     board = board_fixture()

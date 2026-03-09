@@ -2070,6 +2070,53 @@ defmodule Eirinchan.PostsTest do
     assert thread_view.image_count == 3
   end
 
+  test "thread view supports last x posts truncation" do
+    board =
+      board_fixture(%{
+        config_overrides: %{noko50_count: 2, noko50_min: 3}
+      })
+
+    config = post_config(board.config_overrides)
+    request = post_request(board.uri)
+
+    assert {:ok, thread, _meta} =
+             Posts.create_post(
+               board,
+               %{"body" => "Opening body", "subject" => "Thread", "post" => "New Topic"},
+               config: config,
+               request: request
+             )
+
+    for body <- ["Reply one", "Reply two", "Reply three"] do
+      assert {:ok, _reply, _meta} =
+               Posts.create_post(
+                 board,
+                 %{
+                   "thread" => Integer.to_string(thread.id),
+                   "body" => body,
+                   "post" => "New Reply"
+                 },
+                 config: config,
+                 request: request
+               )
+    end
+
+    assert {:ok, summary} = Posts.get_thread_view(board, thread.id, config: config)
+    assert summary.has_noko50
+    refute summary.is_noko50
+    assert summary.reply_count == 3
+    assert Enum.map(summary.replies, & &1.body) == ["Reply one", "Reply two", "Reply three"]
+
+    assert {:ok, last_summary} =
+             Posts.get_thread_view(board, thread.id, config: config, last_posts: true)
+
+    assert last_summary.has_noko50
+    assert last_summary.is_noko50
+    assert last_summary.last_count == 2
+    assert last_summary.omitted_posts == 1
+    assert Enum.map(last_summary.replies, & &1.body) == ["Reply two", "Reply three"]
+  end
+
   test "delete_post removes uploaded files for replies and threads" do
     board = board_fixture()
     config = post_config(board.config_overrides)

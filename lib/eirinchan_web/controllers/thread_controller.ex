@@ -14,11 +14,17 @@ defmodule EirinchanWeb.ThreadController do
   def show(conn, %{"thread_id" => thread_id}) do
     board = conn.assigns.current_board
     config = conn.assigns.current_board_config
-    _ = Build.ensure_thread(board, parse_thread_id(thread_id), config: config)
+    {normalized_thread_id, noko50?} = parse_thread_request(thread_id)
+    _ = Build.ensure_thread(board, normalized_thread_id, config: config)
 
-    case Posts.get_thread_view(board, thread_id) do
+    case Posts.get_thread_view(board, normalized_thread_id, config: config, last_posts: noko50?) do
       {:ok, summary} ->
-        canonical_path = ThreadPaths.thread_path(board, summary.thread, config)
+        canonical_path =
+          if noko50? and summary.has_noko50 do
+            ThreadPaths.thread_path(board, summary.thread, config, noko50: true)
+          else
+            ThreadPaths.thread_path(board, summary.thread, config)
+          end
 
         if conn.request_path != canonical_path do
           redirect(conn, to: canonical_path)
@@ -69,14 +75,23 @@ defmodule EirinchanWeb.ThreadController do
     end
   end
 
-  defp parse_thread_id(thread_id) when is_integer(thread_id), do: thread_id
+  defp parse_thread_request(thread_id) when is_integer(thread_id), do: {thread_id, false}
 
-  defp parse_thread_id(thread_id) when is_binary(thread_id) do
-    thread_id
-    |> String.replace_suffix(".html", "")
-    |> String.split("-", parts: 2)
-    |> hd()
-    |> String.to_integer()
+  defp parse_thread_request(thread_id) when is_binary(thread_id) do
+    normalized =
+      thread_id
+      |> String.replace_suffix(".html", "")
+
+    noko50? = String.contains?(normalized, "+50")
+
+    id =
+      normalized
+      |> String.replace("+50", "")
+      |> String.split("-", parts: 2)
+      |> hd()
+      |> String.to_integer()
+
+    {id, noko50?}
   end
 
   defp board_body_class(conn) do

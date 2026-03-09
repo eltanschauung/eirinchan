@@ -16,7 +16,7 @@ defmodule Eirinchan.BoardsTest do
           file_page: "%d.html",
           file_page50: "%d+50.html",
           file_page_slug: "%d-%s.html",
-          file_page50_slug: "%d+50-%s.html",
+          file_page50_slug: "%d-%s+50.html",
           file_mod: "mod.php",
           file_script: "main.js",
           board_regex: "[a-z]+",

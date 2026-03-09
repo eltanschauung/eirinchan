@@ -116,16 +116,16 @@ defmodule Eirinchan.Build do
     config = Keyword.fetch!(opts, :config)
     repo = Keyword.get(opts, :repo, Repo)
 
-    case Posts.get_thread_view(board, thread_id, repo: repo) do
+    case Posts.get_thread_view(board, thread_id, repo: repo, config: config) do
       {:ok, summary} ->
         html = render_thread(board, summary, config)
 
         output_paths =
-          summary.thread
-          |> thread_output_filenames(config)
+          thread_output_filenames(summary, config)
           |> Enum.map(&Path.join([board_root(), board.uri, config.dir.res, &1]))
 
-        with :ok <- maybe_write_files(output_paths, html, summary.last_modified, config) do
+        with :ok <- maybe_write_files(output_paths, html, summary.last_modified, config),
+             :ok <- maybe_write_last_posts_thread(board, summary, config) do
           if get_in(config, [:api, :enabled]) do
             json_output =
               Path.join([board_root(), board.uri, config.dir.res, "#{summary.thread.id}.json"])
@@ -442,7 +442,7 @@ defmodule Eirinchan.Build do
     """
   end
 
-  defp thread_output_filenames(thread, config) do
+  defp thread_output_filenames(%{thread: thread}, config) do
     canonical = ThreadPaths.thread_filename(thread, config)
     legacy = ThreadPaths.legacy_thread_filename(thread, config)
     Enum.uniq([canonical, legacy])
@@ -450,7 +450,21 @@ defmodule Eirinchan.Build do
 
   defp remove_thread_outputs(board, thread, config) do
     thread
+    |> then(&%{thread: &1})
     |> thread_output_filenames(config)
+    |> Enum.each(fn filename ->
+      path = Path.join([board_root(), board.uri, config.dir.res, filename])
+      _ = File.rm(path)
+      _ = Purge.purge_output_path(path, config, board_root: board_root())
+    end)
+
+    [config.file_page50, config.file_page50_slug]
+    |> Enum.map(fn pattern ->
+      pattern
+      |> String.replace("%d", Integer.to_string(thread.id))
+      |> String.replace("%s", thread.slug || "")
+    end)
+    |> Enum.uniq()
     |> Enum.each(fn filename ->
       path = Path.join([board_root(), board.uri, config.dir.res, filename])
       _ = File.rm(path)
@@ -461,6 +475,46 @@ defmodule Eirinchan.Build do
     _ = File.rm(json_path)
     _ = Purge.purge_output_path(json_path, config, board_root: board_root())
     :ok
+  end
+
+  defp maybe_write_last_posts_thread(board, %{has_noko50: false, thread: thread}, config) do
+    [config.file_page50, config.file_page50_slug]
+    |> Enum.map(fn pattern ->
+      pattern
+      |> String.replace("%d", Integer.to_string(thread.id))
+      |> String.replace("%s", thread.slug || "")
+    end)
+    |> Enum.uniq()
+    |> Enum.each(fn filename ->
+      path = Path.join([board_root(), board.uri, config.dir.res, filename])
+      _ = File.rm(path)
+      _ = Purge.purge_output_path(path, config, board_root: board_root())
+    end)
+
+    :ok
+  end
+
+  defp maybe_write_last_posts_thread(board, %{has_noko50: true, thread: thread} = summary, config) do
+    html =
+      board
+      |> Posts.get_thread_view(thread.id, config: config, last_posts: true)
+      |> case do
+        {:ok, last_summary} -> render_thread(board, last_summary, config)
+        _ -> nil
+      end
+
+    if html do
+      output_paths =
+        [
+          ThreadPaths.thread_filename(thread, config, noko50: true)
+        ]
+        |> Enum.uniq()
+        |> Enum.map(&Path.join([board_root(), board.uri, config.dir.res, &1]))
+
+      maybe_write_files(output_paths, html, summary.last_modified, config)
+    else
+      :ok
+    end
   end
 
   defp render_thread_badges(thread) do
