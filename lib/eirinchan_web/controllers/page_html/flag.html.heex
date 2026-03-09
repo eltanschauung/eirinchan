@@ -69,7 +69,7 @@
     var userFlagInput = document.getElementById('user_flag');
     if (!userFlagInput) return;
 
-    var storageKey = <%= inspect(@flag_storage_key) %>;
+    var storageKey = <%= raw(Jason.encode!(@flag_storage_key)) %>;
     var saved = window.localStorage.getItem(storageKey);
     userFlagInput.value = saved || 'country';
 
