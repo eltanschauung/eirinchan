@@ -160,6 +160,20 @@ defmodule EirinchanWeb.PageController do
     end
   end
 
+  def flags(conn, _params) do
+    if Installation.setup_required?() do
+      redirect(conn, to: ~p"/setup")
+    else
+      case CustomPages.get_page_by_slug("flag") do
+        nil ->
+          send_resp(conn, :not_found, "Page not found")
+
+        page ->
+          render_custom_page(conn, page)
+      end
+    end
+  end
+
   def board_flag(conn, %{"board" => uri}) do
     if Installation.setup_required?() do
       redirect(conn, to: ~p"/setup")
