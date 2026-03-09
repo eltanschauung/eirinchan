@@ -104,7 +104,7 @@ options_tablist = $("<div id='options_tablist'></div>").appendTo(options_div);
 
 $(function(){
   options_button = $("<a href='javascript:void(0)' title='"+_("Options")+"'>["+_("Options")+"]</a>").css("float", "right");
-  admin_button = $("<a href='/manage' title='"+_("Admin")+"'>["+_("Admin")+"]</a>").css("float", "right");
+  admin_button = $("<a href='/manage' title='"+_("Admin")+"'>["+_("Admin")+"]</a>").css({"float": "right", "margin-right": "0.35em"});
 
   if ($(".boardlist.compact-boardlist").length) {
     options_button.addClass("cb-item cb-fa").html("<i class='fa fa-gear'></i>");
