@@ -117,3 +117,18 @@ body.setup-page .installer-form td textarea {
   font-weight: bold;
   text-align: center;
 }
+
+
+body.mod-page .board_image,
+body.setup-page .board_image {
+  display: block;
+  margin: 1em auto 0 auto;
+}
+
+body.mod-page h2,
+body.setup-page h2 {
+  color: #d00;
+  text-align: center;
+  font-size: 1.2em;
+  margin: 1em auto 0.5em auto;
+}

@@ -1,10 +1,7 @@
-<header>
-  <h1>Moderator Login</h1>
-  <div class="subtitle">Sign in to manage boards and moderation tasks.</div>
-</header>
-
-<p :if={@error} class="error mod-login-error"><%= @error %></p>
-
+<%= if @error do %>
+  <h2 style="text-align:center"><%= @error %></h2>
+<% end %>
+<img class="board_image" src="/b.php" style="width:300px;height:100px" alt="" />
 <form action={~p"/manage/login/browser"} method="post" class="mod-login-form">
   <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
   <table style="margin-top:25px;">
