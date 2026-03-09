@@ -250,19 +250,14 @@
 
 <div class="catalog-nav-box">
   <div class="catalog-nav-row">
-    <span id="thread-links">
-      <a
+    <span id="thread-links"><a
         id="thread-return"
         href={Eirinchan.ThreadPaths.board_page_path(@board, 1, @config)}
-      >
-        [Return to Index]
-      </a>
-      <a id="thread-bottom" href="#bottom">[Go to bottom]</a><span id="updater"><a href="#" id="update_thread">[Update]</a><span class="catalog-updater-meta"> (<input
+      >[Return to Index]</a><a id="thread-bottom" href="#bottom">[Go to bottom]</a><span id="updater"><a href="#" id="update_thread">[Update]</a><span class="catalog-updater-meta"> (<input
             type="checkbox"
             id="auto_update_status"
             checked
-          /> Auto) <span id="update_secs">10</span></span></span>
-    </span>
+          /> Auto) <span id="update_secs">10</span></span></span></span>
   </div>
   <div :if={@page_data.total_pages > 1} class="catalog-nav-row">
     <%= raw(PostView.catalog_pages_html(@page_data)) %>
@@ -338,12 +333,7 @@
 
 <div class="catalog-nav-box">
   <div class="catalog-nav-row">
-    <span class="thread-links-clone">
-      <a href={Eirinchan.ThreadPaths.board_page_path(@board, 1, @config)}>
-        [Return to Index]
-      </a>
-      <a href="#top">[Go to top]</a>
-    </span>
+    <span class="thread-links-clone"><a href={Eirinchan.ThreadPaths.board_page_path(@board, 1, @config)}>[Return to Index]</a><a href="#top">[Go to top]</a></span>
   </div>
   <div :if={@page_data.total_pages > 1} class="catalog-nav-row">
     <%= raw(PostView.catalog_pages_html(@page_data)) %>
