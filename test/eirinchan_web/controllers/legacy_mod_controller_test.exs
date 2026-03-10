@@ -85,6 +85,40 @@ defmodule EirinchanWeb.LegacyModControllerTest do
     assert updated_thread.extra_files == []
   end
 
+  test "legacy spoiler route spoilerizes a single file for janitors", %{conn: conn} do
+    board = board_fixture()
+
+    create_conn =
+      conn
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post("/#{board.uri}/post", %{
+        "body" => "Opening body",
+        "files" => [
+          upload_fixture("first.png", "first"),
+          upload_fixture("second.gif", "second")
+        ],
+        "json_response" => "1",
+        "post" => "New Topic"
+      })
+
+    assert %{"id" => thread_id} = json_response(create_conn, 200)
+    assert {:ok, thread} = Posts.get_post(board, thread_id)
+
+    moderator = moderator_fixture(%{role: "janitor"}) |> grant_board_access_fixture(board)
+    conn = login_moderator(conn, moderator)
+
+    conn =
+      get(
+        conn,
+        "/mod.php?/#{board.uri}/spoiler/#{thread.id}/1/#{signed_token(conn, "#{board.uri}/spoiler/#{thread.id}/1")}"
+      )
+
+    assert redirected_to(conn) =~ "/#{board.uri}/res/#{thread.id}"
+    assert {:ok, updated_thread} = Posts.get_post(board, thread.id)
+    refute updated_thread.spoiler
+    assert [%{spoiler: true}] = updated_thread.extra_files
+  end
+
   test "legacy report dismiss route dismisses reports", %{conn: conn} do
     moderator = moderator_fixture(%{role: "admin"})
     board = board_fixture()

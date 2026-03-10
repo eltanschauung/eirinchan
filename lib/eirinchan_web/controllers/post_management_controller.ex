@@ -63,13 +63,10 @@ defmodule EirinchanWeb.PostManagementController do
     end
   end
 
-  def spoiler(conn, %{"uri" => uri, "post_id" => post_id}) do
+  def spoiler(conn, %{"uri" => uri, "post_id" => post_id} = params) do
     with board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          :ok <- authorize_board(conn, board),
-         {:ok, post} <-
-           Posts.spoilerize_post_files(board, post_id,
-             config: board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
-           ) do
+         {:ok, post} <- spoiler_target(board, post_id, params, conn) do
       render(conn, :show, post: post)
     else
       nil -> {:error, :not_found}
@@ -125,6 +122,18 @@ defmodule EirinchanWeb.PostManagementController do
 
       file_index ->
         Posts.delete_post_file(board, post_id, file_index, config: config)
+    end
+  end
+
+  defp spoiler_target(board, post_id, params, conn) do
+    config = board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
+
+    case Map.get(params, "file_index") do
+      nil ->
+        Posts.spoilerize_post_files(board, post_id, config: config)
+
+      file_index ->
+        Posts.spoilerize_post_file(board, post_id, file_index, config: config)
     end
   end
 

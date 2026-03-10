@@ -434,11 +434,22 @@ defmodule EirinchanWeb.PostView do
   end
 
   def file_controls_html(post, file, board, moderator, session_token) do
-    if present?(Map.get(file, :file_path)) and can_moderate?(moderator, board, :deletefile) do
-      %{href: href, secure: secure_href, title: title, label: label, confirm: message} =
-        file_control_metadata(post, file, board, session_token, :deletefile)
+    if present?(Map.get(file, :file_path)) do
+      controls =
+        []
+        |> maybe_add_control(
+          can_moderate?(moderator, board, :deletefile),
+          file_confirm_control(post, file, board, session_token, :deletefile)
+        )
+        |> maybe_add_control(
+          not Map.get(file, :spoiler, false) and can_moderate?(moderator, board, :spoilerimage),
+          file_confirm_control(post, file, board, session_token, :spoilerimage)
+        )
 
-      ~s|<span class="controls"><a onclick="if (event.which==2) return true;if (confirm('#{js_escape(message)}')) document.location='#{html_escape_to_string(secure_href)}';return false;" title="#{html_escape_to_string(title)}" href="#{html_escape_to_string(href)}">#{label}</a></span>|
+      case controls do
+        [] -> nil
+        entries -> ~s(<span class="controls">#{Enum.join(entries, "&nbsp;")}</span>)
+      end
     end
   end
 
@@ -793,6 +804,7 @@ defmodule EirinchanWeb.PostView do
   defp permission_level(:editpost), do: 30
   defp permission_level(:move), do: 20
   defp permission_level(:deletefile), do: 10
+  defp permission_level(:spoilerimage), do: 10
 
   defp body_style(post, config, opts \\ []) do
     cond do
@@ -990,6 +1002,28 @@ defmodule EirinchanWeb.PostView do
       label: "[F]",
       confirm: "Are you sure you want to delete this file?"
     }
+  end
+
+  defp file_control_metadata(post, file, board, session_token, :spoilerimage) do
+    file_index = file_index(post, file)
+    action_path = "#{board.uri}/spoiler/#{post.id}/#{file_index}"
+    href = "/mod.php?/" <> action_path
+    token = ManageSecurity.sign_action(session_token, action_path)
+
+    %{
+      href: href,
+      secure: href <> "/#{token}",
+      title: "Spoiler file",
+      label: "[S]",
+      confirm: "Are you sure you want to spoiler this file?"
+    }
+  end
+
+  defp file_confirm_control(post, file, board, session_token, action) do
+    %{href: href, secure: secure_href, title: title, label: label, confirm: message} =
+      file_control_metadata(post, file, board, session_token, action)
+
+    ~s|<a onclick="if (event.which==2) return true;if (confirm('#{js_escape(message)}')) document.location='#{html_escape_to_string(secure_href)}';return false;" title="#{html_escape_to_string(title)}" href="#{html_escape_to_string(href)}">#{label}</a>|
   end
 
   defp maybe_add_control(list, true, html) when is_binary(html), do: list ++ [html]

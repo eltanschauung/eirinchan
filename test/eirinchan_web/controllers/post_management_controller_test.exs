@@ -71,6 +71,40 @@ defmodule EirinchanWeb.PostManagementControllerTest do
              }
            } = json_response(spoiler_conn, 200)
 
+    create_conn =
+      conn
+      |> recycle()
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post("/#{board.uri}/post", %{
+        "body" => "Opening body two",
+        "files" => [
+          upload_fixture("third.png", "third"),
+          upload_fixture("fourth.gif", "fourth")
+        ],
+        "json_response" => "1",
+        "post" => "New Topic"
+      })
+
+    assert %{"id" => second_thread_id} = json_response(create_conn, 200)
+
+    single_spoiler_conn =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> put_secure_manage_token()
+      |> put_req_header("accept", "application/json")
+      |> patch("/manage/boards/#{board.uri}/posts/#{second_thread_id}/spoiler", %{
+        "file_index" => "1"
+      })
+
+    assert %{
+             "data" => %{
+               "id" => ^second_thread_id,
+               "spoiler" => false,
+               "extra_files" => [%{"spoiler" => true}]
+             }
+           } = json_response(single_spoiler_conn, 200)
+
     delete_single_file_conn =
       conn
       |> recycle()

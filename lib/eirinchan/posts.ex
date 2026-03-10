@@ -424,6 +424,30 @@ defmodule Eirinchan.Posts do
     end
   end
 
+  @spec spoilerize_post_file(
+          BoardRecord.t(),
+          String.t() | integer(),
+          non_neg_integer(),
+          keyword()
+        ) ::
+          {:ok, Post.t()} | {:error, :not_found | Ecto.Changeset.t()}
+  def spoilerize_post_file(%BoardRecord{} = board, post_id, file_index, opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+    config = Keyword.get(opts, :config, Config.compose())
+
+    with {:ok, post} <- get_post(board, post_id, repo: repo),
+         {:ok, normalized_index} <- normalize_file_index(file_index),
+         {:ok, updated_post, thumb_paths} <-
+           spoiler_single_post_file(post, normalized_index, repo) do
+      Enum.each(thumb_paths, &Uploads.write_spoiler_thumbnail(&1, config))
+      _ = Build.rebuild_after_post_update(board, updated_post, config: config, repo: repo)
+      {:ok, updated_post}
+    else
+      {:error, :invalid_file_index} -> {:error, :not_found}
+      other -> other
+    end
+  end
+
   @spec move_thread(
           BoardRecord.t(),
           String.t() | integer(),
@@ -2494,6 +2518,47 @@ defmodule Eirinchan.Posts do
 
       file_index > 0 ->
         delete_extra_post_file(post, extra, file_index, repo)
+
+      true ->
+        {:error, :not_found}
+    end
+  end
+
+  defp spoiler_single_post_file(%Post{} = post, file_index, repo) do
+    extra = extra_files_for_post(post, repo)
+
+    cond do
+      file_index == 0 and path_present?(post.file_path) ->
+        case repo.transaction(fn ->
+               case post |> Post.create_changeset(%{spoiler: true}) |> repo.update() do
+                 {:ok, updated_post} -> repo.preload(updated_post, :extra_files, force: true)
+                 {:error, reason} -> repo.rollback(reason)
+               end
+             end) do
+          {:ok, updated_post} -> {:ok, updated_post, [updated_post.thumb_path]}
+          {:error, reason} -> {:error, reason}
+        end
+
+      file_index > 0 ->
+        case Enum.find(extra, &(&1.position == file_index)) do
+          nil ->
+            {:error, :not_found}
+
+          target ->
+            case repo.transaction(fn ->
+                   case target |> PostFile.create_changeset(%{spoiler: true}) |> repo.update() do
+                     {:ok, _updated_file} ->
+                       post
+                       |> repo.preload(:extra_files, force: true)
+
+                     {:error, reason} ->
+                       repo.rollback(reason)
+                   end
+                 end) do
+              {:ok, updated_post} -> {:ok, updated_post, [target.thumb_path]}
+              {:error, reason} -> {:error, reason}
+            end
+        end
 
       true ->
         {:error, :not_found}
