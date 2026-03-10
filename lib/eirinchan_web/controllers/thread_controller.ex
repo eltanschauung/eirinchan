@@ -7,6 +7,7 @@ defmodule EirinchanWeb.ThreadController do
   alias Eirinchan.Posts
   alias Eirinchan.ThreadPaths
   alias EirinchanWeb.BoardChrome
+  alias EirinchanWeb.PostView
   alias EirinchanWeb.PublicShell
 
   plug EirinchanWeb.Plugs.LoadBoard
@@ -19,6 +20,9 @@ defmodule EirinchanWeb.ThreadController do
 
     case Posts.get_thread_view(board, normalized_thread_id, config: config, last_posts: noko50?) do
       {:ok, summary} ->
+        boards = Boards.list_boards()
+        chrome = BoardChrome.for_board(board)
+
         canonical_path =
           if noko50? and summary.has_noko50 do
             ThreadPaths.thread_path(board, summary.thread, config, noko50: true)
@@ -45,8 +49,15 @@ defmodule EirinchanWeb.ThreadController do
             summary: summary,
             config: config,
             page_num: page_num,
-            boards: Boards.list_boards(),
-            board_chrome: BoardChrome.for_board(board),
+            boards: boards,
+            board_chrome: chrome,
+            global_boardlist_html:
+              PostView.boardlist_html(
+                BoardChrome.boardlist_groups(
+                  boards,
+                  chrome.boardlist_groups || PostView.boardlist_groups(boards)
+                )
+              ),
             public_shell: true,
             viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",
             base_stylesheet: "/stylesheets/style.css",
