@@ -26,8 +26,9 @@ auto_reload_enabled = true; // for watch.js to interop
 $(document).ready(function(){
 	var is_thread_page = $('div.banner').length != 0 && $(".post.op").length == 1;
 	var is_catalog_page = $('body').hasClass('active-catalog') && $('#Grid').length == 1;
+	var is_board_page = $('body').hasClass('active-index') && !is_thread_page && !is_catalog_page && $('#board-refresh-target').length == 1;
 
-	if(!is_thread_page && !is_catalog_page)
+	if(!is_thread_page && !is_catalog_page && !is_board_page)
 		return;
 	
 	var countdown_interval;
@@ -37,6 +38,8 @@ $(document).ready(function(){
 	if ($('#updater').length === 0) {
 		if ($('#thread-links').length) {
 			$('#thread-links').append(updater_html);
+		} else if (is_board_page && $('form[action="/search.php"] p').length) {
+			$('form[action="/search.php"] p').append(updater_html);
 		} else {
 			$('.boardlist.bottom').prev().after("<span id='updater'><a href='#' id='update_thread' style='padding-left:10px'>["+_("Update")+"]</a> (<input type='checkbox' id='auto_update_status' checked> "+_("Auto")+") <span id='update_secs'>10</span></span>");
 		}
@@ -231,6 +234,79 @@ $(document).ready(function(){
 		return false;
 	};
 
+	var poll_board = function(manualUpdate) {
+		stop_auto_update();
+		$('#update_secs').text("0");
+
+		$.ajax({
+			url: document.location,
+			success: function(data) {
+				var replacement = $(data).find('#board-refresh-target');
+				var new_threads = 0;
+				var current_ids = {};
+
+				$('#board-threads .thread').each(function() {
+					current_ids[$(this).attr('id')] = true;
+				});
+
+				if (replacement.length == 0) {
+					$('#update_secs').text(_("Unknown error"));
+					if ($('#auto_update_status').is(':checked')) {
+						poll_interval_delay = poll_interval_errordelay;
+						auto_update(poll_interval_delay);
+					}
+					return;
+				}
+
+				replacement.find('#board-threads .thread').each(function() {
+					var id = $(this).attr('id');
+					if (id && !current_ids[id]) {
+						new_threads++;
+					}
+				});
+
+				$('#board-refresh-target').replaceWith(replacement);
+
+				if ($('#auto_update_status').is(':checked')) {
+					if(new_threads == 0) {
+						if (manualUpdate == false) {
+							poll_interval_delay *= 2;
+
+							if(poll_interval_delay > poll_interval_maxdelay) {
+								poll_interval_delay = poll_interval_maxdelay;
+							}
+						}
+					} else {
+						poll_interval_delay = poll_interval_mindelay;
+					}
+
+					auto_update(poll_interval_delay);
+				} else {
+					if (new_threads > 0)
+						$('#update_secs').text(fmt(_("Board updated with {0} new thread(s)"), [new_threads]));
+					else
+						$('#update_secs').text(_("No new threads found"));
+				}
+			},
+			error: function(xhr, status_text, error_text) {
+				if (status_text == "error" && error_text) {
+					$('#update_secs').text("Error: "+error_text);
+				} else if (status_text) {
+					$('#update_secs').text(_("Error: ")+status_text);
+				} else {
+					$('#update_secs').text(_("Unknown error"));
+				}
+
+				if ($('#auto_update_status').is(':checked')) {
+					poll_interval_delay = poll_interval_errordelay;
+					auto_update(poll_interval_delay);
+				}
+			}
+		});
+
+		return false;
+	};
+
 	var poll_thread = function(manualUpdate) {
 		stop_auto_update();
 		$('#update_secs').text("0");
@@ -335,6 +411,9 @@ $(document).ready(function(){
 	$('#update_thread').on('click', function() {
 		if (is_catalog_page) {
 			return poll_catalog(manualUpdate = true);
+		}
+		if (is_board_page) {
+			return poll_board(manualUpdate = true);
 		}
 
 		return poll_thread(manualUpdate = true);

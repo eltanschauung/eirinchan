@@ -140,6 +140,21 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     assert response =~ "[Archive]"
   end
 
+  test "board page renders updater controls and refresh target", %{conn: conn} do
+    board = board_fixture(%{uri: "update", title: "Update Test"})
+
+    response =
+      conn
+      |> get(~p"/#{board.uri}")
+      |> html_response(200)
+
+    assert response =~ ~s(id="updater")
+    assert response =~ ~s(id="update_thread")
+    assert response =~ ~s(id="auto_update_status")
+    assert response =~ ~s(id="update_secs")
+    assert response =~ ~s(id="board-refresh-target")
+  end
+
   test "board page uses configured catalog name in search links", %{conn: conn} do
     :ok = Eirinchan.Themes.enable_page_theme("catalog")
 
