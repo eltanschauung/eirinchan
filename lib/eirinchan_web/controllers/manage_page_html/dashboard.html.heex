@@ -135,7 +135,7 @@
     <% else %>
       <%= for page <- @custom_pages do %>
         <li>
-          <a href={if page.slug == "flag", do: "/flag", else: "/pages/#{page.slug}"}>
+          <a href={if page.slug == "flags", do: "/flags", else: "/pages/#{page.slug}"}>
             <%= page.title %>
           </a>
           (<%= page.slug %>)

@@ -167,7 +167,7 @@ defmodule EirinchanWeb.PageController do
     if Installation.setup_required?() do
       redirect(conn, to: ~p"/setup")
     else
-      case CustomPages.get_page_by_slug("flag") do
+      case CustomPages.get_page_by_slug("flags") do
         nil ->
           send_resp(conn, :not_found, "Page not found")
 
@@ -177,7 +177,9 @@ defmodule EirinchanWeb.PageController do
     end
   end
 
-  def legacy_flags(conn, _params), do: redirect(conn, to: ~p"/flag")
+  def legacy_flags(conn, _params), do: redirect(conn, to: ~p"/flags")
+
+  def board_flag_legacy(conn, %{"board" => _uri}), do: redirect(conn, to: ~p"/flags")
 
   def board_flag(conn, %{"board" => uri}) do
     if Installation.setup_required?() do
@@ -188,7 +190,7 @@ defmodule EirinchanWeb.PageController do
           send_resp(conn, :not_found, "Page not found")
 
         _board ->
-          redirect(conn, to: ~p"/flag")
+          redirect(conn, to: ~p"/flags")
       end
     end
   end
@@ -269,7 +271,7 @@ defmodule EirinchanWeb.PageController do
       )
 
     case page.slug do
-      "flag" -> render(conn, :flag, assigns)
+      "flags" -> render(conn, :flag, assigns)
       "faq" -> render(conn, :faq, assigns)
       _ -> render(conn, :page, assigns)
     end
@@ -281,7 +283,7 @@ defmodule EirinchanWeb.PageController do
   defp maybe_add_page_stylesheet(stylesheets, _page), do: stylesheets
 
   defp flag_assets do
-    compiled_dir = Path.join([:code.priv_dir(:eirinchan), "static", "flag", "compiled"])
+    compiled_dir = Path.join([:code.priv_dir(:eirinchan), "static", "flags", "compiled"])
 
     compiled_dir
     |> File.ls!()
@@ -290,7 +292,7 @@ defmodule EirinchanWeb.PageController do
     |> Enum.map(fn file ->
       %{
         name: Path.rootname(file),
-        url: "/flag/compiled/#{URI.encode(file)}"
+        url: "/flags/compiled/#{URI.encode(file)}"
       }
     end)
   end
