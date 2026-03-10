@@ -22,6 +22,7 @@ defmodule EirinchanWeb do
         assets
         faq
         flag
+        flags
         fonts
         images
         js
