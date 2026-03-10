@@ -255,18 +255,6 @@ defmodule Eirinchan.Uploads do
     end
   end
 
-  defp timestamp_base_name(post, suffix) do
-    timestamp =
-      post
-      |> post_timestamp()
-      |> DateTime.to_unix(:millisecond)
-      |> Integer.to_string()
-
-    base = timestamp
-
-    if is_binary(suffix), do: "#{base}-#{suffix}", else: base
-  end
-
   defp unique_timestamp_base_name(board, post, config, ext, suffix) do
     timestamp =
       post
