@@ -1426,9 +1426,11 @@ defmodule Eirinchan.Posts do
         {flag |> to_string() |> String.trim() |> String.downcase(), to_string(text)}
       end)
 
+    default_flag_source = trim_to_nil(config.default_user_flag) || "country"
+
     default_flags =
       with {:ok, parsed_flags} <-
-             parse_user_flags(trim_to_nil(config.default_user_flag), config.multiple_flags),
+             parse_user_flags(default_flag_source, config.multiple_flags),
            {:ok, validated_flags} <- validate_user_flags(parsed_flags, allowed_flags) do
         validated_flags
       end
@@ -1499,7 +1501,7 @@ defmodule Eirinchan.Posts do
   end
 
   defp validate_user_flags(flags, allowed_flags) when is_list(flags) do
-    if Enum.all?(flags, &Map.has_key?(allowed_flags, &1)) do
+    if Enum.all?(flags, fn flag -> flag == "country" or Map.has_key?(allowed_flags, flag) end) do
       {:ok, flags}
     else
       {:error, :invalid_user_flag}
