@@ -230,6 +230,7 @@ defmodule EirinchanWeb.Router do
 
     get "/", PageController, :home
     get "/faq", PageController, :faq
+    get "/formatting", PageController, :formatting
     get "/flag", PageController, :legacy_flags
     get "/flags", PageController, :flags
 

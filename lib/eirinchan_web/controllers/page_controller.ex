@@ -177,6 +177,31 @@ defmodule EirinchanWeb.PageController do
     end
   end
 
+  def formatting(conn, _params) do
+    if Installation.setup_required?() do
+      redirect(conn, to: ~p"/setup")
+    else
+      case CustomPages.get_page_by_slug("formatting") do
+        %CustomPages.Page{body: body} when is_binary(body) and body != "" ->
+          conn
+          |> put_resp_content_type("text/html")
+          |> send_resp(200, body)
+
+        _ ->
+          render(
+            conn,
+            :formatting,
+            Keyword.merge(
+              public_page_assigns(conn, "active-page", "page"),
+              layout: false,
+              page: %{slug: "formatting", title: "Formatting", body: "", mod_user: nil},
+              sticker_entries: sticker_entries(current_sticker_config())
+            )
+          )
+      end
+    end
+  end
+
   def legacy_flags(conn, _params), do: redirect(conn, to: ~p"/flags")
 
   def board_flag_legacy(conn, %{"board" => _uri}), do: redirect(conn, to: ~p"/flags")
@@ -250,6 +275,25 @@ defmodule EirinchanWeb.PageController do
       _ -> ""
     end
   end
+
+  defp current_sticker_config do
+    Settings.current_instance_config()
+    |> Eirinchan.WhaleStickers.entries()
+  end
+
+  defp sticker_entries(stickers) when is_list(stickers) do
+    stickers
+    |> Enum.map(fn
+      %{"token" => token, "path" => path} -> %{token: token, path: path}
+      %{token: token, path: path} -> %{token: token, path: path}
+      %{"token" => token, "file" => file} -> %{token: token, path: "/whalestickers/#{file}"}
+      %{token: token, file: file} -> %{token: token, path: "/whalestickers/#{file}"}
+      _ -> nil
+    end)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp sticker_entries(_), do: []
 
   defp render_custom_page(conn, page, opts \\ []) do
     board = Keyword.get(opts, :board)

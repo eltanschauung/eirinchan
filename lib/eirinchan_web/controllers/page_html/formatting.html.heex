@@ -1,0 +1,66 @@
+<%
+  {left_stickers, right_stickers} =
+    @sticker_entries
+    |> Enum.with_index()
+    |> Enum.split_with(fn {_entry, index} -> rem(index, 2) == 0 end)
+
+  left_stickers = Enum.map(left_stickers, &elem(&1, 0))
+  right_stickers = Enum.map(right_stickers, &elem(&1, 0))
+%>
+
+<header>
+  <h1><%= @page.title %></h1>
+  <div class="subtitle">
+    <h2>Ask questions, get answers.</h2>
+  </div>
+</header>
+
+<div class="box-wrap faq-page-shell formatting-page-shell">
+  <div class="box middle">
+    <h2>Formatting</h2>
+    <div class="content" style="padding:8px;line-height:1.8;">
+      <p1>**do this to spoiler text** , <span class="spoiler">it'll look like this</span></p1><br />
+      <p1>''do this for italic text'' , <em>it'll look like this</em></p1><br />
+      <p1>'''do this for bold text''' , <strong>it'll look like this</strong></p1><br />
+      <hr style="margin:6px;opacity:0;" />
+      <p1>Everything below is at the start of a line, once per line.</p1><br />
+      <hr style="margin:6px;opacity:0;" />
+      <p1>==do this for heading text== , <span class="heading">it'll look like this</span></p1><br />
+      <p1><span class="quote">&gt;This is greentext</span></p1><br />
+      <p1><span class="quote2">&lt;This is the opposite</span></p1><br />
+      <hr style="margin:6px;opacity:0;" />
+      <p1>Use truth:(words) nipah:(words) or desire:(words) for <span class="truth">Red </span><span class="truthblue">Blue </span>and <span class="truthgold">Gold</span></p1><br />
+      <p1>Use stake:(words) for the <span class="rotate">crazy spinning text</span></p1><br />
+      <p1>Use shion:(words) for <span class="glow">glowing green text</span></p1>
+    </div>
+  </div>
+
+  <div class="box middle" style="overflow:auto;">
+    <h2>Whalestickers</h2>
+    <div class="content">
+      <p1>Whalestickers need to be at the start of a line, once per line.</p1><br /><br />
+      <hr style="margin:6px;opacity:0;" />
+      <div class="column" style="margin-left:5%;float:left;">
+        <%= for sticker <- left_stickers do %>
+          <p1><img src={sticker.path} alt={sticker.token} title={sticker.token} /> :<%= sticker.token %>:</p1><br />
+        <% end %>
+      </div>
+      <div class="column" style="margin-right:5%;float:right;">
+        <%= for sticker <- right_stickers do %>
+          <p1><img src={sticker.path} alt={sticker.token} title={sticker.token} /> :<%= sticker.token %>:</p1><br />
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <div class="box middle">
+    <h2><i>Note</i></h2>
+    <div class="content">
+      <p1>Use <a href="/flags">>>>/flags/</a> to configure your displayed flag. More formatting tools can be documented here later.</p1>
+    </div>
+  </div>
+</div>
+
+<%= if @board_chrome.footer_html do %>
+  <%= raw(@board_chrome.footer_html) %>
+<% end %>
