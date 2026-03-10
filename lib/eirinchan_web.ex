@@ -31,6 +31,7 @@ defmodule EirinchanWeb do
         static
         stylesheets
         theme-thumbs
+        whalestickers
         background_christmas.jpg
         christmas_alice.png
         favicon.ico

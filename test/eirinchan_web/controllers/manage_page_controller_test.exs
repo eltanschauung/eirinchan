@@ -208,6 +208,54 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert persisted =~ "\"198.51.100.0/24\""
   end
 
+  test "admin can update whale sticker configuration from the dashboard", %{conn: conn} do
+    original_path = Application.get_env(:eirinchan, :instance_config_path)
+
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "eirinchan-stickers-#{System.unique_integer([:positive])}.json"
+      )
+
+    File.rm(path)
+    Application.put_env(:eirinchan, :instance_config_path, path)
+
+    on_exit(fn ->
+      Application.put_env(:eirinchan, :instance_config_path, original_path)
+      File.rm(path)
+    end)
+
+    moderator = moderator_fixture(%{role: "admin"})
+
+    dashboard =
+      conn
+      |> login_moderator(moderator)
+      |> get("/manage")
+      |> html_response(200)
+
+    assert dashboard =~ "Configure stickers"
+
+    update_conn =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> patch("/manage/stickers/browser", %{
+        "stickers_json" => """
+        [
+          {"token": "gojo", "file": "gojo.png", "title": "gojo"},
+          {"token": "whale", "file": "whale1.png", "title": "whale", "append_break": true}
+        ]
+        """
+      })
+
+    assert redirected_to(update_conn) == "/manage/stickers/browser"
+
+    persisted = File.read!(path)
+    assert persisted =~ "\"whalestickers\""
+    assert persisted =~ "\"gojo.png\""
+    assert persisted =~ "\"append_break\": true"
+  end
+
   test "admin can update flags configuration from the dashboard", %{conn: conn} do
     original_path = Application.get_env(:eirinchan, :instance_config_path)
 
@@ -905,35 +953,43 @@ defmodule EirinchanWeb.ManagePageControllerTest do
   end
 
   test "immune viewers see raw ips when ipcrypt_immune_ip matches", %{conn: conn} do
-    with_instance_config(%{"ipcrypt_key" => "whalenic", "ipcrypt_immune_ip" => "198.51.100.0/24"}, fn ->
-      moderator = moderator_fixture(%{role: "admin"})
-      board = board_fixture(%{uri: "ip#{System.unique_integer([:positive])}", title: "IP Test"})
+    with_instance_config(
+      %{"ipcrypt_key" => "whalenic", "ipcrypt_immune_ip" => "198.51.100.0/24"},
+      fn ->
+        moderator = moderator_fixture(%{role: "admin"})
+        board = board_fixture(%{uri: "ip#{System.unique_integer([:positive])}", title: "IP Test"})
 
-      {:ok, _thread, _meta} =
-        Eirinchan.Posts.create_post(
-          board,
-          %{"body" => "green leaf", "subject" => "teaware", "post" => "New Topic"},
-          config: Eirinchan.Runtime.Config.compose(nil, %{}, board.config_overrides),
-          request: %{
-            referer: "http://example.test/#{board.uri}/index.html",
-            remote_ip: {203, 0, 113, 9}
-          }
-        )
+        {:ok, _thread, _meta} =
+          Eirinchan.Posts.create_post(
+            board,
+            %{"body" => "green leaf", "subject" => "teaware", "post" => "New Topic"},
+            config: Eirinchan.Runtime.Config.compose(nil, %{}, board.config_overrides),
+            request: %{
+              referer: "http://example.test/#{board.uri}/index.html",
+              remote_ip: {203, 0, 113, 9}
+            }
+          )
 
-      page =
-        conn
-        |> Map.put(:remote_ip, {198, 51, 100, 44})
-        |> login_moderator(moderator)
-        |> get("/manage/boards/#{board.uri}/ip/203.0.113.9/browser")
-        |> html_response(200)
+        page =
+          conn
+          |> Map.put(:remote_ip, {198, 51, 100, 44})
+          |> login_moderator(moderator)
+          |> get("/manage/boards/#{board.uri}/ip/203.0.113.9/browser")
+          |> html_response(200)
 
-      assert page =~ "IP History: 203.0.113.9"
-    end)
+        assert page =~ "IP History: 203.0.113.9"
+      end
+    )
   end
 
   defp with_instance_config(config, fun) do
     original_path = Application.get_env(:eirinchan, :instance_config_path)
-    path = Path.join(System.tmp_dir!(), "eirinchan-manage-ipcrypt-#{System.unique_integer([:positive])}.json")
+
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "eirinchan-manage-ipcrypt-#{System.unique_integer([:positive])}.json"
+      )
 
     File.write!(path, Jason.encode!(config))
 

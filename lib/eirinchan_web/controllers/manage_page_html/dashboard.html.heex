@@ -38,6 +38,9 @@
       <a href={~p"/manage/dnsbl/browser"}>DNSBL Configuration</a>
     </li>
     <li :if={@moderator.role == "admin"}>
+      <a href={~p"/manage/stickers/browser"}>Configure stickers</a>
+    </li>
+    <li :if={@moderator.role == "admin"}>
       <a href={~p"/manage/themes/browser"}>Manage themes</a>
     </li>
     <li><a href={~p"/manage/announcement/browser"}>Announcement</a></li>
