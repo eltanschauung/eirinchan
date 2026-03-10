@@ -150,6 +150,8 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
 
     assert response =~ ~s(id="updater")
     assert response =~ ~s(id="update_thread")
+    assert response =~ "[Live Page]"
+    assert response =~ ~s(class="live-page-indicator")
     assert response =~ ~s(id="auto_update_status")
     assert response =~ ~s(id="update_secs")
     assert response =~ ~s(id="board-refresh-target")

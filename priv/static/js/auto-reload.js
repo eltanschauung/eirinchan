@@ -51,6 +51,12 @@ $(document).ready(function(){
 	var poll_interval_maxdelay        = settings.get('max_delay', 600000);
 	var poll_interval_errordelay      = settings.get('error_delay', 30000);
 
+	if (is_board_page) {
+		poll_interval_mindelay = 10000;
+		poll_interval_maxdelay = 10000;
+		poll_interval_errordelay = 10000;
+	}
+
 	// number of ms to wait before reloading
 	var poll_interval_delay = poll_interval_mindelay;
 	var poll_current_time = poll_interval_delay;
@@ -268,33 +274,22 @@ $(document).ready(function(){
 				$('#board-refresh-target').replaceWith(replacement);
 
 				if ($('#auto_update_status').is(':checked')) {
-					if(new_threads == 0) {
-						if (manualUpdate == false) {
-							poll_interval_delay *= 2;
-
-							if(poll_interval_delay > poll_interval_maxdelay) {
-								poll_interval_delay = poll_interval_maxdelay;
-							}
-						}
-					} else {
-						poll_interval_delay = poll_interval_mindelay;
-					}
-
+					poll_interval_delay = poll_interval_mindelay;
 					auto_update(poll_interval_delay);
 				} else {
 					if (new_threads > 0)
-						$('#update_secs').text(fmt(_("Board updated with {0} new thread(s)"), [new_threads]));
+						$('#update_secs').text("10");
 					else
-						$('#update_secs').text(_("No new threads found"));
+						$('#update_secs').text("10");
 				}
 			},
 			error: function(xhr, status_text, error_text) {
 				if (status_text == "error" && error_text) {
 					$('#update_secs').text("Error: "+error_text);
 				} else if (status_text) {
-					$('#update_secs').text(_("Error: ")+status_text);
+					$('#update_secs').text("10");
 				} else {
-					$('#update_secs').text(_("Unknown error"));
+					$('#update_secs').text("10");
 				}
 
 				if ($('#auto_update_status').is(':checked')) {

@@ -246,10 +246,11 @@
     >
       [Archive]
     </a>
-    <span id="updater">
-      <a href="#" id="update_thread">[Update]</a>
-      (<input type="checkbox" id="auto_update_status" checked /> Auto)
-      <span id="update_secs">10</span>
+    <span id="updater" class="board-live-updater">
+      <a href="#" id="update_thread">[Live Page]</a>
+      <span class="live-page-indicator" aria-hidden="true">⬤</span>
+      <input type="checkbox" id="auto_update_status" checked hidden />
+      <span id="update_secs" hidden>10</span>
     </span>
   </p>
 </form>
