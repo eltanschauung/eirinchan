@@ -623,7 +623,7 @@ defmodule Eirinchan.Build do
   defp maybe_add_badge(labels, _enabled, _label), do: labels
 
   defp render_delete_form(board, post_id) do
-    ~s(<form class="delete-form" action="/#{board.uri}/post" method="post"><input type="hidden" name="delete_post_id" value="#{post_id}" /><input type="password" name="password" placeholder="Password" autocomplete="new-password" /><button type="submit">Delete</button></form>)
+    ~s(<form class="delete-form" action="/#{board.uri}/post" method="post"><input type="hidden" name="delete_post_id" value="#{post_id}" /><input type="password" name="password" placeholder="Password" autocomplete="off" /><button type="submit">Delete</button></form>)
   end
 
   defp render_post_flags(%{flag_alts: flag_alts}) when is_list(flag_alts) and flag_alts != [] do
