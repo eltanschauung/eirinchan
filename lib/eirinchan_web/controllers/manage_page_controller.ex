@@ -1,7 +1,6 @@
 defmodule EirinchanWeb.ManagePageController do
   use EirinchanWeb, :controller
   import Ecto.Query, only: [from: 2]
-  import Phoenix.Template, only: [render_to_string: 4]
 
   alias Eirinchan.Announcement
   alias Eirinchan.Boardlist
@@ -440,8 +439,8 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def install_theme(conn, %{"name" => name} = params) do
-    with {:ok, _moderator} <- ensure_admin(conn),
-         {:ok, _theme} <- Themes.install_theme(name, params) do
+    with {:ok, moderator} <- ensure_admin(conn),
+         {:ok, _theme} <- Themes.install_theme(name, Map.put(params, "mod_user_id", moderator.id)) do
       conn
       |> put_flash(:info, "Theme installed.")
       |> redirect(to: "/manage/themes/browser/#{name}")
@@ -1777,66 +1776,7 @@ defmodule EirinchanWeb.ManagePageController do
     end
   end
 
-  defp default_faq_editor_html(conn) do
-    page = %{slug: "faq", title: "FAQ", body: "", mod_user: nil}
-
-    assigns =
-      [
-        page: page,
-        flag_board: nil,
-        flag_assets: [],
-        flag_storage_key: "flag_bant",
-        page_title: "FAQ",
-        layout: false,
-        inner_content: nil
-      ] ++ faq_public_assigns(conn)
-
-    inner_content = render_to_string(EirinchanWeb.PageHTML, "faq", "html", assigns)
-
-    render_to_string(
-      EirinchanWeb.Layouts,
-      "root",
-      "html",
-      Keyword.put(assigns, :inner_content, Phoenix.HTML.raw(inner_content))
-    )
-  end
-
-  defp faq_public_assigns(conn) do
-    boards = Boards.list_boards()
-    primary_board = Enum.find(boards, &(&1.uri == "bant")) || %{uri: "bant"}
-
-    [
-      boards: boards,
-      primary_board: primary_board,
-      board_chrome: EirinchanWeb.BoardChrome.for_board(primary_board),
-      global_boardlist_html: PostView.boardlist_html(PostView.boardlist_groups(boards)),
-      public_shell: true,
-      viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",
-      base_stylesheet: "/stylesheets/style.css",
-      body_class: "8chan vichan is-not-moderator active-page",
-      body_data_stylesheet:
-        Path.basename(conn.assigns[:theme_stylesheet] || "/stylesheets/yotsuba.css"),
-      head_html:
-        EirinchanWeb.PublicShell.head_html("page",
-          resource_version: conn.assigns[:asset_version],
-          theme_label: conn.assigns[:theme_label],
-          theme_options: conn.assigns[:theme_options]
-        ),
-      javascript_urls: EirinchanWeb.PublicShell.javascript_urls("page"),
-      custom_javascript_urls: [],
-      analytics_html: nil,
-      body_end_html: EirinchanWeb.PublicShell.body_end_html(),
-      primary_stylesheet: conn.assigns[:theme_stylesheet] || "/stylesheets/yotsuba.css",
-      primary_stylesheet_id: "stylesheet",
-      extra_stylesheets: [
-        "/stylesheets/eirinchan-public.css",
-        "/stylesheets/eirinchan-bant.css",
-        "/faq/recent.css"
-      ],
-      hide_theme_switcher: true,
-      skip_app_stylesheet: true
-    ]
-  end
+  defp default_faq_editor_html(_conn), do: Eirinchan.FaqPage.default_html()
 
   defp upsert_faq_page(faq_html, mod_user_id) do
     case CustomPages.get_page_by_slug("faq") do

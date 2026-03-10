@@ -5,6 +5,8 @@ defmodule Eirinchan.Themes do
 
   alias Eirinchan.Boards
   alias Eirinchan.Build
+  alias Eirinchan.CustomPages
+  alias Eirinchan.FaqPage
   alias Eirinchan.Runtime.Config
   alias Eirinchan.Settings
 
@@ -43,7 +45,12 @@ defmodule Eirinchan.Themes do
       config_fields: [
         %{name: "title", title: "Title", type: "text", default: "Catalog"},
         %{name: "boards", title: "Included boards", type: "text", default: "*"},
-        %{name: "update_on_posts", title: "Update on new posts", type: "checkbox", default: false},
+        %{
+          name: "update_on_posts",
+          title: "Update on new posts",
+          type: "checkbox",
+          default: false
+        },
         %{name: "use_tooltipster", title: "Use tooltipster", type: "checkbox", default: true}
       ]
     },
@@ -53,6 +60,16 @@ defmodule Eirinchan.Themes do
       description: "Frames-style category homepage theme.",
       version: "1.0",
       supported: false,
+      page_theme: false,
+      default_installed: false,
+      config_fields: []
+    },
+    %{
+      name: "faq",
+      title: "FAQ",
+      description: "Generate the public FAQ page as a custom page.",
+      version: "1.0",
+      supported: true,
       page_theme: false,
       default_installed: false,
       config_fields: []
@@ -215,6 +232,7 @@ defmodule Eirinchan.Themes do
         modules = Map.put(installed_theme_settings_map(), theme.name, settings)
 
         with :ok <- persist_installed_theme_settings(modules),
+             :ok <- maybe_install_side_effect(theme.name, params),
              :ok <- maybe_rebuild_theme(theme.name) do
           {:ok, theme |> Map.put(:settings, settings) |> Map.put(:installed, true)}
         end
@@ -229,6 +247,7 @@ defmodule Eirinchan.Themes do
       modules = Map.delete(modules, normalized)
 
       with :ok <- persist_installed_theme_settings(modules),
+           :ok <- maybe_uninstall_side_effect(normalized),
            :ok <- maybe_rebuild_theme(normalized) do
         :ok
       end
@@ -261,7 +280,70 @@ defmodule Eirinchan.Themes do
   end
 
   defp maybe_rebuild_theme("catalog"), do: rebuild_all_boards()
+  defp maybe_rebuild_theme("faq"), do: rebuild_faq_page()
   defp maybe_rebuild_theme(_name), do: :ok
+
+  defp maybe_install_side_effect("faq", params), do: ensure_faq_page(params)
+  defp maybe_install_side_effect(_name, _params), do: :ok
+
+  defp maybe_uninstall_side_effect("faq"), do: delete_faq_page()
+  defp maybe_uninstall_side_effect(_name), do: :ok
+
+  defp ensure_faq_page(params) do
+    mod_user_id =
+      case Map.get(params, "mod_user_id") || Map.get(params, :mod_user_id) do
+        nil -> 1
+        value when is_integer(value) -> value
+        value -> String.to_integer(to_string(value))
+      end
+
+    attrs = %{slug: "faq", title: "FAQ", body: FaqPage.default_html(), mod_user_id: mod_user_id}
+
+    case CustomPages.get_page_by_slug("faq") do
+      nil ->
+        case CustomPages.create_page(attrs) do
+          {:ok, _page} -> :ok
+          {:error, reason} -> {:error, reason}
+        end
+
+      page ->
+        case CustomPages.update_page(page, attrs) do
+          {:ok, _page} -> :ok
+          {:error, reason} -> {:error, reason}
+        end
+    end
+  end
+
+  defp rebuild_faq_page do
+    case CustomPages.get_page_by_slug("faq") do
+      nil ->
+        :ok
+
+      page ->
+        case CustomPages.update_page(page, %{
+               slug: "faq",
+               title: page.title || "FAQ",
+               body: FaqPage.default_html(),
+               mod_user_id: page.mod_user_id
+             }) do
+          {:ok, _page} -> :ok
+          {:error, reason} -> {:error, reason}
+        end
+    end
+  end
+
+  defp delete_faq_page do
+    case CustomPages.get_page_by_slug("faq") do
+      nil ->
+        :ok
+
+      page ->
+        case CustomPages.delete_page(page) do
+          {:ok, _page} -> :ok
+          {:error, reason} -> {:error, reason}
+        end
+    end
+  end
 
   defp rebuild_all_boards do
     Boards.list_boards()
