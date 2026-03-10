@@ -261,7 +261,7 @@
 							$(this).attr('id', 'q-spoiler-image');
 							$postForm.find('input[type="file"]').parent()
 								.removeAttr('colspan')
-								.after($('<td class="spoiler"></td>').append(this, ' ', $('<label for="q-spoiler-image">').text(_('Spoiler Image'))));
+								.after($('<td class="spoiler"></td>').append(this, ' ', $('<label for="q-spoiler-image">').text(_('Spoiler'))));
 						} else if ($(this).attr('name') == 'no_country') {
 							$td.find('label,input[type="checkbox"]').remove();
 						} else {
