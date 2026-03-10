@@ -387,6 +387,7 @@ defmodule Eirinchan.Build do
 
   defp render_index(board, page_data, config) do
     boardlist = render_boardlist(Boards.list_boards())
+    blotter = render_index_blotter(config)
 
     items =
       Enum.map_join(page_data.threads, "\n", fn summary ->
@@ -411,6 +412,7 @@ defmodule Eirinchan.Build do
     <body>
     <h1>/#{html_escape(board.uri)}/ - #{html_escape(board.title)}</h1>
     #{boardlist}
+    #{blotter}
     #{nav}
     #{items}
     #{nav}
@@ -418,6 +420,16 @@ defmodule Eirinchan.Build do
     </html>
     """
   end
+
+  defp render_index_blotter(%{global_message: message}) when is_binary(message) and message != "" do
+    """
+    <hr />
+    <div class="blotter">#{message}</div>
+    <hr />
+    """
+  end
+
+  defp render_index_blotter(_config), do: ""
 
   defp render_thread(board, summary, config) do
     boardlist = render_boardlist(Boards.list_boards())
