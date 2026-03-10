@@ -169,6 +169,7 @@ onReady(function() {
 	};
 
 	$('div.body a:not([rel="nofollow"])').each(initHover);
+	window.init_hover = initHover;
 
 	// allow to work with auto-reload.js, etc.
 	$(document).on('new_post', function(e, post) {
