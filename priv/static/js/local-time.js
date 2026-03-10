@@ -83,5 +83,11 @@ $(document).ready(function(){
 		
 		}
 	};
+
+	window.do_localtime = do_localtime;
 	do_localtime(document);
+
+	$(document).on('new_post', function(e, post) {
+		do_localtime(post);
+	});
 });
