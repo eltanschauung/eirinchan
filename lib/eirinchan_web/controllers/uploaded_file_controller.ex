@@ -2,6 +2,7 @@ defmodule EirinchanWeb.UploadedFileController do
   use EirinchanWeb, :controller
 
   alias Eirinchan.Uploads
+  alias EirinchanWeb.CacheControl
 
   def show(conn, %{"board" => board, "filename" => filename}) do
     send_asset(conn, board, "src", filename)
@@ -19,7 +20,7 @@ defmodule EirinchanWeb.UploadedFileController do
 
       if File.exists?(path) do
         conn
-        |> maybe_put_immutable_cache(bucket)
+        |> put_resp_header("cache-control", CacheControl.cache_control_for_path(path))
         |> put_resp_content_type(MIME.from_path(path))
         |> send_file(200, path)
       else
@@ -28,9 +29,4 @@ defmodule EirinchanWeb.UploadedFileController do
     end
   end
 
-  defp maybe_put_immutable_cache(conn, "thumb") do
-    put_resp_header(conn, "cache-control", "public, max-age=31536000, immutable")
-  end
-
-  defp maybe_put_immutable_cache(conn, _bucket), do: conn
 end

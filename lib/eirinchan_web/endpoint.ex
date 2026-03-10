@@ -23,7 +23,7 @@ defmodule EirinchanWeb.Endpoint do
     at: "/",
     from: :eirinchan,
     gzip: false,
-    headers: %{"cache-control" => "public, max-age=900"},
+    headers: {EirinchanWeb.CacheControl, :static_headers, []},
     only: EirinchanWeb.static_paths()
 
   # Code reloading can be explicitly enabled under the

@@ -1,7 +1,7 @@
 defmodule EirinchanWeb.UploadedFileControllerTest do
   use EirinchanWeb.ConnCase, async: true
 
-  test "thumbnail route sends immutable cache headers for existing thumbs", %{conn: conn} do
+  test "thumbnail route sends extension-based cache headers for existing thumbs", %{conn: conn} do
     board = board_fixture()
     upload = upload_fixture("thumb-cache.png", "thumb-cache")
 
@@ -24,7 +24,7 @@ defmodule EirinchanWeb.UploadedFileControllerTest do
       |> get(thread.thumb_path)
 
     assert response(conn, 200) != ""
-    assert get_resp_header(conn, "cache-control") == ["public, max-age=31536000, immutable"]
+    assert get_resp_header(conn, "cache-control") == ["public, max-age=2592000"]
   end
 
   test "uploaded file route returns not found for missing files", %{conn: conn} do
