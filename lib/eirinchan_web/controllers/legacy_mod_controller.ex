@@ -77,6 +77,23 @@ defmodule EirinchanWeb.LegacyModController do
     end
   end
 
+  defp dispatch_board_action(conn, [uri, "spoiler", post_id, file_index, token]) do
+    with {:ok, moderator, board} <- authorized_board(conn, uri),
+         :ok <- require_role(moderator, 10),
+         :ok <- verify_action_token(conn, "#{uri}/spoiler/#{post_id}/#{file_index}", token),
+         {:ok, post} <- Posts.get_post(board, post_id),
+         {:ok, _updated_post} <-
+           Posts.spoilerize_post_file(board, post_id, file_index,
+             config: board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
+           ) do
+      redirect(conn,
+        to: thread_destination(board, post, EirinchanWeb.RequestMeta.request_host(conn))
+      )
+    else
+      error -> legacy_error(conn, error)
+    end
+  end
+
   defp dispatch_board_action(conn, [uri, "deletebyip", post_id, token]) do
     with {:ok, moderator, board} <- authorized_board(conn, uri),
          :ok <- require_role(moderator, 20),

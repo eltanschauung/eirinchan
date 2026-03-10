@@ -2295,6 +2295,32 @@ defmodule Eirinchan.PostsTest do
     refute File.read!(Eirinchan.Uploads.filesystem_path(thread.thumb_path)) == thumb_before
   end
 
+  test "spoilerize_post_file marks only the targeted extra file as spoiler" do
+    board = board_fixture()
+    config = post_config(board.config_overrides)
+
+    assert {:ok, thread, _meta} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "Opening body",
+                 "files" => [
+                   upload_fixture("first.png", "first"),
+                   upload_fixture("second.gif", "second")
+                 ],
+                 "post" => "New Topic"
+               },
+               config: config,
+               request: post_request(board.uri)
+             )
+
+    assert {:ok, spoilered_thread} =
+             Posts.spoilerize_post_file(board, thread.id, 1, config: config)
+
+    refute spoilered_thread.spoiler
+    assert [%{spoiler: true}] = spoilered_thread.extra_files
+  end
+
   test "create_post records flood entries and rejects rapid repeated posts from the same ip" do
     board = board_fixture(%{config_overrides: %{flood_time_ip: 60}})
     config = post_config(board.config_overrides)
