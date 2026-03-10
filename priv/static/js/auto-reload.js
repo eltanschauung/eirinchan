@@ -52,9 +52,9 @@ $(document).ready(function(){
 	var poll_interval_errordelay      = settings.get('error_delay', 30000);
 
 	if (is_board_page) {
-		poll_interval_mindelay = 10000;
-		poll_interval_maxdelay = 10000;
-		poll_interval_errordelay = 10000;
+		poll_interval_mindelay = 5000;
+		poll_interval_maxdelay = 5000;
+		poll_interval_errordelay = 5000;
 	}
 
 	// number of ms to wait before reloading
@@ -117,6 +117,8 @@ $(document).ready(function(){
 			stop_auto_update();
 			if (is_catalog_page) {
 				poll_catalog(manualUpdate = false);
+			} else if (is_board_page) {
+				poll_board(manualUpdate = false);
 			} else {
 				poll_thread(manualUpdate = false);
 			}
