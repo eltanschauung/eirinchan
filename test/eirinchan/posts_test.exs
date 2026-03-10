@@ -164,8 +164,8 @@ defmodule Eirinchan.PostsTest do
              )
 
     assert thread.file_name == "first.png"
-    assert thread.file_path =~ ~r|^/#{board.uri}/src/\d+-#{thread.id}\.png$|
-    assert thread.thumb_path =~ ~r|^/#{board.uri}/thumb/\d+-#{thread.id}s\.png$|
+    assert thread.file_path =~ ~r|^/#{board.uri}/src/\d+\.png$|
+    assert thread.thumb_path =~ ~r|^/#{board.uri}/thumb/\d+s\.png$|
     assert thread.file_type == "image/png"
     assert is_binary(thread.file_md5)
     assert thread.image_width == 16
@@ -301,8 +301,8 @@ defmodule Eirinchan.PostsTest do
              )
 
     assert thread.file_name == "notes.txt"
-    assert thread.file_path =~ ~r|^/#{board.uri}/src/\d+-#{thread.id}\.txt$|
-    assert thread.thumb_path =~ ~r|^/#{board.uri}/thumb/\d+-#{thread.id}s\.png$|
+    assert thread.file_path =~ ~r|^/#{board.uri}/src/\d+\.txt$|
+    assert thread.thumb_path =~ ~r|^/#{board.uri}/thumb/\d+s\.png$|
     assert thread.file_size == byte_size("hello")
     assert thread.file_type == "text/plain"
     assert thread.image_width == nil
@@ -410,8 +410,8 @@ defmodule Eirinchan.PostsTest do
     [extra] = thread.extra_files
     assert extra.position == 1
     assert extra.file_name == "second.gif"
-    assert extra.file_path =~ ~r|^/#{board.uri}/src/\d+-#{thread.id}-1\.gif$|
-    assert extra.thumb_path =~ ~r|^/#{board.uri}/thumb/\d+-#{thread.id}-1s\.png$|
+    assert extra.file_path =~ ~r|^/#{board.uri}/src/\d+-1\.gif$|
+    assert extra.thumb_path =~ ~r|^/#{board.uri}/thumb/\d+-1s\.png$|
   end
 
   test "create_post marks spoiler uploads on primary and extra files" do
@@ -2498,7 +2498,7 @@ defmodule Eirinchan.PostsTest do
              )
 
     assert moved_thread.board_id == target_board.id
-    assert moved_thread.file_path =~ ~r|^/#{target_board.uri}/src/\d+-#{thread.id}\.png$|
+    assert moved_thread.file_path =~ ~r|^/#{target_board.uri}/src/\d+\.png$|
     refute File.exists?(Eirinchan.Uploads.filesystem_path(old_thread_file))
     refute File.exists?(Eirinchan.Uploads.filesystem_path(old_reply_file))
     assert File.exists?(Eirinchan.Uploads.filesystem_path(moved_thread.file_path))
@@ -2510,7 +2510,7 @@ defmodule Eirinchan.PostsTest do
     assert reloaded_thread.board_id == target_board.id
     assert moved_reply.board_id == target_board.id
     assert moved_reply.thread_id == thread.id
-    assert moved_reply.file_path =~ ~r|^/#{target_board.uri}/src/\d+-#{reply.id}\.png$|
+    assert moved_reply.file_path =~ ~r|^/#{target_board.uri}/src/\d+\.png$|
   end
 
   test "move_reply moves a reply between threads and boards" do
@@ -2548,7 +2548,7 @@ defmodule Eirinchan.PostsTest do
 
     assert moved_reply.board_id == target_board.id
     assert moved_reply.thread_id == target_thread.id
-    assert moved_reply.file_path =~ ~r|^/#{target_board.uri}/src/\d+-#{reply.id}\.png$|
+    assert moved_reply.file_path =~ ~r|^/#{target_board.uri}/src/\d+\.png$|
     refute File.exists?(Eirinchan.Uploads.filesystem_path(old_file))
     assert File.exists?(Eirinchan.Uploads.filesystem_path(moved_reply.file_path))
 

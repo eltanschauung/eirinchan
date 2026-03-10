@@ -63,7 +63,7 @@ defmodule Eirinchan.Uploads do
         metadata,
         suffix
       ) do
-    base_name = timestamp_base_name(post, suffix)
+    base_name = unique_timestamp_base_name(board, post, config, metadata.ext, suffix)
     storage_name = "#{base_name}#{metadata.ext}"
     destination = Path.join([board_root(), board.uri, config.dir.img, storage_name])
     thumb_name = "#{base_name}s.png"
@@ -262,9 +262,34 @@ defmodule Eirinchan.Uploads do
       |> DateTime.to_unix(:millisecond)
       |> Integer.to_string()
 
-    base = "#{timestamp}-#{post.id}"
+    base = timestamp
 
     if is_binary(suffix), do: "#{base}-#{suffix}", else: base
+  end
+
+  defp unique_timestamp_base_name(board, post, config, ext, suffix) do
+    timestamp =
+      post
+      |> post_timestamp()
+      |> DateTime.to_unix(:millisecond)
+
+    resolve_timestamp_base_name(board, config, timestamp, ext, suffix)
+  end
+
+  defp resolve_timestamp_base_name(board, config, timestamp, ext, suffix) do
+    base =
+      timestamp
+      |> Integer.to_string()
+      |> then(fn value -> if is_binary(suffix), do: "#{value}-#{suffix}", else: value end)
+
+    img_path = Path.join([board_root(), board.uri, config.dir.img, "#{base}#{ext}"])
+    thumb_path = Path.join([board_root(), board.uri, config.dir.thumb, "#{base}s.png"])
+
+    if File.exists?(img_path) or File.exists?(thumb_path) do
+      resolve_timestamp_base_name(board, config, timestamp + 1, ext, suffix)
+    else
+      base
+    end
   end
 
   defp post_timestamp(%Post{inserted_at: %DateTime{} = inserted_at}), do: inserted_at
