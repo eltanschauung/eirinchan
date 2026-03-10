@@ -17,4 +17,10 @@ defmodule EirinchanWeb.Plugs.FetchSiteAssetsTest do
              ["/js/two.js", "/js/three.js"]
            ]) == ["/js/one.js", "/js/two.js", "/js/three.js"]
   end
+
+  test "parse_custom_javascript rejects dangerous urls" do
+    assert FetchSiteAssets.parse_custom_javascript(
+             "/js/one.js, javascript:alert(1), data:text/javascript,../evil.js"
+           ) == ["/js/one.js"]
+  end
 end

@@ -155,6 +155,7 @@ defmodule Eirinchan.Runtime.Config do
     minimum_copy_resize: false,
     upload_by_url_enabled: false,
     upload_by_url_timeout_ms: 5_000,
+    upload_by_url_allow_private_hosts: false,
     allowed_ext_files_op: nil,
     allowed_ext_files: [".png", ".jpg", ".jpeg", ".gif"],
     captcha: %{

@@ -25,6 +25,7 @@ defmodule EirinchanWeb.Plugs.FetchSiteAssets do
   def parse_custom_javascript(value) when is_list(value) do
     value
     |> Enum.flat_map(&parse_custom_javascript/1)
+    |> Enum.filter(&safe_script_url?/1)
     |> Enum.uniq()
   end
 
@@ -33,10 +34,24 @@ defmodule EirinchanWeb.Plugs.FetchSiteAssets do
     |> String.split(~r/[\n,]/u, trim: true)
     |> Enum.map(&String.trim/1)
     |> Enum.reject(&(&1 == ""))
+    |> Enum.filter(&safe_script_url?/1)
   end
 
   def parse_custom_javascript(nil), do: []
   def parse_custom_javascript(_value), do: []
+
+  defp safe_script_url?(value) when is_binary(value) do
+    trimmed = String.trim(value)
+
+    cond do
+      trimmed == "" -> false
+      String.contains?(trimmed, ["\u0000", "\r", "\n", "\t"]) -> false
+      String.starts_with?(trimmed, ["javascript:", "data:"]) -> false
+      String.starts_with?(trimmed, ["http://", "https://", "//", "/"]) -> true
+      String.contains?(trimmed, "..") -> false
+      true -> true
+    end
+  end
 
   defp config do
     site_assets = Map.merge(@default_config, Application.get_env(:eirinchan, :site_assets, %{}))
