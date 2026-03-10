@@ -1435,18 +1435,27 @@ defmodule Eirinchan.Posts do
         validated_flags
       end
 
+    fallback_flags = [to_string(config.country_flag_fallback.code) |> String.downcase()]
+
     selected_flags =
-      attrs["user_flag"]
-      |> trim_to_nil()
-      |> case do
-        nil ->
+      case Map.get(attrs, "user_flag", :missing) do
+        :missing ->
           default_flags
 
-        raw_flags ->
-          with {:ok, parsed_flags} <- parse_user_flags(raw_flags, config.multiple_flags),
-               {:ok, validated_flags} <- validate_user_flags(parsed_flags, allowed_flags, to_string(config.country_flag_fallback.code)) do
-            validated_flags
+        raw_flags when is_binary(raw_flags) ->
+          case trim_to_nil(raw_flags) do
+            nil ->
+              fallback_flags
+
+            trimmed_flags ->
+              with {:ok, parsed_flags} <- parse_user_flags(trimmed_flags, config.multiple_flags),
+                   {:ok, validated_flags} <- validate_user_flags(parsed_flags, allowed_flags, to_string(config.country_flag_fallback.code)) do
+                validated_flags
+              end
           end
+
+        _ ->
+          default_flags
       end
 
     case selected_flags do

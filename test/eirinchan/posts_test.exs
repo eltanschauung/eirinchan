@@ -878,6 +878,27 @@ defmodule Eirinchan.PostsTest do
     assert thread.flag_alts == ["Sauce"]
   end
 
+  test "create_post uses us fallback when user_flag is submitted blank" do
+    board =
+      board_fixture(%{
+        config_overrides: %{
+          user_flag: true,
+          default_user_flag: "country",
+          country_flag_fallback: %{code: "us", name: "United States"},
+          user_flags: %{}
+        }
+      })
+
+    assert {:ok, thread, _meta} =
+             Posts.create_post(board, %{"body" => "flag fallback", "user_flag" => "", "post" => "New Thread"},
+               config: post_config(board.config_overrides),
+               request: Map.put(post_request(board.uri), :remote_ip, "24.48.0.1")
+             )
+
+    assert thread.flag_codes == ["us"]
+    assert thread.flag_alts == ["United States"]
+  end
+
   test "create_post applies default_user_flag when it is allowed" do
     board =
       board_fixture(%{
