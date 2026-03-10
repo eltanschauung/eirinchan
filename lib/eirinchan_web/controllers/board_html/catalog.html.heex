@@ -202,10 +202,12 @@
 <% end %>
 
 <%= if is_binary(@config.global_message) and @config.global_message != "" do %>
+  <hr />
   <div class="blotter"><%= raw(@config.global_message) %></div>
+  <hr />
+<% else %>
+  <hr />
 <% end %>
-
-<hr />
 <%= if @board_chrome.post_form_blotter_html do %>
   <%= raw(@board_chrome.post_form_blotter_html) %>
   <hr />
