@@ -13,6 +13,7 @@ defmodule EirinchanWeb.Router do
     plug :put_root_layout, html: {EirinchanWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
+    plug :put_html_no_store
   end
 
   pipeline :api do
@@ -242,5 +243,27 @@ defmodule EirinchanWeb.Router do
     get "/:board", BoardController, :show
     post "/:board/post", PostController, :create
     get "/:board/res/:thread_id", ThreadController, :show
+  end
+
+  defp put_html_no_store(conn, _opts) do
+    register_before_send(conn, fn conn ->
+      case Plug.Conn.get_resp_header(conn, "content-type") do
+        [content_type | _] when is_binary(content_type) ->
+          if String.starts_with?(String.downcase(content_type), "text/html") do
+            conn
+            |> Plug.Conn.put_resp_header(
+              "cache-control",
+              "no-store, no-cache, must-revalidate, max-age=0"
+            )
+            |> Plug.Conn.put_resp_header("pragma", "no-cache")
+            |> Plug.Conn.put_resp_header("expires", "0")
+          else
+            conn
+          end
+
+        _ ->
+          conn
+      end
+    end)
   end
 end
