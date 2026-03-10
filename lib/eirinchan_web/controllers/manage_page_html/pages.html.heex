@@ -33,7 +33,7 @@
     <%= for page <- @pages do %>
       <article>
         <h3>
-          <a href={if page.slug == "flag", do: "/flag", else: "/pages/#{page.slug}"}>
+          <a href={if page.slug == "flags", do: "/flags", else: "/pages/#{page.slug}"}>
             <%= page.title %>
           </a>
         </h3>

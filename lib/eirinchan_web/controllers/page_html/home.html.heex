@@ -31,7 +31,7 @@
   [<a href={~p"/manage/login"}>Manage</a>]
   [<a href={~p"/feedback"}>Feedback</a>]
   <%= for page <- @custom_pages do %>
-    [<a href={if page.slug == "flag", do: "/flag", else: "/pages/#{page.slug}"}><%= page.title %></a>]
+    [<a href={if page.slug == "flags", do: "/flags", else: "/pages/#{page.slug}"}><%= page.title %></a>]
   <% end %>
 </div>
 

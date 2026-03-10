@@ -248,36 +248,36 @@ defmodule EirinchanWeb.PageControllerTest do
     assert xml =~ "<loc>/#{board.uri}/res/#{thread.id}.html</loc>"
   end
 
-  test "GET /pages/flag renders the flag page", %{conn: conn} do
+  test "GET /pages/flags renders the flags page", %{conn: conn} do
     author = moderator_fixture(%{username: "flagmaker"})
 
     {:ok, _page} =
       Eirinchan.CustomPages.create_page(%{
-        slug: "flag",
-        title: "Flag",
+        slug: "flags",
+        title: "Flags",
         body: "Custom flags",
         mod_user_id: author.id
       })
 
     page =
       conn
-      |> get("/pages/flag")
+      |> get("/pages/flags")
       |> html_response(200)
 
     assert page =~ "Pick custom flags for your posts"
-    assert page =~ "/flag/compiled/"
+    assert page =~ "/flags/compiled/"
     assert page =~ ~s(id="user_flag")
     assert page =~ "Apply"
   end
 
-  test "GET /:board/flag redirects to the top-level flag page", %{conn: conn} do
+  test "GET /:board/flag redirects to the top-level flags page", %{conn: conn} do
     author = moderator_fixture(%{username: "flagboard"})
     board = board_fixture(%{uri: "bant", title: "International Random"})
 
     {:ok, _page} =
       Eirinchan.CustomPages.create_page(%{
-        slug: "flag",
-        title: "Flag",
+        slug: "flags",
+        title: "Flags",
         body: "Custom flags",
         mod_user_id: author.id
       })
@@ -286,32 +286,32 @@ defmodule EirinchanWeb.PageControllerTest do
       conn
       |> get("/#{board.uri}/flag")
 
-    assert redirected_to(conn) == "/flag"
+    assert redirected_to(conn) == "/flags"
   end
 
-  test "GET /flag renders the top-level flag page", %{conn: conn} do
+  test "GET /flags renders the top-level flags page", %{conn: conn} do
     author = moderator_fixture(%{username: "flagglobal"})
 
     {:ok, _page} =
       Eirinchan.CustomPages.create_page(%{
-        slug: "flag",
-        title: "Flag",
+        slug: "flags",
+        title: "Flags",
         body: "Custom flags",
         mod_user_id: author.id
       })
 
     page =
       conn
-      |> get("/flag")
+      |> get("/flags")
       |> html_response(200)
 
     assert page =~ "Pick custom flags for your posts"
-    assert page =~ "/flag/compiled/"
+    assert page =~ "/flags/compiled/"
     assert page =~ ~s(id="user_flag")
   end
 
-  test "GET /flags redirects to /flag", %{conn: conn} do
-    conn = get(conn, "/flags")
-    assert redirected_to(conn) == "/flag"
+  test "GET /flag redirects to /flags", %{conn: conn} do
+    conn = get(conn, "/flag")
+    assert redirected_to(conn) == "/flags"
   end
 end

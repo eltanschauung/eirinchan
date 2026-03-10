@@ -228,8 +228,9 @@ defmodule EirinchanWeb.Router do
 
     get "/", PageController, :home
     get "/faq", PageController, :faq
-    get "/flag", PageController, :flags
-    get "/flags", PageController, :legacy_flags
+    get "/flag", PageController, :legacy_flags
+    get "/flags", PageController, :flags
+    
     get "/news", PageController, :news
     get "/catalog", PageController, :catalog
     get "/ukko", PageController, :ukko
@@ -245,7 +246,8 @@ defmodule EirinchanWeb.Router do
     get "/:board/threads.json", ApiController, :threads
     get "/:board/catalog/:page_num_html", BoardController, :catalog_page
     get "/:board/catalog.html", BoardController, :catalog
-    get "/:board/flag", PageController, :board_flag
+    get "/:board/flag", PageController, :board_flag_legacy
+    get "/:board/flags", PageController, :board_flag
     get "/:board/:page_num_html", BoardController, :show_page
     get "/:board", BoardController, :show
     post "/:board/post", PostController, :create
