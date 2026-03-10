@@ -27,7 +27,7 @@ $(document).ready(function(){
 					'<input type="hidden" name="delete_' + id + '">' +
 					
 					'<label for="password_' + id + '">'+_("Password")+'</label>: ' +
-					'<input id="password_' + id + '" type="password" name="password" size="11" maxlength="18" autocomplete="new-password">' +
+					'<input id="password_' + id + '" type="password" name="password" size="11" maxlength="18" autocomplete="off">' +
 					'<input title="'+_('Delete file only')+'" type="checkbox" name="file" id="delete_file_' + id + '">' +
 						'<label for="delete_file_' + id + '">'+_('File')+'</label>' +
 					' <input type="submit" name="delete" value="'+_('Delete')+'">' +

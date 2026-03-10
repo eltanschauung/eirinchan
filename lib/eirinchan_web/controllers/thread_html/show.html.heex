@@ -197,7 +197,7 @@
     <tr :if={!@config.field_disable_password}>
       <th>Password</th>
       <td>
-        <input type="text" name="password" value="" size="12" maxlength="18" autocomplete="new-password" />
+        <input type="text" name="password" value="" size="12" maxlength="18" autocomplete="off" />
         <span class="unimportant">(For file deletion.)</span>
       </td>
     </tr>
@@ -456,7 +456,7 @@
       <div id="delete-fields">
         Delete Post [<input title="Delete file only" type="checkbox" name="file" id="delete_file" />
         <label for="delete_file">File</label>] <label for="password">Password</label>
-        <input id="password" type="password" name="password" size="12" maxlength="18" autocomplete="new-password" />
+        <input id="password" type="password" name="password" size="12" maxlength="18" autocomplete="off" />
         <input type="submit" name="delete" value="Delete" data-post-action="delete" />
       </div>
 
