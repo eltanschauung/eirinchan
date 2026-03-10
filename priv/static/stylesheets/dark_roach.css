@@ -110,9 +110,6 @@ form table tr td div input {
 form table tr td div label {
 	font-size: 10px;
 }
-.unimportant, .unimportant * {
-	font-size: 10px;
-}
 p.fileinfo {
 	display: block;
 	margin: 0;
