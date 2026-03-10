@@ -5,13 +5,15 @@ defmodule EirinchanWeb.IpManagementController do
   alias Eirinchan.IpCrypt
   alias Eirinchan.Posts
   alias Eirinchan.Moderation
+  alias EirinchanWeb.PostView
 
   action_fallback EirinchanWeb.FallbackController
 
   def board_show(conn, %{"uri" => uri, "ip" => ip}) do
     with {:ok, decoded_ip} <- decode_ip_param(ip),
          board when not is_nil(board) <- Boards.get_board_by_uri(uri),
-         :ok <- authorize_board(conn, board) do
+         :ok <- authorize_board(conn, board),
+         :ok <- authorize_ip_view(conn, board) do
       posts = Moderation.list_ip_posts(decoded_ip, board_ids: [board.id])
       notes = Moderation.list_ip_notes(decoded_ip, board_id: board.id)
 
@@ -29,7 +31,8 @@ defmodule EirinchanWeb.IpManagementController do
   end
 
   def show(conn, %{"ip" => ip}) do
-    with {:ok, decoded_ip} <- decode_ip_param(ip) do
+    with {:ok, decoded_ip} <- decode_ip_param(ip),
+         :ok <- authorize_ip_view(conn, nil) do
       boards = Moderation.list_accessible_boards(conn.assigns.current_moderator)
       posts = Moderation.list_ip_posts(decoded_ip, board_ids: Enum.map(boards, & &1.id))
       notes = Moderation.list_ip_notes(decoded_ip, board_ids: Enum.map(boards, & &1.id))
@@ -47,6 +50,7 @@ defmodule EirinchanWeb.IpManagementController do
     with {:ok, decoded_ip} <- decode_ip_param(ip),
          board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          :ok <- authorize_board(conn, board),
+         :ok <- authorize_ip_view(conn, board),
          {:ok, note} <-
            Moderation.add_ip_note(decoded_ip, %{
              body: body,
@@ -66,6 +70,7 @@ defmodule EirinchanWeb.IpManagementController do
   def update_note(conn, %{"uri" => uri, "ip" => _ip, "id" => id, "body" => body}) do
     with board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          :ok <- authorize_board(conn, board),
+         :ok <- authorize_ip_view(conn, board),
          {:ok, note} <- load_board_note(id, board.id),
          {:ok, note} <- Moderation.update_ip_note(note, %{body: body}) do
       render(conn, :note, note: note, moderator: conn.assigns.current_moderator)
@@ -78,6 +83,7 @@ defmodule EirinchanWeb.IpManagementController do
   def delete_note(conn, %{"uri" => uri, "ip" => _ip, "id" => id}) do
     with board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          :ok <- authorize_board(conn, board),
+         :ok <- authorize_ip_view(conn, board),
          {:ok, note} <- load_board_note(id, board.id),
          {:ok, _note} <- Moderation.delete_ip_note(note) do
       send_resp(conn, :no_content, "")
@@ -89,6 +95,7 @@ defmodule EirinchanWeb.IpManagementController do
 
   def delete_posts(conn, %{"ip" => ip}) do
     with {:ok, decoded_ip} <- decode_ip_param(ip),
+         :ok <- authorize_ip_view(conn, nil),
          {:ok, result} <-
            Moderation.list_accessible_boards(conn.assigns.current_moderator)
            |> then(
@@ -107,6 +114,7 @@ defmodule EirinchanWeb.IpManagementController do
     with {:ok, decoded_ip} <- decode_ip_param(ip),
          board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          :ok <- authorize_board(conn, board),
+         :ok <- authorize_ip_view(conn, board),
          {:ok, result} <-
            Posts.moderate_delete_posts_by_ip(board, decoded_ip,
              config: board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
@@ -121,6 +129,14 @@ defmodule EirinchanWeb.IpManagementController do
 
   defp authorize_board(conn, board) do
     if Moderation.board_access?(conn.assigns.current_moderator, board) do
+      :ok
+    else
+      {:error, :forbidden}
+    end
+  end
+
+  defp authorize_ip_view(conn, board) do
+    if PostView.can_view_ip?(conn.assigns.current_moderator, board) do
       :ok
     else
       {:error, :forbidden}

@@ -11,8 +11,10 @@
       <div class="report">
         <hr /> Feedback: <%= entry.feedback.body %>
         <br /> Submission date: <%= PostView.formatted_timestamp(entry.feedback) %>
-        <br /> Submitted by:
-        <a href={"/mod.php?/IP/#{entry.displayed_ip}"}><%= entry.displayed_ip %></a>
+        <%= if entry.displayed_ip do %>
+          <br /> Submitted by:
+          <a href={"/mod.php?/IP/#{entry.displayed_ip}"}><%= entry.displayed_ip %></a>
+        <% end %>
         <br /> Status: <%= if is_nil(entry.feedback.read_at), do: "Unread", else: "Read" %>
 
         <%= if entry.feedback.comments != [] do %>

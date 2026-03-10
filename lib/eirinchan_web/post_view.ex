@@ -246,13 +246,25 @@ defmodule EirinchanWeb.PostView do
   def unix_timestamp(_value), do: 0
 
   def ip_link_html(post, board, moderator) do
-    if can_moderate?(moderator, board, :show_ip) and present?(post.ip_subnet) do
+    if can_view_ip?(moderator, board) and present?(post.ip_subnet) do
       ip = IpPresentation.display_ip(post.ip_subnet, moderator)
 
       ~s( [<a class="ip-link" style="margin:0;" href="/mod.php?/IP/#{html_escape_to_string(ip)}">#{html_escape_to_string(ip)}</a>])
     else
       nil
     end
+  end
+
+  def can_view_ip?(moderator, board \\ nil)
+
+  def can_view_ip?(nil, _board), do: false
+
+  def can_view_ip?(moderator, nil) do
+    role_level(moderator.role) >= permission_level(:show_ip_global)
+  end
+
+  def can_view_ip?(moderator, board) do
+    can_moderate?(moderator, board, :show_ip)
   end
 
   def post_controls_html(post, board, moderator, session_token) do
@@ -792,6 +804,7 @@ defmodule EirinchanWeb.PostView do
   defp role_level(_), do: 0
 
   defp permission_level(:show_ip), do: 20
+  defp permission_level(:show_ip_global), do: 30
   defp permission_level(:delete), do: 10
   defp permission_level(:ban), do: 20
   defp permission_level(:bandelete), do: 20

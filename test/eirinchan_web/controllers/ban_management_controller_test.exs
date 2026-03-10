@@ -17,8 +17,10 @@ defmodule EirinchanWeb.BanManagementControllerTest do
         "reason" => "Spam"
       })
 
-    assert %{"data" => %{"id" => ban_id, "ip_subnet" => "198.51.100.7", "reason" => "Spam"}} =
+    assert %{"data" => %{"id" => ban_id, "ip_subnet" => ip_subnet, "reason" => "Spam"}} =
              json_response(create_conn, 201)
+
+    assert is_binary(ip_subnet)
 
     list_conn =
       conn

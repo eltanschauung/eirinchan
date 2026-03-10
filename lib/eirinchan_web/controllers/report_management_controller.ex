@@ -10,7 +10,10 @@ defmodule EirinchanWeb.ReportManagementController do
   def index(conn, %{"uri" => uri}) do
     with board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          :ok <- authorize_board(conn, board) do
-      render(conn, :index, reports: Reports.list_reports(board))
+      render(conn, :index,
+        reports: Reports.list_reports(board),
+        moderator: conn.assigns.current_moderator
+      )
     else
       nil -> {:error, :not_found}
     end
