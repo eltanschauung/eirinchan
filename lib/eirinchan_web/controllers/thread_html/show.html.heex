@@ -10,7 +10,11 @@
 
 <div class="banner">
   Posting mode: Reply
-  <a class="unimportant" href={Eirinchan.ThreadPaths.board_page_path(@board, @page_num, @config)}>
+  <a
+    class="unimportant"
+    href={Eirinchan.ThreadPaths.board_page_path(@board, @page_num, @config)}
+    onclick={"if (window.history.length > 1) { window.history.back(); return false; } return true;"}
+  >
     [Return]
   </a>
   <a class="unimportant" href="#bottom">[Go to bottom]</a>
@@ -431,6 +435,7 @@
       <a
         id="thread-return"
         href={Eirinchan.ThreadPaths.board_page_path(@board, @page_num, @config)}
+        onclick="if (window.history.length > 1) { window.history.back(); return false; } return true;"
       >
         [Return]
       </a>
