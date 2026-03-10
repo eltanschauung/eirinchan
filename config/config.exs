@@ -15,9 +15,9 @@ config :eirinchan,
   site_assets: %{version: nil, custom_javascript: [], analytics_html: nil},
   instance_config_path: Path.expand("../var/settings.json", __DIR__),
   proxy_request: %{
-    trust_headers: false,
-    trusted_ips: [],
-    trusted_cidrs: [],
+    trust_headers: true,
+    trusted_ips: ["127.0.0.1", "::1"],
+    trusted_cidrs: ["127.0.0.0/8"],
     client_ip_headers: ["x-forwarded-for", "x-real-ip"]
   },
   installation_config_path: Path.expand("../var/install.json", __DIR__),
