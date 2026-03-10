@@ -96,6 +96,7 @@ defmodule EirinchanWeb.Router do
     get "/boards/:uri/posts/:post_id/move/browser", ManagePageController, :move_reply_form
     get "/reports/browser", ManagePageController, :reports
     delete "/reports/browser/:id", ManagePageController, :dismiss_report
+    delete "/reports/browser/report/:report_id/ip", ManagePageController, :dismiss_reports_for_ip
     delete "/reports/browser/post/:post_id", ManagePageController, :dismiss_reports_for_post
     get "/ban-appeals/browser", ManagePageController, :ban_appeals
     patch "/ban-appeals/browser/:id", ManagePageController, :resolve_ban_appeal
@@ -110,6 +111,10 @@ defmodule EirinchanWeb.Router do
     delete "/boards/:uri/ip/:ip/browser/posts", ManagePageController, :delete_board_ip_posts
     get "/boards/:uri/reports/browser", ManagePageController, :reports
     delete "/boards/:uri/reports/browser/:id", ManagePageController, :dismiss_report
+
+    delete "/boards/:uri/reports/browser/report/:report_id/ip",
+           ManagePageController,
+           :dismiss_reports_for_ip
 
     delete "/boards/:uri/reports/browser/post/:post_id",
            ManagePageController,
@@ -189,6 +194,7 @@ defmodule EirinchanWeb.Router do
     patch "/boards/:uri/bans/:id", BanManagementController, :update
     patch "/boards/:uri/ban-appeals/:id", BanAppealManagementController, :update
     delete "/boards/:uri/reports/post/:post_id", ReportManagementController, :delete_post
+    delete "/boards/:uri/reports/ip/:ip", ReportManagementController, :delete_ip
     delete "/boards/:uri/reports/:id", ReportManagementController, :delete
   end
 

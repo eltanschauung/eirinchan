@@ -10,33 +10,51 @@
   <% else %>
     <%= for entry <- @entries do %>
       <div class="report">
-        <hr />
-        Board:
+        <hr /> Board:
         <a href={EirinchanWeb.PostView.thread_path(entry.board, entry.thread, entry.config)}>
           /<%= entry.board.uri %>/
         </a>
+        <br /> Reason: <%= entry.report.reason %>
+        <br /> Report date: <%= EirinchanWeb.PostView.formatted_timestamp(entry.report) %>
         <br />
-        Reason: <%= entry.report.reason %>
-        <br />
-        Report date: <%= EirinchanWeb.PostView.formatted_timestamp(entry.report) %>
-        <br />
+        <%= if entry.report.ip do %>
+          Reported by:
+          <a class="ip-link" style="margin:0;" href={"/mod.php?/IP/#{entry.displayed_ip}"}>
+            <%= entry.displayed_ip %>
+          </a>
+          <br />
+        <% end %>
         <hr />
         <a
           title="Discard abuse report"
           href={"/mod.php?/reports/#{entry.report.id}/dismiss/#{entry.dismiss_token}"}
-        >Dismiss</a>
+        >
+          Dismiss
+        </a>
+        |&nbsp;
+        <a
+          title="Discard all abuse reports by this IP address"
+          href={"/mod.php?/reports/#{entry.report.id}/dismiss&all/#{entry.dismiss_all_token}"}
+        >
+          Dismiss+
+        </a>
         |&nbsp;
         <a
           title="Dismiss all reports for the post"
           href={"/mod.php?/reports/#{entry.report.id}/dismiss&post/#{entry.dismiss_post_token}"}
-        >Dismiss Post</a>
+        >
+          Dismiss Post
+        </a>
       </div>
       <div class="post-wrapper" data-board={entry.board.uri}>
         <a
           class="eita-link"
           id={"eita-report-#{entry.board.uri}-#{entry.thread.id}-#{entry.post.id}"}
           href={EirinchanWeb.PostView.thread_path(entry.board, entry.thread, entry.config) <> "##{entry.post.id}"}
-        >/ <%= entry.board.uri %> /<%= entry.post.id %></a><br />
+        >
+          / <%= entry.board.uri %> /<%= entry.post.id %>
+        </a>
+        <br />
         <.moderation_post
           post={entry.post}
           board={entry.board}

@@ -234,6 +234,19 @@ defmodule EirinchanWeb.LegacyModController do
     end
   end
 
+  defp dispatch_report_action(conn, [report_id, "dismiss&all", token]) do
+    with {:ok, moderator} <- authorized_moderator(conn),
+         report when not is_nil(report) <- Reports.get_report(report_id),
+         :ok <- authorize_report(moderator, report),
+         :ok <- verify_action_token(conn, "reports/#{report_id}/dismiss&all", token),
+         {:ok, _count} <-
+           Reports.dismiss_reports_for_ip(accessible_report_scope(moderator), report.ip) do
+      redirect(conn, to: "/manage/reports/browser")
+    else
+      error -> legacy_error(conn, error)
+    end
+  end
+
   defp dispatch_report_action(conn, _parts), do: send_resp(conn, :not_found, "Page not found")
 
   defp authorized_board(conn, uri) do
@@ -279,6 +292,9 @@ defmodule EirinchanWeb.LegacyModController do
   end
 
   defp authorize_report(_moderator, _report), do: {:error, :not_found}
+
+  defp accessible_report_scope(%{role: "admin"}), do: nil
+  defp accessible_report_scope(moderator), do: Moderation.list_accessible_boards(moderator)
 
   defp update_thread_action(board, post_id, action, host) do
     attrs =

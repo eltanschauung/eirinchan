@@ -14,7 +14,12 @@ defmodule Eirinchan.Reports do
           {:ok, Report.t()} | {:error, :post_not_found | Ecto.Changeset.t()}
   def create_report(%BoardRecord{} = board, attrs, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
-    attrs = attrs |> normalize_attrs() |> normalize_report_attrs()
+
+    attrs =
+      attrs
+      |> normalize_attrs()
+      |> normalize_report_attrs()
+      |> Map.put_new("ip", normalize_ip(Keyword.get(opts, :remote_ip)))
 
     with {:ok, target_post, target_thread_id} <- fetch_target_post(board, attrs, repo),
          {:ok, report} <-
@@ -23,7 +28,8 @@ defmodule Eirinchan.Reports do
              "board_id" => board.id,
              "post_id" => target_post.id,
              "thread_id" => target_thread_id,
-             "reason" => Map.get(attrs, "reason")
+             "reason" => Map.get(attrs, "reason"),
+             "ip" => Map.get(attrs, "ip")
            })
            |> repo.insert() do
       {:ok, report}
@@ -101,6 +107,34 @@ defmodule Eirinchan.Reports do
     {:ok, count}
   end
 
+  @spec dismiss_reports_for_ip(BoardRecord.t() | [BoardRecord.t()] | nil, String.t(), keyword()) ::
+          {:ok, non_neg_integer()}
+  def dismiss_reports_for_ip(scope, ip, opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+    now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
+    normalized_ip = normalize_ip(ip)
+
+    board_ids =
+      case scope do
+        nil -> nil
+        %BoardRecord{id: board_id} -> [board_id]
+        boards when is_list(boards) -> Enum.map(boards, & &1.id)
+      end
+
+    query =
+      from report in Report,
+        where: report.ip == ^normalized_ip and is_nil(report.dismissed_at)
+
+    query =
+      case board_ids do
+        nil -> query
+        ids -> from report in query, where: report.board_id in ^ids
+      end
+
+    {count, _} = repo.update_all(query, set: [dismissed_at: now])
+    {:ok, count}
+  end
+
   defp fetch_target_post(board, attrs, repo) do
     case repo.get_by(Post, id: normalize_id(Map.get(attrs, "post_id")), board_id: board.id) do
       nil ->
@@ -143,4 +177,15 @@ defmodule Eirinchan.Reports do
   end
 
   defp normalize_id(_value), do: nil
+
+  defp normalize_ip({a, b, c, d}), do: Enum.join([a, b, c, d], ".")
+
+  defp normalize_ip({a, b, c, d, e, f, g, h}) do
+    [a, b, c, d, e, f, g, h]
+    |> Enum.map(&Integer.to_string(&1, 16))
+    |> Enum.join(":")
+  end
+
+  defp normalize_ip(value) when is_binary(value), do: String.trim(value)
+  defp normalize_ip(_value), do: nil
 end
