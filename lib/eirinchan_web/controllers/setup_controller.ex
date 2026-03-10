@@ -57,7 +57,7 @@ defmodule EirinchanWeb.SetupController do
 
   defp shell_boardlist_html do
     Boards.list_boards()
-    |> PostView.default_boardlist_groups()
+    |> PostView.boardlist_groups()
     |> PostView.boardlist_html()
   end
 end
