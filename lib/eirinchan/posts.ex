@@ -305,11 +305,15 @@ defmodule Eirinchan.Posts do
     board_ids = Enum.map(boards, & &1.id)
 
     posts =
-      repo.all(
-        from post in Post,
-          where: post.board_id in ^board_ids and post.ip_subnet == ^normalized_ip,
-          order_by: [desc: post.thread_id, desc: post.id]
-      )
+      if is_nil(normalized_ip) do
+        []
+      else
+        repo.all(
+          from post in Post,
+            where: post.board_id in ^board_ids and post.ip_subnet == ^normalized_ip,
+            order_by: [desc: post.thread_id, desc: post.id]
+        )
+      end
 
     Enum.each(posts, fn post ->
       board = Enum.find(boards, &(&1.id == post.board_id))
