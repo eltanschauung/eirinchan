@@ -251,7 +251,10 @@ $(document).ready(function(){
 			url: document.location,
 			cache: false,
 			success: function(data) {
-				var replacement = $(data).find('#board-refresh-target');
+				var parser = new DOMParser();
+				var doc = parser.parseFromString(data, 'text/html');
+				var replacement = doc.querySelector('#board-refresh-target');
+				var current = document.querySelector('#board-refresh-target');
 				var new_threads = 0;
 				var current_ids = {};
 
@@ -259,7 +262,7 @@ $(document).ready(function(){
 					current_ids[$(this).attr('id')] = true;
 				});
 
-				if (replacement.length == 0) {
+				if (!replacement || !current) {
 					$('#update_secs').text(_("Unknown error"));
 					if ($('#auto_update_status').is(':checked')) {
 						poll_interval_delay = poll_interval_errordelay;
@@ -268,32 +271,29 @@ $(document).ready(function(){
 					return;
 				}
 
-				replacement.find('#board-threads .thread').each(function() {
+				$(replacement).find('#board-threads .thread').each(function() {
 					var id = $(this).attr('id');
 					if (id && !current_ids[id]) {
 						new_threads++;
 					}
 				});
 
-				$('#board-refresh-target').replaceWith(replacement);
+				current.replaceWith(replacement.cloneNode(true));
 
 				if ($('#auto_update_status').is(':checked')) {
 					poll_interval_delay = poll_interval_mindelay;
 					auto_update(poll_interval_delay);
 				} else {
-					if (new_threads > 0)
-						$('#update_secs').text("10");
-					else
-						$('#update_secs').text("10");
+					$('#update_secs').text("5");
 				}
 			},
 			error: function(xhr, status_text, error_text) {
 				if (status_text == "error" && error_text) {
-					$('#update_secs').text("Error: "+error_text);
+					$('#update_secs').text("Error: " + error_text);
 				} else if (status_text) {
-					$('#update_secs').text("10");
+					$('#update_secs').text("5");
 				} else {
-					$('#update_secs').text("10");
+					$('#update_secs').text("5");
 				}
 
 				if ($('#auto_update_status').is(':checked')) {
