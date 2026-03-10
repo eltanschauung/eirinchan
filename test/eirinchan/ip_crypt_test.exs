@@ -4,41 +4,48 @@ defmodule Eirinchan.IpCryptTest do
   alias Eirinchan.IpCrypt
 
   setup do
-    previous = Application.get_env(:eirinchan, :ip_privacy, %{})
+    IpCrypt.clear_request_context()
 
     on_exit(fn ->
-      Application.put_env(:eirinchan, :ip_privacy, previous)
+      IpCrypt.clear_request_context()
     end)
 
     :ok
   end
 
-  test "cloak_ip hashes visible addresses by default" do
-    Application.put_env(:eirinchan, :ip_privacy, %{enabled: true, cloak_key: "test-key"})
+  test "cloak_ip uses ipcrypt_key from request config" do
+    IpCrypt.configure_for_request(%{ipcrypt_key: "test-key"}, "203.0.113.5")
 
     cloaked = IpCrypt.cloak_ip("198.51.100.7")
 
-    assert cloaked =~ "cloaked-"
+    assert cloaked =~ "Cloak:"
     refute cloaked == "198.51.100.7"
+    assert IpCrypt.uncloak_ip(cloaked) == "198.51.100.7"
   end
 
-  test "immune single ips and cidr ranges bypass cloaking" do
-    Application.put_env(:eirinchan, :ip_privacy, %{
-      enabled: true,
-      cloak_key: "test-key",
-      immune_ips: ["198.51.100.7"],
-      immune_cidrs: ["2001:db8:abcd::/48"]
-    })
+  test "ipcrypt_immune_ip lets matching viewers see raw ips" do
+    IpCrypt.configure_for_request(
+      %{ipcrypt_key: "test-key", ipcrypt_immune_ip: "198.51.100.0/24"},
+      "198.51.100.44"
+    )
 
-    assert IpCrypt.cloak_ip("198.51.100.7") == "198.51.100.7"
-    assert IpCrypt.cloak_ip("2001:db8:abcd:1:0:0:0:1") == "2001:db8:abcd:1:0:0:0:1"
+    assert IpCrypt.cloak_ip("203.0.113.9") == "203.0.113.9"
+  end
 
-    refute IpCrypt.cloak_ip("203.0.113.9") == "203.0.113.9"
+  test "non-immune viewers still see cloaked ips when immune range is configured" do
+    IpCrypt.configure_for_request(
+      %{ipcrypt_key: "test-key", ipcrypt_immune_ip: "198.51.100.0/24"},
+      "203.0.113.44"
+    )
+
+    refute IpCrypt.cloak_ip("198.51.100.7") == "198.51.100.7"
   end
 
   test "uncloak_ip accepts already-plain valid ips" do
+    IpCrypt.configure_for_request(%{ipcrypt_key: "test-key"}, "203.0.113.5")
+
     assert IpCrypt.uncloak_ip("198.51.100.7") == "198.51.100.7"
     assert IpCrypt.uncloak_ip("2001:db8:abcd::1") == "2001:db8:abcd::1"
-    assert IpCrypt.uncloak_ip("cloaked-deadbeef") == nil
+    assert IpCrypt.uncloak_ip("Cloak:deadbeef") == nil
   end
 end
