@@ -1152,6 +1152,26 @@ defmodule EirinchanWeb.PostControllerTest do
     assert {:error, :not_found} = Eirinchan.Posts.get_thread(board, thread.id)
   end
 
+  test "public delete form payload deletes selected post instead of treating submit value as id", %{
+    conn: conn
+  } do
+    board = board_fixture()
+    thread = thread_fixture(board, %{password: "threadpw"})
+
+    conn =
+      conn
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/res/#{thread.id}.html")
+      |> post("/post.php", %{
+        "board" => board.uri,
+        "delete_#{thread.id}" => "on",
+        "password" => "threadpw",
+        "delete" => "Delete",
+        "_csrf_token" => Plug.CSRFProtection.get_csrf_token()
+      })
+
+    assert redirected_to(conn) == "/#{board.uri}"
+  end
+
   test "quick post controls legacy report payload reports the selected post", %{conn: conn} do
     board = board_fixture()
     thread = thread_fixture(board, %{body: "Thread body"})
