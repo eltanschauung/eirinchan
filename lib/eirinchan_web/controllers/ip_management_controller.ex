@@ -2,47 +2,53 @@ defmodule EirinchanWeb.IpManagementController do
   use EirinchanWeb, :controller
 
   alias Eirinchan.Boards
+  alias Eirinchan.IpCrypt
   alias Eirinchan.Posts
   alias Eirinchan.Moderation
 
   action_fallback EirinchanWeb.FallbackController
 
   def board_show(conn, %{"uri" => uri, "ip" => ip}) do
-    with board when not is_nil(board) <- Boards.get_board_by_uri(uri),
+    with {:ok, decoded_ip} <- decode_ip_param(ip),
+         board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          :ok <- authorize_board(conn, board) do
-      posts = Moderation.list_ip_posts(ip, board_ids: [board.id])
-      notes = Moderation.list_ip_notes(ip, board_id: board.id)
+      posts = Moderation.list_ip_posts(decoded_ip, board_ids: [board.id])
+      notes = Moderation.list_ip_notes(decoded_ip, board_id: board.id)
 
       render(conn, :show,
-        ip: ip,
+        ip: decoded_ip,
         posts: posts,
         notes: notes,
         moderator: conn.assigns.current_moderator
       )
     else
       nil -> {:error, :not_found}
+      {:error, :invalid_ip} -> {:error, :bad_request}
       error -> error
     end
   end
 
   def show(conn, %{"ip" => ip}) do
-    boards = Moderation.list_accessible_boards(conn.assigns.current_moderator)
-    posts = Moderation.list_ip_posts(ip, board_ids: Enum.map(boards, & &1.id))
-    notes = Moderation.list_ip_notes(ip, board_ids: Enum.map(boards, & &1.id))
+    with {:ok, decoded_ip} <- decode_ip_param(ip) do
+      boards = Moderation.list_accessible_boards(conn.assigns.current_moderator)
+      posts = Moderation.list_ip_posts(decoded_ip, board_ids: Enum.map(boards, & &1.id))
+      notes = Moderation.list_ip_notes(decoded_ip, board_ids: Enum.map(boards, & &1.id))
 
-    render(conn, :show,
-      ip: ip,
-      posts: posts,
-      notes: notes,
-      moderator: conn.assigns.current_moderator
-    )
+      render(conn, :show,
+        ip: decoded_ip,
+        posts: posts,
+        notes: notes,
+        moderator: conn.assigns.current_moderator
+      )
+    end
   end
 
   def create_note(conn, %{"uri" => uri, "ip" => ip, "body" => body}) do
-    with board when not is_nil(board) <- Boards.get_board_by_uri(uri),
+    with {:ok, decoded_ip} <- decode_ip_param(ip),
+         board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          :ok <- authorize_board(conn, board),
          {:ok, note} <-
-           Moderation.add_ip_note(ip, %{
+           Moderation.add_ip_note(decoded_ip, %{
              body: body,
              board_id: board.id,
              mod_user_id: conn.assigns.current_moderator.id
@@ -52,6 +58,7 @@ defmodule EirinchanWeb.IpManagementController do
       |> render(:note, note: note, moderator: conn.assigns.current_moderator)
     else
       nil -> {:error, :not_found}
+      {:error, :invalid_ip} -> {:error, :bad_request}
       error -> error
     end
   end
@@ -81,29 +88,33 @@ defmodule EirinchanWeb.IpManagementController do
   end
 
   def delete_posts(conn, %{"ip" => ip}) do
-    with {:ok, result} <-
+    with {:ok, decoded_ip} <- decode_ip_param(ip),
+         {:ok, result} <-
            Moderation.list_accessible_boards(conn.assigns.current_moderator)
            |> then(
-             &Posts.moderate_delete_posts_by_ip(&1, ip,
+             &Posts.moderate_delete_posts_by_ip(&1, decoded_ip,
                config_by_board: config_map(&1, EirinchanWeb.RequestMeta.request_host(conn))
              )
            ) do
       json(conn, %{data: result})
     else
+      {:error, :invalid_ip} -> {:error, :bad_request}
       error -> error
     end
   end
 
   def delete_board_posts(conn, %{"uri" => uri, "ip" => ip}) do
-    with board when not is_nil(board) <- Boards.get_board_by_uri(uri),
+    with {:ok, decoded_ip} <- decode_ip_param(ip),
+         board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          :ok <- authorize_board(conn, board),
          {:ok, result} <-
-           Posts.moderate_delete_posts_by_ip(board, ip,
+           Posts.moderate_delete_posts_by_ip(board, decoded_ip,
              config: board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
            ) do
       json(conn, %{data: result})
     else
       nil -> {:error, :not_found}
+      {:error, :invalid_ip} -> {:error, :bad_request}
       error -> error
     end
   end
@@ -120,6 +131,13 @@ defmodule EirinchanWeb.IpManagementController do
     case Eirinchan.Repo.get(Eirinchan.Moderation.IpNote, id) do
       %{board_id: ^board_id} = note -> {:ok, note}
       _ -> {:error, :not_found}
+    end
+  end
+
+  defp decode_ip_param(ip) do
+    case IpCrypt.uncloak_ip(ip) do
+      nil -> {:error, :invalid_ip}
+      decoded -> {:ok, decoded}
     end
   end
 

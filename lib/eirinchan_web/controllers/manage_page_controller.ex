@@ -9,6 +9,7 @@ defmodule EirinchanWeb.ManagePageController do
   alias Eirinchan.CustomPages
   alias Eirinchan.DNSBLConfig
   alias Eirinchan.Feedback
+  alias Eirinchan.IpCrypt
   alias Eirinchan.FlagsConfig
   alias Eirinchan.Installation
   alias Eirinchan.Moderation
@@ -746,33 +747,36 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def ip_history(conn, %{"ip" => ip}) do
-    with {:ok, moderator} <- ensure_moderator(conn) do
+    with {:ok, moderator} <- ensure_moderator(conn),
+         {:ok, decoded_ip} <- decode_ip_param(ip) do
       boards = Moderation.list_accessible_boards(moderator)
       board_ids = Enum.map(boards, & &1.id)
 
       render(conn, :ip_history,
         moderator: moderator,
         boards: boards,
-        ip: ip,
+        ip: decoded_ip,
         board: nil,
-        posts: Moderation.list_ip_posts(ip, board_ids: board_ids),
-        notes: Moderation.list_ip_notes(ip, board_ids: board_ids)
+        posts: Moderation.list_ip_posts(decoded_ip, board_ids: board_ids),
+        notes: Moderation.list_ip_notes(decoded_ip, board_ids: board_ids)
       )
     else
       {:error, :unauthorized} -> redirect(conn, to: ~p"/manage/login")
+      {:error, :invalid_ip} -> render_dashboard_error(conn, "Invalid IP address.", %{}, :bad_request)
     end
   end
 
   def board_ip_history(conn, %{"uri" => uri, "ip" => ip}) do
     with {:ok, moderator} <- ensure_moderator(conn),
-         {:ok, board} <- load_accessible_board(moderator, uri) do
+         {:ok, board} <- load_accessible_board(moderator, uri),
+         {:ok, decoded_ip} <- decode_ip_param(ip) do
       render(conn, :ip_history,
         moderator: moderator,
         boards: Moderation.list_accessible_boards(moderator),
-        ip: ip,
+        ip: decoded_ip,
         board: board,
-        posts: Moderation.list_ip_posts(ip, board_ids: [board.id]),
-        notes: Moderation.list_ip_notes(ip, board_id: board.id)
+        posts: Moderation.list_ip_posts(decoded_ip, board_ids: [board.id]),
+        notes: Moderation.list_ip_notes(decoded_ip, board_id: board.id)
       )
     else
       {:error, :unauthorized} ->
@@ -783,21 +787,25 @@ defmodule EirinchanWeb.ManagePageController do
 
       {:error, :not_found} ->
         render_dashboard_error(conn, "Board not found.", %{}, :not_found)
+
+      {:error, :invalid_ip} ->
+        render_dashboard_error(conn, "Invalid IP address.", %{}, :bad_request)
     end
   end
 
   def create_ip_note(conn, %{"uri" => uri, "ip" => ip, "body" => body}) do
     with {:ok, moderator} <- ensure_moderator(conn),
          {:ok, board} <- load_accessible_board(moderator, uri),
+         {:ok, decoded_ip} <- decode_ip_param(ip),
          {:ok, _note} <-
-           Moderation.add_ip_note(ip, %{
+           Moderation.add_ip_note(decoded_ip, %{
              body: body,
              board_id: board.id,
              mod_user_id: moderator.id
            }) do
       conn
       |> put_flash(:info, "IP note added.")
-      |> redirect(to: "/manage/boards/#{board.uri}/ip/#{ip}/browser")
+      |> redirect(to: "/manage/boards/#{board.uri}/ip/#{IpCrypt.cloak_ip(decoded_ip)}/browser")
     else
       {:error, :unauthorized} ->
         redirect(conn, to: ~p"/manage/login")
@@ -807,6 +815,9 @@ defmodule EirinchanWeb.ManagePageController do
 
       {:error, :not_found} ->
         render_dashboard_error(conn, "Board not found.", %{}, :not_found)
+
+      {:error, :invalid_ip} ->
+        render_dashboard_error(conn, "Invalid IP address.", %{}, :bad_request)
 
       {:error, %Ecto.Changeset{} = changeset} ->
         render_dashboard_error(conn, format_changeset(changeset), %{}, :unprocessable_entity)
@@ -816,11 +827,12 @@ defmodule EirinchanWeb.ManagePageController do
   def update_ip_note(conn, %{"uri" => uri, "ip" => ip, "id" => id, "body" => body}) do
     with {:ok, moderator} <- ensure_moderator(conn),
          {:ok, board} <- load_accessible_board(moderator, uri),
+         {:ok, decoded_ip} <- decode_ip_param(ip),
          {:ok, note} <- load_board_note(id, board.id),
          {:ok, _note} <- Moderation.update_ip_note(note, %{body: body}) do
       conn
       |> put_flash(:info, "IP note updated.")
-      |> redirect(to: "/manage/boards/#{board.uri}/ip/#{ip}/browser")
+      |> redirect(to: "/manage/boards/#{board.uri}/ip/#{IpCrypt.cloak_ip(decoded_ip)}/browser")
     else
       {:error, :unauthorized} ->
         redirect(conn, to: ~p"/manage/login")
@@ -830,6 +842,9 @@ defmodule EirinchanWeb.ManagePageController do
 
       {:error, :not_found} ->
         render_dashboard_error(conn, "IP note not found.", %{}, :not_found)
+
+      {:error, :invalid_ip} ->
+        render_dashboard_error(conn, "Invalid IP address.", %{}, :bad_request)
 
       {:error, %Ecto.Changeset{} = changeset} ->
         render_dashboard_error(conn, format_changeset(changeset), %{}, :unprocessable_entity)
@@ -839,11 +854,12 @@ defmodule EirinchanWeb.ManagePageController do
   def delete_ip_note(conn, %{"uri" => uri, "ip" => ip, "id" => id}) do
     with {:ok, moderator} <- ensure_moderator(conn),
          {:ok, board} <- load_accessible_board(moderator, uri),
+         {:ok, decoded_ip} <- decode_ip_param(ip),
          {:ok, note} <- load_board_note(id, board.id),
          {:ok, _note} <- Moderation.delete_ip_note(note) do
       conn
       |> put_flash(:info, "IP note deleted.")
-      |> redirect(to: "/manage/boards/#{board.uri}/ip/#{ip}/browser")
+      |> redirect(to: "/manage/boards/#{board.uri}/ip/#{IpCrypt.cloak_ip(decoded_ip)}/browser")
     else
       {:error, :unauthorized} ->
         redirect(conn, to: ~p"/manage/login")
@@ -853,36 +869,42 @@ defmodule EirinchanWeb.ManagePageController do
 
       {:error, :not_found} ->
         render_dashboard_error(conn, "IP note not found.", %{}, :not_found)
+
+      {:error, :invalid_ip} ->
+        render_dashboard_error(conn, "Invalid IP address.", %{}, :bad_request)
     end
   end
 
   def delete_ip_posts(conn, %{"ip" => ip}) do
     with {:ok, moderator} <- ensure_moderator(conn),
+         {:ok, decoded_ip} <- decode_ip_param(ip),
          {:ok, _result} <-
            Moderation.list_accessible_boards(moderator)
            |> then(
-             &Eirinchan.Posts.moderate_delete_posts_by_ip(&1, ip,
+             &Eirinchan.Posts.moderate_delete_posts_by_ip(&1, decoded_ip,
                config_by_board: config_map(&1, EirinchanWeb.RequestMeta.request_host(conn))
              )
            ) do
       conn
       |> put_flash(:info, "Posts deleted for IP.")
-      |> redirect(to: "/manage/ip/#{ip}/browser")
+      |> redirect(to: "/manage/ip/#{IpCrypt.cloak_ip(decoded_ip)}/browser")
     else
       {:error, :unauthorized} -> redirect(conn, to: ~p"/manage/login")
+      {:error, :invalid_ip} -> render_dashboard_error(conn, "Invalid IP address.", %{}, :bad_request)
     end
   end
 
   def delete_board_ip_posts(conn, %{"uri" => uri, "ip" => ip}) do
     with {:ok, moderator} <- ensure_moderator(conn),
          {:ok, board} <- load_accessible_board(moderator, uri),
+         {:ok, decoded_ip} <- decode_ip_param(ip),
          {:ok, _result} <-
-           Eirinchan.Posts.moderate_delete_posts_by_ip(board, ip,
+           Eirinchan.Posts.moderate_delete_posts_by_ip(board, decoded_ip,
              config: effective_board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
            ) do
       conn
       |> put_flash(:info, "Posts deleted for IP.")
-      |> redirect(to: "/manage/boards/#{board.uri}/ip/#{ip}/browser")
+      |> redirect(to: "/manage/boards/#{board.uri}/ip/#{IpCrypt.cloak_ip(decoded_ip)}/browser")
     else
       {:error, :unauthorized} ->
         redirect(conn, to: ~p"/manage/login")
@@ -892,6 +914,9 @@ defmodule EirinchanWeb.ManagePageController do
 
       {:error, :not_found} ->
         render_dashboard_error(conn, "Board not found.", %{}, :not_found)
+
+      {:error, :invalid_ip} ->
+        render_dashboard_error(conn, "Invalid IP address.", %{}, :bad_request)
     end
   end
 
@@ -1613,6 +1638,13 @@ defmodule EirinchanWeb.ManagePageController do
     case Eirinchan.Repo.get(Eirinchan.Moderation.IpNote, id) do
       %{board_id: ^board_id} = note -> {:ok, note}
       _ -> {:error, :not_found}
+    end
+  end
+
+  defp decode_ip_param(ip) do
+    case IpCrypt.uncloak_ip(ip) do
+      nil -> {:error, :invalid_ip}
+      decoded -> {:ok, decoded}
     end
   end
 

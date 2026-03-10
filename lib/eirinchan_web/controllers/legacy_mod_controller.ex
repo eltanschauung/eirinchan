@@ -2,6 +2,7 @@ defmodule EirinchanWeb.LegacyModController do
   use EirinchanWeb, :controller
 
   alias Eirinchan.Boards
+  alias Eirinchan.IpCrypt
   alias Eirinchan.Moderation
   alias Eirinchan.Posts
   alias Eirinchan.Reports
@@ -18,7 +19,7 @@ defmodule EirinchanWeb.LegacyModController do
         redirect_legacy_theme_path(conn, rest)
 
       "/IP/" <> ip ->
-        redirect(conn, to: "/manage/ip/#{ip}/browser")
+        redirect_legacy_ip(conn, ip)
 
       "/feedback" <> rest ->
         dispatch_feedback_action(conn, String.split(rest, "/", trim: true))
@@ -47,6 +48,13 @@ defmodule EirinchanWeb.LegacyModController do
 
       _ ->
         send_resp(conn, :not_found, "Page not found")
+    end
+  end
+
+  defp redirect_legacy_ip(conn, ip) do
+    case IpCrypt.uncloak_ip(ip) do
+      nil -> send_resp(conn, :bad_request, "Invalid IP address.")
+      decoded -> redirect(conn, to: "/manage/ip/#{decoded}/browser")
     end
   end
 

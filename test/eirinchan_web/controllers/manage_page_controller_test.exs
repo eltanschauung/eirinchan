@@ -1,5 +1,5 @@
 defmodule EirinchanWeb.ManagePageControllerTest do
-  use EirinchanWeb.ConnCase, async: true
+  use EirinchanWeb.ConnCase, async: false
 
   alias Eirinchan.Feedback
 
@@ -66,33 +66,35 @@ defmodule EirinchanWeb.ManagePageControllerTest do
   end
 
   test "report queue renders reporter ip and dismiss+ link", %{conn: conn} do
-    moderator = moderator_fixture(%{role: "admin"})
-    board = board_fixture()
-    thread = thread_fixture(board)
+    with_instance_config(%{}, fn ->
+      moderator = moderator_fixture(%{role: "admin"})
+      board = board_fixture()
+      thread = thread_fixture(board)
 
-    report_conn =
-      conn
-      |> Map.put(:remote_ip, {198, 51, 100, 9})
-      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
-      |> post("/#{board.uri}/post", %{
-        "report_post_id" => Integer.to_string(thread.id),
-        "reason" => "spam",
-        "json_response" => "1"
-      })
+      report_conn =
+        conn
+        |> Map.put(:remote_ip, {198, 51, 100, 9})
+        |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+        |> post("/#{board.uri}/post", %{
+          "report_post_id" => Integer.to_string(thread.id),
+          "reason" => "spam",
+          "json_response" => "1"
+        })
 
-    assert %{"report_id" => report_id} = json_response(report_conn, 200)
+      assert %{"report_id" => report_id} = json_response(report_conn, 200)
 
-    page =
-      conn
-      |> recycle()
-      |> login_moderator(moderator)
-      |> get("/manage/reports/browser")
-      |> html_response(200)
+      page =
+        conn
+        |> recycle()
+        |> login_moderator(moderator)
+        |> get("/manage/reports/browser")
+        |> html_response(200)
 
-    assert page =~ "Reported by:"
-    assert page =~ "/mod.php?/IP/198.51.100.9"
-    assert page =~ "/mod.php?/reports/#{report_id}/dismiss&amp;all/"
-    assert page =~ "Dismiss+"
+      assert page =~ "Reported by:"
+      assert page =~ "/mod.php?/IP/198.51.100.9"
+      assert page =~ "/mod.php?/reports/#{report_id}/dismiss&amp;all/"
+      assert page =~ "Dismiss+"
+    end)
   end
 
   test "browser dashboard redirects to setup when no admin exists", %{conn: conn} do
@@ -804,97 +806,144 @@ defmodule EirinchanWeb.ManagePageControllerTest do
   end
 
   test "browser IP history page supports notes and delete-by-ip actions", %{conn: conn} do
-    moderator = moderator_fixture(%{role: "admin"})
-    board = board_fixture(%{uri: "tea#{System.unique_integer([:positive])}", title: "Tea"})
+    with_instance_config(%{}, fn ->
+      moderator = moderator_fixture(%{role: "admin"})
+      board = board_fixture(%{uri: "tea#{System.unique_integer([:positive])}", title: "Tea"})
 
-    {:ok, thread, _meta} =
-      Eirinchan.Posts.create_post(
-        board,
-        %{"body" => "green leaf", "subject" => "teaware", "post" => "New Topic"},
-        config: Eirinchan.Runtime.Config.compose(nil, %{}, board.config_overrides),
-        request: %{
-          referer: "http://example.test/#{board.uri}/index.html",
-          remote_ip: {198, 51, 100, 7}
-        }
-      )
+      {:ok, thread, _meta} =
+        Eirinchan.Posts.create_post(
+          board,
+          %{"body" => "green leaf", "subject" => "teaware", "post" => "New Topic"},
+          config: Eirinchan.Runtime.Config.compose(nil, %{}, board.config_overrides),
+          request: %{
+            referer: "http://example.test/#{board.uri}/index.html",
+            remote_ip: {198, 51, 100, 7}
+          }
+        )
 
-    page =
-      conn
-      |> login_moderator(moderator)
-      |> get("/manage/boards/#{board.uri}/ip/198.51.100.7/browser")
-      |> html_response(200)
+      page =
+        conn
+        |> login_moderator(moderator)
+        |> get("/manage/boards/#{board.uri}/ip/198.51.100.7/browser")
+        |> html_response(200)
 
-    assert page =~ "IP History: 198.51.100.7"
-    assert page =~ "green leaf"
+      assert page =~ "IP History: 198.51.100.7"
+      assert page =~ "green leaf"
 
-    note_conn =
-      conn
-      |> recycle()
-      |> login_moderator(moderator)
-      |> post("/manage/boards/#{board.uri}/ip/198.51.100.7/browser/notes", %{
-        "body" => "Watch this IP"
-      })
+      note_conn =
+        conn
+        |> recycle()
+        |> login_moderator(moderator)
+        |> post("/manage/boards/#{board.uri}/ip/198.51.100.7/browser/notes", %{
+          "body" => "Watch this IP"
+        })
 
-    assert redirected_to(note_conn) == "/manage/boards/#{board.uri}/ip/198.51.100.7/browser"
+      assert redirected_to(note_conn) == "/manage/boards/#{board.uri}/ip/198.51.100.7/browser"
 
-    note = hd(Eirinchan.Moderation.list_ip_notes("198.51.100.7", board_id: board.id))
+      note = hd(Eirinchan.Moderation.list_ip_notes("198.51.100.7", board_id: board.id))
 
-    update_conn =
-      conn
-      |> recycle()
-      |> login_moderator(moderator)
-      |> patch("/manage/boards/#{board.uri}/ip/198.51.100.7/browser/notes/#{note.id}", %{
-        "body" => "Updated note"
-      })
+      update_conn =
+        conn
+        |> recycle()
+        |> login_moderator(moderator)
+        |> patch("/manage/boards/#{board.uri}/ip/198.51.100.7/browser/notes/#{note.id}", %{
+          "body" => "Updated note"
+        })
 
-    assert redirected_to(update_conn) == "/manage/boards/#{board.uri}/ip/198.51.100.7/browser"
+      assert redirected_to(update_conn) == "/manage/boards/#{board.uri}/ip/198.51.100.7/browser"
 
-    delete_posts_conn =
-      conn
-      |> recycle()
-      |> login_moderator(moderator)
-      |> delete("/manage/boards/#{board.uri}/ip/198.51.100.7/browser/posts")
+      delete_posts_conn =
+        conn
+        |> recycle()
+        |> login_moderator(moderator)
+        |> delete("/manage/boards/#{board.uri}/ip/198.51.100.7/browser/posts")
 
-    assert redirected_to(delete_posts_conn) ==
-             "/manage/boards/#{board.uri}/ip/198.51.100.7/browser"
+      assert redirected_to(delete_posts_conn) ==
+               "/manage/boards/#{board.uri}/ip/198.51.100.7/browser"
 
-    refute Eirinchan.Repo.get(Eirinchan.Posts.Post, thread.id)
+      refute Eirinchan.Repo.get(Eirinchan.Posts.Post, thread.id)
+    end)
   end
 
-  test "janitor browser moderation pages cloak visible ip values", %{conn: conn} do
-    janitor = moderator_fixture(%{role: "janitor"})
-    board = board_fixture(%{uri: "tea#{System.unique_integer([:positive])}", title: "Tea"})
-    grant_board_access_fixture(janitor, board)
+  test "moderation pages cloak visible ip values when ipcrypt is enabled", %{conn: conn} do
+    with_instance_config(%{"ipcrypt_key" => "whalenic"}, fn ->
+      moderator = moderator_fixture(%{role: "admin"})
+      board = board_fixture(%{uri: "tea#{System.unique_integer([:positive])}", title: "Tea"})
+      grant_board_access_fixture(moderator, board)
 
-    {:ok, _thread, _meta} =
-      Eirinchan.Posts.create_post(
-        board,
-        %{"body" => "green leaf", "subject" => "teaware", "post" => "New Topic"},
-        config: Eirinchan.Runtime.Config.compose(nil, %{}, board.config_overrides),
-        request: %{
-          referer: "http://example.test/#{board.uri}/index.html",
-          remote_ip: {198, 51, 100, 7}
-        }
-      )
+      {:ok, _thread, _meta} =
+        Eirinchan.Posts.create_post(
+          board,
+          %{"body" => "green leaf", "subject" => "teaware", "post" => "New Topic"},
+          config: Eirinchan.Runtime.Config.compose(nil, %{}, board.config_overrides),
+          request: %{
+            referer: "http://example.test/#{board.uri}/index.html",
+            remote_ip: {198, 51, 100, 7}
+          }
+        )
 
-    recent_page =
-      conn
-      |> login_moderator(janitor)
-      |> get("/manage/recent-posts/browser")
-      |> html_response(200)
+      recent_page =
+        conn
+        |> login_moderator(moderator)
+        |> get("/manage/recent-posts/browser")
+        |> html_response(200)
 
-    assert recent_page =~ ~s(class="post-wrapper")
-    refute recent_page =~ "198.51.100.7"
+      assert recent_page =~ ~s(class="post-wrapper")
+      refute recent_page =~ "198.51.100.7"
+      assert recent_page =~ "Cloak:"
 
-    history_page =
-      conn
-      |> recycle()
-      |> login_moderator(janitor)
-      |> get("/manage/boards/#{board.uri}/ip/198.51.100.7/browser")
-      |> html_response(200)
+      history_page =
+        conn
+        |> recycle()
+        |> login_moderator(moderator)
+        |> get("/manage/boards/#{board.uri}/ip/198.51.100.7/browser")
+        |> html_response(200)
 
-    assert history_page =~ "IP History: cloaked-"
-    refute history_page =~ "IP History: 198.51.100.7"
+      assert history_page =~ "IP History: Cloak:"
+      refute history_page =~ "IP History: 198.51.100.7"
+    end)
+  end
+
+  test "immune viewers see raw ips when ipcrypt_immune_ip matches", %{conn: conn} do
+    with_instance_config(%{"ipcrypt_key" => "whalenic", "ipcrypt_immune_ip" => "198.51.100.0/24"}, fn ->
+      moderator = moderator_fixture(%{role: "admin"})
+      board = board_fixture(%{uri: "ip#{System.unique_integer([:positive])}", title: "IP Test"})
+
+      {:ok, _thread, _meta} =
+        Eirinchan.Posts.create_post(
+          board,
+          %{"body" => "green leaf", "subject" => "teaware", "post" => "New Topic"},
+          config: Eirinchan.Runtime.Config.compose(nil, %{}, board.config_overrides),
+          request: %{
+            referer: "http://example.test/#{board.uri}/index.html",
+            remote_ip: {203, 0, 113, 9}
+          }
+        )
+
+      page =
+        conn
+        |> Map.put(:remote_ip, {198, 51, 100, 44})
+        |> login_moderator(moderator)
+        |> get("/manage/boards/#{board.uri}/ip/203.0.113.9/browser")
+        |> html_response(200)
+
+      assert page =~ "IP History: 203.0.113.9"
+    end)
+  end
+
+  defp with_instance_config(config, fun) do
+    original_path = Application.get_env(:eirinchan, :instance_config_path)
+    path = Path.join(System.tmp_dir!(), "eirinchan-manage-ipcrypt-#{System.unique_integer([:positive])}.json")
+
+    File.write!(path, Jason.encode!(config))
+
+    try do
+      Application.put_env(:eirinchan, :instance_config_path, path)
+      fun.()
+    after
+      Application.put_env(:eirinchan, :instance_config_path, original_path)
+      File.rm(path)
+    end
   end
 
   test "browser moderation pages can move threads and replies", %{conn: conn} do

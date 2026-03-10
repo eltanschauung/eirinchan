@@ -1,6 +1,7 @@
 defmodule EirinchanWeb.LegacyModControllerTest do
   use EirinchanWeb.ConnCase, async: true
 
+  alias Eirinchan.IpCrypt
   alias Eirinchan.Posts
   alias Eirinchan.Reports
 
@@ -13,6 +14,22 @@ defmodule EirinchanWeb.LegacyModControllerTest do
       |> get("/mod.php?/IP/198.51.100.7")
 
     assert redirected_to(conn) == "/manage/ip/198.51.100.7/browser"
+  end
+
+  test "legacy IP route accepts cloaked ips", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+
+    with_instance_config(%{"ipcrypt_key" => "whalenic"}, fn ->
+      IpCrypt.configure_for_request(%{ipcrypt_key: "whalenic"}, "203.0.113.5")
+      cloaked = IpCrypt.cloak_ip("198.51.100.7")
+
+      conn =
+        conn
+        |> login_moderator(moderator)
+        |> get("/mod.php?/IP/#{cloaked}")
+
+      assert redirected_to(conn) == "/manage/ip/198.51.100.7/browser"
+    end)
   end
 
   test "legacy sticky route updates thread state for admins", %{conn: conn} do
@@ -181,5 +198,20 @@ defmodule EirinchanWeb.LegacyModControllerTest do
       Plug.Conn.get_session(conn, :secure_manage_token),
       path
     )
+  end
+
+  defp with_instance_config(config, fun) do
+    original_path = Application.get_env(:eirinchan, :instance_config_path)
+    path = Path.join(System.tmp_dir!(), "eirinchan-ipcrypt-#{System.unique_integer([:positive])}.json")
+
+    File.write!(path, Jason.encode!(config))
+
+    try do
+      Application.put_env(:eirinchan, :instance_config_path, path)
+      fun.()
+    after
+      Application.put_env(:eirinchan, :instance_config_path, original_path)
+      File.rm(path)
+    end
   end
 end
