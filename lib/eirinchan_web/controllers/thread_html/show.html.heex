@@ -223,6 +223,10 @@
   <%= raw(@board_chrome.post_form_blotter_html) %>
   <hr />
 <% end %>
+<%= if is_binary(@config.global_message) and @config.global_message != "" do %>
+  <div class="blotter"><%= raw(@config.global_message) %></div>
+  <hr />
+<% end %>
 
 <form name="postcontrols" id="thread-post-controls" action="/post.php" method="post">
   <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
