@@ -9,10 +9,8 @@
   <%= raw(@board_chrome.top_news_html) %>
 <% end %>
 
-<%= if @board_chrome.show_default_announcement && @announcement do %>
-  <div class="blotter">
-    <strong><%= @announcement.title %></strong>: <%= @announcement.body %>
-  </div>
+<%= if is_binary(@config.global_message) and @config.global_message != "" do %>
+  <div class="blotter"><%= raw(@config.global_message) %></div>
 <% end %>
 
 <form
@@ -227,11 +225,6 @@
 <%= if @board_chrome.post_form_blotter_html do %>
   <hr />
   <%= raw(@board_chrome.post_form_blotter_html) %>
-<% end %>
-
-<%= if is_binary(@config.global_message) and @config.global_message != "" do %>
-  <hr />
-  <div class="blotter"><%= raw(@config.global_message) %></div>
 <% end %>
 
 <hr />

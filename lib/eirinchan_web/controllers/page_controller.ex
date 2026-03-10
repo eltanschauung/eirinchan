@@ -2,7 +2,6 @@ defmodule EirinchanWeb.PageController do
   use EirinchanWeb, :controller
   import Ecto.Query
 
-  alias Eirinchan.Announcement
   alias Eirinchan.Boards
   alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.CustomPages
@@ -203,7 +202,7 @@ defmodule EirinchanWeb.PageController do
       boards: boards,
       primary_board: primary_board,
       board_chrome: chrome,
-      announcement: Announcement.current(),
+      global_message: current_global_message(),
       custom_pages: CustomPages.list_pages(),
       global_boardlist_html: PostView.boardlist_html(PostView.boardlist_groups(boards)),
       public_shell: true,
@@ -242,6 +241,13 @@ defmodule EirinchanWeb.PageController do
 
   defp public_extra_stylesheets(_board),
     do: ["/stylesheets/eirinchan-public.css", "/stylesheets/eirinchan-bant.css"]
+
+  defp current_global_message do
+    case Settings.current_instance_config() |> Map.get(:global_message) do
+      value when is_binary(value) -> value
+      _ -> ""
+    end
+  end
 
   defp render_custom_page(conn, page, opts \\ []) do
     board = Keyword.get(opts, :board)

@@ -52,15 +52,7 @@ defmodule EirinchanWeb.PageControllerTest do
 
   test "GET /news renders public news entries", %{conn: conn} do
     author = moderator_fixture(%{username: "editor"})
-    announce_author = moderator_fixture(%{username: "announcer"})
     page_author = moderator_fixture(%{username: "pageeditor"})
-
-    {:ok, _announcement} =
-      Eirinchan.Announcement.upsert(%{
-        title: "System notice",
-        body: "Read first",
-        mod_user_id: announce_author.id
-      })
 
     {:ok, _page} =
       Eirinchan.CustomPages.create_page(%{

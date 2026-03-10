@@ -5,10 +5,8 @@
   <div class="subtitle">Cross-board post search</div>
 </header>
 
-<%= if @announcement do %>
-  <div class="blotter">
-    <strong><%= @announcement.title %></strong>: <%= @announcement.body %>
-  </div>
+<%= if @global_message && @global_message != "" do %>
+  <div class="blotter"><%= raw(@global_message) %></div>
 <% end %>
 
 <div class="pages top">

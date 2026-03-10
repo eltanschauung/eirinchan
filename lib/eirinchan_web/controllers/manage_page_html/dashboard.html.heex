@@ -117,10 +117,10 @@
 <fieldset>
   <legend>Messages</legend>
   <ul>
-    <li :if={@announcement}>
-      <strong><%= @announcement.title %></strong>: <%= @announcement.body %>
+    <li :if={@global_message && @global_message != ""}>
+      <%= raw(@global_message) %>
     </li>
-    <li :if={!@announcement}>No announcement is active.</li>
+    <li :if={!(@global_message && @global_message != "")}>No global message is active.</li>
     <%= for entry <- @news_entries do %>
       <li><strong><%= entry.title %></strong>: <%= entry.body %></li>
     <% end %>
