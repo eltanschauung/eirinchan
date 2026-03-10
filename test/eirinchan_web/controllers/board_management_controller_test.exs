@@ -140,6 +140,26 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     assert response =~ "[Archive]"
   end
 
+  test "board page uses configured catalog name in search links", %{conn: conn} do
+    :ok = Eirinchan.Themes.enable_page_theme("catalog")
+
+    board =
+      board_fixture(%{
+        uri: "orin",
+        title: "Orin Test",
+        config_overrides: %{catalog_name: "Orin"}
+      })
+
+    response =
+      conn
+      |> get(~p"/#{board.uri}")
+      |> html_response(200)
+
+    assert response =~ ~s(href="/#{board.uri}/catalog.html")
+    assert response =~ "[Orin]"
+    refute response =~ "[Catalog]"
+  end
+
   test "board page renders global message as a blotter above the search form", %{conn: conn} do
     :ok = Eirinchan.Settings.persist_instance_config(%{global_message: "Important notice"})
     board = board_fixture(%{uri: "blottertest", title: "Blotter Test"})

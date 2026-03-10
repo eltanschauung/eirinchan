@@ -236,7 +236,7 @@
     <input type="text" style="max-width:40%;" name="search" placeholder={"#{@board.uri} search"} />
     <input type="hidden" name="board" value={@board.uri} />
     <input type="submit" value="Search" />
-    <%= for link <- EirinchanWeb.BoardChrome.search_links(@board.uri) do %>
+    <%= for link <- EirinchanWeb.BoardChrome.search_links(@board.uri, @config) do %>
       <a style="text-decoration:none;" href={link.href}><%= link.label %></a>
     <% end %>
     <a
