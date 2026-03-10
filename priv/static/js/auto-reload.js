@@ -175,6 +175,7 @@ $(document).ready(function(){
 
 		$.ajax({
 			url: document.location,
+			cache: false,
 			success: function(data) {
 				var new_threads = 0;
 				var current_ids = {};
@@ -248,6 +249,7 @@ $(document).ready(function(){
 
 		$.ajax({
 			url: document.location,
+			cache: false,
 			success: function(data) {
 				var replacement = $(data).find('#board-refresh-target');
 				var new_threads = 0;
@@ -310,6 +312,7 @@ $(document).ready(function(){
 	
 		$.ajax({
 			url: document.location,
+			cache: false,
 			success: function(data) {
 				var loaded_posts = 0;	// the number of new posts loaded in this update
 				var elementsToAppend = [];
