@@ -1,66 +1,62 @@
-<div class="boardlist">
-  [<a href={~p"/manage"}>Dashboard</a>]
-  [<a href={~p"/manage/reports/browser"}>Report queue</a>]
-  [<a href={~p"/manage/ban-appeals/browser"}>Ban appeals</a>]
-</div>
+<section>
+  <h1>Feedback (<%= @unread_count %>)</h1>
+  <p><a href={~p"/manage"}>Back to Manage</a></p>
+</section>
 
-<h1>Feedback</h1>
-<p class="unimportant">Unread: <%= @unread_count %></p>
+<section>
+  <%= if @feedback == [] do %>
+    <p style="text-align:center" class="unimportant">(There is no feedback.)</p>
+  <% else %>
+    <%= for entry <- @feedback do %>
+      <div class="report">
+        <hr /> Feedback: <%= entry.feedback.body %>
+        <br /> Submission date: <%= PostView.formatted_timestamp(entry.feedback) %>
+        <br /> Submitted by:
+        <a href={"/mod.php?/IP/#{entry.displayed_ip}"}><%= entry.displayed_ip %></a>
+        <br /> Status: <%= if is_nil(entry.feedback.read_at), do: "Unread", else: "Read" %>
 
-<%= if @feedback == [] do %>
-  <p>No feedback.</p>
-<% else %>
-  <%= for entry <- @feedback do %>
-    <div class="thread">
-      <div class="post reply" id={"feedback_#{entry.id}"}>
-        <p class="intro">
-          <span class="subject">Feedback #<%= entry.id %></span>
-          <span class="name"><%= entry.name || "Anonymous" %></span>
-          <%= if entry.email && String.trim(entry.email) != "" do %>
-            <span class="email">&lt;<%= entry.email %>&gt;</span>
+        <%= if entry.feedback.comments != [] do %>
+          <hr />
+          <%= for comment <- entry.feedback.comments do %>
+            <div class="report" style="margin:6px 0 6px 14px;">
+              Note date: <%= PostView.formatted_timestamp(comment) %>
+              <br /> Note: <%= comment.body %>
+            </div>
           <% end %>
-          <time datetime={PostView.iso_timestamp(entry)}><%= PostView.formatted_timestamp(entry) %></time>
-          <%= if entry.read_at do %>
-            <span class="unimportant">[Read]</span>
-          <% end %>
-          <span class="unimportant">[<%= entry.ip_subnet %>]</span>
-        </p>
-        <div class="body"><%= entry.body %></div>
-
-        <%= if entry.comments != [] do %>
-          <div class="files">
-            <%= for comment <- entry.comments do %>
-              <div class="reply-container">
-                <p class="intro">
-                  <span class="subject">Note</span>
-                  <time datetime={PostView.iso_timestamp(comment)}>
-                    <%= PostView.formatted_timestamp(comment) %>
-                  </time>
-                </p>
-                <div class="body"><%= comment.body %></div>
-              </div>
-            <% end %>
-          </div>
         <% end %>
 
-        <form action={~p"/manage/feedback/#{entry.id}/read"} method="post" style="display:inline-block">
-          <input type="hidden" name="_method" value="patch" />
-          <input type="hidden" name="_csrf_token" value={Phoenix.Controller.get_csrf_token()} />
-          <input type="submit" value="Mark as Read" />
-        </form>
+        <hr />
+        <a
+          title="Delete feedback entry"
+          href={"/mod.php?/feedback/#{entry.feedback.id}/delete/#{entry.delete_token}"}
+        >
+          Delete
+        </a>
+        |&nbsp;
+        <%= if is_nil(entry.feedback.read_at) do %>
+          <a
+            title="Mark feedback as read"
+            href={"/mod.php?/feedback/#{entry.feedback.id}/mark_read/#{entry.mark_read_token}"}
+          >
+            Mark as Read
+          </a>
+        <% else %>
+          Mark as Read
+        <% end %>
+        |&nbsp; <a href={"#note-#{entry.feedback.id}"}>Add Note</a>
 
-        <form action={~p"/manage/feedback/#{entry.id}/comments"} method="post" style="display:inline-block">
+        <hr />
+        <form
+          id={"note-#{entry.feedback.id}"}
+          action={~p"/manage/feedback/#{entry.feedback.id}/comments"}
+          method="post"
+        >
           <input type="hidden" name="_csrf_token" value={Phoenix.Controller.get_csrf_token()} />
-          <input type="text" name="body" size="30" placeholder="Add Note" />
-          <input type="submit" value="Add Note" />
-        </form>
-
-        <form action={~p"/manage/feedback/#{entry.id}"} method="post" style="display:inline-block">
-          <input type="hidden" name="_method" value="delete" />
-          <input type="hidden" name="_csrf_token" value={Phoenix.Controller.get_csrf_token()} />
-          <input type="submit" value="Delete" />
+          <textarea name="body" rows="2" cols="60" placeholder="Add internal note"></textarea>
+          <br />
+          <input type="submit" value="Add note" />
         </form>
       </div>
-    </div>
+    <% end %>
   <% end %>
-<% end %>
+</section>

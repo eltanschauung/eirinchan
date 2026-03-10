@@ -20,6 +20,9 @@ defmodule EirinchanWeb.LegacyModController do
       "/IP/" <> ip ->
         redirect(conn, to: "/manage/ip/#{ip}/browser")
 
+      "/feedback" <> rest ->
+        dispatch_feedback_action(conn, String.split(rest, "/", trim: true))
+
       "/reports/" <> rest ->
         dispatch_report_action(conn, String.split(rest, "/", trim: true))
 
@@ -248,6 +251,38 @@ defmodule EirinchanWeb.LegacyModController do
   end
 
   defp dispatch_report_action(conn, _parts), do: send_resp(conn, :not_found, "Page not found")
+
+  defp dispatch_feedback_action(conn, []) do
+    with {:ok, _moderator} <- authorized_moderator(conn) do
+      redirect(conn, to: "/manage/feedback/browser")
+    else
+      error -> legacy_error(conn, error)
+    end
+  end
+
+  defp dispatch_feedback_action(conn, [feedback_id, "delete", token]) do
+    with {:ok, moderator} <- authorized_moderator(conn),
+         :ok <- require_role(moderator, 10),
+         :ok <- verify_action_token(conn, "feedback/#{feedback_id}/delete", token),
+         {:ok, _feedback} <- Eirinchan.Feedback.delete_feedback(feedback_id) do
+      redirect(conn, to: "/manage/feedback/browser")
+    else
+      error -> legacy_error(conn, error)
+    end
+  end
+
+  defp dispatch_feedback_action(conn, [feedback_id, "mark_read", token]) do
+    with {:ok, moderator} <- authorized_moderator(conn),
+         :ok <- require_role(moderator, 10),
+         :ok <- verify_action_token(conn, "feedback/#{feedback_id}/mark_read", token),
+         {:ok, _feedback} <- Eirinchan.Feedback.mark_read(feedback_id) do
+      redirect(conn, to: "/manage/feedback/browser")
+    else
+      error -> legacy_error(conn, error)
+    end
+  end
+
+  defp dispatch_feedback_action(conn, _parts), do: send_resp(conn, :not_found, "Page not found")
 
   defp authorized_board(conn, uri) do
     case {conn.assigns[:current_moderator], Boards.get_board_by_uri(uri)} do

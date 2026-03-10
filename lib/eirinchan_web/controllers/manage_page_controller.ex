@@ -239,7 +239,12 @@ defmodule EirinchanWeb.ManagePageController do
     with {:ok, moderator} <- ensure_moderator(conn) do
       render(conn, :feedback,
         moderator: moderator,
-        feedback: Feedback.list_feedback(),
+        feedback:
+          feedback_entries(
+            Feedback.list_feedback(),
+            moderator,
+            conn.assigns[:secure_manage_token]
+          ),
         unread_count: Feedback.unread_count()
       )
     else
@@ -1677,6 +1682,18 @@ defmodule EirinchanWeb.ManagePageController do
           ManageSecurity.sign_action(session_token, "reports/#{report.id}/dismiss&all"),
         dismiss_post_token:
           ManageSecurity.sign_action(session_token, "reports/#{report.id}/dismiss&post")
+      }
+    end)
+  end
+
+  defp feedback_entries(entries, moderator, session_token) do
+    Enum.map(entries, fn entry ->
+      %{
+        feedback: entry,
+        displayed_ip: EirinchanWeb.IpPresentation.display_ip(entry.ip_subnet, moderator),
+        delete_token: ManageSecurity.sign_action(session_token, "feedback/#{entry.id}/delete"),
+        mark_read_token:
+          ManageSecurity.sign_action(session_token, "feedback/#{entry.id}/mark_read")
       }
     end)
   end
