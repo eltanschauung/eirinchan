@@ -246,15 +246,22 @@
     >
       [Archive]
     </a>
+    <span id="updater">
+      <a href="#" id="update_thread">[Update]</a>
+      (<input type="checkbox" id="auto_update_status" checked /> Auto)
+      <span id="update_secs">10</span>
+    </span>
   </p>
 </form>
 <!-- End Search Form -->
 <p :if={@page_data.threads == []} class="unimportant">No threads yet.</p>
 
+<div id="board-refresh-target">
 <form name="postcontrols" action="/post.php" method="post">
   <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
   <input type="hidden" name="board" value={@board.uri} />
 
+  <div id="board-threads">
   <%= for summary <- @page_data.threads do %>
     <% thread = summary.thread %>
     <div class="thread" id={"thread_#{thread.id}"} data-board={@board.uri}>
@@ -446,6 +453,7 @@
       <hr />
     </div>
   <% end %>
+  </div>
 
   <div id="post-moderation-fields">
     <div id="delete-fields">
@@ -464,6 +472,7 @@
 </form>
 
 <%= raw(PostView.pages_html(@page_data, @board.uri)) %>
+</div>
 
 <a name="bottom"></a>
 <%= raw(
