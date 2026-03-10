@@ -98,15 +98,23 @@ body.active-catalog .catalog-updater-meta {
 }
 
 .board-search-row .board-search-input {
-  flex: 1 1 auto;
+  flex: 0 1 16rem;
+  width: 16rem;
   min-width: 0;
-  max-width: 16rem;
+  max-width: 40%;
 }
 
 .board-search-row input[type="submit"],
 .board-search-row a,
 .board-search-row #updater {
   flex: 0 0 auto;
+}
+
+.board-search-row #updater,
+.board-search-row #updater a {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
 }
 
 body.active-catalog .catalog-nav-box {
