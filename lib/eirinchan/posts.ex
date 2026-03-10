@@ -1431,7 +1431,7 @@ defmodule Eirinchan.Posts do
     default_flags =
       with {:ok, parsed_flags} <-
              parse_user_flags(default_flag_source, config.multiple_flags),
-           {:ok, validated_flags} <- validate_user_flags(parsed_flags, allowed_flags) do
+           {:ok, validated_flags} <- validate_user_flags(parsed_flags, allowed_flags, to_string(config.country_flag_fallback.code)) do
         validated_flags
       end
 
@@ -1444,7 +1444,7 @@ defmodule Eirinchan.Posts do
 
         raw_flags ->
           with {:ok, parsed_flags} <- parse_user_flags(raw_flags, config.multiple_flags),
-               {:ok, validated_flags} <- validate_user_flags(parsed_flags, allowed_flags) do
+               {:ok, validated_flags} <- validate_user_flags(parsed_flags, allowed_flags, to_string(config.country_flag_fallback.code)) do
             validated_flags
           end
       end
@@ -1478,8 +1478,14 @@ defmodule Eirinchan.Posts do
     resolve_country_flag(config, request, true)
   end
 
-  defp resolve_user_flag(flag, allowed_flags, _config, _request) do
-    {flag, Map.fetch!(allowed_flags, flag)}
+  defp resolve_user_flag(flag, allowed_flags, config, _request) do
+    fallback_code = config.country_flag_fallback.code |> to_string() |> String.downcase()
+
+    if flag == fallback_code do
+      normalize_country_metadata(config.country_flag_fallback)
+    else
+      {flag, Map.fetch!(allowed_flags, flag)}
+    end
   end
 
   defp parse_user_flags(nil, _multiple_flags), do: {:ok, []}
@@ -1500,8 +1506,10 @@ defmodule Eirinchan.Posts do
     {:ok, normalize_user_flag_tokens([raw_flags])}
   end
 
-  defp validate_user_flags(flags, allowed_flags) when is_list(flags) do
-    if Enum.all?(flags, fn flag -> flag == "country" or Map.has_key?(allowed_flags, flag) end) do
+  defp validate_user_flags(flags, allowed_flags, country_fallback_code) when is_list(flags) do
+    if Enum.all?(flags, fn flag ->
+         flag == "country" or flag == country_fallback_code or Map.has_key?(allowed_flags, flag)
+       end) do
       {:ok, flags}
     else
       {:error, :invalid_user_flag}
