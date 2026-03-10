@@ -324,6 +324,7 @@
             "data-quote-to": post.id
           )
         ) %>
+        <%= raw(PostView.backlinks_html(post, @backlinks_map)) %>
         <%= for icon <- PostView.state_icons(post, @config) do %>
           <img class="icon" title={icon.title} src={icon.path} alt={icon.title} />
         <% end %>
@@ -377,6 +378,7 @@
               "data-quote-to": reply.id
             )
           ) %>
+          <%= raw(PostView.backlinks_html(reply, @backlinks_map)) %>
         </p>
 
         <div class="files">

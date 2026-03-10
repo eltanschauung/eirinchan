@@ -675,6 +675,37 @@ defmodule Eirinchan.Posts do
     )
   end
 
+  @spec backlinks_map_for_posts([Post.t() | integer()], keyword()) :: %{integer() => [integer()]}
+  def backlinks_map_for_posts(posts_or_ids, opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+
+    post_ids =
+      posts_or_ids
+      |> Enum.map(fn
+        %Post{id: id} -> id
+        id when is_integer(id) -> id
+      end)
+      |> Enum.uniq()
+
+    if post_ids == [] do
+      %{}
+    else
+      rows =
+        repo.all(
+          from cite in Cite,
+            where: cite.target_post_id in ^post_ids,
+            order_by: [asc: cite.post_id],
+            select: {cite.target_post_id, cite.post_id}
+        )
+
+      Enum.reduce(rows, %{}, fn {target_post_id, post_id}, acc ->
+        Map.update(acc, target_post_id, [post_id], fn ids ->
+          if post_id in ids, do: ids, else: ids ++ [post_id]
+        end)
+      end)
+    end
+  end
+
   @spec list_nntp_references_for_post(Post.t() | integer(), keyword()) :: [NntpReference.t()]
   def list_nntp_references_for_post(%Post{id: post_id}, opts),
     do: list_nntp_references_for_post(post_id, opts)

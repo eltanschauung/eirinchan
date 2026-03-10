@@ -116,4 +116,15 @@ defmodule EirinchanWeb.PostViewTest do
     assert html =~ ~s(<span class="rotate">spin</span>)
     assert html =~ ~s(<span class="glow">glow</span>)
   end
+
+  test "backlinks_html renders existing backlinks server-side" do
+    post = %Post{id: 670}
+
+    html = PostView.backlinks_html(post, %{670 => [671, 672]})
+
+    assert html =~ ~s(<span class="mentioned unimportant">)
+    assert html =~ ~s(class="mentioned-671")
+    assert html =~ ~s(href="#671")
+    assert html =~ ~s(class="mentioned-672")
+  end
 end

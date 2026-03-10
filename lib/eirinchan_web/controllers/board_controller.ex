@@ -126,6 +126,7 @@ defmodule EirinchanWeb.BoardController do
     case Posts.list_threads_page(board, page, config: config) do
       {:ok, page_data} ->
         chrome = BoardChrome.for_board(board)
+        backlinks_map = page_backlinks_map(page_data)
 
         render(conn, :show,
           layout: false,
@@ -133,6 +134,7 @@ defmodule EirinchanWeb.BoardController do
           board_title: board.title,
           page_title: "/#{board.uri}/ - #{board.title}",
           page_data: page_data,
+          backlinks_map: backlinks_map,
           config: config,
           boards: boards,
           board_chrome: chrome,
@@ -167,6 +169,14 @@ defmodule EirinchanWeb.BoardController do
       {:error, :not_found} ->
         send_resp(conn, :not_found, "Page not found")
     end
+  end
+
+  defp page_backlinks_map(page_data) do
+    posts =
+      page_data.threads
+      |> Enum.flat_map(fn summary -> [summary.thread | summary.replies] end)
+
+    Posts.backlinks_map_for_posts(posts)
   end
 
   defp board_body_class(conn) do
