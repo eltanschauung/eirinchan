@@ -92,7 +92,6 @@ body.active-catalog .catalog-updater-meta {
 .board-search-row {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 0.35rem;
   flex-wrap: nowrap;
   white-space: nowrap;
@@ -129,7 +128,6 @@ body.active-catalog .catalog-nav-row .pages {
 
 .flag-page-shell .center-container {
   display: flex;
-  justify-content: center;
   align-items: center;
   padding: 15px;
 }
@@ -139,7 +137,6 @@ body.active-catalog .catalog-nav-row .pages {
   max-width: 256px;
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
   margin: 0 auto;
 }
 
