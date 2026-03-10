@@ -147,16 +147,20 @@ defmodule EirinchanWeb.PageController do
     if Installation.setup_required?() do
       redirect(conn, to: ~p"/setup")
     else
-      page =
-        CustomPages.get_page_by_slug("faq") ||
-          %{
+      case CustomPages.get_page_by_slug("faq") do
+        %CustomPages.Page{body: body} when is_binary(body) and body != "" ->
+          conn
+          |> put_resp_content_type("text/html")
+          |> send_resp(200, body)
+
+        _ ->
+          render_custom_page(conn, %{
             slug: "faq",
             title: "FAQ",
             body: "",
             mod_user: nil
-          }
-
-      render_custom_page(conn, page)
+          })
+      end
     end
   end
 

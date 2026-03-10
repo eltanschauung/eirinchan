@@ -69,6 +69,8 @@ defmodule EirinchanWeb.Router do
     patch "/dnsbl/browser", ManagePageController, :update_dnsbl
     get "/flags/browser", ManagePageController, :flags
     patch "/flags/browser", ManagePageController, :update_flags
+    get "/faq/browser", ManagePageController, :faq_editor
+    post "/faq/browser", ManagePageController, :update_faq
     get "/themes/browser", ManagePageController, :themes
     get "/themes/browser/:name", ManagePageController, :theme
     post "/themes/browser/:name", ManagePageController, :install_theme
