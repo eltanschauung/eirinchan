@@ -78,4 +78,20 @@ defmodule EirinchanWeb.PublicShellTest do
              "/js/jquery.min.js"
            ]
   end
+
+  test "renders vichan styles block for style-select" do
+    html =
+      PublicShell.styles_html(
+        [
+          %{label: "Yotsuba", name: "default", stylesheet: "/stylesheets/yotsuba.css"},
+          %{label: "Tomorrow", name: "tomorrow", stylesheet: "/stylesheets/tomorrow.css"}
+        ],
+        "Tomorrow"
+      )
+
+    assert html =~ ~s(<div class="styles">)
+    assert html =~ ~s([Yotsuba])
+    assert html =~ ~s([Tomorrow])
+    assert html =~ ~s(class="selected")
+  end
 end

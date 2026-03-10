@@ -98,6 +98,21 @@ defmodule EirinchanWeb.PublicShell do
     "<script type=\"text/javascript\">ready();</script>"
   end
 
+  def styles_html(theme_options, selected_label) do
+    options =
+      theme_options
+      |> List.wrap()
+      |> Enum.map(fn option ->
+        label = option.label || option.name || "Style"
+        selected_class = if label == selected_label, do: " class=\"selected\"", else: ""
+        escaped_label = Phoenix.HTML.html_escape(label) |> Phoenix.HTML.safe_to_string()
+        "<a href=\"javascript:void(0)\"#{selected_class}>[#{escaped_label}]</a>"
+      end)
+      |> Enum.join("")
+
+    "<div class=\"styles\">#{options}</div>"
+  end
+
   defp additional_javascript(config) do
     config
     |> Map.get(:additional_javascript, [])
