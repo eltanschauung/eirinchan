@@ -79,7 +79,9 @@ defmodule EirinchanWeb.ManagePageController do
     with {:ok, moderator} <- ensure_admin(conn) do
       render(conn, :config,
         moderator: moderator,
-        config_json: Settings.encode_for_edit(Settings.current_instance_config()),
+        config_json:
+          Settings.raw_instance_config_json() ||
+            Settings.encode_for_edit(Settings.current_instance_config()),
         error: nil
       )
     else

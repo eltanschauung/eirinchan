@@ -12,6 +12,20 @@ defmodule Eirinchan.Settings do
     persisted_instance_config() || %{}
   end
 
+  @spec raw_instance_config_json() :: binary() | nil
+  def raw_instance_config_json do
+    path = config_path()
+
+    with true <- is_binary(path) and File.exists?(path),
+         {:ok, body} <- File.read(path),
+         {:ok, decoded} <- Jason.decode(body),
+         true <- is_map(decoded) do
+      body
+    else
+      _ -> nil
+    end
+  end
+
   @spec installed_themes() :: [map()]
   def installed_themes do
     current_instance_config()
@@ -86,7 +100,7 @@ defmodule Eirinchan.Settings do
     with {:ok, decoded} <- Jason.decode(raw_json),
          true <- is_map(decoded),
          normalized <- Config.normalize_override_keys(decoded),
-         :ok <- persist_instance_config(normalized) do
+         :ok <- persist_instance_config_raw_json(raw_json) do
       {:ok, normalized}
     else
       {:error, %Jason.DecodeError{}} -> {:error, :invalid_json}
@@ -107,6 +121,17 @@ defmodule Eirinchan.Settings do
     |> stringify_keys()
     |> Jason.encode_to_iodata!(pretty: true)
     |> then(&File.write(path, &1))
+  end
+
+  @spec persist_instance_config_raw_json(binary()) :: :ok | {:error, term()}
+  def persist_instance_config_raw_json(raw_json) when is_binary(raw_json) do
+    path = config_path()
+
+    path
+    |> Path.dirname()
+    |> File.mkdir_p!()
+
+    File.write(path, raw_json)
   end
 
   @spec config_path() :: binary() | nil
