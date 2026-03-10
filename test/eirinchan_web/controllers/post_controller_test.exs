@@ -263,6 +263,22 @@ defmodule EirinchanWeb.PostControllerTest do
     assert %{"id" => id, "thread_id" => id} = json_response(create_conn, 200)
   end
 
+  test "posting accepts catalog page referers", %{conn: conn} do
+    board = board_fixture()
+    conn = %{conn | host: "www.example.com", port: 4001}
+
+    create_conn =
+      conn
+      |> put_req_header("referer", "http://www.example.com:4001/#{board.uri}/catalog.html")
+      |> post(~p"/#{board.uri}/post", %{
+        "body" => "posted from catalog",
+        "json_response" => "1",
+        "post" => "New Topic"
+      })
+
+    assert %{"id" => id, "thread_id" => id} = json_response(create_conn, 200)
+  end
+
   test "posting rejects invalid embed urls", %{conn: conn} do
     board = board_fixture()
 

@@ -552,6 +552,8 @@ defmodule Eirinchan.Runtime.Config do
     file_page50 = interpolate_integer_pattern(config.file_page50)
     file_page_slug = interpolate_thread_slug_pattern(config.file_page_slug)
     file_page50_slug = interpolate_thread_slug_pattern(config.file_page50_slug)
+    file_catalog = Regex.escape(config.file_catalog)
+    file_catalog_page = interpolate_integer_pattern(config.file_catalog_page)
     mod_path = Regex.escape(config.file_mod)
 
     Regex.compile!(
@@ -560,7 +562,7 @@ defmodule Eirinchan.Runtime.Config do
         Regex.escape(config.root) <>
         "(" <>
         board_index_path <>
-        "(#{file_index}|#{file_page})?" <>
+        "(#{file_index}|#{file_page}|#{file_catalog}|#{file_catalog_page})?" <>
         "|" <>
         board_path <>
         res_path <>

@@ -64,6 +64,8 @@ defmodule Eirinchan.Runtime.ConfigTest do
     assert config.multiple_flags
     assert Regex.match?(config.referer_match, "https://example.test/chan/tech/home.html")
     assert Regex.match?(config.referer_match, "https://example.test/chan/tech")
+    assert Regex.match?(config.referer_match, "https://example.test/chan/tech/catalog.html")
+    assert Regex.match?(config.referer_match, "https://example.test/chan/tech/catalog/2.html")
 
     assert Regex.match?(
              config.referer_match,
