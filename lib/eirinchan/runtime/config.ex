@@ -143,7 +143,7 @@ defmodule Eirinchan.Runtime.Config do
     flag_style: "width:16px;height:11px;",
     user_flag: false,
     multiple_flags: false,
-    default_user_flag: "us",
+    default_user_flag: "country",
     user_flags: %{},
     duplicate_file_mode: false,
     max_filesize: 10 * 1024 * 1024,
@@ -448,7 +448,7 @@ defmodule Eirinchan.Runtime.Config do
       config
       |> Map.put_new(:user_flag, false)
       |> Map.put_new(:multiple_flags, false)
-      |> Map.put_new(:default_user_flag, "us")
+      |> Map.put_new(:default_user_flag, "country")
       |> Map.put_new(:user_flags, %{})
       |> normalize_captcha()
 
