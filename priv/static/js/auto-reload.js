@@ -326,7 +326,7 @@ $(document).ready(function(){
 			success: function(data) {
 				var loaded_posts = 0;	// the number of new posts loaded in this update
 				var elementsToAppend = [];
-				var elementsToTriggerNewpostEvent = [];
+				var insertedPostIds = [];
 				$(data).find('div.post.reply').each(function() {
 					var id = $(this).attr('id');
 					if($('#' + id).length == 0) {
@@ -337,13 +337,16 @@ $(document).ready(function(){
 						loaded_posts++;
 						elementsToAppend.push($(this));
 						elementsToAppend.push($('<br class="clear">'));
-						elementsToTriggerNewpostEvent.push(this);
+						insertedPostIds.push(id);
 					}
 				});
 				$('div.post:last').next().after(elementsToAppend);
 				recheck_activated();
-				elementsToTriggerNewpostEvent.forEach(function(ele){
-					$(document).trigger('new_post', ele);
+				insertedPostIds.forEach(function(id){
+					var inserted = document.getElementById(id);
+					if (inserted) {
+						$(document).trigger('new_post', inserted);
+					}
 				});
 				time_loaded = Date.now(); // interop with watch.js
 				
