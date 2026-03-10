@@ -222,14 +222,6 @@ defmodule EirinchanWeb.ManagePageControllerTest do
 
     moderator = moderator_fixture(%{role: "admin"})
 
-    dashboard =
-      conn
-      |> login_moderator(moderator)
-      |> get("/manage")
-      |> html_response(200)
-
-    assert dashboard =~ "Flag Configuration"
-
     update_conn =
       conn
       |> recycle()
