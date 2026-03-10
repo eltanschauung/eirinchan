@@ -1,18 +1,5 @@
 <% post = @summary.thread %>
 <% template = PostView.template_assigns(@board, post, @config) %>
-<%= raw(
-  PostView.boardlist_html(
-    EirinchanWeb.BoardChrome.boardlist_groups(
-      @boards,
-      @board_chrome.boardlist_groups || PostView.boardlist_groups(@boards)
-    )
-  )
-) %>
-
-<script type="text/javascript">
-  if (typeof do_boardlist !== 'undefined') do_boardlist();
-</script>
-
 <a id="top"></a>
 <img class="board_image" src="/b.php" style="width:300px;height:100px" alt="" />
 

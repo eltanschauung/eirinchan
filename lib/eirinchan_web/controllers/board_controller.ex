@@ -6,6 +6,7 @@ defmodule EirinchanWeb.BoardController do
   alias Eirinchan.Build
   alias Eirinchan.Posts
   alias EirinchanWeb.BoardChrome
+  alias EirinchanWeb.PostView
   alias EirinchanWeb.PublicShell
 
   plug EirinchanWeb.Plugs.LoadBoard when action in [:show]
@@ -67,6 +68,7 @@ defmodule EirinchanWeb.BoardController do
   defp render_catalog_page(conn, page_num) do
     board = conn.assigns.current_board
     config = conn.assigns.current_board_config
+    boards = Boards.list_boards()
     _ = Build.ensure_indexes(board, config: config)
 
     case Posts.list_catalog_page(board, page_num, config: config) do
@@ -81,8 +83,15 @@ defmodule EirinchanWeb.BoardController do
           page_data: page_data,
           threads: page_data.threads,
           config: config,
-          boards: Boards.list_boards(),
+          boards: boards,
           board_chrome: chrome,
+          global_boardlist_html:
+            PostView.boardlist_html(
+              BoardChrome.boardlist_groups(
+                boards,
+                chrome.boardlist_groups || PostView.boardlist_groups(boards)
+              )
+            ),
           public_shell: true,
           viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",
           base_stylesheet: "/stylesheets/style.css",
@@ -113,6 +122,7 @@ defmodule EirinchanWeb.BoardController do
   defp render_page(conn, page) do
     board = conn.assigns.current_board
     config = conn.assigns.current_board_config
+    boards = Boards.list_boards()
     _ = Build.ensure_indexes(board, config: config)
 
     case Posts.list_threads_page(board, page, config: config) do
@@ -127,8 +137,15 @@ defmodule EirinchanWeb.BoardController do
           announcement: Announcement.current(),
           page_data: page_data,
           config: config,
-          boards: Boards.list_boards(),
+          boards: boards,
           board_chrome: chrome,
+          global_boardlist_html:
+            PostView.boardlist_html(
+              BoardChrome.boardlist_groups(
+                boards,
+                chrome.boardlist_groups || PostView.boardlist_groups(boards)
+              )
+            ),
           public_shell: true,
           viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",
           base_stylesheet: "/stylesheets/style.css",

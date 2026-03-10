@@ -1,11 +1,3 @@
-<%= raw(
-  PostView.boardlist_html(@board_chrome.boardlist_groups || PostView.boardlist_groups(@boards))
-) %>
-
-<script type="text/javascript">
-  if (typeof do_boardlist !== 'undefined') do_boardlist();
-</script>
-
 <header>
   <h1>News</h1>
   <div class="subtitle"><%= @board_chrome.subtitle || "Site updates" %></div>
@@ -19,8 +11,12 @@
 
 <div class="pages top">
   [<a href={~p"/"}>Home</a>]
-  <span :if={Eirinchan.Themes.page_theme_enabled?("catalog")}>[<a href={~p"/catalog"}>Catalog</a>]</span>
-  <span :if={Eirinchan.Themes.page_theme_enabled?("recent")}>[<a href={~p"/recent"}>Recent</a>]</span>
+  <span :if={Eirinchan.Themes.page_theme_enabled?("catalog")}>
+    [<a href={~p"/catalog"}>Catalog</a>]
+  </span>
+  <span :if={Eirinchan.Themes.page_theme_enabled?("recent")}>
+    [<a href={~p"/recent"}>Recent</a>]
+  </span>
   <%= for page <- @custom_pages do %>
     [<a href={"/pages/#{page.slug}"}><%= page.title %></a>]
   <% end %>

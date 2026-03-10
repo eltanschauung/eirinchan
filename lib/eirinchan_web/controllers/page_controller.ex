@@ -202,6 +202,7 @@ defmodule EirinchanWeb.PageController do
       board_chrome: chrome,
       announcement: Announcement.current(),
       custom_pages: CustomPages.list_pages(),
+      global_boardlist_html: PostView.boardlist_html(PostView.boardlist_groups(boards)),
       public_shell: true,
       viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",
       base_stylesheet: "/stylesheets/style.css",
@@ -241,6 +242,7 @@ defmodule EirinchanWeb.PageController do
 
   defp render_custom_page(conn, page, opts \\ []) do
     board = Keyword.get(opts, :board)
+
     extra_stylesheets =
       public_page_assigns(conn, "active-page", "page")
       |> Keyword.fetch!(:extra_stylesheets)
@@ -264,7 +266,9 @@ defmodule EirinchanWeb.PageController do
     end
   end
 
-  defp maybe_add_page_stylesheet(stylesheets, %{slug: "faq"}), do: stylesheets ++ ["/faq/recent.css"]
+  defp maybe_add_page_stylesheet(stylesheets, %{slug: "faq"}),
+    do: stylesheets ++ ["/faq/recent.css"]
+
   defp maybe_add_page_stylesheet(stylesheets, _page), do: stylesheets
 
   defp flag_assets do
@@ -304,7 +308,7 @@ defmodule EirinchanWeb.PageController do
 
     [
       boards: boards,
-      boardlist_top_html: PostView.boardlist_html(PostView.boardlist_groups(boards)),
+      global_boardlist_html: PostView.boardlist_html(PostView.boardlist_groups(boards)),
       footer_html: EirinchanWeb.BoardChrome.footer_html(),
       public_shell: true,
       viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",

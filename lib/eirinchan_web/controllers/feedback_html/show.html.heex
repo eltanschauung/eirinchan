@@ -1,16 +1,3 @@
-<%= raw(
-  EirinchanWeb.PostView.boardlist_html(
-    EirinchanWeb.BoardChrome.boardlist_groups(
-      @boards,
-      @board_chrome.boardlist_groups || EirinchanWeb.PostView.boardlist_groups(@boards)
-    )
-  )
-) %>
-
-<script type="text/javascript">
-  if (typeof do_boardlist !== 'undefined') do_boardlist();
-</script>
-
 <img class="board_image" src="/b.php" style="width:300px;height:100px" alt="" />
 
 <header>
@@ -27,7 +14,9 @@
 <div class="pages top">
   [<a href={~p"/"}>Home</a>]
   [<a href={~p"/news"}>News</a>]
-  <span :if={Eirinchan.Themes.page_theme_enabled?("catalog")}>[<a href={~p"/catalog"}>Catalog</a>]</span>
+  <span :if={Eirinchan.Themes.page_theme_enabled?("catalog")}>
+    [<a href={~p"/catalog"}>Catalog</a>]
+  </span>
   <%= for page <- @custom_pages do %>
     [<a href={"/pages/#{page.slug}"}><%= page.title %></a>]
   <% end %>

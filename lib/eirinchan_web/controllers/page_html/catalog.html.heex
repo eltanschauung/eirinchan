@@ -1,22 +1,3 @@
-<div class="boardlist">
-  <%= for group <- (@board_chrome.boardlist_groups || PostView.boardlist_groups(@boards)) do %>
-    <% links = group[:links] || group %>
-    <span class="sub" data-description={group[:description]}>
-      [
-      <%= for {link, index} <- Enum.with_index(links) do %>
-        <a href={link.href} title={link.title}><%= link.label %></a><%= if index <
-                                                                             length(links) - 1,
-                                                                           do: raw(" / ") %>
-      <% end %>
-      ]
-    </span>
-  <% end %>
-</div>
-
-<script type="text/javascript">
-  if (typeof do_boardlist !== 'undefined') do_boardlist();
-</script>
-
 <header>
   <h1>Global Catalog</h1>
   <div class="subtitle"></div>
@@ -25,7 +6,9 @@
 <div class="pages top">
   [<a href={~p"/"}>Home</a>]
   <span :if={Eirinchan.Themes.page_theme_enabled?("ukko")}>[<a href={~p"/ukko"}>Ukko</a>]</span>
-  <span :if={Eirinchan.Themes.page_theme_enabled?("recent")}>[<a href={~p"/recent"}>Recent</a>]</span>
+  <span :if={Eirinchan.Themes.page_theme_enabled?("recent")}>
+    [<a href={~p"/recent"}>Recent</a>]
+  </span>
 </div>
 
 <section>

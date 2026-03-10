@@ -74,6 +74,11 @@
   >
     <%= if assigns[:global_boardlist_html] do %>
       <%= Phoenix.HTML.raw(assigns[:global_boardlist_html]) %>
+      <%= if assigns[:public_shell] do %>
+        <script type="text/javascript">
+          if (typeof do_boardlist !== 'undefined') do_boardlist();
+        </script>
+      <% end %>
     <% end %>
     <%= @inner_content %>
     <div

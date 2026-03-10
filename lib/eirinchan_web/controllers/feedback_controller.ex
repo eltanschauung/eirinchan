@@ -61,6 +61,12 @@ defmodule EirinchanWeb.FeedbackController do
     |> assign(:body_class, "8chan vichan is-not-moderator active-feedback")
     |> assign(:body_data_stylesheet, Path.basename(stylesheet))
     |> assign(
+      :global_boardlist_html,
+      EirinchanWeb.PostView.boardlist_html(
+        EirinchanWeb.PostView.boardlist_groups(Boards.list_boards())
+      )
+    )
+    |> assign(
       :head_html,
       PublicShell.head_html("feedback",
         resource_version: conn.assigns[:asset_version],
