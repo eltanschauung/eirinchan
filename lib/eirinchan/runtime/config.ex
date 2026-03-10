@@ -46,6 +46,7 @@ defmodule Eirinchan.Runtime.Config do
     wordfilters: [],
     hidden_input_name: "hash",
     hidden_input_hash: nil,
+    genpassword_chars: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+",
     ipcrypt_key: "",
     ipcrypt_prefix: "Cloak",
     ipcrypt_immune_ip: "0.0.0.0",
