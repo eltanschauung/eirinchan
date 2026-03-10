@@ -139,7 +139,7 @@ defmodule EirinchanWeb.PostView do
     ~s(<div class="#{class_name}">#{spans}</div>)
   end
 
-  def pages_html(page_data, board_uri) do
+  def pages_html(page_data, board_uri, config) do
     previous_html =
       if page_data.page > 1 do
         previous = Enum.at(page_data.pages, page_data.page - 2)
@@ -166,9 +166,19 @@ defmodule EirinchanWeb.PostView do
         ""
       end
 
+    catalog_label =
+      config
+      |> Map.get(:catalog_name, "Catalog")
+      |> to_string()
+      |> String.trim()
+      |> case do
+        "" -> "Catalog"
+        value -> value
+      end
+
     catalog_link =
       if Themes.page_theme_enabled?("catalog"),
-        do: ~s( | <a href="/#{board_uri}/catalog.html">Catalog</a>),
+        do: ~s( | <a href="/#{board_uri}/catalog.html">#{html_escape_to_string(catalog_label)}</a>),
         else: ""
 
     ~s(<div class="pages">#{previous_html}  #{page_links}#{if next_html != "", do: "  " <> next_html, else: ""}#{catalog_link}</div>)
