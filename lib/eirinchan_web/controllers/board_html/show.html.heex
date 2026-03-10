@@ -233,23 +233,27 @@
 <!-- Start Search Form -->
 <form style="display:inline;" action="/search.php" method="get">
   <p class="board-search-row" style="margin: 8px;">
-    <input type="text" class="board-search-input" name="search" placeholder="Search" />
-    <input type="hidden" name="board" value={@board.uri} />
-    <input type="submit" value="Search" />
-    <%= for link <- EirinchanWeb.BoardChrome.search_links(@board.uri, @config) do %>
-      <a style="text-decoration:none;" href={link.href}><%= link.label %></a>
-    <% end %>
-    <a
-      :if={is_binary(@config.archive_url) and @config.archive_url != ""}
-      style="text-decoration:none;"
-      href={@config.archive_url}
-    >
-      [Archive]
-    </a>
-    <span id="updater" class="board-live-updater">
-      <a href="#" id="update_thread" title="This index page is updated automatically to display new posts.">[Live Page&nbsp;<span class="live-page-indicator" aria-hidden="true" style="color:#0a0 !important;">⬤</span>]</a>
-      <input type="checkbox" id="auto_update_status" checked hidden />
-      <span id="update_secs" hidden>5</span>
+    <span class="board-search-form-controls">
+      <input type="text" class="board-search-input" name="search" placeholder="Search" />
+      <input type="hidden" name="board" value={@board.uri} />
+      <input type="submit" value="Search" />
+    </span>
+    <span class="board-search-links">
+      <%= for link <- EirinchanWeb.BoardChrome.search_links(@board.uri, @config) do %>
+        <a style="text-decoration:none;" href={link.href}><%= link.label %></a>
+      <% end %>
+      <a
+        :if={is_binary(@config.archive_url) and @config.archive_url != ""}
+        style="text-decoration:none;"
+        href={@config.archive_url}
+      >
+        [Archive]
+      </a>
+      <span id="updater" class="board-live-updater">
+        <a href="#" id="update_thread" title="This index page is updated automatically to display new posts.">[Live Page&nbsp;<span class="live-page-indicator" aria-hidden="true" style="color:#0a0 !important;">⬤</span>]</a>
+        <input type="checkbox" id="auto_update_status" checked hidden />
+        <span id="update_secs" hidden>5</span>
+      </span>
     </span>
   </p>
 </form>

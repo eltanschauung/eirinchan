@@ -92,16 +92,33 @@ body.active-catalog .catalog-updater-meta {
 .board-search-row {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
+  gap: 0.35rem 0.5rem;
+  flex-wrap: wrap;
+}
+
+.board-search-row .board-search-form-controls,
+.board-search-row .board-search-links {
+  display: inline-flex;
+  align-items: center;
   gap: 0.35rem;
-  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.board-search-row .board-search-form-controls {
+  flex: 0 1 auto;
+}
+
+.board-search-row .board-search-links {
+  flex: 0 1 auto;
   white-space: nowrap;
 }
 
 .board-search-row .board-search-input {
-  flex: 0 1 16rem;
-  width: 16rem;
-  min-width: 0;
-  max-width: 6%;
+  flex: 1 1 14rem;
+  width: 14rem;
+  min-width: 10rem;
+  max-width: 16rem;
 }
 
 .board-search-row input[type="submit"],
