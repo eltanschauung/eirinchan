@@ -294,12 +294,17 @@ defmodule Eirinchan.Uploads do
 
   defp download_remote_body(uri, config) do
     timeout = config[:upload_by_url_timeout_ms] || 5_000
+    max_filesize = config[:max_filesize] || 10 * 1024 * 1024
     request = {String.to_charlist(URI.to_string(uri)), []}
     http_options = [timeout: timeout, connect_timeout: timeout, autoredirect: true]
 
     case :httpc.request(:get, request, http_options, body_format: :binary) do
       {:ok, {{_version, 200, _reason}, headers, body}} ->
-        {:ok, body, headers}
+        if remote_body_too_large?(headers, body, max_filesize) do
+          {:error, :upload_failed}
+        else
+          {:ok, body, headers}
+        end
 
       {:ok, {{_version, _status, _reason}, _headers, _body}} ->
         {:error, :upload_failed}
@@ -359,6 +364,24 @@ defmodule Eirinchan.Uploads do
 
   defp remote_content_type(headers, filename) do
     header_value(headers, "content-type") || MIME.from_path(filename)
+  end
+
+  defp remote_body_too_large?(headers, body, max_filesize) when is_integer(max_filesize) do
+    content_length =
+      case header_value(headers, "content-length") do
+        nil ->
+          nil
+
+        value ->
+          case Integer.parse(value) do
+            {parsed, _rest} -> parsed
+            :error -> nil
+          end
+      end
+
+    body_size = byte_size(body)
+
+    (is_integer(content_length) and content_length > max_filesize) or body_size > max_filesize
   end
 
   defp remote_host_allowed?(host, config) do

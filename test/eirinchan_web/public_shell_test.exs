@@ -63,4 +63,19 @@ defmodule EirinchanWeb.PublicShellTest do
              "/js/jquery.min.js"
            ]
   end
+
+  test "falls back to root for dangerous additional javascript base urls" do
+    config = %{
+      root: "/",
+      url_javascript: "/main.js",
+      additional_javascript: ["js/jquery.min.js"],
+      additional_javascript_url: "javascript:alert(1)",
+      additional_javascript_compile: false
+    }
+
+    assert PublicShell.javascript_urls(:thread, config) == [
+             "/main.js",
+             "/js/jquery.min.js"
+           ]
+  end
 end

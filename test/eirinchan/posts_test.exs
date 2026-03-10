@@ -737,6 +737,33 @@ defmodule Eirinchan.PostsTest do
              )
   end
 
+  test "create_post rejects remote uploads larger than max_filesize" do
+    board =
+      board_fixture(%{
+        config_overrides: %{
+          upload_by_url_enabled: true,
+          upload_by_url_allow_private_hosts: true,
+          max_filesize: 128
+        }
+      })
+
+    source_upload = upload_fixture("remote.png", [content: String.duplicate("x", 1024)])
+    server = serve_upload_fixture(File.read!(source_upload.path), "remote.png")
+    on_exit(server.stop)
+
+    assert {:error, :upload_failed} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "first post",
+                 "file_url" => server.url,
+                 "post" => "New Topic"
+               },
+               config: post_config(board.config_overrides),
+               request: post_request(board.uri)
+             )
+  end
+
   test "create_post removes stored files when a later file insert fails" do
     board = board_fixture()
     File.rm_rf!(Path.join(Eirinchan.Build.board_root(), board.uri))
