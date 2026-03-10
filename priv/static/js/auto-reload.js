@@ -255,14 +255,16 @@ $(document).ready(function(){
 				var doc = parser.parseFromString(data, 'text/html');
 				var replacement = doc.querySelector('#board-refresh-target');
 				var current = document.querySelector('#board-refresh-target');
+				var currentThreads = document.querySelector('#board-threads');
 				var new_threads = 0;
 				var current_ids = {};
+				var threads_to_prepend = [];
 
 				$('#board-threads .thread').each(function() {
 					current_ids[$(this).attr('id')] = true;
 				});
 
-				if (!replacement || !current) {
+				if (!replacement || !current || !currentThreads) {
 					$('#update_secs').text(_("Unknown error"));
 					if ($('#auto_update_status').is(':checked')) {
 						poll_interval_delay = poll_interval_errordelay;
@@ -275,10 +277,18 @@ $(document).ready(function(){
 					var id = $(this).attr('id');
 					if (id && !current_ids[id]) {
 						new_threads++;
+						threads_to_prepend.push(this.cloneNode(true));
 					}
 				});
 
-				current.replaceWith(replacement.cloneNode(true));
+				for (var i = threads_to_prepend.length - 1; i >= 0; i--) {
+					var threadNode = threads_to_prepend[i];
+					currentThreads.insertBefore(threadNode, currentThreads.firstChild);
+
+					$(threadNode).find('.post').each(function() {
+						$(document).trigger('new_post', this);
+					});
+				}
 
 				if ($('#auto_update_status').is(':checked')) {
 					poll_interval_delay = poll_interval_mindelay;
