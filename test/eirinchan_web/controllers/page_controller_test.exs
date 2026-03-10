@@ -119,6 +119,23 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ ~s(href="/faq/recent.css)
   end
 
+  test "GET /faq serves stored full html overrides", %{conn: conn} do
+    author = moderator_fixture(%{username: "faqeditor"})
+
+    {:ok, _page} =
+      Eirinchan.CustomPages.create_page(%{
+        slug: "faq",
+        title: "FAQ",
+        body: "<!doctype html><html><body><h1>Stored FAQ</h1></body></html>",
+        mod_user_id: author.id
+      })
+
+    faq_conn = get(conn, "/faq")
+
+    assert response(faq_conn, 200) =~ "<h1>Stored FAQ</h1>"
+    assert get_resp_header(faq_conn, "content-type") == ["text/html; charset=utf-8"]
+  end
+
   test "GET /pages/faq uses the FAQ template when the page exists", %{conn: conn} do
     author = moderator_fixture(%{username: "faqwriter"})
 

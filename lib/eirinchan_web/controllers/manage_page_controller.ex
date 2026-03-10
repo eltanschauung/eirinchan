@@ -1,6 +1,7 @@
 defmodule EirinchanWeb.ManagePageController do
   use EirinchanWeb, :controller
   import Ecto.Query, only: [from: 2]
+  import Phoenix.Template, only: [render_to_string: 4]
 
   alias Eirinchan.Announcement
   alias Eirinchan.Boardlist
@@ -134,6 +135,45 @@ defmodule EirinchanWeb.ManagePageController do
 
       {:error, :forbidden} ->
         render_flags_error(conn, "Administrator access required.")
+    end
+  end
+
+  def faq_editor(conn, _params) do
+    with {:ok, moderator} <- ensure_admin(conn) do
+      render(conn, :faq_editor,
+        moderator: moderator,
+        faq_html: current_faq_editor_html(conn),
+        error: nil
+      )
+    else
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      {:error, :forbidden} ->
+        render_faq_editor_error(conn, "Administrator access required.")
+    end
+  end
+
+  def update_faq(conn, %{"faq_html" => faq_html}) do
+    with {:ok, moderator} <- ensure_admin(conn),
+         {:ok, _page} <- upsert_faq_page(faq_html, moderator.id) do
+      conn
+      |> put_flash(:info, "FAQ updated.")
+      |> redirect(to: ~p"/manage/faq/browser")
+    else
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      {:error, :forbidden} ->
+        render_faq_editor_error(conn, "Administrator access required.")
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        render_faq_editor_error(
+          conn,
+          format_changeset(changeset),
+          :unprocessable_entity,
+          faq_html
+        )
     end
   end
 
@@ -1548,6 +1588,16 @@ defmodule EirinchanWeb.ManagePageController do
     )
   end
 
+  defp render_faq_editor_error(conn, message, status \\ :forbidden, faq_html \\ "") do
+    conn
+    |> put_status(status)
+    |> render(:faq_editor,
+      moderator: conn.assigns[:current_moderator],
+      faq_html: faq_html,
+      error: message
+    )
+  end
+
   defp render_board_config_error(conn, uri, message, config_json, status \\ :unprocessable_entity) do
     conn
     |> put_status(status)
@@ -1716,6 +1766,97 @@ defmodule EirinchanWeb.ManagePageController do
   defp appeal_redirect_path(_params), do: "/manage/ban-appeals/browser"
 
   defp load_custom_page(id), do: Eirinchan.Repo.get(Eirinchan.CustomPages.Page, id)
+
+  defp current_faq_editor_html(conn) do
+    case CustomPages.get_page_by_slug("faq") do
+      %CustomPages.Page{body: body} when is_binary(body) and body != "" ->
+        body
+
+      _ ->
+        default_faq_editor_html(conn)
+    end
+  end
+
+  defp default_faq_editor_html(conn) do
+    page = %{slug: "faq", title: "FAQ", body: "", mod_user: nil}
+
+    assigns =
+      [
+        page: page,
+        flag_board: nil,
+        flag_assets: [],
+        flag_storage_key: "flag_bant",
+        page_title: "FAQ",
+        layout: false,
+        inner_content: nil
+      ] ++ faq_public_assigns(conn)
+
+    inner_content = render_to_string(EirinchanWeb.PageHTML, "faq", "html", assigns)
+
+    render_to_string(
+      EirinchanWeb.Layouts,
+      "root",
+      "html",
+      Keyword.put(assigns, :inner_content, Phoenix.HTML.raw(inner_content))
+    )
+  end
+
+  defp faq_public_assigns(conn) do
+    boards = Boards.list_boards()
+    primary_board = Enum.find(boards, &(&1.uri == "bant")) || %{uri: "bant"}
+
+    [
+      boards: boards,
+      primary_board: primary_board,
+      board_chrome: EirinchanWeb.BoardChrome.for_board(primary_board),
+      global_boardlist_html: PostView.boardlist_html(PostView.boardlist_groups(boards)),
+      public_shell: true,
+      viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",
+      base_stylesheet: "/stylesheets/style.css",
+      body_class: "8chan vichan is-not-moderator active-page",
+      body_data_stylesheet:
+        Path.basename(conn.assigns[:theme_stylesheet] || "/stylesheets/yotsuba.css"),
+      head_html:
+        EirinchanWeb.PublicShell.head_html("page",
+          resource_version: conn.assigns[:asset_version],
+          theme_label: conn.assigns[:theme_label],
+          theme_options: conn.assigns[:theme_options]
+        ),
+      javascript_urls: EirinchanWeb.PublicShell.javascript_urls("page"),
+      custom_javascript_urls: [],
+      analytics_html: nil,
+      body_end_html: EirinchanWeb.PublicShell.body_end_html(),
+      primary_stylesheet: conn.assigns[:theme_stylesheet] || "/stylesheets/yotsuba.css",
+      primary_stylesheet_id: "stylesheet",
+      extra_stylesheets: [
+        "/stylesheets/eirinchan-public.css",
+        "/stylesheets/eirinchan-bant.css",
+        "/faq/recent.css"
+      ],
+      hide_theme_switcher: true,
+      skip_app_stylesheet: true
+    ]
+  end
+
+  defp upsert_faq_page(faq_html, mod_user_id) do
+    case CustomPages.get_page_by_slug("faq") do
+      nil ->
+        CustomPages.create_page(%{
+          slug: "faq",
+          title: "FAQ",
+          body: faq_html,
+          mod_user_id: mod_user_id
+        })
+
+      page ->
+        CustomPages.update_page(page, %{
+          slug: "faq",
+          title: page.title || "FAQ",
+          body: faq_html,
+          mod_user_id: mod_user_id
+        })
+    end
+  end
 
   defp format_changeset(changeset) do
     changeset.errors
