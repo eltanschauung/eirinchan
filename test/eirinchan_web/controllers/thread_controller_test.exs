@@ -187,6 +187,18 @@ defmodule EirinchanWeb.ThreadControllerTest do
     assert page =~ "img.youtube.com/vi/dQw4w9WgXcQ/0.jpg"
   end
 
+  test "thread page uses configured catalog label", %{conn: conn} do
+    :ok = Eirinchan.Themes.enable_page_theme("catalog")
+
+    board = board_fixture(%{config_overrides: %{catalog_name: "Orin"}})
+    thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
+
+    page = conn |> get("/#{board.uri}/res/#{thread.id}.html") |> html_response(200)
+
+    assert page =~ "[Orin]"
+    refute page =~ "[Catalog]"
+  end
+
   test "thread pages render stored OP tags", %{conn: conn} do
     board =
       board_fixture(%{

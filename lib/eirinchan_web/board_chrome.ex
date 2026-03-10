@@ -5,7 +5,17 @@ defmodule EirinchanWeb.BoardChrome do
 
   def for_board(_board), do: default()
 
-  def default do
+  def default(config \\ %{}) do
+    catalog_name =
+      config
+      |> Map.get(:catalog_name, "Catalog")
+      |> to_string()
+      |> String.trim()
+      |> case do
+        "" -> "Catalog"
+        value -> value
+      end
+
     %{
       subtitle: nil,
       boardlist_groups: nil,
@@ -14,15 +24,15 @@ defmodule EirinchanWeb.BoardChrome do
       footer_html: footer_html(),
       search_links:
         if(Themes.page_theme_enabled?("catalog"),
-          do: [%{href: "/__BOARD__/catalog.html", label: "[Catalog]"}],
+          do: [%{href: "/__BOARD__/catalog.html", label: "[#{catalog_name}]"}],
           else: []
         ),
       show_default_announcement: true
     }
   end
 
-  def search_links(board_uri) do
-    default()
+  def search_links(board_uri, config \\ %{}) do
+    default(config)
     |> Map.fetch!(:search_links)
     |> Enum.map(fn link ->
       %{link | href: String.replace(link.href, "__BOARD__", board_uri)}
