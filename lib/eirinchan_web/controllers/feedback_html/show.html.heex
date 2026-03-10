@@ -11,17 +11,6 @@
   </div>
 <% end %>
 
-<div class="pages top">
-  [<a href={~p"/"}>Home</a>]
-  [<a href={~p"/news"}>News</a>]
-  <span :if={Eirinchan.Themes.page_theme_enabled?("catalog")}>
-    [<a href={~p"/catalog"}>Catalog</a>]
-  </span>
-  <%= for page <- @custom_pages do %>
-    [<a href={if page.slug == "flag", do: "/flag", else: "/pages/#{page.slug}"}><%= page.title %></a>]
-  <% end %>
-</div>
-
 <%= if assigns[:errors] do %>
   <section class="public-panel feedback-errors">
     <%= for {field, messages} <- @errors do %>
