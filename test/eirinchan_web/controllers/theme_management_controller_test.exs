@@ -29,6 +29,7 @@ defmodule EirinchanWeb.ThemeManagementControllerTest do
 
     assert themes_page =~ "Manage Themes"
     assert themes_page =~ "Catalog"
+    assert themes_page =~ "FAQ"
     assert themes_page =~ "Overboard (Ukko)"
     assert themes_page =~ "Install"
 
@@ -125,5 +126,38 @@ defmodule EirinchanWeb.ThemeManagementControllerTest do
       |> get("/#{board.uri}/catalog.html")
 
     assert response(missing_catalog_conn, 404)
+  end
+
+  test "admin can install and uninstall faq theme", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+
+    refute Eirinchan.CustomPages.get_page_by_slug("faq")
+
+    install_conn =
+      conn
+      |> login_moderator(moderator)
+      |> post("/manage/themes/browser/faq", %{})
+
+    assert redirected_to(install_conn) == "/manage/themes/browser/faq"
+    assert faq_page = Eirinchan.CustomPages.get_page_by_slug("faq")
+    assert faq_page.body =~ "<!doctype html>"
+    assert faq_page.body =~ "What is bnat?"
+
+    faq_page_response =
+      conn
+      |> recycle()
+      |> get("/faq")
+      |> html_response(200)
+
+    assert faq_page_response =~ "What is bnat?"
+
+    uninstall_conn =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> delete("/manage/themes/browser/faq")
+
+    assert redirected_to(uninstall_conn) == "/manage/themes/browser"
+    refute Eirinchan.CustomPages.get_page_by_slug("faq")
   end
 end
