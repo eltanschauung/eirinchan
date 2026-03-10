@@ -1,35 +1,57 @@
-<.flash_group flash={@flash} />
-<section>
-  <h1>Edit post #<%= @post.id %> on /<%= @board.uri %>/</h1>
-  <p><a href={~p"/manage"}>Back to Manage</a></p>
-  <p :if={@error} class="error"><%= @error %></p>
-</section>
+<h1>Edit post</h1>
+<h2 :if={@error} class="error"><%= @error %></h2>
 
-<section>
-  <form action={"/manage/boards/#{@board.uri}/posts/#{@post.id}/edit/browser"} method="post">
-    <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
-    <input type="hidden" name="_method" value="patch" />
-    <table class="mod-form-table">
-      <tr>
-        <th>Name</th>
-        <td><input type="text" name="name" value={@post.name} /></td>
-      </tr>
-      <tr>
-        <th>Email</th>
-        <td><input type="text" name="email" value={@post.email} /></td>
-      </tr>
-      <tr>
-        <th>Subject</th>
-        <td><input type="text" name="subject" value={@post.subject} /></td>
-      </tr>
-      <tr>
-        <th>Body</th>
-        <td><textarea name="body" rows="8" cols="60"><%= @post.body %></textarea></td>
-      </tr>
-      <tr>
-        <td></td>
-        <td><input type="submit" value="Update Post" /></td>
-      </tr>
-    </table>
-  </form>
-</section>
+<form action={"/manage/boards/#{@board.uri}/posts/#{@post.id}/edit/browser"} method="post">
+  <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+  <input type="hidden" name="_method" value="patch" />
+
+  <table>
+    <tr>
+      <th>Name</th>
+      <td>
+        <input
+          type="text"
+          name="name"
+          size="25"
+          maxlength="35"
+          autocomplete="off"
+          value={@post.name}
+        />
+      </td>
+    </tr>
+    <tr>
+      <th>Email</th>
+      <td>
+        <input
+          type="text"
+          name="email"
+          size="25"
+          maxlength="40"
+          autocomplete="off"
+          value={@post.email}
+        />
+      </td>
+    </tr>
+    <tr>
+      <th>Subject</th>
+      <td>
+        <input
+          style="float:left;"
+          type="text"
+          name="subject"
+          size="25"
+          maxlength="100"
+          autocomplete="off"
+          value={@post.subject}
+        />
+        <input accesskey="s" style="margin-left:2px;" type="submit" name="post" value="Update" />
+      </td>
+    </tr>
+    <tr>
+      <th>Comment</th>
+      <td>
+        <textarea name="body" id="body" rows="8" cols="35"><%= @post.body %></textarea>
+      </td>
+    </tr>
+  </table>
+</form>
