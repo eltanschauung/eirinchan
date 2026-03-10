@@ -538,18 +538,94 @@ defmodule EirinchanWeb.PostController do
         :warning
       end
 
+    metadata = %{
+      reason: reason,
+      status: Plug.Conn.Status.code(status),
+      board: conn.assigns.current_board.uri,
+      request_id: Logger.metadata()[:request_id],
+      remote_ip: RequestMeta.effective_remote_ip(conn)
+    }
+
     LogSystem.log(
       level,
       "post.error",
       "post.error",
-      %{
-        reason: reason,
-        status: Plug.Conn.Status.code(status),
-        board: conn.assigns.current_board.uri,
-        request_id: Logger.metadata()[:request_id],
-        remote_ip: RequestMeta.effective_remote_ip(conn)
-      },
+      metadata,
       conn.assigns.current_board_config
     )
+
+    write_post_failure_log(conn, metadata)
   end
+
+  defp write_post_failure_log(conn, metadata) do
+    log_path = Path.expand("../../../var/post_failures.log", __DIR__)
+
+    line =
+      %{
+        timestamp: DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601(),
+        board: conn.assigns.current_board.uri,
+        request_id: metadata.request_id,
+        status: metadata.status,
+        reason: metadata.reason,
+        method: conn.method,
+        request_path: conn.request_path,
+        query_string: conn.query_string,
+        host: conn.host,
+        port: conn.port,
+        scheme: Atom.to_string(conn.scheme),
+        remote_ip: inspect(metadata.remote_ip),
+        effective_remote_ip: inspect(RequestMeta.effective_remote_ip(conn)),
+        forwarded_for: inspect(RequestMeta.forwarded_for(conn)),
+        referer: List.first(get_req_header(conn, "referer")),
+        origin: List.first(get_req_header(conn, "origin")),
+        user_agent: List.first(get_req_header(conn, "user-agent")),
+        params: sanitize_failure_params(conn.params)
+      }
+      |> Jason.encode!()
+      |> Kernel.<>("\n")
+
+    log_path
+    |> Path.dirname()
+    |> File.mkdir_p!()
+
+    _ = File.write(log_path, line, [:append])
+    :ok
+  end
+
+  defp sanitize_failure_params(params) when is_map(params) do
+    Map.new(params, fn {key, value} -> {key, sanitize_failure_param(key, value)} end)
+  end
+
+  defp sanitize_failure_params(other), do: inspect(other)
+
+  defp sanitize_failure_param(key, _value)
+       when key in [
+              "_csrf_token",
+              "password",
+              "pwd",
+              "captcha",
+              "g-recaptcha-response",
+              "h-captcha-response",
+              "hash",
+              "antispam_answer"
+            ],
+       do: "[REDACTED]"
+
+  defp sanitize_failure_param(_key, %Plug.Upload{filename: filename, content_type: content_type}) do
+    %{filename: filename, content_type: content_type}
+  end
+
+  defp sanitize_failure_param(_key, value) when is_map(value), do: sanitize_failure_params(value)
+
+  defp sanitize_failure_param(key, value) when is_list(value) do
+    cond do
+      key in ["files", "files[]"] ->
+        Enum.map(value, &sanitize_failure_param(key, &1))
+
+      true ->
+        Enum.map(value, &sanitize_failure_param(key, &1))
+    end
+  end
+
+  defp sanitize_failure_param(_key, value), do: value
 end
