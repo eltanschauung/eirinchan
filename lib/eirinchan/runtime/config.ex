@@ -82,7 +82,7 @@ defmodule Eirinchan.Runtime.Config do
     field_disable_name: false,
     field_disable_email: false,
     field_disable_subject: false,
-    field_disable_reply_subject: false,
+    field_disable_reply_subject: true,
     field_disable_password: false,
     post_form_flags: false,
     post_form_embed: true,
