@@ -788,7 +788,12 @@ defmodule Eirinchan.Posts do
         repo.all(
           from post in Post,
             where: post.board_id == ^board.id and is_nil(post.thread_id),
-            order_by: [desc: post.sticky, desc_nulls_last: post.bump_at, desc: post.inserted_at],
+            order_by: [
+              desc: post.sticky,
+              desc_nulls_last: post.bump_at,
+              desc: post.inserted_at,
+              desc: post.id
+            ],
             limit: ^threads_per_page,
             offset: ^offset
         )
@@ -846,7 +851,12 @@ defmodule Eirinchan.Posts do
         repo.all(
           from post in Post,
             where: post.board_id == ^board.id and is_nil(post.thread_id),
-            order_by: [desc: post.sticky, desc_nulls_last: post.bump_at, desc: post.inserted_at],
+            order_by: [
+              desc: post.sticky,
+              desc_nulls_last: post.bump_at,
+              desc: post.inserted_at,
+              desc: post.id
+            ],
             limit: ^(config.threads_per_page * config.max_pages),
             select: post.id
         )

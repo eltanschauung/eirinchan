@@ -2065,6 +2065,25 @@ defmodule Eirinchan.PostsTest do
     assert Enum.map(summary.replies, & &1.body) == ["Reply two"]
   end
 
+  test "list_threads_page orders equal timestamps by newest id" do
+    board = board_fixture()
+    config = post_config(board.config_overrides)
+
+    older_thread = thread_fixture(board, %{body: "older"})
+    newer_thread = thread_fixture(board, %{body: "newer"})
+    shared_time = ~U[2026-03-10 18:20:00Z]
+
+    Repo.update_all(
+      from(post in Post, where: post.id in ^[older_thread.id, newer_thread.id]),
+      set: [inserted_at: shared_time, bump_at: shared_time]
+    )
+
+    assert {:ok, page_data} = Posts.list_threads_page(board, 1, config: config)
+
+    assert Enum.at(page_data.threads, 0).thread.id == newer_thread.id
+    assert Enum.at(page_data.threads, 1).thread.id == older_thread.id
+  end
+
   test "thread views count image replies and omitted images" do
     board = board_fixture(%{config_overrides: %{threads_preview: 1}})
     config = post_config(board.config_overrides)
