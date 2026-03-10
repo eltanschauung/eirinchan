@@ -219,7 +219,9 @@
     return body !== "" || anySelectedFile(form) || fileUrl !== "" || embed !== "";
   }
 
-  function doPost(form) {
+  function persistIdentityFields(form) {
+    if (!form || !form.elements) return;
+
     if (form.elements["name"]) {
       localStorage.name = form.elements["name"].value.replace(/( |^)## .+$/, "");
     }
@@ -228,10 +230,35 @@
       localStorage.password = form.elements["password"].value;
     }
 
-    if (form.elements["email"] && form.elements["email"].value !== "sage") {
-      localStorage.email = form.elements["email"].value;
+    if (form.elements["email"]) {
+      if (form.elements["email"].value !== "sage") {
+        localStorage.email = form.elements["email"].value;
+      } else {
+        localStorage.removeItem("email");
+      }
     }
+  }
 
+  function bindIdentityPersistence(form) {
+    if (!form || form.dataset.identityPersistenceBound === "true") return;
+
+    ["name", "password", "email"].forEach(function (fieldName) {
+      var field = form.elements[fieldName];
+      if (!field) return;
+
+      var persist = function () {
+        persistIdentityFields(form);
+      };
+
+      field.addEventListener("input", persist);
+      field.addEventListener("change", persist);
+      field.addEventListener("blur", persist);
+    });
+
+    form.dataset.identityPersistenceBound = "true";
+  }
+
+  function doPost(form) {
     savePostDraft(form);
     return hasPostPayload(form);
   }
@@ -304,6 +331,9 @@
     if (localStorage.email && form.elements["email"]) {
       form.elements["email"].value = localStorage.email;
     }
+
+    bindIdentityPersistence(form);
+    persistIdentityFields(form);
 
     if (window.location.hash.indexOf("q") === 1) {
       window.citeReply(window.location.hash.substring(2), true);
