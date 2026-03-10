@@ -140,6 +140,30 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     assert response =~ "[Archive]"
   end
 
+  test "board page renders global message as a blotter above the search form", %{conn: conn} do
+    :ok = Eirinchan.Settings.persist_instance_config(%{global_message: "Important notice"})
+    board = board_fixture(%{uri: "blottertest", title: "Blotter Test"})
+
+    response =
+      conn
+      |> get(~p"/#{board.uri}")
+      |> html_response(200)
+
+    assert response =~ ~s(<div class="blotter">Important notice</div>)
+
+    blotter_pos =
+      response
+      |> :binary.match(~s(<div class="blotter">Important notice</div>))
+      |> elem(0)
+
+    search_pos =
+      response
+      |> :binary.match("<!-- Start Search Form -->")
+      |> elem(0)
+
+    assert blotter_pos < search_pos
+  end
+
   test "board pages honor explicit post form row toggles", %{conn: conn} do
     board =
       board_fixture(%{
