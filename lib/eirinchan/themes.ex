@@ -72,7 +72,9 @@ defmodule Eirinchan.Themes do
       supported: true,
       page_theme: false,
       default_installed: false,
-      config_fields: []
+      config_fields: [
+        %{name: "html", title: "HTML", type: "textarea", default: ""}
+      ]
     },
     %{
       name: "feedback",
@@ -215,6 +217,7 @@ defmodule Eirinchan.Themes do
   def theme_settings(name) when is_binary(name) do
     case theme(name) do
       nil -> %{}
+      %{name: "faq"} = theme -> faq_theme_settings(theme)
       theme -> normalize_settings(theme, Map.get(installed_theme_settings_map(), theme.name, %{}))
     end
   end
@@ -297,7 +300,13 @@ defmodule Eirinchan.Themes do
         value -> String.to_integer(to_string(value))
       end
 
-    attrs = %{slug: "faq", title: "FAQ", body: FaqPage.default_html(), mod_user_id: mod_user_id}
+    body =
+      case Map.get(params, "html") || Map.get(params, :html) do
+        value when is_binary(value) and value != "" -> value
+        _ -> FaqPage.default_html()
+      end
+
+    attrs = %{slug: "faq", title: "FAQ", body: body, mod_user_id: mod_user_id}
 
     case CustomPages.get_page_by_slug("faq") do
       nil ->
@@ -315,6 +324,9 @@ defmodule Eirinchan.Themes do
   end
 
   defp rebuild_faq_page do
+    settings = faq_theme_settings(theme("faq"))
+    html = Map.get(settings, "html", FaqPage.default_html())
+
     case CustomPages.get_page_by_slug("faq") do
       nil ->
         :ok
@@ -323,7 +335,7 @@ defmodule Eirinchan.Themes do
         case CustomPages.update_page(page, %{
                slug: "faq",
                title: page.title || "FAQ",
-               body: FaqPage.default_html(),
+               body: html,
                mod_user_id: page.mod_user_id
              }) do
           {:ok, _page} -> :ok
@@ -443,6 +455,18 @@ defmodule Eirinchan.Themes do
   end
 
   defp normalize_settings(_theme, _params), do: %{}
+
+  defp faq_theme_settings(theme) do
+    base = normalize_settings(theme, Map.get(installed_theme_settings_map(), theme.name, %{}))
+
+    html =
+      case CustomPages.get_page_by_slug("faq") do
+        %{body: body} when is_binary(body) and body != "" -> body
+        _ -> Map.get(base, "html", FaqPage.default_html())
+      end
+
+    Map.put(base, "html", html)
+  end
 
   defp default_settings(theme), do: normalize_settings(theme, %{})
 
