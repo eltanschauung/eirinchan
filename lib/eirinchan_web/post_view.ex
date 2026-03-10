@@ -1107,12 +1107,49 @@ defmodule EirinchanWeb.PostView do
       line
       |> render_quote_links(board, thread, config)
       |> WhaleStickers.replace_line(config)
+      |> render_line_formatting()
+      |> render_inline_formatting()
 
     if String.starts_with?(rendered, "&gt;") and not String.starts_with?(rendered, "&gt;&gt;") do
       ~s(<span class="quote">#{rendered}</span>)
     else
       rendered
     end
+  end
+
+  defp render_line_formatting(line) do
+    cond do
+      Regex.match?(~r/^\s*&lt;.*$/u, line) ->
+        ~s(<span class="quote2">#{line}</span>)
+
+      match = Regex.run(~r/^\s*stake:(.*)$/u, line, capture: :all_but_first) ->
+        ~s(<span class="rotate">#{List.first(match)}</span>)
+
+      match = Regex.run(~r/^\s*shion:(.*)$/u, line, capture: :all_but_first) ->
+        ~s(<span class="glow">#{List.first(match)}</span>)
+
+      match = Regex.run(~r/^\s*truth:(.*)$/u, line, capture: :all_but_first) ->
+        ~s(<span class="truth">#{List.first(match)}</span>)
+
+      match = Regex.run(~r/^\s*nipah:(.*)$/u, line, capture: :all_but_first) ->
+        ~s(<span class="truthblue">#{List.first(match)}</span>)
+
+      match = Regex.run(~r/^\s*desire:(.*)$/u, line, capture: :all_but_first) ->
+        ~s(<span class="truthgold">#{List.first(match)}</span>)
+
+      match = Regex.run(~r/^\s*==(.*?)==\s*$/u, line, capture: :all_but_first) ->
+        ~s(<span class="heading">#{List.first(match)}</span>)
+
+      true ->
+        line
+    end
+  end
+
+  defp render_inline_formatting(line) do
+    line
+    |> then(&Regex.replace(~r/\*\*(.+?)\*\*/u, &1, ~s(<span class="spoiler">\\1</span>)))
+    |> then(&Regex.replace(~r/(&#39;){3}(.+?)(&#39;){3}/u, &1, ~s(<strong>\\2</strong>)))
+    |> then(&Regex.replace(~r/(&#39;){2}(.+?)(&#39;){2}/u, &1, ~s(<em>\\2</em>)))
   end
 
   defp render_quote_links(line, board, thread, config) do

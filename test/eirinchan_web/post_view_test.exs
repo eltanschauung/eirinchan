@@ -94,4 +94,26 @@ defmodule EirinchanWeb.PostViewTest do
 
     assert html =~ ~s(<img src="/whalestickers/gojo.png" title=":gojo:">waow)
   end
+
+  test "body_html renders vichan-style inline and line formatting" do
+    config = Config.compose()
+
+    post = %Post{
+      body:
+        "**spoiler**\n''italic''\n'''bold'''\n==Heading==\n<truth\ntruth:red\nnipah:blue\ndesire:gold\nstake:spin\nshion:glow"
+    }
+
+    html = PostView.body_html(post, %BoardRecord{uri: "bant"}, post, config)
+
+    assert html =~ ~s(<span class="spoiler">spoiler</span>)
+    assert html =~ ~s(<em>italic</em>)
+    assert html =~ ~s(<strong>bold</strong>)
+    assert html =~ ~s(<span class="heading">Heading</span>)
+    assert html =~ ~s(<span class="quote2">&lt;truth</span>)
+    assert html =~ ~s(<span class="truth">red</span>)
+    assert html =~ ~s(<span class="truthblue">blue</span>)
+    assert html =~ ~s(<span class="truthgold">gold</span>)
+    assert html =~ ~s(<span class="rotate">spin</span>)
+    assert html =~ ~s(<span class="glow">glow</span>)
+  end
 end

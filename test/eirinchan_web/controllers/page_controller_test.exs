@@ -128,6 +128,38 @@ defmodule EirinchanWeb.PageControllerTest do
     assert get_resp_header(faq_conn, "content-type") == ["text/html; charset=utf-8"]
   end
 
+  test "GET /formatting renders copied formatting page", %{conn: conn} do
+    moderator_fixture()
+
+    page =
+      conn
+      |> get("/formatting")
+      |> html_response(200)
+
+    assert page =~ "Formatting"
+    assert page =~ "**do this to spoiler text**"
+    assert page =~ "Whalestickers"
+    assert page =~ ":gojo:"
+    assert page =~ ~s(href="/flags")
+  end
+
+  test "GET /formatting serves stored full html overrides", %{conn: conn} do
+    author = moderator_fixture(%{username: "formattingeditor"})
+
+    {:ok, _page} =
+      Eirinchan.CustomPages.create_page(%{
+        slug: "formatting",
+        title: "Formatting",
+        body: "<!doctype html><html><body><h1>Stored Formatting</h1></body></html>",
+        mod_user_id: author.id
+      })
+
+    formatting_conn = get(conn, "/formatting")
+
+    assert response(formatting_conn, 200) =~ "<h1>Stored Formatting</h1>"
+    assert get_resp_header(formatting_conn, "content-type") == ["text/html; charset=utf-8"]
+  end
+
   test "GET /pages/faq uses the FAQ template when the page exists", %{conn: conn} do
     author = moderator_fixture(%{username: "faqwriter"})
 
