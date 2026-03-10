@@ -345,6 +345,7 @@
               "data-quick-reply-thread": thread.id
             )
           ) %>
+          <%= raw(PostView.backlinks_html(thread, @backlinks_map)) %>
           <%= for icon <- PostView.state_icons(thread, @config) do %>
             <img class="icon" title={icon.title} src={icon.path} alt={icon.title} />
           <% end %>
@@ -398,6 +399,7 @@
                 "data-quote-to": reply.id
               )
             ) %>
+            <%= raw(PostView.backlinks_html(reply, @backlinks_map)) %>
           </p>
           <div class="files">
             <%= for media <- PostView.media_entries(reply, @config) do %>

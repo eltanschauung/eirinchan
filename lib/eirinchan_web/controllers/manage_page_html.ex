@@ -11,6 +11,7 @@ defmodule EirinchanWeb.ManagePageHTML do
   attr :config, :map, required: true
   attr :moderator, :map, default: nil
   attr :secure_manage_token, :string, default: nil
+  attr :backlinks_map, :map, default: %{}
 
   def moderation_post(assigns) do
     ~H"""
@@ -59,6 +60,7 @@ defmodule EirinchanWeb.ManagePageHTML do
                 "data-quote-to": @post.id
               )
             ) %>
+            <%= raw(PostView.backlinks_html(@post, @backlinks_map)) %>
             <%= for icon <- PostView.state_icons(@post, @config) do %>
               <img class="icon" title={icon.title} src={icon.path} alt={icon.title} />
             <% end %>
@@ -101,6 +103,7 @@ defmodule EirinchanWeb.ManagePageHTML do
               "data-quote-to": @post.id
             )
           ) %>
+          <%= raw(PostView.backlinks_html(@post, @backlinks_map)) %>
         </p>
 
         <.files_block post={@post} config={@config} op?={false} />

@@ -38,6 +38,9 @@ defmodule EirinchanWeb.ThreadController do
               {:error, :not_found} -> 1
             end
 
+          backlinks_map =
+            Posts.backlinks_map_for_posts([summary.thread | summary.replies])
+
           render(conn, :show,
             layout: false,
             board: board,
@@ -45,6 +48,7 @@ defmodule EirinchanWeb.ThreadController do
             page_title:
               "/#{board.uri}/ - #{summary.thread.subject || summary.thread.body || summary.thread.id}",
             summary: summary,
+            backlinks_map: backlinks_map,
             config: config,
             page_num: page_num,
             boards: boards,

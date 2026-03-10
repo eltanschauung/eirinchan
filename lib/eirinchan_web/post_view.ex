@@ -102,6 +102,26 @@ defmodule EirinchanWeb.PostView do
     ~s|&nbsp;<a class="post_no" id="post_no_#{post_id}" onclick="highlightReply(#{post_id})" href="#{html_escape_to_string(post_href)}">No.</a><a class="post_no" onclick="citeReply(#{post_id})" href="#{html_escape_to_string(quote_href)}"#{quote_attrs}>#{post_id}</a>|
   end
 
+  def backlinks_html(post, backlinks_map \\ %{}) do
+    backlinks =
+      post
+      |> Map.get(:id)
+      |> then(&Map.get(backlinks_map || %{}, &1, []))
+
+    case backlinks do
+      [] ->
+        ""
+
+      ids ->
+        links =
+          Enum.map_join(ids, " ", fn backlink_id ->
+            ~s|<a class="mentioned-#{backlink_id}" onclick="highlightReply('#{backlink_id}');" href="##{backlink_id}">&gt;&gt;#{backlink_id}</a>|
+          end)
+
+        ~s|<span class="mentioned unimportant">#{links}</span>|
+    end
+  end
+
   def boardlist_groups(boards) do
     Boardlist.configured_groups(boards)
   end
@@ -178,7 +198,8 @@ defmodule EirinchanWeb.PostView do
 
     catalog_link =
       if Themes.page_theme_enabled?("catalog"),
-        do: ~s( | <a href="/#{board_uri}/catalog.html">#{html_escape_to_string(catalog_label)}</a>),
+        do:
+          ~s( | <a href="/#{board_uri}/catalog.html">#{html_escape_to_string(catalog_label)}</a>),
         else: ""
 
     ~s(<div class="pages">#{previous_html}  #{page_links}#{if next_html != "", do: "  " <> next_html, else: ""}#{catalog_link}</div>)
@@ -340,7 +361,7 @@ defmodule EirinchanWeb.PostView do
     end
   end
 
-  def reply_html(post, board, thread, config, moderator \\ nil, session_token \\ nil) do
+  def reply_html(post, board, thread, config, moderator \\ nil, session_token \\ nil, backlinks_map \\ %{}) do
     identity =
       [
         if(present?(post.subject),
@@ -371,7 +392,8 @@ defmodule EirinchanWeb.PostView do
           thread_path(board, thread, config) <> "##{post.id}",
           reply_path(board, thread, post, config, :quote),
           "data-quote-to": post.id
-        )
+        ),
+        backlinks_html(post, backlinks_map)
       ]
       |> Enum.join("")
 
