@@ -23,7 +23,10 @@ defmodule EirinchanWeb.LegacyModControllerTest do
     conn = login_moderator(conn, moderator)
 
     conn =
-      get(conn, "/mod.php?/#{board.uri}/sticky/#{thread.id}/#{signed_token(conn, "#{board.uri}/sticky/#{thread.id}")}")
+      get(
+        conn,
+        "/mod.php?/#{board.uri}/sticky/#{thread.id}/#{signed_token(conn, "#{board.uri}/sticky/#{thread.id}")}"
+      )
 
     assert redirected_to(conn) == "/#{board.uri}"
     assert {:ok, updated} = Posts.get_post(board, thread.id)
@@ -38,10 +41,48 @@ defmodule EirinchanWeb.LegacyModControllerTest do
     conn = login_moderator(conn, moderator)
 
     conn =
-      get(conn, "/mod.php?/#{board.uri}/delete/#{thread.id}/#{signed_token(conn, "#{board.uri}/delete/#{thread.id}")}")
+      get(
+        conn,
+        "/mod.php?/#{board.uri}/delete/#{thread.id}/#{signed_token(conn, "#{board.uri}/delete/#{thread.id}")}"
+      )
 
     assert redirected_to(conn) == "/#{board.uri}"
     assert {:error, :not_found} = Posts.get_post(board, thread.id)
+  end
+
+  test "legacy deletefile route removes a single file for janitors", %{conn: conn} do
+    board = board_fixture()
+
+    create_conn =
+      conn
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post("/#{board.uri}/post", %{
+        "body" => "Opening body",
+        "files" => [
+          upload_fixture("first.png", "first"),
+          upload_fixture("second.gif", "second")
+        ],
+        "json_response" => "1",
+        "post" => "New Topic"
+      })
+
+    assert %{"id" => thread_id} = json_response(create_conn, 200)
+    assert {:ok, thread} = Posts.get_post(board, thread_id)
+
+    moderator = moderator_fixture(%{role: "janitor"}) |> grant_board_access_fixture(board)
+    conn = login_moderator(conn, moderator)
+
+    conn =
+      get(
+        conn,
+        "/mod.php?/#{board.uri}/deletefile/#{thread.id}/1/#{signed_token(conn, "#{board.uri}/deletefile/#{thread.id}/1")}"
+      )
+
+    assert redirected_to(conn) =~ "/#{board.uri}/res/#{thread.id}"
+
+    assert {:ok, updated_thread} = Posts.get_post(board, thread.id)
+    assert updated_thread.file_path
+    assert updated_thread.extra_files == []
   end
 
   test "legacy report dismiss route dismisses reports", %{conn: conn} do

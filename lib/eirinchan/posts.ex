@@ -370,6 +370,24 @@ defmodule Eirinchan.Posts do
     end
   end
 
+  @spec delete_post_file(BoardRecord.t(), String.t() | integer(), non_neg_integer(), keyword()) ::
+          {:ok, Post.t()} | {:error, :not_found | Ecto.Changeset.t()}
+  def delete_post_file(%BoardRecord{} = board, post_id, file_index, opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+    config = Keyword.get(opts, :config, Config.compose())
+
+    with {:ok, post} <- get_post(board, post_id, repo: repo),
+         {:ok, normalized_index} <- normalize_file_index(file_index),
+         {:ok, updated_post, file_paths} <- delete_single_post_file(post, normalized_index, repo) do
+      Enum.each(file_paths, &Uploads.remove/1)
+      _ = Build.rebuild_after_post_update(board, updated_post, config: config, repo: repo)
+      {:ok, updated_post}
+    else
+      {:error, :invalid_file_index} -> {:error, :not_found}
+      other -> other
+    end
+  end
+
   @spec spoilerize_post_files(BoardRecord.t(), String.t() | integer(), keyword()) ::
           {:ok, Post.t()} | {:error, :not_found | Ecto.Changeset.t()}
   def spoilerize_post_files(%BoardRecord{} = board, post_id, opts \\ []) do
@@ -829,7 +847,9 @@ defmodule Eirinchan.Posts do
       reply_image_count = Enum.sum(Enum.map(replies, &post_image_count/1))
       total_reply_count = length(replies)
       has_noko50 = total_reply_count >= config.noko50_min
-      shown_replies = if(has_noko50, do: maybe_truncate_replies(replies, last_posts), else: replies)
+
+      shown_replies =
+        if(has_noko50, do: maybe_truncate_replies(replies, last_posts), else: replies)
 
       {:ok,
        %{
@@ -837,7 +857,8 @@ defmodule Eirinchan.Posts do
          replies: shown_replies,
          reply_count: total_reply_count,
          image_count: reply_image_count + post_image_count(thread),
-         omitted_posts: if(last_posts, do: max(total_reply_count - length(shown_replies), 0), else: 0),
+         omitted_posts:
+           if(last_posts, do: max(total_reply_count - length(shown_replies), 0), else: 0),
          omitted_images:
            if(last_posts,
              do:
@@ -2300,6 +2321,18 @@ defmodule Eirinchan.Posts do
 
   defp normalize_thread_id(value), do: ThreadPaths.parse_thread_id(value)
 
+  defp normalize_file_index(file_index) when is_integer(file_index) and file_index >= 0,
+    do: {:ok, file_index}
+
+  defp normalize_file_index(file_index) when is_binary(file_index) do
+    case Integer.parse(file_index) do
+      {parsed, ""} when parsed >= 0 -> {:ok, parsed}
+      _ -> {:error, :invalid_file_index}
+    end
+  end
+
+  defp normalize_file_index(_), do: {:error, :invalid_file_index}
+
   defp normalize_last_posts(nil, _config), do: nil
   defp normalize_last_posts(false, _config), do: nil
   defp normalize_last_posts(true, config), do: config.noko50_count
@@ -2451,6 +2484,125 @@ defmodule Eirinchan.Posts do
        when is_binary(path) do
     String.replace_prefix(path, "/#{source_uri}/", "/#{target_uri}/")
   end
+
+  defp delete_single_post_file(%Post{} = post, file_index, repo) do
+    extra = extra_files_for_post(post, repo)
+
+    cond do
+      file_index == 0 and path_present?(post.file_path) ->
+        delete_primary_post_file(post, extra, repo)
+
+      file_index > 0 ->
+        delete_extra_post_file(post, extra, file_index, repo)
+
+      true ->
+        {:error, :not_found}
+    end
+  end
+
+  defp delete_primary_post_file(%Post{} = post, [], repo) do
+    file_paths = primary_file_delete_paths(post)
+
+    attrs = %{
+      file_name: nil,
+      file_path: nil,
+      thumb_path: nil,
+      file_size: nil,
+      file_type: nil,
+      file_md5: nil,
+      image_width: nil,
+      image_height: nil,
+      spoiler: false
+    }
+
+    case repo.transaction(fn ->
+           case post |> Post.create_changeset(attrs) |> repo.update() do
+             {:ok, updated_post} -> repo.preload(updated_post, :extra_files, force: true)
+             {:error, reason} -> repo.rollback(reason)
+           end
+         end) do
+      {:ok, updated_post} -> {:ok, updated_post, file_paths}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp delete_primary_post_file(%Post{} = post, [promotion | _rest], repo) do
+    file_paths = primary_file_delete_paths(post)
+
+    case repo.transaction(fn ->
+           with {:ok, _deleted} <- repo.delete(promotion),
+                {:ok, promoted_post} <-
+                  post
+                  |> Post.create_changeset(%{
+                    file_name: promotion.file_name,
+                    file_path: promotion.file_path,
+                    thumb_path: promotion.thumb_path,
+                    file_size: promotion.file_size,
+                    file_type: promotion.file_type,
+                    file_md5: promotion.file_md5,
+                    image_width: promotion.image_width,
+                    image_height: promotion.image_height,
+                    spoiler: promotion.spoiler
+                  })
+                  |> repo.update() do
+             from(post_file in PostFile,
+               where: post_file.post_id == ^post.id and post_file.position > 1
+             )
+             |> repo.update_all(inc: [position: -1])
+
+             repo.preload(promoted_post, :extra_files, force: true)
+           else
+             {:error, reason} -> repo.rollback(reason)
+           end
+         end) do
+      {:ok, updated_post} -> {:ok, updated_post, file_paths}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp delete_extra_post_file(%Post{} = post, extra_files, file_index, repo) do
+    case Enum.find(extra_files, &(&1.position == file_index)) do
+      nil ->
+        {:error, :not_found}
+
+      target ->
+        file_paths = file_delete_paths(target)
+
+        case repo.transaction(fn ->
+               {:ok, _deleted} = repo.delete(target)
+
+               from(post_file in PostFile,
+                 where: post_file.post_id == ^post.id and post_file.position > ^file_index
+               )
+               |> repo.update_all(inc: [position: -1])
+
+               repo.preload(post, :extra_files, force: true)
+             end) do
+          {:ok, updated_post} -> {:ok, updated_post, file_paths}
+          {:error, reason} -> {:error, reason}
+        end
+    end
+  end
+
+  defp extra_files_for_post(%Post{} = post, repo) do
+    post
+    |> repo.preload(:extra_files, force: true)
+    |> Map.get(:extra_files)
+    |> Enum.sort_by(& &1.position)
+  end
+
+  defp primary_file_delete_paths(%Post{} = post) do
+    [post.file_path, post.thumb_path]
+    |> Enum.filter(&path_present?/1)
+  end
+
+  defp file_delete_paths(file) do
+    [file.file_path, file.thumb_path]
+    |> Enum.filter(&path_present?/1)
+  end
+
+  defp path_present?(value) when is_binary(value), do: String.trim(value) != ""
+  defp path_present?(value), do: not is_nil(value)
 
   defp post_delete_file_paths(%Post{thread_id: nil, id: thread_id} = thread, repo) do
     reply_paths =

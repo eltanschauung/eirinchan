@@ -2234,6 +2234,39 @@ defmodule Eirinchan.PostsTest do
     refute File.exists?(Eirinchan.Uploads.filesystem_path(extra.file_path))
   end
 
+  test "delete_post_file removes a targeted extra file and preserves the rest" do
+    board = board_fixture()
+    config = post_config(board.config_overrides)
+
+    assert {:ok, thread, _meta} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "Opening body",
+                 "files" => [
+                   upload_fixture("first.png", "first"),
+                   upload_fixture("second.gif", "second")
+                 ],
+                 "post" => "New Topic"
+               },
+               config: config,
+               request: post_request(board.uri)
+             )
+
+    [extra] = thread.extra_files
+
+    assert File.exists?(Eirinchan.Uploads.filesystem_path(thread.file_path))
+    assert File.exists?(Eirinchan.Uploads.filesystem_path(extra.file_path))
+
+    assert {:ok, updated_thread} = Posts.delete_post_file(board, thread.id, 1, config: config)
+
+    assert updated_thread.file_path == thread.file_path
+    assert updated_thread.thumb_path == thread.thumb_path
+    assert updated_thread.extra_files == []
+    assert File.exists?(Eirinchan.Uploads.filesystem_path(thread.file_path))
+    refute File.exists?(Eirinchan.Uploads.filesystem_path(extra.file_path))
+  end
+
   test "spoilerize_post_files marks files as spoilers and rewrites thumbs" do
     board = board_fixture()
     config = post_config(board.config_overrides)

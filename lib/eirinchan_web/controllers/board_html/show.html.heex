@@ -261,7 +261,9 @@
       :if={is_binary(@config.archive_url) and @config.archive_url != ""}
       style="text-decoration:none;"
       href={@config.archive_url}
-    >[Archive]</a>
+    >
+      [Archive]
+    </a>
   </p>
 </form>
 <!-- End Search Form -->
@@ -298,6 +300,15 @@
                     title={PostView.original_file_name(file)}
                   ><%= PostView.display_file_name(file, @config) %></span>)
                 </span>
+                <%= raw(
+                  PostView.file_controls_html(
+                    thread,
+                    file,
+                    @board,
+                    @current_moderator,
+                    @secure_manage_token
+                  ) || ""
+                ) %>
               </p>
               <%= raw(PostView.file_image_html(file, @config, op?: true)) %>
             </div>
@@ -426,6 +437,15 @@
                         title={PostView.original_file_name(file)}
                       ><%= PostView.display_file_name(file, @config) %></span>)
                     </span>
+                    <%= raw(
+                      PostView.file_controls_html(
+                        reply,
+                        file,
+                        @board,
+                        @current_moderator,
+                        @secure_manage_token
+                      ) || ""
+                    ) %>
                   </p>
                   <%= raw(PostView.file_image_html(file, @config)) %>
                 </div>

@@ -130,7 +130,7 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
       |> html_response(200)
 
     assert response =~ ~s(href="https://archive.example.test/arc/")
-    assert response =~ ">[Archive]<"
+    assert response =~ "[Archive]"
   end
 
   test "board pages honor explicit post form row toggles", %{conn: conn} do
@@ -269,7 +269,11 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
 
     board =
       board_fixture(%{
-        config_overrides: %{threads_per_page: 1, catalog_pagination: true, catalog_threads_per_page: 2}
+        config_overrides: %{
+          threads_per_page: 1,
+          catalog_pagination: true,
+          catalog_threads_per_page: 2
+        }
       })
 
     for subject <- ["First thread", "Second thread", "Third thread"] do

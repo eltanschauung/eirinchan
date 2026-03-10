@@ -150,6 +150,15 @@ defmodule EirinchanWeb.ManagePageHTML do
                   title={PostView.original_file_name(file)}
                 ><%= PostView.display_file_name(file, @config) %></span>)
               </span>
+              <%= raw(
+                PostView.file_controls_html(
+                  @post,
+                  file,
+                  @board,
+                  @moderator,
+                  @secure_manage_token
+                ) || ""
+              ) %>
             </p>
             <%= raw(PostView.file_image_html(file, @config, op?: @op?)) %>
           </div>
