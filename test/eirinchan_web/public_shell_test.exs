@@ -94,4 +94,12 @@ defmodule EirinchanWeb.PublicShellTest do
     assert html =~ ~s([Tomorrow])
     assert html =~ ~s(class="selected")
   end
+
+  test "renders password generation variables into head html" do
+    html = PublicShell.head_html("index")
+
+    assert html =~ "genpassword_chars"
+    assert html =~ "post_success_cookie_name"
+    assert html =~ "eirinchan_posted"
+  end
 end

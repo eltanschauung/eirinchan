@@ -141,6 +141,154 @@
     return handler;
   }
 
+  function generatePassword() {
+    var pass = "";
+    var chars =
+      window.genpassword_chars ||
+      "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
+
+    for (var i = 0; i < 8; i++) {
+      var rnd = Math.floor(Math.random() * chars.length);
+      pass += chars.substring(rnd, rnd + 1);
+    }
+
+    return pass;
+  }
+
+  function currentPostForm() {
+    return document.forms.post || document.querySelector('form[name="post"]');
+  }
+
+  function anySelectedFile(form) {
+    return Array.prototype.some.call(form.querySelectorAll('input[type="file"]'), function (field) {
+      return (field.files && field.files.length > 0) || Boolean(field.value);
+    });
+  }
+
+  function postBodyValue(form) {
+    var bodyField = form && form.elements ? form.elements["body"] : null;
+    return bodyField ? bodyField.value : "";
+  }
+
+  function savePostDraft(form) {
+    if (!form || !form.elements) return;
+
+    var saved = {};
+
+    try {
+      saved = JSON.parse(window.sessionStorage.body || "{}");
+    } catch (_error) {
+      saved = {};
+    }
+
+    saved[document.location] = postBodyValue(form);
+    window.sessionStorage.body = JSON.stringify(saved);
+  }
+
+  function hasPostPayload(form) {
+    if (!form || !form.elements) return false;
+
+    var body = postBodyValue(form);
+    var fileUrl = form.elements["file_url"] ? form.elements["file_url"].value : "";
+    var embed = form.elements["embed"] ? form.elements["embed"].value : "";
+
+    return body !== "" || anySelectedFile(form) || fileUrl !== "" || embed !== "";
+  }
+
+  function doPost(form) {
+    if (form.elements["name"]) {
+      localStorage.name = form.elements["name"].value.replace(/( |^)## .+$/, "");
+    }
+
+    if (form.elements["password"]) {
+      localStorage.password = form.elements["password"].value;
+    }
+
+    if (form.elements["email"] && form.elements["email"].value !== "sage") {
+      localStorage.email = form.elements["email"].value;
+    }
+
+    savePostDraft(form);
+    return hasPostPayload(form);
+  }
+
+  function clearSuccessfulPostsCookie(saved) {
+    var cookieName = window.post_success_cookie_name || "eirinchan_posted";
+    var cookieValue = window.getCookie(cookieName);
+
+    if (!cookieValue) return saved;
+
+    var parts = String(cookieValue).split(":");
+    if (parts.length === 2) {
+      saved[document.location] = saved[document.location];
+      saved[window.location.origin + "/" + parts[0] + "/res/" + parts[1] + ".html"] = null;
+      saved[window.location.origin + "/" + parts[0]] = null;
+      saved[window.location.origin + "/" + parts[0] + "/"] = null;
+    }
+
+    document.cookie = cookieName + "=;expires=0;path=/;";
+    return saved;
+  }
+
+  function restoreBodyDraft(form) {
+    if (!form || !form.elements || !form.elements["body"]) return;
+
+    var saved = {};
+
+    try {
+      saved = JSON.parse(window.sessionStorage.body || "{}");
+    } catch (_error) {
+      saved = {};
+    }
+
+    saved = clearSuccessfulPostsCookie(saved);
+    window.sessionStorage.body = JSON.stringify(saved);
+
+    if (saved[document.location]) {
+      form.elements["body"].value = saved[document.location];
+    }
+
+    if (localStorage.body) {
+      form.elements["body"].value = localStorage.body;
+      localStorage.body = "";
+    }
+  }
+
+  function seedPostControlsPassword() {
+    var controls = document.forms.postcontrols || document.querySelector('form[name="postcontrols"]');
+    if (!controls || !controls.password) return;
+
+    controls.password.value = localStorage.password || "";
+  }
+
+  function rememberStuff() {
+    var form = currentPostForm();
+    if (!form) return;
+
+    if (form.password) {
+      if (!localStorage.password) {
+        localStorage.password = generatePassword();
+      }
+
+      form.password.value = localStorage.password;
+    }
+
+    if (localStorage.name && form.elements["name"]) {
+      form.elements["name"].value = localStorage.name;
+    }
+
+    if (localStorage.email && form.elements["email"]) {
+      form.elements["email"].value = localStorage.email;
+    }
+
+    if (window.location.hash.indexOf("q") === 1) {
+      window.citeReply(window.location.hash.substring(2), true);
+    }
+
+    restoreBodyDraft(form);
+    seedPostControlsPassword();
+  }
+
   window._ = window._ || identity;
   window.fmt = window.fmt || function (string, args) {
     return string.replace(/\{([0-9]+)\}/g, function (_, index) {
@@ -239,6 +387,7 @@
 
   window.initStyleChooser = window.initStyleChooser || appendStyleChooser;
   window.showAlert = window.showAlert || showAlert;
+  window.generatePassword = window.generatePassword || generatePassword;
   window.getCookie =
     window.getCookie ||
     function (cookieName) {
@@ -247,12 +396,16 @@
     };
   window.get_cookie = window.get_cookie || window.getCookie;
   window.do_boardlist = window.do_boardlist || function () {};
+  window.dopost = window.dopost || doPost;
+  window.doPost = window.doPost || window.dopost;
+  window.rememberStuff = window.rememberStuff || rememberStuff;
   window.ready =
     window.ready ||
     function () {
       document.body.classList.add('desktop-style');
       window.initStyleChooser();
       restoreSavedStyle();
+      seedPostControlsPassword();
     };
 
   window.alert = function (message) {

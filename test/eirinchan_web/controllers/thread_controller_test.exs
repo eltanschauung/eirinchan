@@ -334,6 +334,16 @@ defmodule EirinchanWeb.ThreadControllerTest do
            ) != []
   end
 
+  test "thread reply form uses text password input for rememberStuff parity", %{conn: conn} do
+    board = board_fixture()
+    thread = thread_fixture(board)
+
+    page = conn |> get("/#{board.uri}/res/#{thread.id}.html") |> html_response(200)
+    document = Floki.parse_document!(page)
+
+    assert Floki.find(document, ~s(form#reply-form input[type="text"][name="password"])) != []
+  end
+
   test "thread pages render poster tripcodes", %{conn: conn} do
     board = board_fixture()
     config = Config.compose(nil, %{}, board.config_overrides, request_host: "www.example.com")
