@@ -565,6 +565,33 @@ defmodule EirinchanWeb.PostControllerTest do
     assert %{"error" => "Upload failed."} = json_response(response_conn, 500)
   end
 
+  test "posting rejects remote uploads larger than max_filesize", %{conn: conn} do
+    board =
+      board_fixture(%{
+        config_overrides: %{
+          upload_by_url_enabled: true,
+          upload_by_url_allow_private_hosts: true,
+          max_filesize: 128
+        }
+      })
+
+    source_upload = upload_fixture("remote.png", [content: String.duplicate("x", 1024)])
+    server = serve_upload_fixture(File.read!(source_upload.path), "remote.png")
+    on_exit(server.stop)
+
+    response_conn =
+      conn
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post(~p"/#{board.uri}/post", %{
+        "body" => "first post",
+        "file_url" => server.url,
+        "json_response" => "1",
+        "post" => "New Topic"
+      })
+
+    assert %{"error" => "Upload failed."} = json_response(response_conn, 500)
+  end
+
   test "posting enforces required image uploads and file validation errors", %{conn: conn} do
     board = board_fixture(%{config_overrides: %{force_image_op: true}})
 

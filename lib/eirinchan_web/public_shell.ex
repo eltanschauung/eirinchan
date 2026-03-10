@@ -131,7 +131,10 @@ defmodule EirinchanWeb.PublicShell do
         script
 
       true ->
-        base = Map.get(config, :additional_javascript_url, config.root || "/")
+        base =
+          config
+          |> Map.get(:additional_javascript_url, config.root || "/")
+          |> safe_script_base()
 
         cond do
           String.ends_with?(base, "/") -> base <> script
@@ -150,6 +153,18 @@ defmodule EirinchanWeb.PublicShell do
       String.starts_with?(trimmed, ["http://", "https://", "//", "/"]) -> true
       String.contains?(trimmed, "..") -> false
       true -> true
+    end
+  end
+
+  defp safe_script_base(value) when is_binary(value) do
+    trimmed = String.trim(value)
+
+    cond do
+      trimmed == "" -> "/"
+      String.contains?(trimmed, ["\u0000", "\r", "\n", "\t"]) -> "/"
+      String.starts_with?(trimmed, ["javascript:", "data:"]) -> "/"
+      String.starts_with?(trimmed, ["http://", "https://", "//", "/"]) -> trimmed
+      true -> "/"
     end
   end
 
