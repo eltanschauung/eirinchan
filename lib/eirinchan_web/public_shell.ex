@@ -62,6 +62,7 @@ defmodule EirinchanWeb.PublicShell do
         |> additional_javascript()
         |> maybe_add_catalog_scripts(active_page)
         |> Enum.map(&additional_javascript_url(config, &1))
+        |> Enum.reject(&is_nil/1)
 
       main ++ scripts
     end
@@ -104,6 +105,7 @@ defmodule EirinchanWeb.PublicShell do
     |> Enum.map(&to_string/1)
     |> Enum.map(&String.trim/1)
     |> Enum.reject(&(&1 == ""))
+    |> Enum.filter(&safe_script_url?/1)
   end
 
   defp maybe_add_catalog_scripts(scripts, :catalog) do
@@ -116,6 +118,9 @@ defmodule EirinchanWeb.PublicShell do
 
   defp additional_javascript_url(config, script) do
     cond do
+      not safe_script_url?(script) ->
+        nil
+
       String.starts_with?(script, "http://") or String.starts_with?(script, "https://") ->
         script
 
@@ -132,6 +137,19 @@ defmodule EirinchanWeb.PublicShell do
           String.ends_with?(base, "/") -> base <> script
           true -> base <> "/" <> script
         end
+    end
+  end
+
+  defp safe_script_url?(value) when is_binary(value) do
+    trimmed = String.trim(value)
+
+    cond do
+      trimmed == "" -> false
+      String.contains?(trimmed, ["\u0000", "\r", "\n", "\t"]) -> false
+      String.starts_with?(trimmed, ["javascript:", "data:"]) -> false
+      String.starts_with?(trimmed, ["http://", "https://", "//", "/"]) -> true
+      String.contains?(trimmed, "..") -> false
+      true -> true
     end
   end
 

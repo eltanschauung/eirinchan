@@ -189,10 +189,16 @@ defmodule Eirinchan.Uploads do
 
   @spec fetch_remote_upload(String.t(), map()) :: {:ok, Plug.Upload.t()} | {:error, atom()}
   def fetch_remote_upload(url, config) when is_binary(url) do
-    with {:ok, uri} <- normalize_remote_uri(url),
-         :ok <- ensure_http_client(),
-         {:ok, body, headers} <- download_remote_body(uri, config) do
-      write_remote_upload(uri, headers, body)
+    try do
+      Process.put(:eirinchan_upload_remote_config, config)
+
+      with {:ok, uri} <- normalize_remote_uri(url),
+           :ok <- ensure_http_client(),
+           {:ok, body, headers} <- download_remote_body(uri, config) do
+        write_remote_upload(uri, headers, body)
+      end
+    after
+      Process.delete(:eirinchan_upload_remote_config)
     end
   end
 
@@ -270,11 +276,13 @@ defmodule Eirinchan.Uploads do
 
   defp normalize_remote_uri(url) do
     uri = url |> String.trim() |> URI.parse()
+    config = Process.get(:eirinchan_upload_remote_config, %{})
 
-    if uri.scheme in ["http", "https"] and is_binary(uri.host) do
-      {:ok, uri}
-    else
-      {:error, :upload_failed}
+    cond do
+      uri.scheme not in ["http", "https"] -> {:error, :upload_failed}
+      not is_binary(uri.host) -> {:error, :upload_failed}
+      remote_host_allowed?(uri.host, config) -> {:ok, uri}
+      true -> {:error, :upload_failed}
     end
   end
 
@@ -352,6 +360,78 @@ defmodule Eirinchan.Uploads do
   defp remote_content_type(headers, filename) do
     header_value(headers, "content-type") || MIME.from_path(filename)
   end
+
+  defp remote_host_allowed?(host, config) do
+    if Map.get(config, :upload_by_url_allow_private_hosts, false) do
+      true
+    else
+      do_remote_host_allowed?(host)
+    end
+  end
+
+  defp do_remote_host_allowed?(host) do
+    case parse_literal_ip(host) do
+      {:ok, address} ->
+        not private_or_local_address?(address)
+
+      :error ->
+        dns_host_allowed?(host)
+    end
+  end
+
+  defp parse_literal_ip(host) when is_binary(host) do
+    case :inet.parse_address(String.to_charlist(host)) do
+      {:ok, address} -> {:ok, address}
+      {:error, _reason} -> :error
+    end
+  end
+
+  defp dns_host_allowed?(host) do
+    normalized = String.downcase(host)
+
+    cond do
+      normalized in ["localhost", "localhost.localdomain"] -> false
+      String.ends_with?(normalized, ".localhost") -> false
+      true ->
+        [resolve_addresses(host, :inet), resolve_addresses(host, :inet6)]
+        |> List.flatten()
+        |> case do
+          [] -> false
+          addresses -> Enum.all?(addresses, &(not private_or_local_address?(&1)))
+        end
+    end
+  end
+
+  defp resolve_addresses(host, family) do
+    case :inet.getaddrs(String.to_charlist(host), family) do
+      {:ok, addresses} -> addresses
+      {:error, _reason} -> []
+    end
+  end
+
+  defp private_or_local_address?({127, _, _, _}), do: true
+  defp private_or_local_address?({10, _, _, _}), do: true
+  defp private_or_local_address?({192, 168, _, _}), do: true
+  defp private_or_local_address?({172, second, _, _}) when second in 16..31, do: true
+  defp private_or_local_address?({169, 254, _, _}), do: true
+  defp private_or_local_address?({0, _, _, _}), do: true
+  defp private_or_local_address?({100, second, _, _}) when second in 64..127, do: true
+  defp private_or_local_address?({192, 0, 0, _}), do: true
+  defp private_or_local_address?({198, 18, _, _}), do: true
+  defp private_or_local_address?({198, 19, _, _}), do: true
+  defp private_or_local_address?({224, _, _, _}), do: true
+  defp private_or_local_address?({255, _, _, _}), do: true
+  defp private_or_local_address?({_a, _b, _c, _d}), do: false
+
+  defp private_or_local_address?({0, 0, 0, 0, 0, 0, 0, 0}), do: true
+  defp private_or_local_address?({0, 0, 0, 0, 0, 0, 0, 1}), do: true
+  defp private_or_local_address?({0, 0, 0, 0, 0, 65_535, _, _}), do: true
+  defp private_or_local_address?({0, 0, 0, 0, 0, 16_383, _, _}), do: true
+  defp private_or_local_address?({first, _, _, _, _, _, _, _}) when first in 64_512..65_023,
+    do: true
+  defp private_or_local_address?({first, _, _, _, _, _, _, _}) when first in 65_024..65_535,
+    do: true
+  defp private_or_local_address?({_a, _b, _c, _d, _e, _f, _g, _h}), do: false
 
   defp header_filename(headers) do
     case header_value(headers, "content-disposition") do

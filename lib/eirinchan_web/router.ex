@@ -13,6 +13,7 @@ defmodule EirinchanWeb.Router do
     plug :put_root_layout, html: {EirinchanWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
+    plug EirinchanWeb.Plugs.SecureHeaders
     plug :put_html_no_store
   end
 
@@ -20,6 +21,7 @@ defmodule EirinchanWeb.Router do
     plug :accepts, ["json"]
     plug :fetch_session
     plug EirinchanWeb.Plugs.FetchCurrentModerator
+    plug EirinchanWeb.Plugs.SecureHeaders
   end
 
   pipeline :manage_api do
@@ -27,6 +29,7 @@ defmodule EirinchanWeb.Router do
     plug :fetch_session
     plug EirinchanWeb.Plugs.FetchCurrentModerator
     plug EirinchanWeb.Plugs.RequireModerator
+    plug EirinchanWeb.Plugs.SecureHeaders
   end
 
   pipeline :manage_janitor do
@@ -35,6 +38,7 @@ defmodule EirinchanWeb.Router do
     plug EirinchanWeb.Plugs.FetchCurrentModerator
     plug EirinchanWeb.Plugs.RequireModerator
     plug EirinchanWeb.Plugs.RequireModeratorRole, role: "janitor"
+    plug EirinchanWeb.Plugs.SecureHeaders
   end
 
   pipeline :manage_mod do
@@ -44,6 +48,7 @@ defmodule EirinchanWeb.Router do
     plug EirinchanWeb.Plugs.RequireModerator
     plug EirinchanWeb.Plugs.RequireModeratorRole, role: "mod"
     plug EirinchanWeb.Plugs.RequireSecureManageToken
+    plug EirinchanWeb.Plugs.SecureHeaders
   end
 
   pipeline :manage_admin do
@@ -53,6 +58,7 @@ defmodule EirinchanWeb.Router do
     plug EirinchanWeb.Plugs.RequireModerator
     plug EirinchanWeb.Plugs.RequireModeratorRole, role: "admin"
     plug EirinchanWeb.Plugs.RequireSecureManageToken
+    plug EirinchanWeb.Plugs.SecureHeaders
   end
 
   scope "/manage", EirinchanWeb do

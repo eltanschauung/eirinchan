@@ -693,7 +693,10 @@ defmodule Eirinchan.PostsTest do
   end
 
   test "create_post fetches remote uploads when url uploads are enabled" do
-    board = board_fixture(%{config_overrides: %{upload_by_url_enabled: true}})
+    board =
+      board_fixture(%{
+        config_overrides: %{upload_by_url_enabled: true, upload_by_url_allow_private_hosts: true}
+      })
     source_upload = upload_fixture("remote.png", "remote-image")
     server = serve_upload_fixture(File.read!(source_upload.path), "remote.png")
     on_exit(server.stop)
@@ -713,6 +716,25 @@ defmodule Eirinchan.PostsTest do
     assert thread.file_name == "remote.png"
     assert thread.file_type == "image/png"
     assert File.exists?(Eirinchan.Uploads.filesystem_path(thread.file_path))
+  end
+
+  test "create_post rejects private remote upload hosts by default" do
+    board = board_fixture(%{config_overrides: %{upload_by_url_enabled: true}})
+    source_upload = upload_fixture("remote.png", "remote-image")
+    server = serve_upload_fixture(File.read!(source_upload.path), "remote.png")
+    on_exit(server.stop)
+
+    assert {:error, :upload_failed} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "first post",
+                 "file_url" => server.url,
+                 "post" => "New Topic"
+               },
+               config: post_config(board.config_overrides),
+               request: post_request(board.uri)
+             )
   end
 
   test "create_post removes stored files when a later file insert fails" do
