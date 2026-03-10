@@ -13,19 +13,36 @@ defmodule EirinchanWeb.ThemeRegistry do
                           "eirinchan-bant.css",
                           "eirinchan-mod.css"
                         ])
+  @hidden_public_names MapSet.new(["contrast", "feedback", "ipaccessauth", "keyedfrog"])
+  @preferred_public_order [
+    "default",
+    "vichan",
+    "christmas",
+    "cirno",
+    "hacker",
+    "aya",
+    "futabamonkey",
+    "tomorrow",
+    "shadow",
+    "eientei1"
+  ]
 
   @themes %{
     "default" => %{label: "Yotsuba", stylesheet: "/stylesheets/yotsuba.css"},
     "yotsuba" => %{label: "Yotsuba", stylesheet: "/stylesheets/yotsuba.css"},
-    "vichan" => %{label: "Vichan", stylesheet: "/stylesheets/style.css"},
+    "vichan" => %{label: "Yotsuba B", stylesheet: "/stylesheets/style.css"},
     "contrast" => %{label: "Contrast", stylesheet: "/stylesheets/contrast.css"},
     "feedback" => %{label: "Feedback", stylesheet: "/stylesheets/feedback.css"},
     "ipaccessauth" => %{label: "IpAccessAuth", stylesheet: "/stylesheets/ipaccessauth.css"},
+    "aya" => %{label: "Aya", stylesheet: "/stylesheets/aya.css"},
+    "cirno" => %{label: "Cirno Blue", stylesheet: "/stylesheets/cirno.css"},
     "christmas" => %{label: "Christmas", stylesheet: "/stylesheets/christmas.css"},
+    "eientei1" => %{label: "Eientei1", stylesheet: "/stylesheets/eientei1.css"},
+    "futabamonkey" => %{label: "Futaba Monkey", stylesheet: "/stylesheets/futabamonkey.css"},
+    "hacker" => %{label: "Hacker", stylesheet: "/stylesheets/hacker.css"},
+    "shadow" => %{label: "Westopolis", stylesheet: "/stylesheets/shadow.css"},
     "tomorrow" => %{label: "Tomorrow", stylesheet: "/stylesheets/tomorrow.css"}
   }
-
-  @default_public_theme_names ["default", "tomorrow"]
 
   def all do
     themes()
@@ -97,7 +114,26 @@ defmodule EirinchanWeb.ThemeRegistry do
 
   defp public_theme_names do
     configured =
-      case Settings.current_instance_config() |> Map.get(:themes, %{}) |> Map.get(:public) do
+      case configured_public_themes() do
+        [] -> detected_public_theme_names()
+        names -> names
+      end
+
+    default_name = default_theme()
+
+    (configured ++ [default_name])
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+    |> Enum.filter(fn name ->
+      fetch(name) && not MapSet.member?(@hidden_public_names, name)
+    end)
+  end
+
+  defp configured_public_themes do
+    config = Settings.current_instance_config()
+
+    from_public_list =
+      case get_in(config, [:themes, :public]) || get_in(config, ["themes", "public"]) do
         names when is_list(names) ->
           names
           |> Enum.map(&to_string/1)
@@ -108,11 +144,57 @@ defmodule EirinchanWeb.ThemeRegistry do
           []
       end
 
-    default_name = default_theme()
+    case from_public_list do
+      [] -> configured_stylesheet_themes(config)
+      names -> names
+    end
+  end
 
-    (@default_public_theme_names ++ configured ++ [default_name])
-    |> Enum.reject(&is_nil/1)
-    |> Enum.uniq()
+  defp configured_stylesheet_themes(config) do
+    case Map.get(config, :stylesheets) || Map.get(config, "stylesheets") do
+      stylesheets when is_map(stylesheets) ->
+        stylesheets
+        |> Enum.map(fn {label, stylesheet} ->
+          theme_name_for_configured_stylesheet(to_string(label), to_string(stylesheet))
+        end)
+        |> Enum.reject(&is_nil/1)
+
+      _ ->
+        []
+    end
+  end
+
+  defp detected_public_theme_names do
+    names =
+      themes()
+      |> Map.keys()
+      |> Enum.reject(&MapSet.member?(@hidden_public_names, &1))
+
+    preferred = Enum.filter(@preferred_public_order, &(&1 in names))
+    remainder = names -- preferred
+
+    preferred ++ Enum.sort(remainder)
+  end
+
+  defp theme_name_for_configured_stylesheet(label, stylesheet) do
+    stylesheet_path =
+      case stylesheet do
+        value ->
+          if String.starts_with?(value, "/") do
+            value
+          else
+            "/stylesheets/" <> Path.basename(value)
+          end
+      end
+
+    all()
+    |> Enum.find(fn theme ->
+      theme.label == label or theme.stylesheet == stylesheet_path
+    end)
+    |> case do
+      nil -> nil
+      theme -> theme.name
+    end
   end
 
   defp public_theme_entry(name) do
