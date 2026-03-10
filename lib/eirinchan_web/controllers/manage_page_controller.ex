@@ -2,7 +2,6 @@ defmodule EirinchanWeb.ManagePageController do
   use EirinchanWeb, :controller
   import Ecto.Query, only: [from: 2]
 
-  alias Eirinchan.Announcement
   alias Eirinchan.Boardlist
   alias Eirinchan.Boards
   alias Eirinchan.Build
@@ -63,7 +62,7 @@ defmodule EirinchanWeb.ManagePageController do
         appeal_count: accessible_appeal_count(moderator),
         feedback_count: Feedback.unread_count(),
         unread_messages: Moderation.count_unread_messages(moderator),
-        announcement: Announcement.current(),
+        global_message: current_global_message(),
         custom_pages: CustomPages.list_pages(),
         news_entries: News.list_entries(limit: 10),
         error: nil,
@@ -556,7 +555,8 @@ defmodule EirinchanWeb.ManagePageController do
     with {:ok, moderator} <- ensure_moderator(conn) do
       render(conn, :announcement,
         moderator: moderator,
-        announcement: Announcement.current(),
+        global_message: current_global_message(),
+        history: global_message_history(),
         error: nil
       )
     else
@@ -564,12 +564,11 @@ defmodule EirinchanWeb.ManagePageController do
     end
   end
 
-  def upsert_announcement(conn, %{"title" => title, "body" => body}) do
-    with {:ok, moderator} <- ensure_news_editor(conn),
-         {:ok, _announcement} <-
-           Announcement.upsert(%{title: title, body: body, mod_user_id: moderator.id}) do
+  def upsert_announcement(conn, %{"body" => body}) do
+    with {:ok, _moderator} <- ensure_news_editor(conn),
+         {:ok, _config} <- update_global_message(body) do
       conn
-      |> put_flash(:info, "Announcement updated.")
+      |> put_flash(:info, "Global message updated.")
       |> redirect(to: ~p"/manage/announcement/browser")
     else
       {:error, :unauthorized} ->
@@ -578,16 +577,16 @@ defmodule EirinchanWeb.ManagePageController do
       {:error, :forbidden} ->
         render_announcement_error(conn, "Moderator access required.")
 
-      {:error, %Ecto.Changeset{} = changeset} ->
-        render_announcement_error(conn, format_changeset(changeset), :unprocessable_entity)
+      {:error, :invalid_config} ->
+        render_announcement_error(conn, "Failed to update global message.", :unprocessable_entity)
     end
   end
 
   def delete_announcement(conn, _params) do
     with {:ok, _moderator} <- ensure_news_editor(conn),
-         {:ok, _announcement} <- Announcement.delete_current() do
+         {:ok, _config} <- update_global_message("") do
       conn
-      |> put_flash(:info, "Announcement removed.")
+      |> put_flash(:info, "Global message removed.")
       |> redirect(to: ~p"/manage/announcement/browser")
     else
       {:error, :unauthorized} ->
@@ -1309,7 +1308,7 @@ defmodule EirinchanWeb.ManagePageController do
           report_count: accessible_report_count(conn.assigns[:current_moderator]),
           appeal_count: accessible_appeal_count(conn.assigns[:current_moderator]),
           unread_messages: Moderation.count_unread_messages(conn.assigns[:current_moderator]),
-          announcement: Announcement.current(),
+          global_message: current_global_message(),
           custom_pages: CustomPages.list_pages(),
           news_entries: News.list_entries(limit: 10),
           error: "Administrator access required.",
@@ -1325,7 +1324,7 @@ defmodule EirinchanWeb.ManagePageController do
           report_count: accessible_report_count(conn.assigns.current_moderator),
           appeal_count: accessible_appeal_count(conn.assigns.current_moderator),
           unread_messages: Moderation.count_unread_messages(conn.assigns.current_moderator),
-          announcement: Announcement.current(),
+          global_message: current_global_message(),
           custom_pages: CustomPages.list_pages(),
           news_entries: News.list_entries(limit: 10),
           error: format_changeset(changeset),
@@ -1437,7 +1436,7 @@ defmodule EirinchanWeb.ManagePageController do
       report_count: accessible_report_count(conn.assigns[:current_moderator]),
       appeal_count: accessible_appeal_count(conn.assigns[:current_moderator]),
       unread_messages: Moderation.count_unread_messages(conn.assigns[:current_moderator]),
-      announcement: Announcement.current(),
+      global_message: current_global_message(),
       custom_pages: CustomPages.list_pages(),
       news_entries: News.list_entries(limit: 10),
       error: message,
@@ -1460,9 +1459,46 @@ defmodule EirinchanWeb.ManagePageController do
     |> put_status(status)
     |> render(:announcement,
       moderator: conn.assigns[:current_moderator],
-      announcement: Announcement.current(),
+      global_message: current_global_message(),
+      history: global_message_history(),
       error: message
     )
+  end
+
+  defp current_global_message do
+    case Settings.current_instance_config() |> Map.get(:global_message) do
+      value when is_binary(value) -> value
+      _ -> ""
+    end
+  end
+
+  defp global_message_history do
+    Settings.current_instance_config()
+    |> Map.get(:global_message_history, [])
+    |> List.wrap()
+    |> Enum.filter(&(is_binary(&1) and String.trim(&1) != ""))
+  end
+
+  defp update_global_message(body) do
+    config = Settings.current_instance_config()
+    previous = current_global_message()
+    body = String.trim(body || "")
+
+    history =
+      [previous | global_message_history()]
+      |> Enum.filter(&(&1 != "" and &1 != body))
+      |> Enum.uniq()
+      |> Enum.take(20)
+
+    updated =
+      config
+      |> Map.put(:global_message, if(body == "", do: false, else: body))
+      |> Map.put(:global_message_history, history)
+
+    case Settings.persist_instance_config(updated) do
+      :ok -> {:ok, updated}
+      {:error, _reason} -> {:error, :invalid_config}
+    end
   end
 
   defp render_pages_error(conn, message, status \\ :forbidden) do

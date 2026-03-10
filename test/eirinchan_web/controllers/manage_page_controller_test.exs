@@ -481,52 +481,66 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert Eirinchan.News.list_entries() == []
   end
 
-  test "browser announcement management creates, updates, and deletes the site announcement", %{
+  test "browser announcement management updates global message and history", %{
     conn: conn
   } do
+    original_path = Application.get_env(:eirinchan, :instance_config_path)
+
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "eirinchan-global-message-#{System.unique_integer([:positive])}.json"
+      )
+
+    File.rm(path)
+    Application.put_env(:eirinchan, :instance_config_path, path)
+
+    on_exit(fn ->
+      Application.put_env(:eirinchan, :instance_config_path, original_path)
+      File.rm(path)
+    end)
+
     moderator = moderator_fixture(%{role: "admin"})
 
     create_conn =
       conn
       |> login_moderator(moderator)
       |> post("/manage/announcement/browser", %{
-        "title" => "Banner",
         "body" => "Important notice"
       })
 
     assert redirected_to(create_conn) == "/manage/announcement/browser"
 
-    announcement_page =
+    message_page =
       create_conn
       |> recycle()
       |> login_moderator(moderator)
       |> get("/manage/announcement/browser")
       |> html_response(200)
 
-    assert announcement_page =~ "Manage Announcement"
-    assert announcement_page =~ "Banner"
-    assert announcement_page =~ "Important notice"
+    assert message_page =~ "Manage Global Message"
+    assert message_page =~ "Important notice"
 
     update_conn =
       conn
       |> recycle()
       |> login_moderator(moderator)
       |> post("/manage/announcement/browser", %{
-        "title" => "Banner Updated",
         "body" => "Important notice updated"
       })
 
     assert redirected_to(update_conn) == "/manage/announcement/browser"
 
-    announcement_page =
+    message_page =
       update_conn
       |> recycle()
       |> login_moderator(moderator)
       |> get("/manage/announcement/browser")
       |> html_response(200)
 
-    assert announcement_page =~ "Banner Updated"
-    assert announcement_page =~ "Important notice updated"
+    assert message_page =~ "Important notice updated"
+    assert message_page =~ "Previous Messages"
+    assert message_page =~ "Important notice"
 
     home_page =
       update_conn
@@ -544,7 +558,9 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       |> delete("/manage/announcement/browser")
 
     assert redirected_to(delete_conn) == "/manage/announcement/browser"
-    assert Eirinchan.Announcement.current() == nil
+    persisted = File.read!(path)
+    assert persisted =~ "\"global_message_history\""
+    refute persisted =~ "\"global_message\":\"Important notice updated\""
   end
 
   test "browser custom page management creates, updates, and deletes pages", %{conn: conn} do

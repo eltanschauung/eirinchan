@@ -82,14 +82,6 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
   test "board page loads through the DB-backed board context", %{conn: conn} do
     board_fixture(%{uri: "meta", title: "Meta"})
     board = board_fixture(%{title: "Technology", subtitle: "Wired"})
-    moderator = moderator_fixture(%{username: "siteadmin"})
-
-    {:ok, _announcement} =
-      Eirinchan.Announcement.upsert(%{
-        title: "Board notice",
-        body: "Visible on boards",
-        mod_user_id: moderator.id
-      })
 
     response =
       conn
@@ -107,8 +99,6 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     assert response =~ ~s(data-stylesheet="yotsuba.css")
     assert response =~ ~s(src="/main.js)
     assert response =~ ~s(title="Meta">meta</a>)
-    assert response =~ "Board notice"
-    assert response =~ "Visible on boards"
     assert response =~ ~s(action="/search.php")
     assert response =~ ~s(name="board" value="#{board.uri}")
     assert response =~ "No threads yet."
@@ -124,7 +114,11 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
       |> get(~p"/#{board.uri}")
 
     assert html_response(conn, 200) =~ "/#{board.uri}/ - #{board.title}"
-    assert get_resp_header(conn, "cache-control") == ["no-store, no-cache, must-revalidate, max-age=0"]
+
+    assert get_resp_header(conn, "cache-control") == [
+             "no-store, no-cache, must-revalidate, max-age=0"
+           ]
+
     assert get_resp_header(conn, "pragma") == ["no-cache"]
     assert get_resp_header(conn, "expires") == ["0"]
   end

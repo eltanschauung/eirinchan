@@ -1,7 +1,6 @@
 defmodule EirinchanWeb.SearchController do
   use EirinchanWeb, :controller
 
-  alias Eirinchan.Announcement
   alias Eirinchan.Antispam
   alias Eirinchan.Boards
   alias Eirinchan.Boards.BoardRecord
@@ -71,7 +70,7 @@ defmodule EirinchanWeb.SearchController do
       query: query,
       board: board,
       boards: boards,
-      announcement: Announcement.current(),
+      global_message: current_global_message(),
       board_chrome: BoardChrome.for_board(%{uri: "bant"}),
       custom_pages: CustomPages.list_pages(),
       global_boardlist_html:
@@ -112,6 +111,13 @@ defmodule EirinchanWeb.SearchController do
     ])
     |> assign(:skip_app_stylesheet, true)
     |> assign(:skip_flash_group, true)
+  end
+
+  defp current_global_message do
+    case Settings.current_instance_config() |> Map.get(:global_message) do
+      value when is_binary(value) -> value
+      _ -> ""
+    end
   end
 
   defp board_from_param(nil), do: nil

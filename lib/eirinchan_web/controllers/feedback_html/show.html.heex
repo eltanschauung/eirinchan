@@ -5,10 +5,8 @@
   <div class="subtitle">Send feedback to the site administrators.</div>
 </header>
 
-<%= if @announcement do %>
-  <div class="blotter">
-    <strong><%= @announcement.title %></strong>: <%= @announcement.body %>
-  </div>
+<%= if @global_message && @global_message != "" do %>
+  <div class="blotter"><%= raw(@global_message) %></div>
 <% end %>
 
 <%= if assigns[:errors] do %>

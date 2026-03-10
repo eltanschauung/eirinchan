@@ -1,7 +1,6 @@
 defmodule EirinchanWeb.BoardController do
   use EirinchanWeb, :controller
 
-  alias Eirinchan.Announcement
   alias Eirinchan.Boards
   alias Eirinchan.Build
   alias Eirinchan.Posts
@@ -79,7 +78,6 @@ defmodule EirinchanWeb.BoardController do
           layout: false,
           board: board,
           board_title: board.title,
-          announcement: Announcement.current(),
           page_data: page_data,
           threads: page_data.threads,
           config: config,
@@ -134,7 +132,6 @@ defmodule EirinchanWeb.BoardController do
           board: board,
           board_title: board.title,
           page_title: "/#{board.uri}/ - #{board.title}",
-          announcement: Announcement.current(),
           page_data: page_data,
           config: config,
           boards: boards,

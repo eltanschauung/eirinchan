@@ -3,10 +3,8 @@
   <div class="subtitle"><%= @board_chrome.subtitle || "Static page" %></div>
 </header>
 
-<%= if @board_chrome.show_default_announcement && @announcement do %>
-  <div class="blotter">
-    <strong><%= @announcement.title %></strong>: <%= @announcement.body %>
-  </div>
+<%= if @global_message && @global_message != "" do %>
+  <div class="blotter"><%= raw(@global_message) %></div>
 <% end %>
 
 <div class="pages top">

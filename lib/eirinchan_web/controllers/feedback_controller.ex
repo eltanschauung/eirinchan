@@ -1,7 +1,6 @@
 defmodule EirinchanWeb.FeedbackController do
   use EirinchanWeb, :controller
 
-  alias Eirinchan.Announcement
   alias Eirinchan.Boards
   alias Eirinchan.CustomPages
   alias Eirinchan.Feedback
@@ -14,7 +13,7 @@ defmodule EirinchanWeb.FeedbackController do
   def show(conn, _params) do
     render(conn, :show,
       boards: Boards.list_boards(),
-      announcement: Announcement.current(),
+      global_message: current_global_message(),
       custom_pages: CustomPages.list_pages(),
       board_chrome: BoardChrome.for_board(%{uri: "bant"})
     )
@@ -41,11 +40,18 @@ defmodule EirinchanWeb.FeedbackController do
             errors: translate_errors(changeset),
             params: params,
             boards: Boards.list_boards(),
-            announcement: Announcement.current(),
+            global_message: current_global_message(),
             custom_pages: CustomPages.list_pages(),
             board_chrome: BoardChrome.for_board(%{uri: "bant"})
           )
         end
+    end
+  end
+
+  defp current_global_message do
+    case Eirinchan.Settings.current_instance_config() |> Map.get(:global_message) do
+      value when is_binary(value) -> value
+      _ -> ""
     end
   end
 
