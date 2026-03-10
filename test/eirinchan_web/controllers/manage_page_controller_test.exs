@@ -938,4 +938,44 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert sender_page =~ "Handled"
     assert sender_page =~ recipient.username
   end
+
+  test "browser edit post page matches vichan form structure and updates posts", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+    board = board_fixture(%{uri: "editx", title: "EditX"})
+
+    thread =
+      thread_fixture(board, %{name: "Anon", email: "sage", subject: "Old", body: "Old body"})
+
+    page =
+      conn
+      |> login_moderator(moderator)
+      |> get("/manage/boards/#{board.uri}/posts/#{thread.id}/edit/browser")
+      |> html_response(200)
+
+    assert page =~ "<h1>Edit post</h1>"
+    assert page =~ ~s(name="name")
+    assert page =~ ~s(name="email")
+    assert page =~ ~s(name="subject")
+    assert page =~ ~s(name="body")
+    assert page =~ ~s(value="Update")
+    refute page =~ "Back to Manage"
+
+    update_conn =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> patch("/manage/boards/#{board.uri}/posts/#{thread.id}/edit/browser", %{
+        "name" => "Changed",
+        "email" => "noko",
+        "subject" => "New",
+        "body" => "New body"
+      })
+
+    assert redirected_to(update_conn) =~ "/#{board.uri}/res/#{thread.id}"
+    assert {:ok, updated} = Eirinchan.Posts.get_post(board, thread.id)
+    assert updated.name == "Changed"
+    assert updated.email == "noko"
+    assert updated.subject == "New"
+    assert updated.body == "New body"
+  end
 end
