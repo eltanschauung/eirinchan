@@ -85,6 +85,10 @@ body.active-catalog .catalog-updater-meta {
   display: none;
 }
 
+.board-live-updater .live-page-indicator {
+  color: #0a0;
+}
+
 body.active-catalog .catalog-nav-box {
   display: flex;
   flex-direction: column;
