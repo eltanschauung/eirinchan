@@ -7,7 +7,7 @@ defmodule EirinchanWeb.FeedbackControllerTest do
     page = conn |> get("/feedback") |> html_response(200)
 
     assert page =~ "Send Feedback"
-    assert page =~ "/ tech /"
+    assert page =~ ~s(class="boardlist")
     assert page =~ ~s(class="feedback-textarea")
 
     conn =

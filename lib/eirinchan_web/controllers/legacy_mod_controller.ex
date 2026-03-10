@@ -60,6 +60,23 @@ defmodule EirinchanWeb.LegacyModController do
     end
   end
 
+  defp dispatch_board_action(conn, [uri, "deletefile", post_id, file_index, token]) do
+    with {:ok, moderator, board} <- authorized_board(conn, uri),
+         :ok <- require_role(moderator, 10),
+         :ok <- verify_action_token(conn, "#{uri}/deletefile/#{post_id}/#{file_index}", token),
+         {:ok, post} <- Posts.get_post(board, post_id),
+         {:ok, _updated_post} <-
+           Posts.delete_post_file(board, post_id, file_index,
+             config: board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
+           ) do
+      redirect(conn,
+        to: thread_destination(board, post, EirinchanWeb.RequestMeta.request_host(conn))
+      )
+    else
+      error -> legacy_error(conn, error)
+    end
+  end
+
   defp dispatch_board_action(conn, [uri, "deletebyip", post_id, token]) do
     with {:ok, moderator, board} <- authorized_board(conn, uri),
          :ok <- require_role(moderator, 20),
@@ -271,6 +288,17 @@ defmodule EirinchanWeb.LegacyModController do
 
   defp config_map(boards, host) do
     Map.new(boards, fn board -> {board.id, board_config(board, host)} end)
+  end
+
+  defp thread_destination(board, post, host) do
+    config = board_config(board, host)
+
+    thread =
+      if is_nil(post.thread_id), do: post, else: elem(Posts.get_post(board, post.thread_id), 1)
+
+    Eirinchan.ThreadPaths.thread_path(board, thread, config)
+  rescue
+    _ -> "/#{board.uri}"
   end
 
   defp board_config(board_record, request_host) do

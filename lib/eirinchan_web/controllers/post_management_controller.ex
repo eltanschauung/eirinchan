@@ -52,13 +52,10 @@ defmodule EirinchanWeb.PostManagementController do
     end
   end
 
-  def delete_file(conn, %{"uri" => uri, "post_id" => post_id}) do
+  def delete_file(conn, %{"uri" => uri, "post_id" => post_id} = params) do
     with board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          :ok <- authorize_board(conn, board),
-         {:ok, post} <-
-           Posts.delete_post_files(board, post_id,
-             config: board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
-           ) do
+         {:ok, post} <- delete_file_target(board, post_id, params, conn) do
       render(conn, :show, post: post)
     else
       nil -> {:error, :not_found}
@@ -116,6 +113,18 @@ defmodule EirinchanWeb.PostManagementController do
       :ok
     else
       {:error, :forbidden}
+    end
+  end
+
+  defp delete_file_target(board, post_id, params, conn) do
+    config = board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
+
+    case Map.get(params, "file_index") do
+      nil ->
+        Posts.delete_post_files(board, post_id, config: config)
+
+      file_index ->
+        Posts.delete_post_file(board, post_id, file_index, config: config)
     end
   end
 

@@ -71,6 +71,24 @@ defmodule EirinchanWeb.PostManagementControllerTest do
              }
            } = json_response(spoiler_conn, 200)
 
+    delete_single_file_conn =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> put_secure_manage_token()
+      |> put_req_header("accept", "application/json")
+      |> delete("/manage/boards/#{board.uri}/posts/#{thread_id}/file", %{"file_index" => "1"})
+
+    assert %{
+             "data" => %{
+               "id" => ^thread_id,
+               "file_path" => primary_file_path,
+               "extra_files" => []
+             }
+           } = json_response(delete_single_file_conn, 200)
+
+    assert is_binary(primary_file_path)
+
     delete_file_conn =
       conn
       |> recycle()

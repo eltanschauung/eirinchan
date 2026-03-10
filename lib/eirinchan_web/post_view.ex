@@ -320,9 +320,15 @@ defmodule EirinchanWeb.PostView do
   def reply_html(post, board, thread, config, moderator \\ nil, session_token \\ nil) do
     identity =
       [
-        if(present?(post.subject), do: ~s(<span class="subject">#{html_escape_to_string(post.subject)}</span>), else: nil),
+        if(present?(post.subject),
+          do: ~s(<span class="subject">#{html_escape_to_string(post.subject)}</span>),
+          else: nil
+        ),
         name_html(post, config),
-        if(present?(post.tripcode), do: ~s(<span class="trip">#{html_escape_to_string(post.tripcode)}</span>), else: nil),
+        if(present?(post.tripcode),
+          do: ~s(<span class="trip">#{html_escape_to_string(post.tripcode)}</span>),
+          else: nil
+        ),
         ip_link_html(post, board, moderator),
         post_flags_html(post, config),
         time_html(post)
@@ -346,7 +352,7 @@ defmodule EirinchanWeb.PostView do
       ]
       |> Enum.join("")
 
-    ~s(<div class="post reply" id="reply_#{post.id}"><p class="intro">#{intro}</p><div class="files">#{files_html(post, config)}</div>#{post_controls_html(post, board, moderator, session_token) || ""}#{reply_body_container_html(post, board, thread, config)}</div><br class="clear" />)
+    ~s(<div class="post reply" id="reply_#{post.id}"><p class="intro">#{intro}</p><div class="files">#{files_html(post, config, moderator, board, session_token)}</div>#{post_controls_html(post, board, moderator, session_token) || ""}#{reply_body_container_html(post, board, thread, config)}</div><br class="clear" />)
   end
 
   def file_size_text(file), do: human_file_size(Map.get(file, :file_size))
@@ -368,6 +374,7 @@ defmodule EirinchanWeb.PostView do
 
     ~s|<a href="#{html_escape_to_string(file.file_path)}" target="_blank"#{class_attr}><img class="post-image" src="#{html_escape_to_string(file.thumb_path || file.file_path)}"#{thumb_style_attr} alt="" /></a>|
   end
+
   def post_container_style(post), do: if(media_count(post) > 1, do: "clear:both", else: nil)
   def reply_body_style(reply, config), do: body_style(reply, config)
 
@@ -399,7 +406,7 @@ defmodule EirinchanWeb.PostView do
     embed_entries ++ file_entries
   end
 
-  defp files_html(post, config) do
+  def files_html(post, config, moderator \\ nil, board \\ nil, session_token \\ nil) do
     Enum.map_join(media_entries(post, config), "", fn media ->
       if embed_entry?(media) do
         media.embed_html || ""
@@ -419,9 +426,20 @@ defmodule EirinchanWeb.PostView do
             value -> ", " <> value
           end
 
-        ~s|<div class="#{class_name}"#{style_attr}><p class="fileinfo">File: <a href="#{html_escape_to_string(file.file_path)}">#{html_escape_to_string(stored_file_name(file))}</a><span>(#{html_escape_to_string(file_size_text(file))}#{dimensions}, <span class="postfilename" title="#{html_escape_to_string(original_file_name(file))}">#{html_escape_to_string(display_file_name(file, config))}</span>)</span></p>#{file_image_html(file, config)}</div>|
+        controls = file_controls_html(post, file, board, moderator, session_token) || ""
+
+        ~s|<div class="#{class_name}"#{style_attr}><p class="fileinfo">File: <a href="#{html_escape_to_string(file.file_path)}">#{html_escape_to_string(stored_file_name(file))}</a><span>(#{html_escape_to_string(file_size_text(file))}#{dimensions}, <span class="postfilename" title="#{html_escape_to_string(original_file_name(file))}">#{html_escape_to_string(display_file_name(file, config))}</span>)</span>#{controls}</p>#{file_image_html(file, config)}</div>|
       end
     end)
+  end
+
+  def file_controls_html(post, file, board, moderator, session_token) do
+    if present?(Map.get(file, :file_path)) and can_moderate?(moderator, board, :deletefile) do
+      %{href: href, secure: secure_href, title: title, label: label, confirm: message} =
+        file_control_metadata(post, file, board, session_token, :deletefile)
+
+      ~s|<span class="controls"><a onclick="if (event.which==2) return true;if (confirm('#{js_escape(message)}')) document.location='#{html_escape_to_string(secure_href)}';return false;" title="#{html_escape_to_string(title)}" href="#{html_escape_to_string(href)}">#{label}</a></span>|
+    end
   end
 
   defp post_flags_html(post, config) do
@@ -739,7 +757,10 @@ defmodule EirinchanWeb.PostView do
     do: present?(post.file_path) and Map.get(file, :file_path) == post.file_path
 
   defp extra_files(%{extra_files: %Ecto.Association.NotLoaded{}}), do: []
-  defp extra_files(%{extra_files: files}) when is_list(files), do: files
+
+  defp extra_files(%{extra_files: files}) when is_list(files),
+    do: Enum.sort_by(files, &Map.get(&1, :position, 0))
+
   defp extra_files(_post), do: []
 
   defp can_render_controls?(nil, _board), do: false
@@ -771,6 +792,7 @@ defmodule EirinchanWeb.PostView do
   defp permission_level(:bumplock), do: 20
   defp permission_level(:editpost), do: 30
   defp permission_level(:move), do: 20
+  defp permission_level(:deletefile), do: 10
 
   defp body_style(post, config, opts \\ []) do
     cond do
@@ -955,6 +977,21 @@ defmodule EirinchanWeb.PostView do
   defp control_confirm(:cycle), do: "Are you sure you want to change cycle state for this thread?"
   defp control_confirm(_action), do: ""
 
+  defp file_control_metadata(post, file, board, session_token, :deletefile) do
+    file_index = file_index(post, file)
+    action_path = "#{board.uri}/deletefile/#{post.id}/#{file_index}"
+    href = "/mod.php?/" <> action_path
+    token = ManageSecurity.sign_action(session_token, action_path)
+
+    %{
+      href: href,
+      secure: href <> "/#{token}",
+      title: "Delete file",
+      label: "[F]",
+      confirm: "Are you sure you want to delete this file?"
+    }
+  end
+
   defp maybe_add_control(list, true, html) when is_binary(html), do: list ++ [html]
   defp maybe_add_control(list, _condition, _html), do: list
 
@@ -970,6 +1007,12 @@ defmodule EirinchanWeb.PostView do
   defp file_count(%{file_path: nil} = post), do: length(extra_files(post))
   defp file_count(post), do: 1 + length(extra_files(post))
   defp media_count(post), do: file_count(post) + if(has_embed?(post), do: 1, else: 0)
+
+  defp file_index(_post, %PostFile{position: position}) when is_integer(position), do: position
+
+  defp file_index(post, file) do
+    if Map.get(file, :file_path) == post.file_path, do: 0, else: 0
+  end
 
   defp flag_path(code, config) when is_binary(code) do
     config.uri_flags
