@@ -58,6 +58,44 @@ defmodule EirinchanWeb.ManageConfigControllerTest do
     assert Floki.find(board_page, ~s(input[name="name"])) == []
   end
 
+  test "instance config editor preserves authored key order", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+
+    raw_json = """
+    {
+      "Flags": "/flags",
+      "FAQ": "/faq",
+      "Feedback": "/feedback",
+      "Home": "/"
+    }
+    """
+
+    update_conn =
+      conn
+      |> login_moderator(moderator)
+      |> patch("/manage/config/browser", %{"config_json" => raw_json})
+
+    assert redirected_to(update_conn) == "/manage/config/browser"
+    assert Eirinchan.Settings.raw_instance_config_json() == raw_json
+    persisted = Eirinchan.Settings.raw_instance_config_json()
+
+    assert elem(:binary.match(persisted, ~s("Flags": "/flags")), 0) <
+             elem(:binary.match(persisted, ~s("FAQ": "/faq")), 0)
+
+    assert elem(:binary.match(persisted, ~s("FAQ": "/faq")), 0) <
+             elem(:binary.match(persisted, ~s("Feedback": "/feedback")), 0)
+
+    config_page =
+      update_conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> get("/manage/config/browser")
+      |> html_response(200)
+
+    assert config_page =~ "Flags"
+    assert config_page =~ "Feedback"
+  end
+
   test "admin browser board config editor persists board overrides and affects board rendering",
        %{
          conn: conn
