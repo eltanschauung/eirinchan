@@ -160,4 +160,29 @@ defmodule EirinchanWeb.ThemeManagementControllerTest do
     assert redirected_to(uninstall_conn) == "/manage/themes/browser"
     refute Eirinchan.CustomPages.get_page_by_slug("faq")
   end
+
+  test "faq theme reconfigure page edits the faq html", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+
+    theme_page =
+      conn
+      |> login_moderator(moderator)
+      |> get("/manage/themes/browser/faq")
+      |> html_response(200)
+
+    assert theme_page =~ "Configuring theme: FAQ"
+    assert theme_page =~ ~s(name="html")
+    assert theme_page =~ "<!doctype html>"
+
+    save_conn =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> post("/manage/themes/browser/faq", %{
+        "html" => "<!doctype html><html><body><h1>Theme FAQ</h1></body></html>"
+      })
+
+    assert redirected_to(save_conn) == "/manage/themes/browser/faq"
+    assert Eirinchan.CustomPages.get_page_by_slug("faq").body =~ "Theme FAQ"
+  end
 end

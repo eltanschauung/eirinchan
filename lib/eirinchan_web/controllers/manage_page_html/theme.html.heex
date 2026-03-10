@@ -38,18 +38,18 @@
           />
         <% else %>
           <%= if field.type == "textarea" do %>
-          <textarea
-            id={"theme-#{@theme.name}-#{field.name}"}
-            name={field.name}
-            rows="8"
-          ><%= Map.get(@theme.settings, field.name, "") %></textarea>
+            <textarea
+              id={"theme-#{@theme.name}-#{field.name}"}
+              name={field.name}
+              rows={if @theme.name == "faq", do: "30", else: "8"}
+            ><%= Map.get(@theme.settings, field.name, "") %></textarea>
           <% else %>
-          <input
-            id={"theme-#{@theme.name}-#{field.name}"}
-            type="text"
-            name={field.name}
-            value={Map.get(@theme.settings, field.name, "")}
-          />
+            <input
+              id={"theme-#{@theme.name}-#{field.name}"}
+              type="text"
+              name={field.name}
+              value={Map.get(@theme.settings, field.name, "")}
+            />
           <% end %>
         <% end %>
       </div>
@@ -61,7 +61,11 @@
   </form>
 
   <p :if={@theme.installed}>
-    <form action={"/manage/themes/browser/#{@theme.name}/rebuild"} method="post" style="display:inline">
+    <form
+      action={"/manage/themes/browser/#{@theme.name}/rebuild"}
+      method="post"
+      style="display:inline"
+    >
       <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
       <button type="submit">Rebuild Theme</button>
     </form>

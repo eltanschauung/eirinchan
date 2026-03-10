@@ -289,7 +289,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert page =~ "Example user_flags:"
   end
 
-  test "admin can edit the full faq html document", %{conn: conn} do
+  test "dashboard no longer links to a standalone faq editor", %{conn: conn} do
     moderator = moderator_fixture(%{role: "admin"})
 
     dashboard =
@@ -298,29 +298,8 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       |> get("/manage")
       |> html_response(200)
 
-    assert dashboard =~ "FAQ Editor"
-
-    editor =
-      conn
-      |> recycle()
-      |> login_moderator(moderator)
-      |> get("/manage/faq/browser")
-      |> html_response(200)
-
-    assert editor =~ "FAQ Editor"
-    assert editor =~ ~s(name="faq_html")
-    assert editor =~ "<!doctype html>"
-
-    update_conn =
-      conn
-      |> recycle()
-      |> login_moderator(moderator)
-      |> post("/manage/faq/browser", %{
-        "faq_html" => "<!doctype html><html><body><h1>Edited FAQ</h1></body></html>"
-      })
-
-    assert redirected_to(update_conn) == "/manage/faq/browser"
-    assert Eirinchan.CustomPages.get_page_by_slug("faq").body =~ "Edited FAQ"
+    refute dashboard =~ "FAQ Editor"
+    assert dashboard =~ "Manage themes"
   end
 
   test "dnsbl editor shows vichan defaults before overrides exist", %{conn: conn} do
