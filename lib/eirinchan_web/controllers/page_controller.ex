@@ -178,19 +178,18 @@ defmodule EirinchanWeb.PageController do
     end
   end
 
+  def legacy_flags(conn, _params), do: redirect(conn, to: ~p"/flag")
+
   def board_flag(conn, %{"board" => uri}) do
     if Installation.setup_required?() do
       redirect(conn, to: ~p"/setup")
     else
-      case {Boards.get_board_by_uri(uri), CustomPages.get_page_by_slug("flag")} do
-        {nil, _} ->
+      case Boards.get_board_by_uri(uri) do
+        nil ->
           send_resp(conn, :not_found, "Page not found")
 
-        {_, nil} ->
-          send_resp(conn, :not_found, "Page not found")
-
-        {board, page} ->
-          render_custom_page(conn, page, board: board)
+        _board ->
+          redirect(conn, to: ~p"/flag")
       end
     end
   end

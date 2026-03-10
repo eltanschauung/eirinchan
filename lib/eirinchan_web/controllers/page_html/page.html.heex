@@ -12,7 +12,7 @@
 <div class="pages top">
   [<a href={~p"/"}>Home</a>]
   <%= for page <- @custom_pages do %>
-    [<a href={"/pages/#{page.slug}"}><%= page.title %></a>]
+    [<a href={if page.slug == "flag", do: "/flag", else: "/pages/#{page.slug}"}><%= page.title %></a>]
   <% end %>
 </div>
 

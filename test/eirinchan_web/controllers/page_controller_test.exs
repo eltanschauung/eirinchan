@@ -278,7 +278,7 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ "Apply"
   end
 
-  test "GET /:board/flag renders the board-scoped flag page", %{conn: conn} do
+  test "GET /:board/flag redirects to the top-level flag page", %{conn: conn} do
     author = moderator_fixture(%{username: "flagboard"})
     board = board_fixture(%{uri: "bant", title: "International Random"})
 
@@ -290,16 +290,14 @@ defmodule EirinchanWeb.PageControllerTest do
         mod_user_id: author.id
       })
 
-    page =
+    conn =
       conn
       |> get("/#{board.uri}/flag")
-      |> html_response(200)
 
-    assert page =~ "Return to"
-    assert page =~ ~s(href="/#{board.uri}")
+    assert redirected_to(conn) == "/flag"
   end
 
-  test "GET /flags renders the top-level flag page", %{conn: conn} do
+  test "GET /flag renders the top-level flag page", %{conn: conn} do
     author = moderator_fixture(%{username: "flagglobal"})
 
     {:ok, _page} =
@@ -312,11 +310,16 @@ defmodule EirinchanWeb.PageControllerTest do
 
     page =
       conn
-      |> get("/flags")
+      |> get("/flag")
       |> html_response(200)
 
     assert page =~ "Pick custom flags for your posts"
     assert page =~ "/flag/compiled/"
     assert page =~ ~s(id="user_flag")
+  end
+
+  test "GET /flags redirects to /flag", %{conn: conn} do
+    conn = get(conn, "/flags")
+    assert redirected_to(conn) == "/flag"
   end
 end

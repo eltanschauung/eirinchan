@@ -140,7 +140,12 @@
       <li>No custom pages yet.</li>
     <% else %>
       <%= for page <- @custom_pages do %>
-        <li><a href={"/pages/#{page.slug}"}><%= page.title %></a> (<%= page.slug %>)</li>
+        <li>
+          <a href={if page.slug == "flag", do: "/flag", else: "/pages/#{page.slug}"}>
+            <%= page.title %>
+          </a>
+          (<%= page.slug %>)
+        </li>
       <% end %>
     <% end %>
   </ul>

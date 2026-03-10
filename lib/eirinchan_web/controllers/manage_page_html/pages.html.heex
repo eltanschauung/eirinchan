@@ -32,7 +32,11 @@
   <% else %>
     <%= for page <- @pages do %>
       <article>
-        <h3><a href={"/pages/#{page.slug}"}><%= page.title %></a></h3>
+        <h3>
+          <a href={if page.slug == "flag", do: "/flag", else: "/pages/#{page.slug}"}>
+            <%= page.title %>
+          </a>
+        </h3>
         <p>Slug: <%= page.slug %></p>
         <p><%= page.body %></p>
         <p :if={page.mod_user}>Updated by <%= page.mod_user.username %></p>
