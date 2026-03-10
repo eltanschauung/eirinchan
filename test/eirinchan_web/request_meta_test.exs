@@ -2,6 +2,8 @@ defmodule EirinchanWeb.RequestMetaTest do
   use ExUnit.Case, async: true
 
   alias EirinchanWeb.RequestMeta
+  import Plug.Conn
+  import Plug.Test
 
   test "trusted_proxy? matches exact ips and cidr ranges" do
     assert RequestMeta.trusted_proxy?(
@@ -27,5 +29,16 @@ defmodule EirinchanWeb.RequestMetaTest do
                trusted_cidrs: ["203.0.113.0/24"]
              }
            )
+  end
+
+  test "effective_remote_ip uses forwarded client ip from trusted loopback proxy" do
+    conn =
+      :get
+      |> conn("/")
+      |> Map.put(:remote_ip, {127, 0, 0, 1})
+      |> put_req_header("x-forwarded-for", "198.51.100.44, 127.0.0.1")
+
+    assert RequestMeta.effective_remote_ip(conn) == {198, 51, 100, 44}
+    assert RequestMeta.forwarded_for(conn) == "198.51.100.44, 127.0.0.1"
   end
 end
