@@ -263,6 +263,50 @@
     return hasPostPayload(form);
   }
 
+  function citeReply(id, withLink) {
+    var textarea = document.getElementById('body');
+
+    if (!textarea) return false;
+
+    if (document.selection) {
+      textarea.focus();
+      var selection = document.selection.createRange();
+      selection.text = '>>' + id + '\n';
+    } else if (textarea.selectionStart || textarea.selectionStart === 0) {
+      var start = textarea.selectionStart;
+      var end = textarea.selectionEnd;
+
+      textarea.value =
+        textarea.value.substring(0, start) +
+        '>>' + id + '\n' +
+        textarea.value.substring(end, textarea.value.length);
+
+      textarea.selectionStart += ('>>' + id).length + 1;
+      textarea.selectionEnd = textarea.selectionStart;
+    } else {
+      textarea.value += '>>' + id + '\n';
+    }
+
+    if (typeof window.jQuery !== 'undefined') {
+      var selectedText = document.getSelection().toString();
+
+      if (selectedText) {
+        var body = window.jQuery('#reply_' + id + ', #op_' + id).find('div.body');
+        var index = body.text().indexOf(selectedText.replace('\n', ''));
+
+        if (index > -1) {
+          textarea.value += '>' + selectedText + '\n';
+        }
+      }
+
+      window.jQuery(window).trigger('cite', [id, withLink]);
+      window.jQuery(textarea).change();
+    }
+
+    textarea.focus();
+    return false;
+  }
+
   function clearSuccessfulPostsCookie(saved) {
     var cookieName = window.post_success_cookie_name || "eirinchan_posted";
     var cookieValue = window.getCookie(cookieName);
@@ -452,6 +496,7 @@
   window.do_boardlist = window.do_boardlist || function () {};
   window.dopost = window.dopost || doPost;
   window.doPost = window.doPost || window.dopost;
+  window.citeReply = window.citeReply || citeReply;
   window.rememberStuff = window.rememberStuff || rememberStuff;
   window.ready =
     window.ready ||
