@@ -83,6 +83,19 @@
           maxlength="40"
           autocomplete="off"
         />
+        <%= if @config.field_disable_reply_subject do %>
+          <input
+            accesskey="s"
+            style="margin-left:2px;"
+            type="submit"
+            name="post"
+            value={@config.button_reply}
+          />
+          <span>
+            <input id="spoiler_reply_compact" name="spoiler" type="checkbox" value="1" />
+            <label for="spoiler_reply_compact">Spoiler Image</label>
+          </span>
+        <% end %>
       </td>
     </tr>
     <tr :if={!@config.field_disable_reply_subject}>
@@ -99,16 +112,6 @@
         <span>
           <input id="spoiler_reply" name="spoiler" type="checkbox" value="1" />
           <label for="spoiler_reply">Spoiler Image</label>
-        </span>
-      </td>
-    </tr>
-    <tr :if={@config.field_disable_reply_subject}>
-      <th></th>
-      <td>
-        <input accesskey="s" type="submit" name="post" value={@config.button_reply} />
-        <span>
-          <input id="spoiler_reply_compact" name="spoiler" type="checkbox" value="1" />
-          <label for="spoiler_reply_compact">Spoiler Image</label>
         </span>
       </td>
     </tr>
