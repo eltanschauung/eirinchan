@@ -30,7 +30,7 @@ if (typeof localStorage.catalogImageHover === 'undefined') {
 	localStorage.catalogImageHover = 'true';
 }
 if (typeof localStorage.imageHoverFollowCursor === 'undefined') {
-	localStorage.imageHoverFollowCursor = 'false';
+	localStorage.imageHoverFollowCursor = 'true';
 }
 
 if (getSetting('imageHover')) $('#imageHover>input').prop('checked', 'checked');
