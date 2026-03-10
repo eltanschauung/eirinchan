@@ -86,7 +86,7 @@ body.active-catalog .catalog-updater-meta {
 }
 
 .board-live-updater .live-page-indicator {
-  color: #0a0;
+  color: #0a0 !important;
 }
 
 body.active-catalog .catalog-nav-box {
