@@ -233,7 +233,7 @@
 <!-- Start Search Form -->
 <form style="display:inline;" action="/search.php" method="get">
   <p class="board-search-row" style="margin: 8px;">
-    <input type="text" class="board-search-input" name="search" placeholder={"#{@board.uri} search"} />
+    <input type="text" class="board-search-input" name="search" placeholder="Search" />
     <input type="hidden" name="board" value={@board.uri} />
     <input type="submit" value="Search" />
     <%= for link <- EirinchanWeb.BoardChrome.search_links(@board.uri, @config) do %>
