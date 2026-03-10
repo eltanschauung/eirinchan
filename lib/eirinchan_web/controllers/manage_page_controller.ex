@@ -750,6 +750,7 @@ defmodule EirinchanWeb.ManagePageController do
 
   def ip_history(conn, %{"ip" => ip}) do
     with {:ok, moderator} <- ensure_moderator(conn),
+         true <- PostView.can_view_ip?(moderator),
          {:ok, decoded_ip} <- decode_ip_param(ip) do
       boards = Moderation.list_accessible_boards(moderator)
       board_ids = Enum.map(boards, & &1.id)
@@ -763,14 +764,21 @@ defmodule EirinchanWeb.ManagePageController do
         notes: Moderation.list_ip_notes(decoded_ip, board_ids: board_ids)
       )
     else
-      {:error, :unauthorized} -> redirect(conn, to: ~p"/manage/login")
-      {:error, :invalid_ip} -> render_dashboard_error(conn, "Invalid IP address.", %{}, :bad_request)
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      false ->
+        render_dashboard_error(conn, "Administrator access required.", %{}, :forbidden)
+
+      {:error, :invalid_ip} ->
+        render_dashboard_error(conn, "Invalid IP address.", %{}, :bad_request)
     end
   end
 
   def board_ip_history(conn, %{"uri" => uri, "ip" => ip}) do
     with {:ok, moderator} <- ensure_moderator(conn),
          {:ok, board} <- load_accessible_board(moderator, uri),
+         true <- PostView.can_view_ip?(moderator, board),
          {:ok, decoded_ip} <- decode_ip_param(ip) do
       render(conn, :ip_history,
         moderator: moderator,
@@ -787,6 +795,9 @@ defmodule EirinchanWeb.ManagePageController do
       {:error, :forbidden} ->
         render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
 
+      false ->
+        render_dashboard_error(conn, "Moderator IP access required.", %{}, :forbidden)
+
       {:error, :not_found} ->
         render_dashboard_error(conn, "Board not found.", %{}, :not_found)
 
@@ -798,6 +809,7 @@ defmodule EirinchanWeb.ManagePageController do
   def create_ip_note(conn, %{"uri" => uri, "ip" => ip, "body" => body}) do
     with {:ok, moderator} <- ensure_moderator(conn),
          {:ok, board} <- load_accessible_board(moderator, uri),
+         true <- PostView.can_view_ip?(moderator, board),
          {:ok, decoded_ip} <- decode_ip_param(ip),
          {:ok, _note} <-
            Moderation.add_ip_note(decoded_ip, %{
@@ -815,6 +827,9 @@ defmodule EirinchanWeb.ManagePageController do
       {:error, :forbidden} ->
         render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
 
+      false ->
+        render_dashboard_error(conn, "Moderator IP access required.", %{}, :forbidden)
+
       {:error, :not_found} ->
         render_dashboard_error(conn, "Board not found.", %{}, :not_found)
 
@@ -829,6 +844,7 @@ defmodule EirinchanWeb.ManagePageController do
   def update_ip_note(conn, %{"uri" => uri, "ip" => ip, "id" => id, "body" => body}) do
     with {:ok, moderator} <- ensure_moderator(conn),
          {:ok, board} <- load_accessible_board(moderator, uri),
+         true <- PostView.can_view_ip?(moderator, board),
          {:ok, decoded_ip} <- decode_ip_param(ip),
          {:ok, note} <- load_board_note(id, board.id),
          {:ok, _note} <- Moderation.update_ip_note(note, %{body: body}) do
@@ -841,6 +857,9 @@ defmodule EirinchanWeb.ManagePageController do
 
       {:error, :forbidden} ->
         render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
+
+      false ->
+        render_dashboard_error(conn, "Moderator IP access required.", %{}, :forbidden)
 
       {:error, :not_found} ->
         render_dashboard_error(conn, "IP note not found.", %{}, :not_found)
@@ -856,6 +875,7 @@ defmodule EirinchanWeb.ManagePageController do
   def delete_ip_note(conn, %{"uri" => uri, "ip" => ip, "id" => id}) do
     with {:ok, moderator} <- ensure_moderator(conn),
          {:ok, board} <- load_accessible_board(moderator, uri),
+         true <- PostView.can_view_ip?(moderator, board),
          {:ok, decoded_ip} <- decode_ip_param(ip),
          {:ok, note} <- load_board_note(id, board.id),
          {:ok, _note} <- Moderation.delete_ip_note(note) do
@@ -869,6 +889,9 @@ defmodule EirinchanWeb.ManagePageController do
       {:error, :forbidden} ->
         render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
 
+      false ->
+        render_dashboard_error(conn, "Moderator IP access required.", %{}, :forbidden)
+
       {:error, :not_found} ->
         render_dashboard_error(conn, "IP note not found.", %{}, :not_found)
 
@@ -879,6 +902,7 @@ defmodule EirinchanWeb.ManagePageController do
 
   def delete_ip_posts(conn, %{"ip" => ip}) do
     with {:ok, moderator} <- ensure_moderator(conn),
+         true <- PostView.can_view_ip?(moderator),
          {:ok, decoded_ip} <- decode_ip_param(ip),
          {:ok, _result} <-
            Moderation.list_accessible_boards(moderator)
@@ -891,14 +915,21 @@ defmodule EirinchanWeb.ManagePageController do
       |> put_flash(:info, "Posts deleted for IP.")
       |> redirect(to: "/manage/ip/#{IpCrypt.cloak_ip(decoded_ip)}/browser")
     else
-      {:error, :unauthorized} -> redirect(conn, to: ~p"/manage/login")
-      {:error, :invalid_ip} -> render_dashboard_error(conn, "Invalid IP address.", %{}, :bad_request)
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      false ->
+        render_dashboard_error(conn, "Administrator access required.", %{}, :forbidden)
+
+      {:error, :invalid_ip} ->
+        render_dashboard_error(conn, "Invalid IP address.", %{}, :bad_request)
     end
   end
 
   def delete_board_ip_posts(conn, %{"uri" => uri, "ip" => ip}) do
     with {:ok, moderator} <- ensure_moderator(conn),
          {:ok, board} <- load_accessible_board(moderator, uri),
+         true <- PostView.can_view_ip?(moderator, board),
          {:ok, decoded_ip} <- decode_ip_param(ip),
          {:ok, _result} <-
            Eirinchan.Posts.moderate_delete_posts_by_ip(board, decoded_ip,
@@ -913,6 +944,9 @@ defmodule EirinchanWeb.ManagePageController do
 
       {:error, :forbidden} ->
         render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
+
+      false ->
+        render_dashboard_error(conn, "Moderator IP access required.", %{}, :forbidden)
 
       {:error, :not_found} ->
         render_dashboard_error(conn, "Board not found.", %{}, :not_found)
@@ -994,9 +1028,14 @@ defmodule EirinchanWeb.ManagePageController do
         board: board,
         post: post,
         boards: Moderation.list_accessible_boards(moderator),
+        show_ip: PostView.can_view_ip?(moderator, board),
         error: nil,
         params: %{
-          "ip" => Map.get(params, "ip", post.ip_subnet || ""),
+          "ip" =>
+            if(PostView.can_view_ip?(moderator, board),
+              do: Map.get(params, "ip", post.ip_subnet || ""),
+              else: ""
+            ),
           "reason" => Map.get(params, "reason", ""),
           "public_message" => Map.get(params, "public_message", "0"),
           "message" => Map.get(params, "message", "USER WAS BANNED FOR THIS POST"),
@@ -1746,7 +1785,11 @@ defmodule EirinchanWeb.ManagePageController do
         post: post,
         thread: thread,
         config: Map.fetch!(config_by_board, board.id),
-        displayed_ip: EirinchanWeb.IpPresentation.display_ip(report.ip, moderator),
+        displayed_ip:
+          if(PostView.can_view_ip?(moderator, board),
+            do: EirinchanWeb.IpPresentation.display_ip(report.ip, moderator),
+            else: nil
+          ),
         dismiss_token: ManageSecurity.sign_action(session_token, "reports/#{report.id}/dismiss"),
         dismiss_all_token:
           ManageSecurity.sign_action(session_token, "reports/#{report.id}/dismiss&all"),
@@ -1760,7 +1803,11 @@ defmodule EirinchanWeb.ManagePageController do
     Enum.map(entries, fn entry ->
       %{
         feedback: entry,
-        displayed_ip: EirinchanWeb.IpPresentation.display_ip(entry.ip_subnet, moderator),
+        displayed_ip:
+          if(PostView.can_view_ip?(moderator),
+            do: EirinchanWeb.IpPresentation.display_ip(entry.ip_subnet, moderator),
+            else: nil
+          ),
         delete_token: ManageSecurity.sign_action(session_token, "feedback/#{entry.id}/delete"),
         mark_read_token:
           ManageSecurity.sign_action(session_token, "feedback/#{entry.id}/mark_read")
@@ -1840,9 +1887,14 @@ defmodule EirinchanWeb.ManagePageController do
       board: board,
       post: post,
       boards: Moderation.list_accessible_boards(moderator),
+      show_ip: PostView.can_view_ip?(moderator, board),
       error: message,
       params: %{
-        "ip" => Map.get(params, "ip", post.ip_subnet || ""),
+        "ip" =>
+          if(PostView.can_view_ip?(moderator, board),
+            do: Map.get(params, "ip", post.ip_subnet || ""),
+            else: ""
+          ),
         "reason" => Map.get(params, "reason", ""),
         "public_message" => Map.get(params, "public_message", "0"),
         "message" => Map.get(params, "message", "USER WAS BANNED FOR THIS POST"),

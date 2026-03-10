@@ -17,7 +17,7 @@
         <br /> Reason: <%= entry.report.reason %>
         <br /> Report date: <%= EirinchanWeb.PostView.formatted_timestamp(entry.report) %>
         <br />
-        <%= if entry.report.ip do %>
+        <%= if entry.displayed_ip do %>
           Reported by:
           <a class="ip-link" style="margin:0;" href={"/mod.php?/IP/#{entry.displayed_ip}"}>
             <%= entry.displayed_ip %>

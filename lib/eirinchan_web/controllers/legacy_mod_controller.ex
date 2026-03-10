@@ -9,6 +9,7 @@ defmodule EirinchanWeb.LegacyModController do
   alias Eirinchan.Runtime.Config
   alias Eirinchan.Settings
   alias EirinchanWeb.ManageSecurity
+  alias EirinchanWeb.PostView
 
   def show(conn, _params) do
     case conn.query_string do
@@ -52,9 +53,14 @@ defmodule EirinchanWeb.LegacyModController do
   end
 
   defp redirect_legacy_ip(conn, ip) do
-    case IpCrypt.uncloak_ip(ip) do
+    with {:ok, moderator} <- authorized_moderator(conn),
+         true <- PostView.can_view_ip?(moderator),
+         decoded when not is_nil(decoded) <- IpCrypt.uncloak_ip(ip) do
+      redirect(conn, to: "/manage/ip/#{decoded}/browser")
+    else
+      {:error, :unauthorized} -> redirect(conn, to: "/manage/login")
+      false -> send_resp(conn, :forbidden, "Insufficient permissions.")
       nil -> send_resp(conn, :bad_request, "Invalid IP address.")
-      decoded -> redirect(conn, to: "/manage/ip/#{decoded}/browser")
     end
   end
 

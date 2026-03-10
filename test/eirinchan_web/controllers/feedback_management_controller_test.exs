@@ -65,4 +65,23 @@ defmodule EirinchanWeb.FeedbackManagementControllerTest do
              |> get("/manage/feedback")
              |> json_response(200)
   end
+
+  test "non-admin moderators do not receive feedback ip values", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "mod"})
+
+    conn =
+      conn
+      |> Map.put(:remote_ip, {198, 51, 100, 9})
+      |> post("/feedback", %{"body" => "Needs review", "json_response" => "1"})
+
+    assert %{"feedback_id" => _feedback_id} = json_response(conn, 200)
+
+    assert %{"data" => [%{"ip_subnet" => nil}]} =
+             conn
+             |> recycle()
+             |> login_moderator(moderator)
+             |> put_req_header("accept", "application/json")
+             |> get("/manage/feedback")
+             |> json_response(200)
+  end
 end

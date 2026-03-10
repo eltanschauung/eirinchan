@@ -7,7 +7,7 @@ defmodule EirinchanWeb.IpManagementControllerTest do
     with_instance_config(%{}, fn ->
       board = board_fixture()
       other_board = board_fixture()
-      moderator = moderator_fixture(%{role: "mod"})
+      moderator = moderator_fixture(%{role: "admin"})
 
       grant_board_access_fixture(moderator, board)
       grant_board_access_fixture(moderator, other_board)
@@ -68,9 +68,21 @@ defmodule EirinchanWeb.IpManagementControllerTest do
     assert %{"error" => "forbidden"} = json_response(conn, 403)
   end
 
+  test "global ip views require admin-level ip permission", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "mod"})
+
+    conn =
+      conn
+      |> login_moderator(moderator)
+      |> put_req_header("accept", "application/json")
+      |> get("/manage/ip/198.51.100.4")
+
+    assert %{"error" => "forbidden"} = json_response(conn, 403)
+  end
+
   test "ip notes can be updated and deleted through board moderation routes", %{conn: conn} do
     board = board_fixture()
-    moderator = moderator_fixture(%{role: "mod"})
+    moderator = moderator_fixture(%{role: "admin"})
     grant_board_access_fixture(moderator, board)
 
     note_conn =
@@ -107,7 +119,7 @@ defmodule EirinchanWeb.IpManagementControllerTest do
   test "delete-by-ip removes posts for a board or across accessible boards", %{conn: conn} do
     board = board_fixture()
     other_board = board_fixture()
-    moderator = moderator_fixture(%{role: "mod"})
+    moderator = moderator_fixture(%{role: "admin"})
 
     grant_board_access_fixture(moderator, board)
     grant_board_access_fixture(moderator, other_board)
@@ -152,7 +164,7 @@ defmodule EirinchanWeb.IpManagementControllerTest do
     assert Repo.get(Eirinchan.Posts.Post, other_thread.id) == nil
   end
 
-  test "janitors receive cloaked ip values in json views", %{conn: conn} do
+  test "janitors cannot access dedicated ip json views", %{conn: conn} do
     with_instance_config(%{"ipcrypt_key" => "whalenic"}, fn ->
       board = board_fixture()
       janitor = moderator_fixture(%{role: "janitor"})
@@ -167,18 +179,15 @@ defmodule EirinchanWeb.IpManagementControllerTest do
         |> put_req_header("accept", "application/json")
         |> get("/manage/boards/#{board.uri}/ip/198.51.100.4")
 
-      assert %{"data" => %{"ip" => cloaked_ip, "posts" => [%{"ip_subnet" => cloaked_post_ip}]}} =
-               json_response(board_view, 200)
-
-      assert cloaked_ip =~ "Cloak:"
-      assert cloaked_post_ip == cloaked_ip
-      refute cloaked_ip == "198.51.100.4"
+      assert %{"error" => "forbidden"} = json_response(board_view, 403)
     end)
   end
 
   defp with_instance_config(config, fun) do
     original_path = Application.get_env(:eirinchan, :instance_config_path)
-    path = Path.join(System.tmp_dir!(), "eirinchan-ipjson-#{System.unique_integer([:positive])}.json")
+
+    path =
+      Path.join(System.tmp_dir!(), "eirinchan-ipjson-#{System.unique_integer([:positive])}.json")
 
     File.write!(path, Jason.encode!(config))
 

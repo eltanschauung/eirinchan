@@ -10,7 +10,11 @@ defmodule EirinchanWeb.BanManagementController do
   def index(conn, %{"uri" => uri}) do
     with board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          :ok <- authorize_board(conn, board) do
-      render(conn, :index, bans: Bans.list_bans(board_id: board.id))
+      render(conn, :index,
+        bans: Bans.list_bans(board_id: board.id),
+        board: board,
+        moderator: conn.assigns.current_moderator
+      )
     else
       nil -> {:error, :not_found}
       error -> error
@@ -32,7 +36,7 @@ defmodule EirinchanWeb.BanManagementController do
            }) do
       conn
       |> put_status(:created)
-      |> render(:show, ban: ban)
+      |> render(:show, ban: ban, board: board, moderator: conn.assigns.current_moderator)
     else
       nil -> {:error, :not_found}
       error -> error
@@ -49,7 +53,7 @@ defmodule EirinchanWeb.BanManagementController do
              ban,
              Map.take(params, ["ip_subnet", "reason", "expires_at", "length", "active"])
            ) do
-      render(conn, :show, ban: ban)
+      render(conn, :show, ban: ban, board: board, moderator: conn.assigns.current_moderator)
     else
       nil -> {:error, :not_found}
       false -> {:error, :forbidden}
