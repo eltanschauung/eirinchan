@@ -103,6 +103,30 @@
   function showAlert(message) {
     removeAlertHandler();
 
+    if (window.jQuery) {
+      var $ = window.jQuery;
+      var close = function () {
+        handler.fadeOut(400, function () {
+          handler.remove();
+        });
+        return false;
+      };
+
+      var handler = $("<div id='alert_handler'></div>").hide().appendTo('body');
+      $("<div id='alert_background'></div>").appendTo(handler);
+      var dialog = $("<div id='alert_div'></div>").appendTo(handler);
+      $("<a id='alert_close' href='javascript:void(0)'><i class='fa fa-times'></i></a>").appendTo(dialog);
+      $("<div id='alert_message'></div>")
+        .html(typeof message === 'string' ? message : escapeHtml(message))
+        .appendTo(dialog);
+      $("<button class='button alert_button'>OK</button>").appendTo(dialog);
+
+      handler.find('#alert_background, #alert_close, .alert_button').on('click', close);
+      handler.fadeIn(400);
+      handler.find('.alert_button').trigger('focus');
+      return handler[0];
+    }
+
     var handler = document.createElement('div');
     handler.id = 'alert_handler';
     handler.style.visibility = 'visible';
@@ -118,7 +142,7 @@
     var close = document.createElement('a');
     close.id = 'alert_close';
     close.href = 'javascript:void(0)';
-    close.textContent = '×';
+    close.innerHTML = '<i class="fa fa-times"></i>';
     close.addEventListener('click', removeAlertHandler);
     dialog.appendChild(close);
 
@@ -128,7 +152,7 @@
     dialog.appendChild(content);
 
     var button = document.createElement('button');
-    button.className = 'alert_button';
+    button.className = 'button alert_button';
     button.type = 'button';
     button.textContent = 'OK';
     button.addEventListener('click', removeAlertHandler);

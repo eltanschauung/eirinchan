@@ -16,6 +16,24 @@ $(window).ready(function() {
 	var settings = new script_settings('ajax');
 	var do_not_ajax = false;
 
+	var extractAjaxErrorMessage = function(xhr) {
+		if (xhr && xhr.responseJSON && xhr.responseJSON.error) {
+			return xhr.responseJSON.error;
+		}
+
+		if (xhr && typeof xhr.responseText === 'string' && xhr.responseText.length) {
+			try {
+				var parsed = JSON.parse(xhr.responseText);
+				if (parsed && parsed.error) {
+					return parsed.error;
+				}
+			} catch (_error) {
+			}
+		}
+
+		return null;
+	};
+
 	// Enable submit button if disabled (cache problem)
 	$('input[type="submit"]').removeAttr('disabled');
 	
@@ -201,7 +219,12 @@ $(window).ready(function() {
 				},
 				error: function(xhr, status, er) {
 					console.log(xhr);
-					alert(_('The server took too long to submit your post. Your post was probably still submitted. If it wasn\'t, we might be experiencing issues right now -- please try your post again later. Error information: ') + "<div><textarea>" + JSON.stringify(xhr) + "</textarea></div>");
+					var extracted = extractAjaxErrorMessage(xhr);
+					if (extracted) {
+						alert(extracted);
+					} else {
+						alert(_('The server took too long to submit your post. Your post was probably still submitted. If it wasn\'t, we might be experiencing issues right now -- please try your post again later.'));
+					}
 					resetSubmit();
 				},
 				data: formData,
