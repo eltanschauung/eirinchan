@@ -85,4 +85,13 @@ defmodule EirinchanWeb.PostViewTest do
 
     assert html == "a<br/>b<br/>c"
   end
+
+  test "body_html renders configured whale stickers" do
+    config = Config.compose()
+    post = %Post{body: ":gojo:waow"}
+
+    html = PostView.body_html(post, %BoardRecord{uri: "bant"}, post, config)
+
+    assert html =~ ~s(<img src="/whalestickers/gojo.png" title=":gojo:">waow)
+  end
 end

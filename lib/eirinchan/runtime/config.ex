@@ -10,6 +10,7 @@ defmodule Eirinchan.Runtime.Config do
   """
 
   alias Eirinchan.Boards.Board
+  alias Eirinchan.WhaleStickers.Defaults, as: WhaleStickerDefaults
 
   @default_config %{
     root: "/",
@@ -38,6 +39,7 @@ defmodule Eirinchan.Runtime.Config do
     timezone: "UTC",
     anonymous: "Anonymous",
     global_message: false,
+    whalestickers: WhaleStickerDefaults.entries(),
     banners: [],
     allow_roll: false,
     try_smarter: false,
@@ -46,7 +48,8 @@ defmodule Eirinchan.Runtime.Config do
     wordfilters: [],
     hidden_input_name: "hash",
     hidden_input_hash: nil,
-    genpassword_chars: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+",
+    genpassword_chars:
+      "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+",
     ipcrypt_key: "",
     ipcrypt_prefix: "Cloak",
     ipcrypt_immune_ip: "0.0.0.0",

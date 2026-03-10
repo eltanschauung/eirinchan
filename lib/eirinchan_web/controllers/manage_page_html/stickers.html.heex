@@ -1,0 +1,26 @@
+<.flash_group flash={@flash} />
+<h1>Sticker Configuration</h1>
+<p><a href={~p"/manage"}>Back to dashboard</a></p>
+<p :if={@error} class="error"><%= @error %></p>
+
+<p>
+  Configure whale stickers as JSON. Each entry must contain at least <code>token</code>
+  and <code>file</code>. Optional fields are <code>title</code>
+  and <code>append_break</code>.
+</p>
+
+<pre>Example:
+[
+  {"token": "gojo", "file": "gojo.png", "title": "gojo"},
+  {"token": "whale", "file": "whale1.png", "title": "whale", "append_break": true}
+]</pre>
+
+<form action={~p"/manage/stickers/browser"} method="post">
+  <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+  <input type="hidden" name="_method" value="patch" />
+
+  <p><strong>Sticker Entries</strong></p>
+  <textarea name="stickers_json" rows="24" style="width:100%"><%= @stickers_json %></textarea>
+
+  <p><input type="submit" value="Update sticker configuration" /></p>
+</form>

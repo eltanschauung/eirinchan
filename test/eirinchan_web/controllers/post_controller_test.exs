@@ -72,7 +72,7 @@ defmodule EirinchanWeb.PostControllerTest do
   end
 
   test "posting accepts legacy regist payloads and old field aliases", %{conn: conn} do
-    board = board_fixture(%{title: "Technology"})
+    board = board_fixture(%{title: "Technology", config_overrides: %{force_image_op: false}})
 
     conn =
       conn
@@ -264,7 +264,7 @@ defmodule EirinchanWeb.PostControllerTest do
   end
 
   test "posting accepts catalog page referers", %{conn: conn} do
-    board = board_fixture()
+    board = board_fixture(%{config_overrides: %{force_image_op: false}})
     conn = %{conn | host: "www.example.com", port: 4001}
 
     create_conn =
@@ -960,6 +960,7 @@ defmodule EirinchanWeb.PostControllerTest do
     board =
       board_fixture(%{
         config_overrides: %{
+          force_image_op: false,
           captcha: %{
             enabled: true,
             provider: "hcaptcha",

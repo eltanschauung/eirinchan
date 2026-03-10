@@ -73,6 +73,8 @@ defmodule EirinchanWeb.Router do
     patch "/boardlist/browser", ManagePageController, :update_boardlist
     get "/dnsbl/browser", ManagePageController, :dnsbl
     patch "/dnsbl/browser", ManagePageController, :update_dnsbl
+    get "/stickers/browser", ManagePageController, :stickers
+    patch "/stickers/browser", ManagePageController, :update_stickers
     get "/flags/browser", ManagePageController, :flags
     patch "/flags/browser", ManagePageController, :update_flags
     get "/themes/browser", ManagePageController, :themes
@@ -230,7 +232,7 @@ defmodule EirinchanWeb.Router do
     get "/faq", PageController, :faq
     get "/flag", PageController, :legacy_flags
     get "/flags", PageController, :flags
-    
+
     get "/news", PageController, :news
     get "/catalog", PageController, :catalog
     get "/ukko", PageController, :ukko

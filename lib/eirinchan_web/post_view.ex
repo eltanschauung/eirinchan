@@ -8,6 +8,7 @@ defmodule EirinchanWeb.PostView do
   alias Eirinchan.Posts.PostFile
   alias Eirinchan.Themes
   alias Eirinchan.ThreadPaths
+  alias Eirinchan.WhaleStickers
   alias EirinchanWeb.{IpPresentation, ManageSecurity}
 
   def template_assigns(board, post, config) do
@@ -1092,7 +1093,10 @@ defmodule EirinchanWeb.PostView do
   defp maybe_add_omitted(parts, _count, _label), do: parts
 
   defp format_body_line(line, board, thread, config) do
-    rendered = render_quote_links(line, board, thread, config)
+    rendered =
+      line
+      |> render_quote_links(board, thread, config)
+      |> WhaleStickers.replace_line(config)
 
     if String.starts_with?(rendered, "&gt;") and not String.starts_with?(rendered, "&gt;&gt;") do
       ~s(<span class="quote">#{rendered}</span>)

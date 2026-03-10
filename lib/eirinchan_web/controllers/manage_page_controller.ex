@@ -20,6 +20,7 @@ defmodule EirinchanWeb.ManagePageController do
   alias Eirinchan.Runtime.Config
   alias Eirinchan.Settings
   alias Eirinchan.Themes
+  alias Eirinchan.WhaleStickers
   alias EirinchanWeb.{ManageSecurity, PostView}
 
   plug :assign_manage_shell
@@ -123,6 +124,22 @@ defmodule EirinchanWeb.ManagePageController do
     end
   end
 
+  def stickers(conn, _params) do
+    with {:ok, moderator} <- ensure_admin(conn) do
+      render(conn, :stickers,
+        moderator: moderator,
+        stickers_json: WhaleStickers.encode_for_edit(),
+        error: nil
+      )
+    else
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      {:error, :forbidden} ->
+        render_stickers_error(conn, "Administrator access required.")
+    end
+  end
+
   def flags(conn, _params) do
     with {:ok, moderator} <- ensure_admin(conn) do
       render(conn, :flags,
@@ -195,6 +212,29 @@ defmodule EirinchanWeb.ManagePageController do
           :unprocessable_entity,
           dnsbl_json,
           dnsbl_exceptions
+        )
+    end
+  end
+
+  def update_stickers(conn, %{"stickers_json" => stickers_json}) do
+    with {:ok, _moderator} <- ensure_admin(conn),
+         {:ok, _stickers} <- WhaleStickers.update(stickers_json) do
+      conn
+      |> put_flash(:info, "Sticker configuration updated.")
+      |> redirect(to: ~p"/manage/stickers/browser")
+    else
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      {:error, :forbidden} ->
+        render_stickers_error(conn, "Administrator access required.")
+
+      {:error, :invalid_json} ->
+        render_stickers_error(
+          conn,
+          "Sticker entries must be valid JSON.",
+          :unprocessable_entity,
+          stickers_json
         )
     end
   end
@@ -1636,6 +1676,21 @@ defmodule EirinchanWeb.ManagePageController do
       moderator: conn.assigns[:current_moderator],
       dnsbl_json: dnsbl_json,
       dnsbl_exceptions: dnsbl_exceptions,
+      error: message
+    )
+  end
+
+  defp render_stickers_error(
+         conn,
+         message,
+         status \\ :forbidden,
+         stickers_json \\ "[]"
+       ) do
+    conn
+    |> put_status(status)
+    |> render(:stickers,
+      moderator: conn.assigns[:current_moderator],
+      stickers_json: stickers_json,
       error: message
     )
   end
