@@ -1,8 +1,10 @@
 defmodule EirinchanWeb.LegacyModControllerTest do
   use EirinchanWeb.ConnCase, async: true
+  import Ecto.Query, only: [from: 2]
 
   alias Eirinchan.IpCrypt
   alias Eirinchan.Posts
+  alias Eirinchan.Repo
   alias Eirinchan.Reports
 
   test "legacy IP route redirects moderators to the IP history page", %{conn: conn} do
@@ -65,6 +67,26 @@ defmodule EirinchanWeb.LegacyModControllerTest do
 
     assert redirected_to(conn) == "/#{board.uri}"
     assert {:error, :not_found} = Posts.get_post(board, thread.id)
+  end
+
+  test "legacy deletebyip route does not crash when a post has no stored ip", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+    board = board_fixture()
+    thread = thread_fixture(board)
+
+    Repo.update_all(from(p in Eirinchan.Posts.Post, where: p.id == ^thread.id), set: [ip_subnet: nil])
+
+    conn = login_moderator(conn, moderator)
+
+    conn =
+      get(
+        conn,
+        "/mod.php?/#{board.uri}/deletebyip/#{thread.id}/#{signed_token(conn, "#{board.uri}/deletebyip/#{thread.id}")}"
+      )
+
+    assert redirected_to(conn) == "/#{board.uri}"
+    assert {:ok, still_present} = Posts.get_post(board, thread.id)
+    assert still_present.id == thread.id
   end
 
   test "legacy deletefile route removes a single file for janitors", %{conn: conn} do
