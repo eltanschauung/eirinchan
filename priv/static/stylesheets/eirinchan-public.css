@@ -89,6 +89,27 @@ body.active-catalog .catalog-updater-meta {
   color: #0a0 !important;
 }
 
+.board-search-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.board-search-row .board-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 16rem;
+}
+
+.board-search-row input[type="submit"],
+.board-search-row a,
+.board-search-row #updater {
+  flex: 0 0 auto;
+}
+
 body.active-catalog .catalog-nav-box {
   display: flex;
   flex-direction: column;
