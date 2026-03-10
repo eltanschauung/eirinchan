@@ -65,6 +65,36 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert page =~ "Delete"
   end
 
+  test "report queue renders reporter ip and dismiss+ link", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+    board = board_fixture()
+    thread = thread_fixture(board)
+
+    report_conn =
+      conn
+      |> Map.put(:remote_ip, {198, 51, 100, 9})
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post("/#{board.uri}/post", %{
+        "report_post_id" => Integer.to_string(thread.id),
+        "reason" => "spam",
+        "json_response" => "1"
+      })
+
+    assert %{"report_id" => report_id} = json_response(report_conn, 200)
+
+    page =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> get("/manage/reports/browser")
+      |> html_response(200)
+
+    assert page =~ "Reported by:"
+    assert page =~ "/mod.php?/IP/198.51.100.9"
+    assert page =~ "/mod.php?/reports/#{report_id}/dismiss&amp;all/"
+    assert page =~ "Dismiss+"
+  end
+
   test "browser dashboard redirects to setup when no admin exists", %{conn: conn} do
     conn = get(conn, "/manage/login")
     assert redirected_to(conn) == "/setup"

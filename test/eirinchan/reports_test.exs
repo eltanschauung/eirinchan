@@ -31,6 +31,36 @@ defmodule Eirinchan.ReportsTest do
     assert report.reason == "Spam reply"
   end
 
+  test "create_report stores reporter ip and dismiss_reports_for_ip clears matching open reports" do
+    board = board_fixture()
+    thread = thread_fixture(board)
+
+    assert {:ok, first_report} =
+             Reports.create_report(
+               board,
+               %{
+                 "report_post_id" => Integer.to_string(thread.id),
+                 "reason" => "Spam reply"
+               },
+               remote_ip: {198, 51, 100, 9}
+             )
+
+    assert {:ok, second_report} =
+             Reports.create_report(
+               board,
+               %{
+                 "report_post_id" => Integer.to_string(thread.id),
+                 "reason" => "Rule violation"
+               },
+               remote_ip: "198.51.100.9"
+             )
+
+    assert first_report.ip == "198.51.100.9"
+    assert second_report.ip == "198.51.100.9"
+    assert {:ok, 2} = Reports.dismiss_reports_for_ip(board, "198.51.100.9")
+    assert Reports.list_reports(board) == []
+  end
+
   test "dismiss_report removes a report from the active queue" do
     board = board_fixture()
     thread = thread_fixture(board)

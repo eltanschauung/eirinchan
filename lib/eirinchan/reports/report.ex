@@ -4,6 +4,7 @@ defmodule Eirinchan.Reports.Report do
 
   schema "reports" do
     field :reason, :string
+    field :ip, :string
     field :dismissed_at, :utc_datetime_usec
 
     belongs_to :board, Eirinchan.Boards.BoardRecord
@@ -15,8 +16,9 @@ defmodule Eirinchan.Reports.Report do
 
   def changeset(report, attrs) do
     report
-    |> cast(attrs, [:board_id, :post_id, :thread_id, :reason, :dismissed_at])
+    |> cast(attrs, [:board_id, :post_id, :thread_id, :reason, :ip, :dismissed_at])
     |> update_change(:reason, &normalize_reason/1)
+    |> update_change(:ip, &normalize_ip/1)
     |> validate_required([:board_id, :post_id, :thread_id, :reason])
     |> foreign_key_constraint(:board_id)
     |> foreign_key_constraint(:post_id)
@@ -27,6 +29,18 @@ defmodule Eirinchan.Reports.Report do
   def dismiss_changeset(report, attrs) do
     report
     |> cast(attrs, [:dismissed_at])
+  end
+
+  defp normalize_ip(nil), do: nil
+
+  defp normalize_ip(value) do
+    value
+    |> to_string()
+    |> String.trim()
+    |> case do
+      "" -> nil
+      trimmed -> trimmed
+    end
   end
 
   defp normalize_reason(nil), do: nil

@@ -29,7 +29,7 @@ defmodule EirinchanWeb.PostController do
 
     case branch(params) do
       :report ->
-        case Reports.create_report(board, params) do
+        case Reports.create_report(board, params, remote_ip: RequestMeta.effective_remote_ip(conn)) do
           {:ok, report} ->
             respond_reported(conn, board, report, params)
 

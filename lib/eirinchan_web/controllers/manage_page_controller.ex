@@ -725,7 +725,8 @@ defmodule EirinchanWeb.ManagePageController do
                 accessible_reports(moderator),
                 Moderation.list_accessible_boards(moderator),
                 EirinchanWeb.RequestMeta.request_host(conn),
-                conn.assigns[:secure_manage_token]
+                conn.assigns[:secure_manage_token],
+                moderator
               )
           )
 
@@ -929,6 +930,27 @@ defmodule EirinchanWeb.ManagePageController do
 
       {:error, :not_found} ->
         render_dashboard_error(conn, "Post not found.", %{}, :not_found)
+    end
+  end
+
+  def dismiss_reports_for_ip(conn, %{"report_id" => report_id} = params) do
+    with {:ok, moderator} <- ensure_moderator(conn),
+         report when not is_nil(report) <- Reports.get_report(report_id),
+         :ok <- authorize_report(moderator, report),
+         {:ok, _count} <-
+           Reports.dismiss_reports_for_ip(accessible_report_scope(moderator), report.ip) do
+      conn
+      |> put_flash(:info, "Reports dismissed.")
+      |> redirect(to: report_redirect_path(params))
+    else
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      nil ->
+        render_dashboard_error(conn, "Report not found.", %{}, :not_found)
+
+      {:error, :not_found} ->
+        render_dashboard_error(conn, "Report not found.", %{}, :not_found)
     end
   end
 
@@ -1634,7 +1656,7 @@ defmodule EirinchanWeb.ManagePageController do
     end)
   end
 
-  defp report_entries(reports, boards, host, session_token) do
+  defp report_entries(reports, boards, host, session_token, moderator) do
     reports = Repo.preload(reports, [:board, post: [:extra_files], thread: [:extra_files]])
     config_by_board = config_map(boards, host)
 
@@ -1649,7 +1671,10 @@ defmodule EirinchanWeb.ManagePageController do
         post: post,
         thread: thread,
         config: Map.fetch!(config_by_board, board.id),
+        displayed_ip: EirinchanWeb.IpPresentation.display_ip(report.ip, moderator),
         dismiss_token: ManageSecurity.sign_action(session_token, "reports/#{report.id}/dismiss"),
+        dismiss_all_token:
+          ManageSecurity.sign_action(session_token, "reports/#{report.id}/dismiss&all"),
         dismiss_post_token:
           ManageSecurity.sign_action(session_token, "reports/#{report.id}/dismiss&post")
       }
@@ -1666,6 +1691,9 @@ defmodule EirinchanWeb.ManagePageController do
 
   defp report_redirect_path(%{"uri" => uri}), do: "/manage/boards/#{uri}/reports/browser"
   defp report_redirect_path(_params), do: "/manage/reports/browser"
+
+  defp accessible_report_scope(%{role: "admin"}), do: nil
+  defp accessible_report_scope(moderator), do: Moderation.list_accessible_boards(moderator)
 
   defp appeal_redirect_path(%{"uri" => uri}), do: "/manage/boards/#{uri}/ban-appeals/browser"
   defp appeal_redirect_path(_params), do: "/manage/ban-appeals/browser"

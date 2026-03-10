@@ -10,6 +10,7 @@ defmodule EirinchanWeb.ReportManagementJSON do
       post_id: report.post_id,
       thread_id: report.thread_id,
       reason: report.reason,
+      ip: report.ip,
       inserted_at: report.inserted_at,
       post_body: report.post && report.post.body
     }
