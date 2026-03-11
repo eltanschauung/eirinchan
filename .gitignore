@@ -39,3 +39,8 @@ thread_watcher_spec.md
 
 # Local debug logs
 /var/post_failures.log
+
+# Local runtime state
+/access.conf
+/var/settings.json
+/var/install.json
