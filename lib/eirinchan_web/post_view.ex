@@ -873,12 +873,29 @@ defmodule EirinchanWeb.PostView do
   end
 
   defp ergonomic_body_clear?(post, config, opts) do
+    metrics = body_metrics(post)
+    media_width = media_display_width(post, config, opts)
+
     media_count(post) > 0 and
-      body_complex_enough?(post) and
-      media_display_width(post, config, opts) >= 200
+      ((metrics.lines >= 3 and media_width >= 110) or
+         (metrics.length >= 120 and media_width >= 140) or
+         (metrics.longest_line >= 36 and media_width >= 140) or
+         (body_complex_enough?(metrics) and media_width >= 200))
   end
 
   defp body_complex_enough?(%{body: body}) when is_binary(body) do
+    body
+    |> body_metrics()
+    |> body_complex_enough?()
+  end
+
+  defp body_complex_enough?(metrics) when is_map(metrics) do
+    metrics.lines >= 4 or metrics.length >= 160 or metrics.longest_line >= 48
+  end
+
+  defp body_complex_enough?(_post), do: false
+
+  defp body_metrics(%{body: body}) when is_binary(body) do
     lines =
       body
       |> String.split("\n", trim: false)
@@ -890,10 +907,14 @@ defmodule EirinchanWeb.PostView do
       |> Enum.map(&String.length/1)
       |> Enum.max(fn -> 0 end)
 
-    lines >= 4 or String.length(body) >= 160 or longest_line >= 48
+    %{
+      lines: lines,
+      length: String.length(body),
+      longest_line: longest_line
+    }
   end
 
-  defp body_complex_enough?(_post), do: false
+  defp body_metrics(_post), do: %{lines: 0, length: 0, longest_line: 0}
 
   defp media_display_width(post, config, opts) do
     op? = Keyword.get(opts, :op?, thread_op?(post))
