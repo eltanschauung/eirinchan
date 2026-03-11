@@ -128,7 +128,12 @@ defmodule EirinchanWeb.PublicShell do
         label = option.label || option.name || "Style"
         selected_class = if label == selected_label, do: " class=\"selected\"", else: ""
         escaped_label = Phoenix.HTML.html_escape(label) |> Phoenix.HTML.safe_to_string()
-        "<a href=\"javascript:void(0)\"#{selected_class}>[#{escaped_label}]</a>"
+        escaped_js_label =
+          label
+          |> Jason.encode!()
+          |> String.replace("\"", "&quot;")
+
+        "<a href=\"javascript:void(0)\"#{selected_class} onclick=\"return changeStyle(#{escaped_js_label}, this)\">[#{escaped_label}]</a>"
       end)
       |> Enum.join("")
 

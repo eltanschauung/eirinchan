@@ -1,6 +1,7 @@
 defmodule EirinchanWeb.PageController do
   use EirinchanWeb, :controller
   import Ecto.Query
+  import Phoenix.Template, only: [render_to_string: 4]
 
   alias Eirinchan.Boards
   alias Eirinchan.Boards.BoardRecord
@@ -165,7 +166,12 @@ defmodule EirinchanWeb.PageController do
     if Installation.setup_required?() do
       redirect(conn, to: ~p"/setup")
     else
-      render(conn, :watcher_fragment, layout: false, watch_summaries: watcher_summaries(conn))
+      html(
+        conn,
+        render_to_string(EirinchanWeb.PageHTML, "watcher_fragment", "html",
+          watch_summaries: watcher_summaries(conn)
+        )
+      )
     end
   end
 
