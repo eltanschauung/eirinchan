@@ -352,8 +352,14 @@ if (active_page === 'thread' || active_page === 'index' || active_page === 'cata
 				$('.hide-thread-link').remove();*/
 
 			if ($(ele).hasClass('op') && !$(ele).find('.hide-thread-link').length) {
-				$('<a class="hide-thread-link" style="float:left;margin-right:5px" href="javascript:void(0)">[' + ($(ele).data('hidden') ? '+' : '&ndash;') + ']</a>')
-					.insertBefore($(ele).find(':not(h2,h2 *):first'))
+				var thread = $(ele).closest('.thread');
+				var rail = thread.children('.thread-top-controls');
+				if (!rail.length) {
+					rail = $('<div class="thread-top-controls"></div>');
+					rail.insertBefore(thread.find(':not(h2,h2 *):first'));
+				}
+				$('<a class="hide-thread-link" href="javascript:void(0)">[' + ($(ele).data('hidden') ? '+' : '&ndash;') + ']</a>')
+					.prependTo(rail)
 					.click(function() {
 						var postId = $(ele).find('.post_no').not('[id]').text();
 						var hidden = $(ele).data('hidden');
