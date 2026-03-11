@@ -58,4 +58,35 @@ defmodule Eirinchan.FaqPage do
       Keyword.put(assigns, :inner_content, Phoenix.HTML.raw(inner_content))
     )
   end
+
+  def refresh_boardlists(html) when is_binary(html) do
+    boards = Boards.list_boards()
+
+    html
+    |> replace_boardlist("boardlist", boards)
+    |> replace_boardlist("boardlist bottom", boards)
+    |> replace_bottom_boardlist_script()
+  end
+
+  def refresh_boardlists(other), do: other
+
+  defp replace_boardlist(html, class_name, boards) do
+    replacement = PostView.boardlist_html(PostView.boardlist_groups(boards), class_name)
+
+    Regex.replace(
+      ~r/<div class="#{Regex.escape(class_name)}">.*?<\/div>/s,
+      html,
+      replacement,
+      global: false
+    )
+  end
+
+  defp replace_bottom_boardlist_script(html) do
+    Regex.replace(
+      ~r/<script>\s*if \(typeof do_boardlist !== 'undefined'\) do_boardlist\('bottom'\);\s*<\/script>/,
+      html,
+      ~s|<script>if (typeof do_boardlist !== 'undefined') do_boardlist('bottom');</script>|,
+      global: false
+    )
+  end
 end

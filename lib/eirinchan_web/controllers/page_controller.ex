@@ -5,6 +5,7 @@ defmodule EirinchanWeb.PageController do
   alias Eirinchan.Boards
   alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.CustomPages
+  alias Eirinchan.FaqPage
   alias Eirinchan.Installation
   alias Eirinchan.News
   alias Eirinchan.Posts
@@ -150,7 +151,7 @@ defmodule EirinchanWeb.PageController do
         %CustomPages.Page{body: body} when is_binary(body) and body != "" ->
           conn
           |> put_resp_content_type("text/html")
-          |> send_resp(200, body)
+          |> send_resp(200, FaqPage.refresh_boardlists(body))
 
         _ ->
           render_custom_page(conn, %{
