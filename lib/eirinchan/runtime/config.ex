@@ -58,8 +58,14 @@ defmodule Eirinchan.Runtime.Config do
     antispam_retention_seconds: 60 * 60 * 48,
     antispam_question: false,
     antispam_question_answer: nil,
+    anti_bump_flood: false,
+    flood_time: 0,
     flood_time_ip: 0,
     flood_time_same: 0,
+    filters: nil,
+    max_threads_per_hour: 0,
+    markup_urls: true,
+    max_links: 20,
     search_enabled: true,
     search_allowed_boards: nil,
     search_disallowed_boards: [],
@@ -208,7 +214,9 @@ defmodule Eirinchan.Runtime.Config do
       toomanylines: "Your post contains too many lines!",
       invalid_flag: "Invalid flag selection.",
       antispam: "Spam filter triggered.",
+      too_many_threads: "The hourly thread limit has been reached. Please post in an existing thread.",
       dnsbl: "Your IP address is listed in %s.",
+      toomanylinks: "Too many links; flood detected.",
       captcha: "Captcha validation failed.",
       invalid_embed: "Couldn't make sense of the URL of the video you tried to embed.",
       banned: "You are banned.",
@@ -258,8 +266,14 @@ defmodule Eirinchan.Runtime.Config do
     "fieldDisablePassword" => :field_disable_password,
     "postFormFlags" => :post_form_flags,
     "postFormEmbed" => :post_form_embed,
+    "antiBumpFlood" => :anti_bump_flood,
+    "floodTime" => :flood_time,
     "floodTimeIp" => :flood_time_ip,
     "floodTimeSame" => :flood_time_same,
+    "filters" => :filters,
+    "maxThreadsPerHour" => :max_threads_per_hour,
+    "markupUrls" => :markup_urls,
+    "maxLinks" => :max_links,
     "searchEnabled" => :search_enabled,
     "searchAllowedBoards" => :search_allowed_boards,
     "searchDisallowedBoards" => :search_disallowed_boards,
@@ -338,6 +352,7 @@ defmodule Eirinchan.Runtime.Config do
   defp apply_computed_defaults(config, board, request_host) do
     config
     |> Map.put_new(:global_message, false)
+    |> ensure_default_filters()
     |> Map.put_new(:post_url, path_join(config.root, config.file_post))
     |> ensure_geoip_defaults()
     |> put_nested_new([:cookies, :path], config.root)
@@ -373,6 +388,63 @@ defmodule Eirinchan.Runtime.Config do
       _ ->
         Map.put(config, :geoip2_database_path, default_geoip2_database_path())
     end
+  end
+
+  defp ensure_default_filters(%{filters: nil} = config) do
+    Map.put(config, :filters, default_filters(config))
+  end
+
+  defp ensure_default_filters(config), do: config
+
+  defp default_filters(config) do
+    [
+      %{
+        condition: %{
+          "flood-match" => ["ip"],
+          "flood-time" => config.flood_time
+        },
+        action: "reject",
+        reason: "antispam",
+        message: config.error.antispam
+      },
+      %{
+        condition: %{
+          "flood-match" => ["ip", "body"],
+          "flood-time" => config.flood_time_ip,
+          "!body" => "/^$/"
+        },
+        action: "reject",
+        reason: "antispam",
+        message: config.error.antispam
+      },
+      %{
+        condition: %{
+          "flood-match" => ["body"],
+          "flood-time" => config.flood_time_same
+        },
+        action: "reject",
+        reason: "antispam",
+        message: config.error.antispam
+      },
+      %{
+        condition: %{"custom" => "check_thread_limit"},
+        action: "reject",
+        reason: "too_many_threads",
+        message: config.error.too_many_threads
+      }
+    ]
+    |> Enum.reject(fn filter ->
+      condition = filter[:condition] || filter["condition"] || %{}
+      custom = Map.get(condition, "custom", Map.get(condition, :custom))
+
+      cond do
+        custom == "check_thread_limit" ->
+          config.max_threads_per_hour in [nil, 0]
+
+        true ->
+          Map.get(condition, "flood-time", Map.get(condition, :flood_time)) in [nil, 0]
+      end
+    end)
   end
 
   defp default_geoip2_database_path do

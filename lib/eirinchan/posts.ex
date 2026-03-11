@@ -33,6 +33,8 @@ defmodule Eirinchan.Posts do
              | :invalid_embed
              | :dnsbl
              | :antispam
+             | :too_many_threads
+             | :toomanylinks
              | :invalid_captcha
              | :banned
              | :cite_insert_failed
@@ -2374,13 +2376,27 @@ defmodule Eirinchan.Posts do
     email = String.downcase(attrs["email"] || "")
     should_bump = email != "sage" and not thread.sage and bump_allowed?(thread, config, repo)
 
-    if should_bump do
+    if config.anti_bump_flood and not thread.sage do
+      bump_at =
+        from(post in Post,
+          where: post.id == ^thread.id or (post.thread_id == ^thread.id and fragment("COALESCE(lower(?), '') != 'sage'", post.email)),
+          select: max(post.inserted_at)
+        )
+        |> repo.one()
+
       repo.update_all(
         from(post in Post, where: post.id == ^thread.id),
-        set: [bump_at: now]
+        set: [bump_at: bump_at || thread.inserted_at || now]
       )
     else
-      {0, nil}
+      if should_bump do
+        repo.update_all(
+          from(post in Post, where: post.id == ^thread.id),
+          set: [bump_at: now]
+        )
+      else
+        {0, nil}
+      end
     end
 
     :ok

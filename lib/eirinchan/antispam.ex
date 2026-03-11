@@ -13,21 +13,24 @@ defmodule Eirinchan.Antispam do
     repo = Keyword.get(opts, :repo, Repo)
     ip_subnet = request_ip(request)
     now = DateTime.utc_now()
+    body = normalize_query(Map.get(attrs, "body")) || ""
+    op? = is_nil(blank_to_nil(Map.get(attrs, "thread")))
 
     cond do
-      is_nil(ip_subnet) ->
-        :ok
-
-      config.flood_time_ip > 0 and
-          recent_ip_post?(repo, board.id, ip_subnet, now, config.flood_time_ip) ->
-        {:error, :antispam}
-
-      config.flood_time_same > 0 and
-          repeated_body?(repo, board.id, ip_subnet, attrs, now, config.flood_time_same) ->
-        {:error, :antispam}
+      too_many_links?(body, config) ->
+        {:error, :toomanylinks}
 
       true ->
-        :ok
+        post =
+          %{
+            board_id: board.id,
+            ip_subnet: ip_subnet,
+            body: body,
+            body_hash: body_hash(attrs),
+            op?: op?
+          }
+
+        evaluate_filters(repo, board, post, config, now)
     end
   end
 
@@ -166,35 +169,178 @@ defmodule Eirinchan.Antispam do
     from(entry in queryable, where: entry.board_id == ^board_id)
   end
 
-  defp recent_ip_post?(repo, board_id, ip_subnet, now, window_seconds) do
-    cutoff = DateTime.add(now, -window_seconds, :second)
-
-    from(entry in FloodEntry,
-      where:
-        entry.board_id == ^board_id and entry.ip_subnet == ^ip_subnet and
-          entry.inserted_at >= ^cutoff,
-      select: count(entry.id)
-    )
-    |> repo.one()
-    |> Kernel.>(0)
+  defp evaluate_filters(repo, board, post, config, now) do
+    config.filters
+    |> List.wrap()
+    |> Enum.reduce_while(:ok, fn filter, :ok ->
+      if reject_filter_matches?(repo, board, post, filter, config, now) do
+        {:halt, {:error, filter_reason(filter)}}
+      else
+        {:cont, :ok}
+      end
+    end)
   end
 
-  defp repeated_body?(repo, board_id, ip_subnet, attrs, now, window_seconds) do
-    cutoff = DateTime.add(now, -window_seconds, :second)
-    current_body_hash = body_hash(attrs)
+  defp reject_filter_matches?(repo, board, post, filter, config, now) do
+    action = filter[:action] || filter["action"] || "reject"
+    condition = filter[:condition] || filter["condition"] || %{}
 
-    if is_nil(current_body_hash) do
+    action == "reject" and condition_matches?(repo, board, post, condition, config, now)
+  end
+
+  defp condition_matches?(repo, board, post, condition, config, now) do
+    Enum.all?(condition, fn
+      {"flood-match", fields} -> flood_match?(repo, board, post, condition, fields, now)
+      {:flood_match, fields} -> flood_match?(repo, board, post, condition, fields, now)
+      {"flood-time", _} -> true
+      {:flood_time, _} -> true
+      {"flood-count", _} -> true
+      {:flood_count, _} -> true
+      {"custom", "check_thread_limit"} -> thread_limit_exceeded?(repo, board, post, config, now)
+      {:custom, "check_thread_limit"} -> thread_limit_exceeded?(repo, board, post, config, now)
+      {"!body", pattern} -> not regex_match?(post.body, pattern)
+      {:"!body", pattern} -> not regex_match?(post.body, pattern)
+      {"body", pattern} -> regex_match?(post.body, pattern)
+      {:body, pattern} -> regex_match?(post.body, pattern)
+      {"OP", expected} -> post.op? == truthy?(expected)
+      {:OP, expected} -> post.op? == truthy?(expected)
+      {"op", expected} -> post.op? == truthy?(expected)
+      {:op, expected} -> post.op? == truthy?(expected)
+      {_unknown, _value} -> true
+    end)
+  end
+
+  defp flood_match?(repo, board, post, condition, fields, now) do
+    window = condition["flood-time"] || condition[:flood_time] || condition["flood_time"] || 0
+    threshold = condition["flood-count"] || condition[:flood_count] || condition["flood_count"] || 1
+    fields = Enum.map(List.wrap(fields), &to_string/1)
+
+    if window in [nil, 0] do
       false
     else
-      from(entry in FloodEntry,
-        where:
-          entry.board_id == ^board_id and entry.ip_subnet == ^ip_subnet and
-            entry.body_hash == ^current_body_hash and entry.inserted_at >= ^cutoff,
-        select: count(entry.id)
-      )
-      |> repo.one()
-      |> Kernel.>(0)
+      recent_matching_posts(repo, board.id, post, fields, now, window) >= threshold
     end
+  end
+
+  defp recent_matching_posts(repo, board_id, post, fields, now, window_seconds) do
+    cutoff = DateTime.add(now, -window_seconds, :second)
+
+    from(entry in FloodEntry, where: entry.board_id == ^board_id and entry.inserted_at >= ^cutoff)
+    |> maybe_match_ip(post, fields)
+    |> maybe_match_body(post, fields)
+    |> repo.aggregate(:count, :id)
+  end
+
+  defp maybe_match_ip(queryable, post, fields) do
+    if "ip" in fields do
+      case post.ip_subnet do
+        nil -> from(entry in queryable, where: false)
+        ip_subnet -> from(entry in queryable, where: entry.ip_subnet == ^ip_subnet)
+      end
+    else
+      queryable
+    end
+  end
+
+  defp maybe_match_body(queryable, post, fields) do
+    if "body" in fields do
+      case post.body_hash do
+        nil -> from(entry in queryable, where: false)
+        body_hash -> from(entry in queryable, where: entry.body_hash == ^body_hash)
+      end
+    else
+      queryable
+    end
+  end
+
+  defp thread_limit_exceeded?(_repo, _board, %{op?: false}, _config, _now), do: false
+  defp thread_limit_exceeded?(_repo, _board, _post, %{max_threads_per_hour: 0}, _now), do: false
+  defp thread_limit_exceeded?(_repo, _board, _post, %{max_threads_per_hour: nil}, _now), do: false
+
+  defp thread_limit_exceeded?(repo, board, _post, config, now) do
+    cutoff = DateTime.add(now, -(60 * 60), :second)
+
+    from(post in Eirinchan.Posts.Post,
+      where: post.board_id == ^board.id and is_nil(post.thread_id) and post.inserted_at >= ^cutoff
+    )
+    |> repo.aggregate(:count, :id)
+    |> Kernel.>=(config.max_threads_per_hour)
+  end
+
+  defp filter_reason(filter) do
+    reason = filter[:reason] || filter["reason"] || "antispam"
+
+    case reason do
+      atom when is_atom(atom) ->
+        atom
+
+      "too_many_threads" ->
+        :too_many_threads
+
+      "toomanylinks" ->
+        :toomanylinks
+
+      "antispam" ->
+        :antispam
+
+      _ ->
+        :antispam
+    end
+  end
+
+  defp regex_match?(value, pattern) when is_binary(pattern) do
+    case Regex.compile(unwrap_regex(pattern), regex_options(pattern)) do
+      {:ok, regex} -> Regex.match?(regex, value || "")
+      _ -> false
+    end
+  end
+
+  defp regex_match?(_value, _pattern), do: false
+
+  defp unwrap_regex("/" <> rest) do
+    case String.split(rest, "/", parts: 2) do
+      [body, _flags] -> body
+      _ -> rest
+    end
+  end
+
+  defp unwrap_regex(pattern), do: pattern
+
+  defp regex_options("/" <> rest) do
+    case String.split(rest, "/", parts: 2) do
+      [_body, flags] ->
+        Enum.reduce(String.graphemes(flags), "", fn
+          "i", acc -> acc <> "i"
+          "m", acc -> acc <> "m"
+          "s", acc -> acc <> "s"
+          "u", acc -> acc <> "u"
+          _, acc -> acc
+        end)
+
+      _ ->
+        ""
+    end
+  end
+
+  defp regex_options(_pattern), do: ""
+
+  defp truthy?(value) when is_boolean(value), do: value
+  defp truthy?(1), do: true
+  defp truthy?("1"), do: true
+  defp truthy?("true"), do: true
+  defp truthy?("yes"), do: true
+  defp truthy?(_), do: false
+
+  defp too_many_links?(_body, %{markup_urls: false}), do: false
+  defp too_many_links?(_body, %{max_links: nil}), do: false
+  defp too_many_links?(_body, %{max_links: max_links}) when max_links <= 0, do: false
+
+  defp too_many_links?(body, config) do
+    url_regex = ~r/((?:https?:\/\/|ftp:\/\/|irc:\/\/)[^\s<>()"]+)/iu
+
+    Regex.scan(url_regex, body || "")
+    |> length()
+    |> Kernel.>(config.max_links)
   end
 
   defp body_hash(attrs) do
@@ -227,6 +373,19 @@ defmodule Eirinchan.Antispam do
   end
 
   defp normalize_query(query), do: to_string(query)
+
+  defp blank_to_nil(nil), do: nil
+
+  defp blank_to_nil(query) when is_binary(query) do
+    query
+    |> String.trim()
+    |> case do
+      "" -> nil
+      trimmed -> trimmed
+    end
+  end
+
+  defp blank_to_nil(value), do: to_string(value)
 
   defp normalize_ip({a, b, c, d}), do: Enum.join([a, b, c, d], ".")
 
