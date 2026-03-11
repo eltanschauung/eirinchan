@@ -171,13 +171,7 @@ cssString =
 	'.post-menu ul ul {display: none; position: absolute;}\n' +
 	'.post-menu li:hover>ul {display: block; left: 100%; margin-top: -3px;}\n' +
 	'.post-menu-arrow {float: right; margin-left: 10px;}\n' +
-	'.post-menu.hidden, .post-menu .hidden {display: none;}\n' +
-	'.thread-top-controls {display: inline-flex; align-items: center; gap: 5px; margin-right: 5px; vertical-align: middle;}\n' +
-	'.post-btn {transition: transform 0.1s; width: 15px; text-align: center; font-size: 10pt; opacity: 0.8; text-decoration: none; margin: 0 !important; display: inline-block; line-height: 1; vertical-align: middle; float: none;}\n' +
-	'.post-btn:hover {opacity: 1;}\n' +
-	'.post-btn-open {transform: rotate(90deg);}\n' +
-	'.watch-thread-link {width: 18px; height: 18px; display: inline-block; background-repeat: no-repeat; background-position: left center; background-size: 18px 18px; opacity: 0.2; margin: 0 0 1px 0 !important; margin-left: -6px !important; line-height: 1; vertical-align: middle; float: none; flex: 0 0 auto; text-decoration: none; background-image: url("data:image/svg+xml,<svg viewBox=\'0 0 26 26\' preserveAspectRatio=\'true\' xmlns=\'http://www.w3.org/2000/svg\'><path fill=\'rgb(0,0,0)\' d=\'M24.132,7.971c-2.203-2.205-5.916-2.098-8.25,0.235L15.5,8.588l-0.382-0.382c-2.334-2.333-6.047-2.44-8.25-0.235c-2.204,2.203-2.098,5.916,0.235,8.249l8.396,8.396l8.396-8.396C26.229,13.887,26.336,10.174,24.132,7.971z\'/></svg>");}\n' +
-	'.watch-thread-link.watched {opacity: 1;}\n';
+	'.post-menu.hidden, .post-menu .hidden {display: none;}\n';
 
 if (!$('style.generated-css').length) $('<style class="generated-css">').appendTo('head');
 $('style.generated-css').html($('style.generated-css').html() + cssString);
