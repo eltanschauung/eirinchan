@@ -232,14 +232,18 @@
       <a id="thread-return" href={Eirinchan.ThreadPaths.board_page_path(@board, 1, @config)}>
         [Return to Index]
       </a>
-      <a id="thread-bottom" href="#bottom">[Go to bottom]</a><span id="updater"><a
-        href="#"
-        id="update_thread"
-      >[Update]</a><span class="catalog-updater-meta"> (<input
-        type="checkbox"
-        id="auto_update_status"
-        checked
-      /> Auto) <span id="update_secs">5</span></span></span>
+      <a id="thread-bottom" href="#bottom">[Go to bottom]</a>
+      <span id="updater" class="board-live-updater">
+        <a
+          href="#"
+          id="update_thread"
+          title="This catalog page is updated automatically to display new posts."
+        >
+          [Live Page&nbsp;<span class="live-page-indicator" aria-hidden="true">⬤</span>]
+        </a>
+        <input type="checkbox" id="auto_update_status" checked hidden />
+        <span id="update_secs" hidden>5</span>
+      </span>
     </span>
   </div>
   <div :if={@page_data.total_pages > 1} class="catalog-nav-row">
