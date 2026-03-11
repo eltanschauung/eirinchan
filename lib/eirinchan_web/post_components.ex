@@ -32,7 +32,8 @@ defmodule EirinchanWeb.PostComponents do
       style="margin:0;"
       href={"/mod.php?/IP/" <> @visible_ip}
     >[<%= @visible_ip %>]</a><%= if @flags != [], do: " " %>
-    <%= for flag <- @flags do %>
+    <%= for {flag, index} <- Enum.with_index(@flags) do %>
+      <%= if index > 0, do: " " %>
       <img
         class="flag"
         src={flag.src}
