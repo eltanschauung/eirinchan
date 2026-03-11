@@ -60,7 +60,11 @@ $(window).ready(function() {
 
 			var triggerAjaxAfterPost = function(post_response) {
 				try {
-					$(document).trigger('ajax_after_post', post_response);
+					if (window.EirinchanFrontend && typeof window.EirinchanFrontend.afterPostSuccess === 'function') {
+						window.EirinchanFrontend.afterPostSuccess(post_response);
+					} else {
+						$(document).trigger('ajax_after_post', post_response);
+					}
 				} catch (e) {
 					console.error(e);
 				}
@@ -181,7 +185,11 @@ $(window).ready(function() {
 
 									setTimeout(function() {
 										try {
-											$(document).trigger('new_post', $target[0]);
+											if (window.EirinchanFrontend && typeof window.EirinchanFrontend.initPost === 'function') {
+												window.EirinchanFrontend.initPost($target[0]);
+											} else {
+												$(document).trigger('new_post', $target[0]);
+											}
 										} catch (e) {
 											console.error(e);
 										}

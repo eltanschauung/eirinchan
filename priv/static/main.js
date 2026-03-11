@@ -391,6 +391,30 @@
     seedPostControlsPassword();
   }
 
+  function initPost(post) {
+    if (!post) return;
+
+    if (typeof window.jQuery !== 'undefined') {
+      window.jQuery(document).trigger('new_post', post);
+    }
+  }
+
+  function initPosts(posts) {
+    if (!posts) return;
+
+    if (posts.nodeType) {
+      initPost(posts);
+      return;
+    }
+
+    Array.prototype.forEach.call(posts, initPost);
+  }
+
+  function afterPostSuccess(response) {
+    if (!response || typeof window.jQuery === 'undefined') return;
+    window.jQuery(document).trigger('ajax_after_post', response);
+  }
+
   window._ = window._ || identity;
   window.fmt = window.fmt || function (string, args) {
     return string.replace(/\{([0-9]+)\}/g, function (_, index) {
@@ -502,6 +526,13 @@
   window.doPost = window.doPost || window.dopost;
   window.citeReply = window.citeReply || citeReply;
   window.rememberStuff = window.rememberStuff || rememberStuff;
+  window.EirinchanFrontend =
+    window.EirinchanFrontend ||
+    {
+      initPost: initPost,
+      initPosts: initPosts,
+      afterPostSuccess: afterPostSuccess
+    };
   window.ready =
     window.ready ||
     function () {

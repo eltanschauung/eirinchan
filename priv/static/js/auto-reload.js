@@ -342,7 +342,11 @@ $(document).ready(function(){
 					currentThreads.insertBefore(threadNode, currentThreads.firstChild);
 
 					$(threadNode).find('.post').each(function() {
-						$(document).trigger('new_post', this);
+						if (window.EirinchanFrontend && typeof window.EirinchanFrontend.initPost === 'function') {
+							window.EirinchanFrontend.initPost(this);
+						} else {
+							$(document).trigger('new_post', this);
+						}
 					});
 				}
 
@@ -409,7 +413,11 @@ $(document).ready(function(){
 				insertedPostIds.forEach(function(id){
 					var inserted = document.getElementById(id);
 					if (inserted) {
-						$(document).trigger('new_post', inserted);
+						if (window.EirinchanFrontend && typeof window.EirinchanFrontend.initPost === 'function') {
+							window.EirinchanFrontend.initPost(inserted);
+						} else {
+							$(document).trigger('new_post', inserted);
+						}
 					}
 				});
 				time_loaded = Date.now(); // interop with watch.js
