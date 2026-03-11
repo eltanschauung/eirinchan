@@ -144,8 +144,25 @@ defmodule EirinchanWeb.PublicShell do
     |> Enum.reject(&(&1 == ""))
     |> Enum.reject(&(&1 in ["js/unspoiler3.js", "/js/unspoiler3.js"]))
     |> Enum.filter(&safe_script_url?/1)
+    |> ensure_hide_threads()
     |> ensure_menu_framework()
     |> Enum.uniq()
+  end
+
+  defp ensure_hide_threads(scripts) do
+    needs_hide_threads? = "js/post-filter.js" in scripts
+    has_hide_threads? = "js/hide-threads.js" in scripts
+
+    cond do
+      not needs_hide_threads? ->
+        scripts
+
+      has_hide_threads? ->
+        scripts
+
+      true ->
+        prepend_before_first(scripts, "js/hide-threads.js", ["js/post-filter.js"])
+    end
   end
 
   defp ensure_menu_framework(scripts) do
