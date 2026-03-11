@@ -15,6 +15,7 @@
 
 onReady(function() {
 	let dontFetchAgain = [];
+	let hoverTargets = 'div.body a:not([rel="nofollow"]), p.intro span.mentioned a';
 	initHover = function() {
 		let link = $(this);
 		let id;
@@ -168,11 +169,11 @@ onReady(function() {
 		});
 	};
 
-	$('div.body a:not([rel="nofollow"])').each(initHover);
+	$(hoverTargets).each(initHover);
 	window.init_hover = initHover;
 
 	// allow to work with auto-reload.js, etc.
 	$(document).on('new_post', function(e, post) {
-		$(post).find('div.body a:not([rel="nofollow"])').each(initHover);
+		$(post).find(hoverTargets).each(initHover);
 	});
 });
