@@ -1,4 +1,10 @@
-<img class="board_image" data-random-banner="/b.php" src={EirinchanWeb.BannerAsset.banner_url(Eirinchan.Settings.current_instance_config())} style="width:300px;height:100px;cursor:pointer" alt="" />
+<img
+  class="board_image"
+  data-random-banner="/b.php"
+  src={EirinchanWeb.BannerAsset.banner_url(Eirinchan.Settings.current_instance_config())}
+  style="width:300px;height:100px;cursor:pointer"
+  alt=""
+/>
 
 <header>
   <h1><%= PostView.board_heading(@board) %></h1>
@@ -367,6 +373,8 @@
               <span :if={thread.cycle} style="display:none">[Cyclical]</span>
               <span :if={thread.sage} style="display:none">[Bumplocked]</span>
               <a href={PostView.thread_path(@board, thread, @config)}>[Reply]</a>
+              <% watch =
+                Map.get(@thread_watch_state, thread.id, %{watched: false, unread_count: 0}) %>
               <a
                 href="#"
                 class="thread-watch-toggle"
@@ -375,8 +383,14 @@
                 data-thread-id={thread.id}
                 data-watch-url={"/watcher/#{@board.uri}/#{thread.id}"}
                 data-unwatch-url={"/watcher/#{@board.uri}/#{thread.id}"}
-                data-watched={MapSet.member?(@watched_thread_ids, thread.id)}
-              >[<%= if MapSet.member?(@watched_thread_ids, thread.id), do: "Unwatch", else: "Watch" %>]</a>
+                data-watched={watch.watched}
+              >
+                [<%= if watch.watched, do: "Unwatch", else: "Watch" %><%= if watch.unread_count >
+                                                                               0,
+                                                                             do:
+                                                                               " (#{watch.unread_count})",
+                                                                             else: "" %>]
+              </a>
               <%= raw(
                 PostView.post_controls_html(
                   thread,

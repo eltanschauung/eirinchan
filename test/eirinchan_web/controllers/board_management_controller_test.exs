@@ -1,6 +1,8 @@
 defmodule EirinchanWeb.BoardManagementControllerTest do
   use EirinchanWeb.ConnCase, async: false
 
+  alias Eirinchan.ThreadWatcher
+
   setup do
     original_path = Application.get_env(:eirinchan, :instance_config_path)
 
@@ -728,5 +730,26 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
       |> html_response(200)
 
     assert catalog_page =~ ~s(data-fullimage="#{thread.file_path}")
+  end
+
+  test "board index renders watcher count and unread watch state", %{conn: conn} do
+    board = board_fixture(%{uri: "watchboard", title: "Watch Board"})
+    thread = thread_fixture(board, %{body: "Watcher thread"})
+    _reply = reply_fixture(board, thread, %{body: "Unread reply"})
+    token = "token-board-watch-123456"
+
+    assert {:ok, _watch} =
+             ThreadWatcher.watch_thread(token, board.uri, thread.id, %{
+               last_seen_post_id: thread.id
+             })
+
+    page =
+      conn
+      |> put_req_cookie("browser_token", token)
+      |> get("/#{board.uri}")
+      |> html_response(200)
+
+    assert page =~ ~s(data-watcher-count="1")
+    assert page =~ "[Unwatch (1)]"
   end
 end

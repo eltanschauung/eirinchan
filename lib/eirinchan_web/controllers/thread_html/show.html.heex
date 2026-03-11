@@ -1,7 +1,13 @@
 <% post = @summary.thread %>
 <% template = PostView.template_assigns(@board, post, @config) %>
 <a id="top"></a>
-<img class="board_image" data-random-banner="/b.php" src={EirinchanWeb.BannerAsset.banner_url(Eirinchan.Settings.current_instance_config())} style="width:300px;height:100px;cursor:pointer" alt="" />
+<img
+  class="board_image"
+  data-random-banner="/b.php"
+  src={EirinchanWeb.BannerAsset.banner_url(Eirinchan.Settings.current_instance_config())}
+  style="width:300px;height:100px;cursor:pointer"
+  alt=""
+/>
 
 <header>
   <h1><%= PostView.board_heading(@board) %></h1>
@@ -315,7 +321,13 @@
               "##{post.id}"
           }
           quote_href={
-            PostView.reply_path(template.board, template.post, template.post, template.config, :quote)
+            PostView.reply_path(
+              template.board,
+              template.post,
+              template.post,
+              template.config,
+              :quote
+            )
           }
           quote_to={post.id}
         />
@@ -453,8 +465,14 @@
         data-thread-id={@summary.thread.id}
         data-watch-url={"/watcher/#{@board.uri}/#{@summary.thread.id}"}
         data-unwatch-url={"/watcher/#{@board.uri}/#{@summary.thread.id}"}
-        data-watched={@watched_thread?}
-      >[<%= if @watched_thread?, do: "Unwatch", else: "Watch" %>]</a>
+        data-watched={@thread_watch.watched}
+      >
+        [<%= if @thread_watch.watched, do: "Unwatch", else: "Watch" %><%= if @thread_watch.unread_count >
+                                                                               0,
+                                                                             do:
+                                                                               " (#{@thread_watch.unread_count})",
+                                                                             else: "" %>]
+      </a>
       <span id="updater" class="board-live-updater">
         <a
           href="#"

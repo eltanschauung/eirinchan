@@ -488,4 +488,25 @@ defmodule EirinchanWeb.ThreadControllerTest do
     assert page =~ "manual.png"
     assert page =~ "Fileboard: 1 file"
   end
+
+  test "thread page renders watcher count and unread watch state", %{conn: conn} do
+    board = board_fixture(%{uri: "watchthreadstate", title: "Watch Thread State"})
+    thread = thread_fixture(board, %{body: "Watcher thread"})
+    _reply = reply_fixture(board, thread, %{body: "Unread reply"})
+    token = "token-thread-watch-123456"
+
+    assert {:ok, _watch} =
+             ThreadWatcher.watch_thread(token, board.uri, thread.id, %{
+               last_seen_post_id: thread.id
+             })
+
+    page =
+      conn
+      |> put_req_cookie("browser_token", token)
+      |> get("/#{board.uri}/res/#{thread.id}.html")
+      |> html_response(200)
+
+    assert page =~ ~s(data-watcher-count="1")
+    assert page =~ "[Unwatch (1)]"
+  end
 end

@@ -23,4 +23,24 @@ defmodule Eirinchan.ThreadWatcherTest do
     assert {:ok, 1} = ThreadWatcher.unwatch_thread("token-1234567890123456", "bant", 13)
     refute ThreadWatcher.watched?("token-1234567890123456", "bant", 13)
   end
+
+  test "watch_state_for_board returns unread counts and watch_count totals" do
+    board = board_fixture(%{uri: "watchstate", title: "Watch State"})
+    thread = thread_fixture(board, %{body: "OP"})
+    reply1 = reply_fixture(board, thread, %{body: "Reply one"})
+    _reply2 = reply_fixture(board, thread, %{body: "Reply two"})
+
+    assert {:ok, _watch} =
+             ThreadWatcher.watch_thread("token-state-1234567890", board.uri, thread.id, %{
+               last_seen_post_id: reply1.id
+             })
+
+    expected_last_seen = reply1.id
+    state = ThreadWatcher.watch_state_for_board("token-state-1234567890", board.uri)
+
+    assert %{watched: true, unread_count: 1, last_seen_post_id: ^expected_last_seen} =
+             state[thread.id]
+
+    assert ThreadWatcher.watch_count("token-state-1234567890") == 1
+  end
 end
