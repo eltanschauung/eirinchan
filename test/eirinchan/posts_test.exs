@@ -179,6 +179,29 @@ defmodule Eirinchan.PostsTest do
     assert File.exists?(Eirinchan.Uploads.filesystem_path(thread.thumb_path))
   end
 
+  test "create_post allows file-only replies without a body" do
+    board = board_fixture()
+    thread = thread_fixture(board)
+    upload = upload_fixture("reply.png", "png-bytes")
+
+    assert {:ok, reply, %{noko: false}} =
+             Posts.create_post(
+               board,
+               %{
+                 "thread" => Integer.to_string(thread.id),
+                 "body" => " \n\t ",
+                 "file" => upload,
+                 "post" => "New Reply"
+               },
+               config: post_config(board.config_overrides),
+               request: post_request(board.uri)
+             )
+
+    assert reply.thread_id == thread.id
+    assert reply.body == ""
+    assert reply.file_name == "reply.png"
+  end
+
   test "create_post accepts configured YouTube embeds without files" do
     board = board_fixture()
 
