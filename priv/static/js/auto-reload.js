@@ -364,18 +364,7 @@ $(document).ready(function(){
 				}
 
 				if ($('#auto_update_status').is(':checked')) {
-					if(new_threads == 0) {
-						if (manualUpdate == false) {
-							poll_interval_delay *= 2;
-
-							if(poll_interval_delay > poll_interval_maxdelay) {
-								poll_interval_delay = poll_interval_maxdelay;
-							}
-						}
-					} else {
-						poll_interval_delay = poll_interval_mindelay;
-					}
-
+					poll_interval_delay = poll_interval_mindelay;
 					auto_update(poll_interval_delay);
 				} else {
 					if (new_threads > 0)
@@ -556,21 +545,7 @@ $(document).ready(function(){
 				
 				
 				if ($('#auto_update_status').is(':checked')) {
-					// If there are no new posts, double the delay. Otherwise set it to the min.
-					if(loaded_posts == 0) {
-						// if the update was manual, don't increase the delay
-						if (manualUpdate == false) {
-							poll_interval_delay *= 2;
-				
-							// Don't increase the delay beyond the maximum
-							if(poll_interval_delay > poll_interval_maxdelay) {
-								poll_interval_delay = poll_interval_maxdelay;
-							}
-						}
-					} else {
-						poll_interval_delay = poll_interval_mindelay;
-					}
-					
+					poll_interval_delay = poll_interval_mindelay;
 					auto_update(poll_interval_delay);
 				} else {
 					// Decide the message to show if auto update is disabled
