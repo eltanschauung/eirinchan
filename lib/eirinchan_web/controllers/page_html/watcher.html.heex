@@ -1,16 +1,20 @@
-<div class="banner">
-  <img
-    class="board_image"
-    data-random-banner="/b.php"
-    src={EirinchanWeb.BannerAsset.banner_url(Eirinchan.Settings.current_instance_config())}
-    style="width:300px;height:100px;cursor:pointer"
-    alt=""
-  />
+<div class="thread watcher-page-shell">
+  <div class="post reply watcher-page-panel">
+    <div class="banner">
+      <img
+        class="board_image"
+        data-random-banner="/b.php"
+        src={EirinchanWeb.BannerAsset.banner_url(Eirinchan.Settings.current_instance_config())}
+        style="width:300px;height:100px;cursor:pointer"
+        alt=""
+      />
+    </div>
+    <header>
+      <h1>Thread Watcher</h1>
+      <div class="subtitle">Threads watched by this browser token.</div>
+    </header>
+    <hr />
+    <.watcher_list watch_summaries={@watch_summaries} />
+    <hr />
+  </div>
 </div>
-<header>
-  <h1>Thread Watcher</h1>
-  <div class="subtitle">Threads watched by this browser token.</div>
-</header>
-<hr />
-<.watcher_list watch_summaries={@watch_summaries} />
-<hr />
