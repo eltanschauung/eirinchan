@@ -6,11 +6,11 @@ defmodule Eirinchan.Posts.Moderation do
   alias Eirinchan.Build
   alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.Posts
+  alias Eirinchan.Posts.ThreadLookup, as: PostsThreadLookup
   alias Eirinchan.Posts.Post
   alias Eirinchan.Posts.PostFile
   alias Eirinchan.Repo
   alias Eirinchan.Runtime.Config
-  alias Eirinchan.ThreadPaths
   alias Eirinchan.Uploads
 
   @spec moderate_delete_post(BoardRecord.t(), String.t() | integer(), keyword()) ::
@@ -19,7 +19,7 @@ defmodule Eirinchan.Posts.Moderation do
     repo = Keyword.get(opts, :repo, Repo)
     config = Keyword.get(opts, :config, Config.compose())
 
-    with {:ok, normalized_post_id} <- normalize_thread_id(post_id),
+    with {:ok, normalized_post_id} <- PostsThreadLookup.normalize_thread_id(post_id),
          %Post{} = post <- repo.get_by(Post, id: normalized_post_id, board_id: board.id),
          file_paths <- post_delete_file_paths(post, repo),
          {:ok, _deleted_post} <- repo.delete(post) do
@@ -262,7 +262,7 @@ defmodule Eirinchan.Posts.Moderation do
 
     with {:ok, reply} <- Posts.get_post(source_board, post_id, repo: repo),
          false <- is_nil(reply.thread_id),
-         {:ok, target_thread} <- fetch_thread(target_board, target_thread_id, repo) do
+         {:ok, target_thread} <- PostsThreadLookup.fetch_thread(target_board, target_thread_id, repo) do
       file_moves = move_file_operations([reply], source_board, target_board)
 
       case apply_file_moves(file_moves) do
@@ -302,21 +302,6 @@ defmodule Eirinchan.Posts.Moderation do
       {:error, reason} -> {:error, reason}
     end
   end
-
-  defp fetch_thread(board, thread_param, repo) do
-    with {:ok, thread_id} <- normalize_thread_id(thread_param),
-         %Post{} = thread <-
-           repo.one(
-             from post in Post,
-               where: post.id == ^thread_id and post.board_id == ^board.id and is_nil(post.thread_id)
-           ) do
-      {:ok, thread}
-    else
-      _ -> {:error, :thread_not_found}
-    end
-  end
-
-  defp normalize_thread_id(value), do: ThreadPaths.parse_thread_id(value)
 
   defp normalize_file_index(file_index) when is_integer(file_index) and file_index >= 0, do: {:ok, file_index}
 
