@@ -91,7 +91,7 @@ defmodule EirinchanWeb.PostView do
     thread_path(board, thread, config) <> suffix
   end
 
-  def post_number_links_html(post_id, post_href, quote_href, attrs \\ []) do
+  def post_number_links_html(post_id, post_href, quote_href, attrs \\ [], quote_mode \\ :inline) do
     quote_attrs =
       attrs
       |> Enum.map(fn {key, value} ->
@@ -99,7 +99,13 @@ defmodule EirinchanWeb.PostView do
       end)
       |> Enum.join("")
 
-    ~s|&nbsp;<a class="post_no" id="post_no_#{post_id}" onclick="highlightReply(#{post_id})" href="#{html_escape_to_string(post_href)}">No.</a><a class="post_no" onclick="return citeReply(#{post_id}, false)" href="#{html_escape_to_string(quote_href)}"#{quote_attrs}>#{post_id}</a>|
+    quote_onclick =
+      case quote_mode do
+        :navigate -> ~s| onclick="citeReply(#{post_id})"|
+        _ -> ~s| onclick="return citeReply(#{post_id}, false)"|
+      end
+
+    ~s|&nbsp;<a class="post_no" id="post_no_#{post_id}" onclick="highlightReply(#{post_id})" href="#{html_escape_to_string(post_href)}">No.</a><a class="post_no"#{quote_onclick} href="#{html_escape_to_string(quote_href)}"#{quote_attrs}>#{post_id}</a>|
   end
 
   def backlinks_html(post, backlinks_map \\ %{}) do
@@ -361,7 +367,15 @@ defmodule EirinchanWeb.PostView do
     end
   end
 
-  def reply_html(post, board, thread, config, moderator \\ nil, session_token \\ nil, backlinks_map \\ %{}) do
+  def reply_html(
+        post,
+        board,
+        thread,
+        config,
+        moderator \\ nil,
+        session_token \\ nil,
+        backlinks_map \\ %{}
+      ) do
     identity =
       [
         if(present?(post.subject),

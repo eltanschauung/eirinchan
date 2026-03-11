@@ -254,7 +254,17 @@
         [Archive]
       </a>
       <span id="updater" class="board-live-updater">
-        <a href="#" id="update_thread" title="This index page is updated automatically to display new posts.">[Live Page&nbsp;<span class="live-page-indicator" aria-hidden="true" style="color:#0a0 !important;">⬤</span>]</a>
+        <a
+          href="#"
+          id="update_thread"
+          title="This index page is updated automatically to display new posts."
+        >
+          [Live Page&nbsp;<span
+            class="live-page-indicator"
+            aria-hidden="true"
+            style="color:#0a0 !important;"
+          >⬤</span>]
+        </a>
         <input type="checkbox" id="auto_update_status" checked hidden />
         <span id="update_secs" hidden>5</span>
       </span>
@@ -265,170 +275,31 @@
 <p :if={@page_data.threads == []} class="unimportant">No threads yet.</p>
 
 <div id="board-refresh-target">
-<form name="postcontrols" action="/post.php" method="post">
-  <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
-  <input type="hidden" name="board" value={@board.uri} />
+  <form name="postcontrols" action="/post.php" method="post">
+    <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+    <input type="hidden" name="board" value={@board.uri} />
 
-  <div id="board-threads">
-  <%= for summary <- @page_data.threads do %>
-    <% thread = summary.thread %>
-    <div class="thread" id={"thread_#{thread.id}"} data-board={@board.uri}>
-      <div :if={PostView.media_entries(thread, @config) != []} class="files">
-        <%= for media <- PostView.media_entries(thread, @config) do %>
-          <%= if PostView.embed_entry?(media) do %>
-            <%= raw(media.embed_html) %>
-          <% else %>
-            <% file = media %>
-            <div
-              class={PostView.file_class(thread)}
-              {case PostView.multifile_style(file, @config,
-                    multifile: PostView.media_multifile?(thread)
-                  ) do
-              nil -> []
-              style -> [style: style]
-            end}
-            >
-              <p class="fileinfo">
-                File: <a href={file.file_path}><%= PostView.stored_file_name(file) %></a>
-                <span>
-                  (<%= PostView.file_size_text(file) %><%= if PostView.file_dimensions(file),
-                    do: raw(", " <> PostView.file_dimensions(file)) %>, <span
-                    class="postfilename"
-                    title={PostView.original_file_name(file)}
-                  ><%= PostView.display_file_name(file, @config) %></span>)
-                </span>
-                <%= raw(
-                  PostView.file_controls_html(
-                    thread,
-                    file,
-                    @board,
-                    @current_moderator,
-                    @secure_manage_token
-                  ) || ""
-                ) %>
-              </p>
-              <%= raw(PostView.file_image_html(file, @config, op?: true)) %>
-            </div>
-          <% end %>
-        <% end %>
-      </div>
-
-      <div
-        class="post op"
-        id={"op_#{thread.id}"}
-        {case PostView.post_container_style(thread) do
-          nil -> []
-          style -> [style: style]
-        end}
-      >
-        <p class="intro">
-          <input
-            type="checkbox"
-            class="delete"
-            name={"delete_#{thread.id}"}
-            id={"delete_#{thread.id}"}
-          />
-          <label for={"delete_#{thread.id}"}>
-            <span :if={thread.subject} class="subject"><%= thread.subject %></span>
-            <%= raw(PostView.name_html(thread, @config)) %>
-            <span :if={thread.tripcode} class="trip"><%= thread.tripcode %></span>
-            <%= raw(PostView.ip_link_html(thread, @board, @current_moderator)) %>
-            <%= for flag <- PostView.post_flags(thread, @config) do %>
-              <img
-                class="flag"
-                src={flag.src}
-                alt={flag.alt}
-                title={flag.alt}
-                style={PostView.flag_style(@config)}
-              />
-            <% end %>
-            <%= raw(PostView.time_html(thread)) %>
-          </label>
-          <%= raw(
-            PostView.post_number_links_html(
-              thread.id,
-              PostView.thread_path(@board, thread, @config) <> "##{thread.id}",
-              PostView.reply_path(@board, thread, thread, @config, :quote),
-              "data-quote-to": thread.id,
-              "data-quick-reply-thread": thread.id
-            )
-          ) %>
-          <%= raw(PostView.backlinks_html(thread, @backlinks_map)) %>
-          <%= for icon <- PostView.state_icons(thread, @config) do %>
-            <img class="icon" title={icon.title} src={icon.path} alt={icon.title} />
-          <% end %>
-          <span :if={thread.sticky} style="display:none">[Sticky]</span>
-          <span :if={thread.locked} style="display:none">[Locked]</span>
-          <span :if={thread.cycle} style="display:none">[Cyclical]</span>
-          <span :if={thread.sage} style="display:none">[Bumplocked]</span>
-          <a href={PostView.thread_path(@board, thread, @config)}>[Reply]</a>
-          <%= raw(
-            PostView.post_controls_html(thread, @board, @current_moderator, @secure_manage_token)
-          ) %>
-        </p>
-        <%= raw(
-          PostView.body_container_html(thread, @board, thread, @config, hide_fileboard: true)
-        ) %>
-        <span :if={PostView.omitted_text(summary)} class="omitted">
-          <%= PostView.omitted_text(summary) %>
-        </span>
-      </div>
-
-      <%= for reply <- summary.replies do %>
-        <div class="post reply" id={"reply_#{reply.id}"}>
-          <p class="intro">
-            <input
-              type="checkbox"
-              class="delete"
-              name={"delete_#{reply.id}"}
-              id={"delete_#{reply.id}"}
-            />
-            <label for={"delete_#{reply.id}"}>
-              <span :if={reply.subject} class="subject"><%= reply.subject %></span>
-              <%= raw(PostView.name_html(reply, @config)) %>
-              <span :if={reply.tripcode} class="trip"><%= reply.tripcode %></span>
-              <%= raw(PostView.ip_link_html(reply, @board, @current_moderator)) %>
-              <%= for flag <- PostView.post_flags(reply, @config) do %>
-                <img
-                  class="flag"
-                  src={flag.src}
-                  alt={flag.alt}
-                  title={flag.alt}
-                  style={PostView.flag_style(@config)}
-                />
-              <% end %>
-              <%= raw(PostView.time_html(reply)) %>
-            </label>
-            <%= raw(
-              PostView.post_number_links_html(
-                reply.id,
-                PostView.thread_path(@board, thread, @config) <> "##{reply.id}",
-                PostView.reply_path(@board, thread, reply, @config, :quote),
-                "data-quote-to": reply.id
-              )
-            ) %>
-            <%= raw(PostView.backlinks_html(reply, @backlinks_map)) %>
-          </p>
-          <div class="files">
-            <%= for media <- PostView.media_entries(reply, @config) do %>
+    <div id="board-threads">
+      <%= for summary <- @page_data.threads do %>
+        <% thread = summary.thread %>
+        <div class="thread" id={"thread_#{thread.id}"} data-board={@board.uri}>
+          <div :if={PostView.media_entries(thread, @config) != []} class="files">
+            <%= for media <- PostView.media_entries(thread, @config) do %>
               <%= if PostView.embed_entry?(media) do %>
                 <%= raw(media.embed_html) %>
               <% else %>
                 <% file = media %>
                 <div
-                  class={PostView.file_class(reply)}
+                  class={PostView.file_class(thread)}
                   {case PostView.multifile_style(file, @config,
-                        multifile: PostView.media_multifile?(reply)
-                      ) do
-                  nil -> []
-                  style -> [style: style]
-                end}
+                    multifile: PostView.media_multifile?(thread)
+                  ) do
+              nil -> []
+              style -> [style: style]
+            end}
                 >
                   <p class="fileinfo">
-                    File:
-                    <a href={file.file_path}>
-                      <%= PostView.stored_file_name(file) %>
-                    </a>
+                    File: <a href={file.file_path}><%= PostView.stored_file_name(file) %></a>
                     <span>
                       (<%= PostView.file_size_text(file) %><%= if PostView.file_dimensions(file),
                         do: raw(", " <> PostView.file_dimensions(file)) %>, <span
@@ -438,7 +309,7 @@
                     </span>
                     <%= raw(
                       PostView.file_controls_html(
-                        reply,
+                        thread,
                         file,
                         @board,
                         @current_moderator,
@@ -446,42 +317,210 @@
                       ) || ""
                     ) %>
                   </p>
-                  <%= raw(PostView.file_image_html(file, @config)) %>
+                  <%= raw(PostView.file_image_html(file, @config, op?: true)) %>
                 </div>
               <% end %>
             <% end %>
           </div>
-          <%= raw(
-            PostView.post_controls_html(reply, @board, @current_moderator, @secure_manage_token)
-          ) %>
-          <%= raw(PostView.reply_body_container_html(reply, @board, thread, @config)) %>
+
+          <div
+            class="post op"
+            id={"op_#{thread.id}"}
+            {case PostView.post_container_style(thread) do
+          nil -> []
+          style -> [style: style]
+        end}
+          >
+            <p class="intro">
+              <input
+                type="checkbox"
+                class="delete"
+                name={"delete_#{thread.id}"}
+                id={"delete_#{thread.id}"}
+              />
+              <label for={"delete_#{thread.id}"}>
+                <span :if={thread.subject} class="subject"><%= thread.subject %></span>
+                <%= raw(PostView.name_html(thread, @config)) %>
+                <span :if={thread.tripcode} class="trip"><%= thread.tripcode %></span>
+                <%= raw(PostView.ip_link_html(thread, @board, @current_moderator)) %>
+                <%= for flag <- PostView.post_flags(thread, @config) do %>
+                  <img
+                    class="flag"
+                    src={flag.src}
+                    alt={flag.alt}
+                    title={flag.alt}
+                    style={PostView.flag_style(@config)}
+                  />
+                <% end %>
+                <%= raw(PostView.time_html(thread)) %>
+              </label>
+              <%= raw(
+                PostView.post_number_links_html(
+                  thread.id,
+                  PostView.thread_path(@board, thread, @config) <> "##{thread.id}",
+                  PostView.reply_path(@board, thread, thread, @config, :quote),
+                  [
+                    "data-quote-to": thread.id,
+                    "data-quick-reply-thread": thread.id
+                  ],
+                  :navigate
+                )
+              ) %>
+              <%= raw(PostView.backlinks_html(thread, @backlinks_map)) %>
+              <%= for icon <- PostView.state_icons(thread, @config) do %>
+                <img class="icon" title={icon.title} src={icon.path} alt={icon.title} />
+              <% end %>
+              <span :if={thread.sticky} style="display:none">[Sticky]</span>
+              <span :if={thread.locked} style="display:none">[Locked]</span>
+              <span :if={thread.cycle} style="display:none">[Cyclical]</span>
+              <span :if={thread.sage} style="display:none">[Bumplocked]</span>
+              <a href={PostView.thread_path(@board, thread, @config)}>[Reply]</a>
+              <%= raw(
+                PostView.post_controls_html(
+                  thread,
+                  @board,
+                  @current_moderator,
+                  @secure_manage_token
+                )
+              ) %>
+            </p>
+            <%= raw(
+              PostView.body_container_html(thread, @board, thread, @config, hide_fileboard: true)
+            ) %>
+            <span :if={PostView.omitted_text(summary)} class="omitted">
+              <%= PostView.omitted_text(summary) %>
+            </span>
+          </div>
+
+          <%= for reply <- summary.replies do %>
+            <div class="post reply" id={"reply_#{reply.id}"}>
+              <p class="intro">
+                <input
+                  type="checkbox"
+                  class="delete"
+                  name={"delete_#{reply.id}"}
+                  id={"delete_#{reply.id}"}
+                />
+                <label for={"delete_#{reply.id}"}>
+                  <span :if={reply.subject} class="subject"><%= reply.subject %></span>
+                  <%= raw(PostView.name_html(reply, @config)) %>
+                  <span :if={reply.tripcode} class="trip"><%= reply.tripcode %></span>
+                  <%= raw(PostView.ip_link_html(reply, @board, @current_moderator)) %>
+                  <%= for flag <- PostView.post_flags(reply, @config) do %>
+                    <img
+                      class="flag"
+                      src={flag.src}
+                      alt={flag.alt}
+                      title={flag.alt}
+                      style={PostView.flag_style(@config)}
+                    />
+                  <% end %>
+                  <%= raw(PostView.time_html(reply)) %>
+                </label>
+                <%= raw(
+                  PostView.post_number_links_html(
+                    reply.id,
+                    PostView.thread_path(@board, thread, @config) <> "##{reply.id}",
+                    PostView.reply_path(@board, thread, reply, @config, :quote),
+                    ["data-quote-to": reply.id],
+                    :navigate
+                  )
+                ) %>
+                <%= raw(PostView.backlinks_html(reply, @backlinks_map)) %>
+              </p>
+              <div class="files">
+                <%= for media <- PostView.media_entries(reply, @config) do %>
+                  <%= if PostView.embed_entry?(media) do %>
+                    <%= raw(media.embed_html) %>
+                  <% else %>
+                    <% file = media %>
+                    <div
+                      class={PostView.file_class(reply)}
+                      {case PostView.multifile_style(file, @config,
+                        multifile: PostView.media_multifile?(reply)
+                      ) do
+                  nil -> []
+                  style -> [style: style]
+                end}
+                    >
+                      <p class="fileinfo">
+                        File:
+                        <a href={file.file_path}>
+                          <%= PostView.stored_file_name(file) %>
+                        </a>
+                        <span>
+                          (<%= PostView.file_size_text(file) %><%= if PostView.file_dimensions(
+                                                                        file
+                                                                      ),
+                                                                      do:
+                                                                        raw(
+                                                                          ", " <>
+                                                                            PostView.file_dimensions(
+                                                                              file
+                                                                            )
+                                                                        ) %>, <span
+                            class="postfilename"
+                            title={PostView.original_file_name(file)}
+                          ><%= PostView.display_file_name(file, @config) %></span>)
+                        </span>
+                        <%= raw(
+                          PostView.file_controls_html(
+                            reply,
+                            file,
+                            @board,
+                            @current_moderator,
+                            @secure_manage_token
+                          ) || ""
+                        ) %>
+                      </p>
+                      <%= raw(PostView.file_image_html(file, @config)) %>
+                    </div>
+                  <% end %>
+                <% end %>
+              </div>
+              <%= raw(
+                PostView.post_controls_html(
+                  reply,
+                  @board,
+                  @current_moderator,
+                  @secure_manage_token
+                )
+              ) %>
+              <%= raw(PostView.reply_body_container_html(reply, @board, thread, @config)) %>
+            </div>
+            <br />
+          <% end %>
+
+          <br class="clear" />
+          <hr />
         </div>
-        <br />
       <% end %>
-
-      <br class="clear" />
-      <hr />
-    </div>
-  <% end %>
-  </div>
-
-  <div id="post-moderation-fields">
-    <div id="delete-fields">
-      Delete Post [<input title="Delete file only" type="checkbox" name="file" id="delete_file" />
-      <label for="delete_file">File</label>] <label for="password">Password</label>
-      <input id="password" type="password" name="password" size="12" maxlength="18" autocomplete="off" />
-      <input type="submit" name="delete" value="Delete" />
     </div>
 
-    <div id="report-fields">
-      <label for="reason">Reason</label>
-      <input id="reason" type="text" name="reason" size="20" maxlength="30" />
-      <input type="submit" name="report" value="Report" />
-    </div>
-  </div>
-</form>
+    <div id="post-moderation-fields">
+      <div id="delete-fields">
+        Delete Post [<input title="Delete file only" type="checkbox" name="file" id="delete_file" />
+        <label for="delete_file">File</label>] <label for="password">Password</label>
+        <input
+          id="password"
+          type="password"
+          name="password"
+          size="12"
+          maxlength="18"
+          autocomplete="off"
+        />
+        <input type="submit" name="delete" value="Delete" />
+      </div>
 
-<%= raw(PostView.pages_html(@page_data, @board.uri, @config)) %>
+      <div id="report-fields">
+        <label for="reason">Reason</label>
+        <input id="reason" type="text" name="reason" size="20" maxlength="30" />
+        <input type="submit" name="report" value="Report" />
+      </div>
+    </div>
+  </form>
+
+  <%= raw(PostView.pages_html(@page_data, @board.uri, @config)) %>
 </div>
 
 <a name="bottom"></a>

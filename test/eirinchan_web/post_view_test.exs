@@ -109,9 +109,24 @@ defmodule EirinchanWeb.PostViewTest do
   end
 
   test "post_number_links_html explicitly returns citeReply result" do
-    html = PostView.post_number_links_html(670, "/bant/res/668.html#670", "/bant/res/668.html#q670")
+    html =
+      PostView.post_number_links_html(670, "/bant/res/668.html#670", "/bant/res/668.html#q670")
 
     assert html =~ ~s|onclick="return citeReply(670, false)"|
+  end
+
+  test "post_number_links_html can use vichan navigation mode" do
+    html =
+      PostView.post_number_links_html(
+        670,
+        "/bant/res/668.html#670",
+        "/bant/res/668.html#q670",
+        ["data-quote-to": 670],
+        :navigate
+      )
+
+    assert html =~ ~s|onclick="citeReply(670)"|
+    refute html =~ ~s|onclick="return citeReply(670, false)"|
   end
 
   test "file_image_html uses blurred spoiler class on the normal thumbnail" do
