@@ -778,7 +778,7 @@ defmodule Eirinchan.Posts do
         )
         |> repo.preload(:extra_files)
 
-      summaries = Enum.map(threads, &thread_summary(board, &1, config, repo))
+      summaries = build_thread_summaries(board, threads, config, repo, include_replies: false)
 
       {:ok,
        %{
@@ -834,7 +834,7 @@ defmodule Eirinchan.Posts do
         )
         |> repo.preload(:extra_files)
 
-      summaries = Enum.map(threads, &thread_summary(board, &1, config, repo))
+      summaries = build_thread_summaries(board, threads, config, repo, include_replies: true)
       pages = build_pages(board, total_pages, config)
 
       {:ok,
@@ -2441,73 +2441,94 @@ defmodule Eirinchan.Posts do
   defp maybe_truncate_replies(replies, nil), do: replies
   defp maybe_truncate_replies(replies, count), do: Enum.take(replies, -count)
 
-  defp thread_summary(board, thread, config, repo) do
-    preview_count = config.threads_preview
+  defp build_thread_summaries(_board, [], _config, _repo, _opts), do: []
 
-    replies_desc =
+  defp build_thread_summaries(board, threads, config, repo, opts) do
+    include_replies = Keyword.get(opts, :include_replies, true)
+    thread_ids = Enum.map(threads, & &1.id)
+
+    reply_stats =
       repo.all(
         from post in Post,
-          where: post.board_id == ^board.id and post.thread_id == ^thread.id,
-          order_by: [desc: post.inserted_at, desc: post.id],
-          limit: ^preview_count
+          where: post.board_id == ^board.id and post.thread_id in ^thread_ids,
+          group_by: post.thread_id,
+          select:
+            {post.thread_id, count(post.id), max(post.inserted_at),
+             fragment(
+               "COALESCE(SUM(CASE WHEN ? LIKE 'image/%' THEN 1 ELSE 0 END), 0)",
+               post.file_type
+             )}
       )
-      |> repo.preload(:extra_files)
+      |> Map.new(fn {thread_id, reply_count, latest_inserted_at, image_count} ->
+        {thread_id,
+         %{
+           reply_count: reply_count,
+           latest_inserted_at: latest_inserted_at,
+           image_count: image_count || 0
+         }}
+      end)
 
-    replies = Enum.reverse(replies_desc)
-
-    reply_count =
-      repo.aggregate(
-        from(post in Post, where: post.board_id == ^board.id and post.thread_id == ^thread.id),
-        :count,
-        :id
-      )
-
-    reply_image_count =
-      repo.aggregate(
-        from(
-          post in Post,
-          where:
-            post.board_id == ^board.id and post.thread_id == ^thread.id and
-              like(post.file_type, "image/%")
-        ),
-        :count,
-        :id
-      )
-
-    reply_extra_image_count =
-      repo.aggregate(
-        from(
-          post_file in PostFile,
+    reply_extra_image_counts =
+      repo.all(
+        from post_file in PostFile,
           join: post in Post,
           on: post_file.post_id == post.id,
           where:
-            post.board_id == ^board.id and post.thread_id == ^thread.id and
-              like(post_file.file_type, "image/%")
-        ),
-        :count,
-        :id
+            post.board_id == ^board.id and post.thread_id in ^thread_ids and
+              like(post_file.file_type, "image/%"),
+          group_by: post.thread_id,
+          select: {post.thread_id, count(post_file.id)}
       )
+      |> Map.new()
 
-    last_modified =
-      case replies_desc do
-        [latest | _] -> latest.inserted_at
-        [] -> thread.inserted_at
+    replies_by_thread =
+      if include_replies do
+        preview_count = config.threads_preview
+
+        repo.all(
+          from post in Post,
+            where: post.board_id == ^board.id and post.thread_id in ^thread_ids,
+            order_by: [asc: post.thread_id, desc: post.inserted_at, desc: post.id]
+        )
+        |> repo.preload(:extra_files)
+        |> Enum.group_by(& &1.thread_id)
+        |> Map.new(fn {thread_id, replies_desc} ->
+          {thread_id, replies_desc |> Enum.take(preview_count) |> Enum.reverse()}
+        end)
+      else
+        %{}
       end
 
-    %{
-      thread: thread,
-      replies: replies,
-      reply_count: reply_count,
-      image_count: reply_image_count + reply_extra_image_count + post_image_count(thread),
-      omitted_posts: max(reply_count - length(replies), 0),
-      omitted_images:
-        max(
-          reply_image_count + reply_extra_image_count -
-            Enum.sum(Enum.map(replies, &post_image_count/1)),
-          0
-        ),
-      last_modified: thread.bump_at || last_modified
-    }
+    Enum.map(threads, fn thread ->
+      stats =
+        Map.get(reply_stats, thread.id, %{
+          reply_count: 0,
+          latest_inserted_at: nil,
+          image_count: 0
+        })
+
+      replies = Map.get(replies_by_thread, thread.id, [])
+      reply_count = stats.reply_count
+      reply_image_count = stats.image_count
+      reply_extra_image_count = Map.get(reply_extra_image_counts, thread.id, 0)
+
+      last_modified = stats.latest_inserted_at || thread.inserted_at
+
+      %{
+        thread: thread,
+        replies: replies,
+        reply_count: reply_count,
+        image_count: reply_image_count + reply_extra_image_count + post_image_count(thread),
+        omitted_posts: max(reply_count - length(replies), 0),
+        omitted_images:
+          max(
+            reply_image_count + reply_extra_image_count -
+              Enum.sum(Enum.map(replies, &post_image_count/1)),
+            0
+          ),
+        last_modified: thread.bump_at || last_modified
+      }
+    end)
   end
 
   defp move_extra_files(post, source_board, target_board, repo) do
