@@ -27,6 +27,7 @@ $(document).ready(function(){
 	var is_thread_page = $('div.banner').length != 0 && $(".post.op").length == 1;
 	var is_catalog_page = $('body').hasClass('active-catalog') && $('#Grid').length == 1;
 	var is_board_page = $('body').hasClass('active-index') && !is_thread_page && !is_catalog_page && $('#board-refresh-target').length == 1;
+	var active_poll_request = null;
 
 	if(!is_thread_page && !is_catalog_page && !is_board_page)
 		return;
@@ -155,6 +156,18 @@ $(document).ready(function(){
 	var stop_auto_update = function() {
 		clearInterval(countdown_interval);
 	}
+
+	var can_start_poll = function() {
+		return active_poll_request === null;
+	}
+
+	var finish_poll = function() {
+		active_poll_request = null;
+	}
+
+	var begin_poll = function(request) {
+		active_poll_request = request;
+	}
 		
     	var epoch = (new Date).getTime();
     	var epochold = epoch;
@@ -170,22 +183,27 @@ $(document).ready(function(){
 	}
 	
 	var poll_catalog = function(manualUpdate) {
+		if (!can_start_poll()) {
+			return false;
+		}
+
 		stop_auto_update();
 		$('#update_secs').text("0");
 
-		$.ajax({
+		var request = $.ajax({
 			url: document.location,
 			cache: false,
 			success: function(data) {
 				var new_threads = 0;
+				var parser = new DOMParser();
+				var doc = parser.parseFromString(data, 'text/html');
+				var replacement = doc.querySelector('#Grid');
+				var currentGrid = document.getElementById('Grid');
 				var current_ids = {};
+				var seen_ids = {};
+				var cards_to_prepend = [];
 
-				$('#Grid .mix').each(function() {
-					current_ids[$(this).attr('data-id')] = true;
-				});
-
-				var replacement = $(data).find('#Grid');
-				if (replacement.length == 0) {
+				if (!replacement || !currentGrid) {
 					$('#update_secs').text(_("Unknown error"));
 					if ($('#auto_update_status').is(':checked')) {
 						poll_interval_delay = poll_interval_errordelay;
@@ -194,14 +212,44 @@ $(document).ready(function(){
 					return;
 				}
 
-				replacement.find('.mix').each(function() {
-					var id = $(this).attr('data-id');
-					if (id && !current_ids[id]) {
-						new_threads++;
+				$(currentGrid).children('.mix').each(function() {
+					var id = this.getAttribute('data-id');
+					if (id) {
+						current_ids[id] = this;
 					}
 				});
 
-				$('#Grid').replaceWith(replacement);
+				Array.prototype.forEach.call(replacement.querySelectorAll('.mix'), function(card) {
+					var id = card.getAttribute('data-id');
+					var clone = card.cloneNode(true);
+
+					if (id) {
+						seen_ids[id] = true;
+					}
+
+					if (id && current_ids[id]) {
+						current_ids[id].replaceWith(clone);
+						current_ids[id] = clone;
+					} else {
+						new_threads++;
+						cards_to_prepend.push(clone);
+					}
+				});
+
+				$(currentGrid).children('.mix').each(function() {
+					var id = this.getAttribute('data-id');
+					if (id && !seen_ids[id]) {
+						this.remove();
+					}
+				});
+
+				for (var i = cards_to_prepend.length - 1; i >= 0; i--) {
+					currentGrid.insertBefore(cards_to_prepend[i], currentGrid.firstChild);
+				}
+
+				if (window.bind_image_hover) {
+					window.bind_image_hover(currentGrid);
+				}
 
 				if ($('#auto_update_status').is(':checked')) {
 					if(new_threads == 0) {
@@ -237,17 +285,25 @@ $(document).ready(function(){
 					poll_interval_delay = poll_interval_errordelay;
 					auto_update(poll_interval_delay);
 				}
+			},
+			complete: function() {
+				finish_poll();
 			}
 		});
+		begin_poll(request);
 
 		return false;
 	};
 
 	var poll_board = function(manualUpdate) {
+		if (!can_start_poll()) {
+			return false;
+		}
+
 		stop_auto_update();
 		$('#update_secs').text("0");
 
-		$.ajax({
+		var request = $.ajax({
 			url: document.location,
 			cache: false,
 			success: function(data) {
@@ -310,17 +366,25 @@ $(document).ready(function(){
 					poll_interval_delay = poll_interval_errordelay;
 					auto_update(poll_interval_delay);
 				}
+			},
+			complete: function() {
+				finish_poll();
 			}
 		});
+		begin_poll(request);
 
 		return false;
 	};
 
 	var poll_thread = function(manualUpdate) {
+		if (!can_start_poll()) {
+			return false;
+		}
+
 		stop_auto_update();
 		$('#update_secs').text("0");
 	
-		$.ajax({
+		var request = $.ajax({
 			url: document.location,
 			cache: false,
 			success: function(data) {
@@ -397,8 +461,12 @@ $(document).ready(function(){
 					poll_interval_delay = poll_interval_errordelay;
 					auto_update(poll_interval_delay);
 				}
+			},
+			complete: function() {
+				finish_poll();
 			}
 		});
+		begin_poll(request);
 		
 		return false;
 	};
