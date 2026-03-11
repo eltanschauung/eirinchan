@@ -108,7 +108,7 @@ defmodule EirinchanWeb.PostViewTest do
     assert html =~ ~s(class="mentioned-672")
   end
 
-  test "file_image_html uses the configured spoiler image for spoilered files" do
+  test "file_image_html uses blurred spoiler class on the normal thumbnail" do
     config = Config.compose()
 
     file = %{
@@ -122,7 +122,7 @@ defmodule EirinchanWeb.PostViewTest do
 
     html = PostView.file_image_html(file, config)
 
-    assert html =~ ~s(src="/static/spoiler_skillet.png")
-    refute html =~ ~s(src="/bant/thumb/example.jpg")
+    assert html =~ ~s(class="post-image spoiler-image")
+    assert html =~ ~s(src="/bant/thumb/example.jpg")
   end
 end

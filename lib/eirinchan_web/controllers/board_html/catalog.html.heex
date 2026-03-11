@@ -277,7 +277,7 @@
                 data-subject={post.subject || ""}
                 data-name={PostView.display_name(post, @config)}
                 data-muhdifference=""
-                class={[@board.uri, "thread-image"]}
+                class={[@board.uri, "thread-image", if(post.spoiler, do: "spoiler-image", else: nil)]}
                 title={PostView.formatted_timestamp(post)}
               />
             </a>

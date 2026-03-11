@@ -123,6 +123,7 @@ defmodule EirinchanWeb.PublicShell do
     |> Enum.map(&to_string/1)
     |> Enum.map(&String.trim/1)
     |> Enum.reject(&(&1 == ""))
+    |> Enum.reject(&(&1 in ["js/unspoiler3.js", "/js/unspoiler3.js"]))
     |> Enum.filter(&safe_script_url?/1)
     |> Enum.uniq()
   end
