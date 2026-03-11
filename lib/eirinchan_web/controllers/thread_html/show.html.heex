@@ -299,13 +299,19 @@
       end}
     >
       <p class="intro">
+        <input
+          type="checkbox"
+          class="delete"
+          name={"delete_#{post.id}"}
+          id={"delete_#{post.id}"}
+        />
         <.thread_top_controls
           board_uri={@board.uri}
           thread_id={post.id}
           post_target={"op_#{post.id}"}
           watch={@thread_watch}
         />
-        <label>
+        <label for={"delete_#{post.id}"}>
           <.post_identity
             post={post}
             config={@config}
@@ -360,6 +366,7 @@
             name={"delete_#{reply.id}"}
             id={"delete_#{reply.id}"}
           />
+          <.reply_post_button post_target={"reply_#{reply.id}"} />
           <label for={"delete_#{reply.id}"}>
             <.post_identity
               post={reply}

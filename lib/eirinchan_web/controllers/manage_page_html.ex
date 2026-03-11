@@ -72,6 +72,7 @@ defmodule EirinchanWeb.ManagePageHTML do
         <p class="intro">
           <a id={to_string(@post.id)} class="post_anchor"></a>
           <input type="checkbox" class="delete" name={"delete_#{@post.id}"} id={"delete_#{@post.id}"} />
+          <.reply_post_button post_target={"reply_#{@post.id}"} />
           <label for={"delete_#{@post.id}"}>
             <.post_identity
               post={@post}
