@@ -1,15 +1,12 @@
 (function() {
-  var watcherDialog;
+  var watcherTab = null;
+  var watcherContent = null;
 
   var csrfToken = function(trigger) {
     var form = trigger && trigger.closest('form');
     var field = (form && form.querySelector('input[name="_csrf_token"]')) ||
       document.querySelector('input[name="_csrf_token"]');
     return field ? field.value : null;
-  };
-
-  var watcherCountLabel = function(count) {
-    return '[' + 'Watcher' + (count > 0 ? ' (' + count + ')' : '') + ']';
   };
 
   var setWatcherCount = function(count) {
@@ -20,7 +17,10 @@
     var link = document.getElementById('watcher-link');
 
     if (link) {
-      link.textContent = watcherCountLabel(count);
+      var label = 'Watcher' + (count > 0 ? ' (' + count + ')' : '');
+      link.title = label;
+      link.setAttribute('aria-label', label);
+      link.dataset.count = String(count);
     }
   };
 
@@ -48,7 +48,7 @@
       Menu.__watchThreadMenuInstalled = true;
       Menu.add_item('watch_thread_menu', 'Watch');
       Menu.onclick(function(e, $buf) {
-        var post = e.target.parentElement && e.target.parentElement.parentElement;
+        var post = e.target.closest && e.target.closest('.post');
         var thread = post && post.closest && post.closest('.thread');
 
         if (!thread || !thread.dataset || !thread.dataset.threadId) {
@@ -91,42 +91,26 @@
     });
   };
 
-  var ensureWatcherDialog = function() {
-    if (watcherDialog) return watcherDialog;
+  var ensureWatcherTab = function() {
+    if (!(window.Options && Options.get_tab)) return null;
+    if (watcherTab) return watcherTab;
 
-    watcherDialog = document.createElement('div');
-    watcherDialog.id = 'server-watcher-dialog';
-    watcherDialog.innerHTML =
-      '<div class="watcher-dialog-background"></div>' +
-      '<div class="watcher-dialog-panel post reply">' +
-      '<a href="javascript:void(0)" class="watcher-dialog-close">[Close]</a>' +
-      '<div class="watcher-dialog-body"></div>' +
-      '</div>';
+    watcherTab = Options.add_tab('watcher', 'eye', _('Watcher'));
+    watcherContent = $('<div id="watcher-tab-content"><div class="watcher-loading">Loading...</div></div>');
+    watcherContent.appendTo(watcherTab.content);
 
-    watcherDialog.querySelector('.watcher-dialog-background').addEventListener('click', function() {
-      watcherDialog.style.display = 'none';
-    });
+    var webmTab = Options.get_tab('webm');
+    if (webmTab && webmTab.icon && watcherTab.icon) {
+      watcherTab.icon.insertAfter(webmTab.icon);
+    }
 
-    watcherDialog.querySelector('.watcher-dialog-close').addEventListener('click', function(event) {
-      event.preventDefault();
-      watcherDialog.style.display = 'none';
-    });
-
-    document.body.appendChild(watcherDialog);
-    return watcherDialog;
+    return watcherTab;
   };
 
-  var renderWatcherDialog = function(html) {
-    var dialog = ensureWatcherDialog();
-    dialog.querySelector('.watcher-dialog-body').innerHTML = html;
-    dialog.style.display = 'block';
-  };
+  var refreshWatcherTab = function() {
+    ensureWatcherTab();
+    if (!watcherContent) return Promise.resolve();
 
-  var watcherDialogOpen = function() {
-    return watcherDialog && watcherDialog.style.display === 'block';
-  };
-
-  var refreshWatcherDialog = function() {
     return fetch('/watcher/fragment', {
       headers: {'x-requested-with': 'XMLHttpRequest'},
       credentials: 'same-origin'
@@ -134,9 +118,22 @@
       if (!response.ok) throw new Error('watcher fragment failed');
       return response.text();
     }).then(function(html) {
-      renderWatcherDialog(html);
+      watcherContent.html(html);
     }).catch(function() {
-      if (typeof alert === 'function') alert('Watcher refresh failed.');
+      watcherContent.html('<div class="post reply watcher-entry"><p class="body">Watcher refresh failed.</p></div>');
+    });
+  };
+
+  var openWatcherTab = function() {
+    if (!(window.Options && Options.show && Options.select_tab)) {
+      window.location = '/watcher';
+      return;
+    }
+
+    ensureWatcherTab();
+    refreshWatcherTab().finally(function() {
+      Options.show();
+      Options.select_tab('watcher');
     });
   };
 
@@ -145,7 +142,7 @@
 
     if (watcherLink && event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
       event.preventDefault();
-      refreshWatcherDialog();
+      openWatcherTab();
       return;
     }
 
@@ -180,13 +177,20 @@
       if (typeof payload.watcher_count === 'number') {
         setWatcherCount(payload.watcher_count);
       }
-      if (watcherDialogOpen()) {
-        refreshWatcherDialog();
+      if (watcherTab && window.Options && Options.get_tab && Options.get_tab('watcher') && watcherTab.icon.hasClass('active')) {
+        refreshWatcherTab();
       }
     }).catch(function() {
       if (typeof alert === 'function') alert('Watcher update failed.');
     }).finally(function() {
       delete link.dataset.pending;
     });
+  });
+
+  document.addEventListener('DOMContentLoaded', function() {
+    if (window.Options && Options.get_tab) {
+      ensureWatcherTab();
+      setWatcherCount(parseInt(document.body && document.body.dataset ? document.body.dataset.watcherCount || '0' : '0', 10) || 0);
+    }
   });
 })();
