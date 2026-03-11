@@ -263,48 +263,57 @@
     return hasPostPayload(form);
   }
 
-  function citeReply(id, withLink) {
-    var textarea = document.getElementById('body');
-
-    if (!textarea) return false;
-
-    if (document.selection) {
-      textarea.focus();
-      var selection = document.selection.createRange();
-      selection.text = '>>' + id + '\n';
-    } else if (textarea.selectionStart || textarea.selectionStart === 0) {
-      var start = textarea.selectionStart;
-      var end = textarea.selectionEnd;
-
-      textarea.value =
-        textarea.value.substring(0, start) +
-        '>>' + id + '\n' +
-        textarea.value.substring(end, textarea.value.length);
-
-      textarea.selectionStart += ('>>' + id).length + 1;
-      textarea.selectionEnd = textarea.selectionStart;
-    } else {
-      textarea.value += '>>' + id + '\n';
+  function citeReply(id, withLink, event) {
+    if (event) {
+      if (typeof event.preventDefault === 'function') event.preventDefault();
+      if (typeof event.stopPropagation === 'function') event.stopPropagation();
     }
 
-    if (typeof window.jQuery !== 'undefined') {
-      var selectedText = document.getSelection().toString();
+    try {
+      var textarea = document.getElementById('body');
 
-      if (selectedText) {
-        var body = window.jQuery('#reply_' + id + ', #op_' + id).find('div.body');
-        var index = body.text().indexOf(selectedText.replace('\n', ''));
+      if (!textarea) return false;
 
-        if (index > -1) {
-          textarea.value += '>' + selectedText + '\n';
-        }
+      if (document.selection) {
+        textarea.focus();
+        var selection = document.selection.createRange();
+        selection.text = '>>' + id + '\n';
+      } else if (textarea.selectionStart || textarea.selectionStart === 0) {
+        var start = textarea.selectionStart;
+        var end = textarea.selectionEnd;
+
+        textarea.value =
+          textarea.value.substring(0, start) +
+          '>>' + id + '\n' +
+          textarea.value.substring(end, textarea.value.length);
+
+        textarea.selectionStart += ('>>' + id).length + 1;
+        textarea.selectionEnd = textarea.selectionStart;
+      } else {
+        textarea.value += '>>' + id + '\n';
       }
 
-      window.jQuery(window).trigger('cite', [id, withLink]);
-      window.jQuery(textarea).change();
-    }
+      if (typeof window.jQuery !== 'undefined') {
+        var selectionText = typeof document.getSelection === 'function' ? document.getSelection().toString() : '';
 
-    textarea.focus();
-    return false;
+        if (selectionText) {
+          var body = window.jQuery('#reply_' + id + ', #op_' + id).find('div.body');
+          var index = body.text().indexOf(selectionText.replace('\n', ''));
+
+          if (index > -1) {
+            textarea.value += '>' + selectionText + '\n';
+          }
+        }
+
+        window.jQuery(window).trigger('cite', [id, withLink]);
+        window.jQuery(textarea).change();
+      }
+
+      textarea.focus();
+      return false;
+    } catch (_error) {
+      return false;
+    }
   }
 
   function clearSuccessfulPostsCookie(saved) {
