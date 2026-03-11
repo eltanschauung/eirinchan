@@ -45,7 +45,7 @@ $(function(){
   });
 
 
-  $("#style-select").detach().css({float:"none","margin-bottom":0}).appendTo(tab.content);
+  $("#style-select").detach().css({display:"block",float:"none","margin-bottom":0}).appendTo(tab.content);
 });
 
 }();

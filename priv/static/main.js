@@ -12,7 +12,7 @@
   }
 
   function appendStyleChooser() {
-    if (document.querySelector('div.styles')) return;
+    if (document.querySelector('div.styles') || document.getElementById('style-select')) return;
 
     var styles = window.styles || {};
     var styleNames = Object.keys(styles);
