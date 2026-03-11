@@ -63,6 +63,42 @@ defmodule Eirinchan.UploadsFixtures do
     }
   end
 
+  def video_upload_fixture(filename \\ "sample.mp4") do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "eirinchan-upload-video-#{System.unique_integer([:positive])}-#{Path.basename(filename)}"
+      )
+
+    ext = filename |> Path.extname() |> String.downcase()
+    video_codec = if ext == ".webm", do: "libvpx-vp9", else: "libx264"
+    pixel_format = if ext == ".webm", do: [], else: ["-pix_fmt", "yuv420p"]
+
+    args =
+      [
+        "-y",
+        "-f",
+        "lavfi",
+        "-i",
+        "color=c=red:s=64x48:d=1",
+        "-f",
+        "lavfi",
+        "-i",
+        "anullsrc=channel_layout=mono:sample_rate=44100",
+        "-shortest",
+        "-c:v",
+        video_codec
+      ] ++ pixel_format ++ ["-an", path]
+
+    {_, 0} = System.cmd("ffmpeg", args, stderr_to_stdout: true)
+
+    %Plug.Upload{
+      path: path,
+      filename: filename,
+      content_type: MIME.from_path(filename)
+    }
+  end
+
   def duplicate_upload_fixture(%Plug.Upload{} = upload, filename \\ nil) do
     duplicate_name = filename || upload.filename
 

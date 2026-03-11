@@ -15,6 +15,8 @@
 var tab = Options.add_tab("general", "home", _("General"));
 
 $(function(){
+  var prefBox = $("<div id='general-preferences'></div>").appendTo(tab.content);
+
   var stor = $("<div>"+_("Storage: ")+"</div>");
   stor.appendTo(tab.content);
 
@@ -44,8 +46,9 @@ $(function(){
     }
   });
 
-
-  $("#style-select").detach().css({display:"block",float:"none","margin-bottom":0}).appendTo(tab.content);
+  $("#style-select").detach().css({display:"block",float:"none","margin-bottom":0}).appendTo(prefBox);
+  $("#file-drag-drop").detach().appendTo(prefBox);
+  $(document).trigger("general_preferences_ready");
 });
 
 }();
