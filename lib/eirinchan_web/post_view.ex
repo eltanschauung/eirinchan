@@ -852,13 +852,10 @@ defmodule EirinchanWeb.PostView do
   defp permission_level(:deletefile), do: 10
   defp permission_level(:spoilerimage), do: 10
 
-  defp body_style(post, config, opts \\ []) do
+  defp body_style(post, _config, _opts \\ []) do
     cond do
       media_count(post) > 1 ->
         "clear:both"
-
-      ergonomic_body_clear?(post, config, opts) ->
-        "clear:left;margin-left:0;padding-right:0.5em;margin-top:0.35em"
 
       true ->
         nil
@@ -869,73 +866,6 @@ defmodule EirinchanWeb.PostView do
     case body_style(post, config, opts) do
       nil -> ""
       style -> ~s( style="#{html_escape_to_string(style)}")
-    end
-  end
-
-  defp ergonomic_body_clear?(post, config, opts) do
-    metrics = body_metrics(post)
-    media_width = media_display_width(post, config, opts)
-
-    media_count(post) > 0 and
-      ((metrics.lines >= 3 and media_width >= 110) or
-         (metrics.length >= 120 and media_width >= 140) or
-         (metrics.longest_line >= 36 and media_width >= 140) or
-         (body_complex_enough?(metrics) and media_width >= 200))
-  end
-
-  defp body_complex_enough?(%{body: body}) when is_binary(body) do
-    body
-    |> body_metrics()
-    |> body_complex_enough?()
-  end
-
-  defp body_complex_enough?(metrics) when is_map(metrics) do
-    metrics.lines >= 4 or metrics.length >= 160 or metrics.longest_line >= 48
-  end
-
-  defp body_complex_enough?(_post), do: false
-
-  defp body_metrics(%{body: body}) when is_binary(body) do
-    lines =
-      body
-      |> String.split("\n", trim: false)
-      |> length()
-
-    longest_line =
-      body
-      |> String.split("\n", trim: false)
-      |> Enum.map(&String.length/1)
-      |> Enum.max(fn -> 0 end)
-
-    %{
-      lines: lines,
-      length: String.length(body),
-      longest_line: longest_line
-    }
-  end
-
-  defp body_metrics(_post), do: %{lines: 0, length: 0, longest_line: 0}
-
-  defp media_display_width(post, config, opts) do
-    op? = Keyword.get(opts, :op?, thread_op?(post))
-
-    case media_entries(post, config) do
-      [%{kind: :embed} | _] ->
-        config.embed_width || 0
-
-      [file | _] ->
-        case fit_dimensions(
-               Map.get(file, :image_width),
-               Map.get(file, :image_height),
-               if(op?, do: config.thumb_op_width, else: config.thumb_width),
-               if(op?, do: config.thumb_op_height, else: config.thumb_height)
-             ) do
-          {width, _height} -> width
-          nil -> 0
-        end
-
-      [] ->
-        0
     end
   end
 
