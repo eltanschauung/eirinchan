@@ -350,19 +350,15 @@
                 <% end %>
                 <%= raw(PostView.time_html(thread)) %>
               </label>
-              <%= raw(
-                PostView.post_number_links_html(
-                  thread.id,
-                  PostView.thread_path(@board, thread, @config) <> "##{thread.id}",
-                  PostView.reply_path(@board, thread, thread, @config, :quote),
-                  [
-                    "data-quote-to": thread.id,
-                    "data-quick-reply-thread": thread.id
-                  ],
-                  :navigate
-                )
-              ) %>
-              <%= raw(PostView.backlinks_html(thread, @backlinks_map)) %>
+              <.post_number_links
+                post_id={thread.id}
+                post_href={PostView.thread_path(@board, thread, @config) <> "##{thread.id}"}
+                quote_href={PostView.reply_path(@board, thread, thread, @config, :quote)}
+                quote_to={thread.id}
+                quick_reply_thread={thread.id}
+                quote_mode={:navigate}
+              />
+              <.backlinks post={thread} backlinks_map={@backlinks_map} />
               <%= for icon <- PostView.state_icons(thread, @config) do %>
                 <img class="icon" title={icon.title} src={icon.path} alt={icon.title} />
               <% end %>
@@ -413,16 +409,14 @@
                   <% end %>
                   <%= raw(PostView.time_html(reply)) %>
                 </label>
-                <%= raw(
-                  PostView.post_number_links_html(
-                    reply.id,
-                    PostView.thread_path(@board, thread, @config) <> "##{reply.id}",
-                    PostView.reply_path(@board, thread, reply, @config, :quote),
-                    ["data-quote-to": reply.id],
-                    :navigate
-                  )
-                ) %>
-                <%= raw(PostView.backlinks_html(reply, @backlinks_map)) %>
+                <.post_number_links
+                  post_id={reply.id}
+                  post_href={PostView.thread_path(@board, thread, @config) <> "##{reply.id}"}
+                  quote_href={PostView.reply_path(@board, thread, reply, @config, :quote)}
+                  quote_to={reply.id}
+                  quote_mode={:navigate}
+                />
+                <.backlinks post={reply} backlinks_map={@backlinks_map} />
               </p>
               <div class="files">
                 <%= for media <- PostView.media_entries(reply, @config) do %>

@@ -59,15 +59,13 @@ defmodule EirinchanWeb.ManagePageHTML do
                 <%= PostView.formatted_timestamp(@post) %>
               </time>
             </label>
-            <%= raw(
-              PostView.post_number_links_html(
-                @post.id,
-                PostView.thread_path(@board, @post, @config) <> "##{@post.id}",
-                PostView.reply_path(@board, @post, @post, @config, :quote),
-                "data-quote-to": @post.id
-              )
-            ) %>
-            <%= raw(PostView.backlinks_html(@post, @backlinks_map)) %>
+            <.post_number_links
+              post_id={@post.id}
+              post_href={PostView.thread_path(@board, @post, @config) <> "##{@post.id}"}
+              quote_href={PostView.reply_path(@board, @post, @post, @config, :quote)}
+              quote_to={@post.id}
+            />
+            <.backlinks post={@post} backlinks_map={@backlinks_map} />
             <%= for icon <- PostView.state_icons(@post, @config) do %>
               <img class="icon" title={icon.title} src={icon.path} alt={icon.title} />
             <% end %>
@@ -102,15 +100,13 @@ defmodule EirinchanWeb.ManagePageHTML do
               <%= PostView.formatted_timestamp(@post) %>
             </time>
           </label>
-          <%= raw(
-            PostView.post_number_links_html(
-              @post.id,
-              PostView.thread_path(@board, @thread, @config) <> "##{@post.id}",
-              PostView.reply_path(@board, @thread, @post, @config, :quote),
-              "data-quote-to": @post.id
-            )
-          ) %>
-          <%= raw(PostView.backlinks_html(@post, @backlinks_map)) %>
+          <.post_number_links
+            post_id={@post.id}
+            post_href={PostView.thread_path(@board, @thread, @config) <> "##{@post.id}"}
+            quote_href={PostView.reply_path(@board, @thread, @post, @config, :quote)}
+            quote_to={@post.id}
+          />
+          <.backlinks post={@post} backlinks_map={@backlinks_map} />
         </p>
 
         <.files_block
