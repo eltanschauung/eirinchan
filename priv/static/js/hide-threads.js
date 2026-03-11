@@ -48,7 +48,7 @@ $(document).ready(function(){
 			hidden_data[board] = {}; // id : timestamp
 		}
 	
-		$('<a class="hide-thread-link" style="float:left;margin-right:5px" href="javascript:void(0)">[–]</a><span> </span>')
+		$('<a class="hide-thread-link" style="float:left;margin-right:5px;display:inline-block;line-height:1;vertical-align:middle;" href="javascript:void(0)">[–]</a><span> </span>')
 			.insertBefore(thread_container.find(':not(h2,h2 *):first'))
 			.click(function() {
 				hidden_data[board][id] = Math.round(Date.now() / 1000);
@@ -62,7 +62,7 @@ $(document).ready(function(){
 				hidden_div.html(hidden_div.html().replace(' [] ', ' '));
 				hidden_div.html(hidden_div.html().replace(' [] ', ' '));
 				
-				$('<a class="unhide-thread-link" style="float:left;margin-right:5px;margin-left:0px;" href="javascript:void(0)">[+]</a><span> </span>')
+				$('<a class="unhide-thread-link" style="float:left;margin-right:5px;margin-left:0px;display:inline-block;line-height:1;vertical-align:middle;" href="javascript:void(0)">[+]</a><span> </span>')
 					.insertBefore(hidden_div.find(':first'))
 					.click(function() {
 						delete hidden_data[board][id];
