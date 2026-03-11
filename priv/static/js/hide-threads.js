@@ -38,16 +38,6 @@ $(document).ready(function(){
 
 	var fields_to_hide = 'div.file,div.post,div.video-container,video,iframe,img:not(.unanimated),canvas,p.fileinfo,a.hide-thread-link,div.new-posts,br';
 
-	var ensure_control_rail = function(thread_container) {
-		var intro = thread_container.find('div.post.op > p.intro').first();
-		var rail = intro.children('.thread-top-controls');
-		if (!rail.length) {
-			rail = $('<span class="thread-top-controls"></span>');
-			intro.prepend(rail);
-		}
-		return rail;
-	};
-	
 	var do_hide_threads = function() {
 		var id = $(this).children('p.intro').children('a.post_no:eq(1)').text();
 		var thread_container = $(this).parent();
@@ -58,11 +48,10 @@ $(document).ready(function(){
 			hidden_data[board] = {}; // id : timestamp
 		}
 	
-		var rail = ensure_control_rail(thread_container);
-		var hideLink = $('<a class="hide-thread-link" href="javascript:void(0)">[–]</a>');
-		rail.prepend(hideLink);
+		var hideLink = thread_container.find('div.post.op > p.intro .hide-thread-link').first();
+		if (!hideLink.length) return;
 
-		hideLink.click(function() {
+		hideLink.off('click.hideThread').on('click.hideThread', function() {
 				hidden_data[board][id] = Math.round(Date.now() / 1000);
 				store_data();
 				

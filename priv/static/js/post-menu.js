@@ -105,38 +105,15 @@ function buildMenu(e) {
 function addButton(post) {
 	var $ele = $(post);
 	var postId = post.id || '';
+
+	if ($ele.find('> p.intro > .thread-top-controls > .post-btn, > p.intro > .post-btn').length) {
+		return;
+	}
+
 	var $postBtn = $('<a>', {href: '#', class: 'post-btn', title: 'Post menu'}).text('▶');
 
 	if ($ele.hasClass('op')) {
-		if (post) {
-			var $intro = $ele.find('p.intro').first();
-			var $rail = $intro.children('.thread-top-controls');
-			if (!$rail.length) {
-				$rail = $('<span class="thread-top-controls"></span>');
-				$intro.prepend($rail);
-			}
-
-			$postBtn.attr('data-post-target', postId);
-			$rail.append($postBtn);
-
-			var thread = post.closest('.thread');
-			if (thread.dataset && thread.dataset.threadId && !$rail.find('.watch-thread-link').length) {
-				$rail.append(
-					$('<a>', {
-						href: 'javascript:;',
-						class: 'watch-thread-link',
-						title: thread.dataset.watched === 'true' ? 'Unwatch Thread' : 'Watch Thread',
-						'data-thread-watch': '',
-						'data-board-uri': thread.dataset.boardUri,
-						'data-thread-id': thread.dataset.threadId,
-						'data-watch-url': thread.dataset.watchUrl,
-						'data-unwatch-url': thread.dataset.unwatchUrl,
-						'data-watched': thread.dataset.watched
-					})
-				);
-			}
-			return;
-		}
+		return;
 	}
 	$ele.find('input.delete').after($postBtn);
 }

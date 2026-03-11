@@ -299,6 +299,12 @@
       end}
     >
       <p class="intro">
+        <.thread_top_controls
+          board_uri={@board.uri}
+          thread_id={post.id}
+          post_target={"op_#{post.id}"}
+          watch={@thread_watch}
+        />
         <input
           type="checkbox"
           class="delete"
