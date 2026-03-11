@@ -560,6 +560,14 @@
       window.initStyleChooser();
       restoreSavedStyle();
       seedPostControlsPassword();
+
+      if (
+        window.location.hash &&
+        window.location.hash.indexOf('#q') !== 0 &&
+        typeof window.highlightReply === 'function'
+      ) {
+        window.highlightReply(window.location.hash.substring(1));
+      }
     };
 
   window.alert = function (message) {
