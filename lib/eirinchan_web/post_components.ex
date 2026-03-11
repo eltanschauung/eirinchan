@@ -122,7 +122,7 @@ defmodule EirinchanWeb.PostComponents do
       <a href="#" class="post-btn" title="Post menu" data-post-target={@post_target}>▶</a>
       <a
         href="javascript:;"
-        class={["watch-thread-link", @watched && "watched"]}
+        class={["watch-thread-link", @watched && "watched", @watched && "post-btn"]}
         title={if @watched, do: "Unwatch Thread", else: "Watch Thread"}
         data-thread-watch
         data-board-uri={@board_uri}
