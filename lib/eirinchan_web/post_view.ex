@@ -422,7 +422,7 @@ defmodule EirinchanWeb.PostView do
       |> Enum.reject(&is_nil/1)
       |> Enum.join(" ")
 
-    ~s|<a href="#{html_escape_to_string(file.file_path)}" target="_blank"#{class_attr}><img class="#{image_classes}" src="#{html_escape_to_string(file_thumb_src(file, config))}"#{thumb_style_attr} alt="" /></a>|
+    ~s|<a href="#{html_escape_to_string(file.file_path)}" target="_blank"#{class_attr}><img class="#{image_classes}" src="#{html_escape_to_string(file_thumb_src(file, config))}" loading="lazy" decoding="async"#{thumb_style_attr} alt="" /></a>|
   end
 
   def post_container_style(post), do: if(media_count(post) > 1, do: "clear:both", else: nil)
