@@ -13,35 +13,39 @@ defmodule EirinchanWeb.PageHTML do
     ~H"""
     <div class="watcher-page">
       <%= if @watch_summaries == [] do %>
-        <p>No watched threads yet.</p>
+        <div class="post reply watcher-entry">
+          <p class="body">No watched threads yet.</p>
+        </div>
       <% else %>
         <div class="watcher-list">
           <%= for watch <- @watch_summaries do %>
-            <div class={["watcher-entry", watch.unread_count > 0 && "has-unread"]}>
-              <div class="watcher-entry-top">
-                <a href={watch.thread_path}>
+            <div class="thread watcher-thread">
+              <div class={["post reply watcher-entry", watch.unread_count > 0 && "has-unread"]}>
+                <p class="intro">
+                  <a href={watch.thread_path}>
                   /<%= watch.board_uri %>/ - <%= watch.subject || watch.excerpt ||
                     "Thread ##{watch.thread_id}" %>
-                </a>
-                <span class="watcher-meta">
-                  posts: <%= watch.post_count %> | unread: <%= watch.unread_count %>
-                </span>
-              </div>
-              <%= if watch.excerpt do %>
-                <div class="watcher-excerpt"><%= watch.excerpt %></div>
-              <% end %>
-              <div class="watcher-actions">
-                <a
-                  href="#"
-                  data-thread-watch
-                  data-board-uri={watch.board_uri}
-                  data-thread-id={watch.thread_id}
-                  data-watch-url={"/watcher/" <> watch.board_uri <> "/" <> Integer.to_string(watch.thread_id)}
-                  data-unwatch-url={"/watcher/" <> watch.board_uri <> "/" <> Integer.to_string(watch.thread_id)}
-                  data-watched="true"
-                >
-                  [Unwatch<%= if watch.unread_count > 0, do: " (#{watch.unread_count})", else: "" %>]
-                </a>
+                  </a>
+                  <span class="watcher-meta">
+                    posts: <%= watch.post_count %> | unread: <%= watch.unread_count %>
+                  </span>
+                </p>
+                <%= if watch.excerpt do %>
+                  <div class="body watcher-excerpt"><%= watch.excerpt %></div>
+                <% end %>
+                <p class="intro watcher-actions">
+                  <a
+                    href="#"
+                    data-thread-watch
+                    data-board-uri={watch.board_uri}
+                    data-thread-id={watch.thread_id}
+                    data-watch-url={"/watcher/" <> watch.board_uri <> "/" <> Integer.to_string(watch.thread_id)}
+                    data-unwatch-url={"/watcher/" <> watch.board_uri <> "/" <> Integer.to_string(watch.thread_id)}
+                    data-watched="true"
+                  >
+                    [Unwatch<%= if watch.unread_count > 0, do: " (#{watch.unread_count})", else: "" %>]
+                  </a>
+                </p>
               </div>
             </div>
           <% end %>
