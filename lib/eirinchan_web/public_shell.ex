@@ -27,6 +27,7 @@ defmodule EirinchanWeb.PublicShell do
 
     selected_style = Keyword.get(opts, :theme_label, "Yotsuba")
     resource_version = Keyword.get(opts, :resource_version, "")
+    watcher_count = Keyword.get(opts, :watcher_count, 0)
 
     styles_json =
       opts
@@ -46,7 +47,7 @@ defmodule EirinchanWeb.PublicShell do
     """
     <script type="text/javascript">var active_page = "#{active_page}", board_name = #{board_name}#{thread_fragment};</script><script type="text/javascript">var configRoot="/";var inMod = false;var modRoot="/"+(inMod ? "mod.php?/" : "");var resourceVersion=#{Jason.encode!(resource_version)};</script>
     <script type="text/javascript">var selectedstyle = #{Jason.encode!(selected_style)}; var styles = #{styles_json};</script>
-    <script type="text/javascript">var genpassword_chars = #{Jason.encode!(Map.get(config, :genpassword_chars))}; var post_success_cookie_name = "eirinchan_posted";</script>
+    <script type="text/javascript">var genpassword_chars = #{Jason.encode!(Map.get(config, :genpassword_chars))}; var post_success_cookie_name = "eirinchan_posted"; var watcher_count = #{watcher_count};</script>
     """
     |> String.trim()
   end

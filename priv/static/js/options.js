@@ -106,7 +106,10 @@ $(function(){
   options_links = $("<span id='admin_options_links'></span>").css({"float": "right"});
   options_button = $("<a href='javascript:void(0)' title='"+_("Options")+"'>["+_("Options")+"]</a>");
   admin_button = $("<a href='/manage' title='"+_("Admin")+"'>["+_("Admin")+"]</a>");
-  watcher_button = $("<a href='/watcher' title='"+_("Watcher")+"'>["+_("Watcher")+"]</a>");
+  var watcherCount = parseInt(document.body && document.body.dataset ? document.body.dataset.watcherCount : '0', 10);
+  if (isNaN(watcherCount)) watcherCount = 0;
+  var watcherLabel = _("Watcher") + (watcherCount > 0 ? ' (' + watcherCount + ')' : '');
+  watcher_button = $("<a href='/watcher' title='"+_("Watcher")+"'>["+watcherLabel+"]</a>");
 
   if ($(".boardlist.compact-boardlist").length) {
     options_button.addClass("cb-item cb-fa").html("<i class='fa fa-gear'></i>");

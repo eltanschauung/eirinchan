@@ -40,8 +40,9 @@ defmodule EirinchanWeb.ThreadController do
             end
 
           backlinks_map = Posts.backlinks_map_for_posts([summary.thread | summary.replies])
-          watched_thread? = watched_thread?(conn, board, summary.thread.id)
+          thread_watch = thread_watch(conn, board, summary.thread.id)
           _ = maybe_mark_thread_seen(conn, board, summary)
+          watcher_count = watcher_count(conn)
 
           conn = if fragment_request?(conn.params), do: put_root_layout(conn, false), else: conn
 
@@ -53,7 +54,8 @@ defmodule EirinchanWeb.ThreadController do
               "/#{board.uri}/ - #{summary.thread.subject || summary.thread.body || summary.thread.id}",
             summary: summary,
             backlinks_map: backlinks_map,
-            watched_thread?: watched_thread?,
+            thread_watch: thread_watch,
+            watcher_count: watcher_count,
             config: config,
             page_num: page_num,
             boards: boards,
@@ -76,7 +78,8 @@ defmodule EirinchanWeb.ThreadController do
                 thread_id: summary.thread.id,
                 resource_version: conn.assigns[:asset_version],
                 theme_label: conn.assigns[:theme_label],
-                theme_options: conn.assigns[:theme_options]
+                theme_options: conn.assigns[:theme_options],
+                watcher_count: watcher_count
               ),
             head_after_assets_html: PublicShell.thread_meta_html(board, summary.thread, config),
             eager_javascript_urls: PublicShell.eager_javascript_urls(:thread, config),
@@ -135,10 +138,14 @@ defmodule EirinchanWeb.ThreadController do
   defp board_extra_stylesheets(_board),
     do: ["/stylesheets/eirinchan-public.css", "/stylesheets/eirinchan-bant.css"]
 
-  defp watched_thread?(conn, board, thread_id) do
+  defp thread_watch(conn, board, thread_id) do
     case conn.assigns[:browser_token] do
-      token when is_binary(token) -> ThreadWatcher.watched?(token, board.uri, thread_id)
-      _ -> false
+      token when is_binary(token) ->
+        ThreadWatcher.watch_state_for_board(token, board.uri)
+        |> Map.get(thread_id, %{watched: false, unread_count: 0, last_seen_post_id: thread_id})
+
+      _ ->
+        %{watched: false, unread_count: 0, last_seen_post_id: thread_id}
     end
   end
 
@@ -154,6 +161,13 @@ defmodule EirinchanWeb.ThreadController do
 
       _ ->
         :ok
+    end
+  end
+
+  defp watcher_count(conn) do
+    case conn.assigns[:browser_token] do
+      token when is_binary(token) -> ThreadWatcher.watch_count(token)
+      _ -> 0
     end
   end
 end

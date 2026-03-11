@@ -391,4 +391,22 @@ defmodule EirinchanWeb.PageControllerTest do
     body = html_response(conn, 200)
     assert body =~ "unread: 1"
   end
+
+  test "public pages expose watcher count for top bar", %{conn: conn} do
+    moderator_fixture()
+    board = board_fixture(%{uri: "watchhome", title: "Watch Home"})
+    thread = thread_fixture(board, %{body: "Watcher home thread"})
+    token = "token-home-watch-123456"
+
+    assert {:ok, _watch} = ThreadWatcher.watch_thread(token, board.uri, thread.id)
+
+    page =
+      conn
+      |> put_req_cookie("browser_token", token)
+      |> get("/")
+      |> html_response(200)
+
+    assert page =~ ~s(data-watcher-count="1")
+    assert page =~ ~s(var watcher_count = 1;)
+  end
 end

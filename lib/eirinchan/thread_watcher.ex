@@ -99,6 +99,42 @@ defmodule Eirinchan.ThreadWatcher do
     |> MapSet.new()
   end
 
+  def watch_state_for_board(browser_token, board_uri)
+      when is_binary(browser_token) and is_binary(board_uri) do
+    watches =
+      Watch
+      |> where([watch], watch.browser_token == ^browser_token and watch.board_uri == ^board_uri)
+      |> Repo.all()
+
+    if watches == [] do
+      %{}
+    else
+      thread_ids = Enum.map(watches, & &1.thread_id)
+      unread = unread_counts(watches, thread_ids)
+
+      watches
+      |> Enum.map(fn watch ->
+        unread_count = Map.get(unread, {watch.board_uri, watch.thread_id}, 0)
+
+        {watch.thread_id,
+         %{
+           watched: true,
+           unread_count: unread_count,
+           last_seen_post_id: watch.last_seen_post_id || watch.thread_id
+         }}
+      end)
+      |> Map.new()
+    end
+  end
+
+  def watch_count(browser_token) when is_binary(browser_token) do
+    Watch
+    |> where([watch], watch.browser_token == ^browser_token)
+    |> select([watch], count(watch.id))
+    |> Repo.one()
+    |> Kernel.||(0)
+  end
+
   def watched?(browser_token, board_uri, thread_id)
       when is_binary(browser_token) and is_binary(board_uri) and is_integer(thread_id) do
     Repo.exists?(

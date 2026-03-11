@@ -255,6 +255,12 @@ defmodule EirinchanWeb.PageController do
     primary_board = Enum.find(boards, &(&1.uri == "bant")) || %{uri: "bant"}
     chrome = BoardChrome.for_board(primary_board)
 
+    watcher_count =
+      case conn.assigns[:browser_token] do
+        token when is_binary(token) -> ThreadWatcher.watch_count(token)
+        _ -> 0
+      end
+
     [
       boards: boards,
       primary_board: primary_board,
@@ -267,11 +273,13 @@ defmodule EirinchanWeb.PageController do
       base_stylesheet: "/stylesheets/style.css",
       body_class: public_body_class(page_kind),
       body_data_stylesheet: public_data_stylesheet(conn),
+      watcher_count: watcher_count,
       head_html:
         PublicShell.head_html(active_page,
           resource_version: conn.assigns[:asset_version],
           theme_label: conn.assigns[:theme_label],
-          theme_options: conn.assigns[:theme_options]
+          theme_options: conn.assigns[:theme_options],
+          watcher_count: watcher_count
         ),
       javascript_urls: PublicShell.javascript_urls(active_page),
       body_end_html: PublicShell.body_end_html(),
@@ -391,6 +399,12 @@ defmodule EirinchanWeb.PageController do
   defp recent_theme_assigns(conn, active_page, _settings) do
     boards = Boards.list_boards()
 
+    watcher_count =
+      case conn.assigns[:browser_token] do
+        token when is_binary(token) -> ThreadWatcher.watch_count(token)
+        _ -> 0
+      end
+
     [
       boards: boards,
       global_boardlist_html: PostView.boardlist_html(PostView.boardlist_groups(boards)),
@@ -400,11 +414,13 @@ defmodule EirinchanWeb.PageController do
       base_stylesheet: "/stylesheets/style.css",
       body_class: nil,
       body_data_stylesheet: public_data_stylesheet(conn),
+      watcher_count: watcher_count,
       head_html:
         PublicShell.head_html(active_page,
           resource_version: conn.assigns[:asset_version],
           theme_label: conn.assigns[:theme_label],
-          theme_options: conn.assigns[:theme_options]
+          theme_options: conn.assigns[:theme_options],
+          watcher_count: watcher_count
         ),
       javascript_urls: PublicShell.javascript_urls(active_page),
       body_end_html: PublicShell.body_end_html(),

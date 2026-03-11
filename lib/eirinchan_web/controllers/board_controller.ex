@@ -74,7 +74,8 @@ defmodule EirinchanWeb.BoardController do
     case Posts.list_catalog_page(board, page_num, config: config) do
       {:ok, page_data} ->
         chrome = BoardChrome.for_board(board)
-        watched_thread_ids = watched_thread_ids(conn, board)
+        thread_watch_state = thread_watch_state(conn, board)
+        watcher_count = watcher_count(conn)
         fragment? = Keyword.get(opts, :fragment?, false)
 
         conn = if fragment?, do: put_root_layout(conn, false), else: conn
@@ -85,7 +86,8 @@ defmodule EirinchanWeb.BoardController do
           board_title: board.title,
           page_data: page_data,
           threads: page_data.threads,
-          watched_thread_ids: watched_thread_ids,
+          thread_watch_state: thread_watch_state,
+          watcher_count: watcher_count,
           config: config,
           boards: boards,
           board_chrome: chrome,
@@ -107,7 +109,8 @@ defmodule EirinchanWeb.BoardController do
               board_name: board.uri,
               resource_version: conn.assigns[:asset_version],
               theme_label: conn.assigns[:theme_label],
-              theme_options: conn.assigns[:theme_options]
+              theme_options: conn.assigns[:theme_options],
+              watcher_count: watcher_count
             ),
           eager_javascript_urls: PublicShell.eager_javascript_urls(:catalog, config),
           javascript_urls: PublicShell.javascript_urls(:catalog, config),
@@ -134,7 +137,8 @@ defmodule EirinchanWeb.BoardController do
       {:ok, page_data} ->
         chrome = BoardChrome.for_board(board)
         backlinks_map = page_backlinks_map(page_data)
-        watched_thread_ids = watched_thread_ids(conn, board)
+        thread_watch_state = thread_watch_state(conn, board)
+        watcher_count = watcher_count(conn)
         fragment? = Keyword.get(opts, :fragment?, false)
 
         conn = if fragment?, do: put_root_layout(conn, false), else: conn
@@ -146,7 +150,8 @@ defmodule EirinchanWeb.BoardController do
           page_title: "/#{board.uri}/ - #{board.title}",
           page_data: page_data,
           backlinks_map: backlinks_map,
-          watched_thread_ids: watched_thread_ids,
+          thread_watch_state: thread_watch_state,
+          watcher_count: watcher_count,
           config: config,
           boards: boards,
           board_chrome: chrome,
@@ -167,7 +172,8 @@ defmodule EirinchanWeb.BoardController do
               board_name: board.uri,
               resource_version: conn.assigns[:asset_version],
               theme_label: conn.assigns[:theme_label],
-              theme_options: conn.assigns[:theme_options]
+              theme_options: conn.assigns[:theme_options],
+              watcher_count: watcher_count
             ),
           eager_javascript_urls: PublicShell.eager_javascript_urls(:index, config),
           javascript_urls: PublicShell.javascript_urls(:index, config),
@@ -224,10 +230,17 @@ defmodule EirinchanWeb.BoardController do
     EirinchanWeb.Plugs.RequirePageTheme.call(conn, theme: "catalog")
   end
 
-  defp watched_thread_ids(conn, board) do
+  defp thread_watch_state(conn, board) do
     case conn.assigns[:browser_token] do
-      token when is_binary(token) -> ThreadWatcher.watched_thread_ids(token, board.uri)
-      _ -> MapSet.new()
+      token when is_binary(token) -> ThreadWatcher.watch_state_for_board(token, board.uri)
+      _ -> %{}
+    end
+  end
+
+  defp watcher_count(conn) do
+    case conn.assigns[:browser_token] do
+      token when is_binary(token) -> ThreadWatcher.watch_count(token)
+      _ -> 0
     end
   end
 end
