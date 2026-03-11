@@ -342,12 +342,9 @@ $(document).ready(function(){
 				var current = document.querySelector('#board-refresh-target');
 				var currentThreads = document.querySelector('#board-threads');
 				var new_threads = 0;
-				var current_ids = {};
-				var threads_to_prepend = [];
-
-				$('#board-threads .thread').each(function() {
-					current_ids[$(this).attr('id')] = true;
-				});
+				var currentNodes = {};
+				var orderedNodes = [];
+				var replacementThreads;
 
 				if (!replacement || !current || !currentThreads) {
 					$('#update_secs').text(_("Unknown error"));
@@ -358,17 +355,48 @@ $(document).ready(function(){
 					return;
 				}
 
-				$(replacement).find('#board-threads .thread').each(function() {
-					var id = $(this).attr('id');
-					if (id && !current_ids[id]) {
-						new_threads++;
-						threads_to_prepend.push(this.cloneNode(true));
+				Array.prototype.forEach.call(currentThreads.querySelectorAll('.thread'), function(node) {
+					if (node.id) {
+						currentNodes[node.id] = node;
 					}
 				});
 
-				for (var i = threads_to_prepend.length - 1; i >= 0; i--) {
-					var threadNode = threads_to_prepend[i];
-					currentThreads.insertBefore(threadNode, currentThreads.firstChild);
+				replacementThreads = replacement.querySelectorAll('#board-threads .thread');
+
+				Array.prototype.forEach.call(replacementThreads, function(node) {
+					var id = node.id;
+					var existing = id ? currentNodes[id] : null;
+					var nextNode;
+
+					if (existing) {
+						if (existing.outerHTML !== node.outerHTML) {
+							nextNode = node.cloneNode(true);
+							if (existing.classList.contains('thread-hidden')) {
+								nextNode.classList.add('thread-hidden');
+							}
+							if (existing.style.display === 'none') {
+								nextNode.style.display = 'none';
+							}
+							if (existing.dataset && existing.dataset.watched) {
+								nextNode.dataset.watched = existing.dataset.watched;
+							}
+						} else {
+							nextNode = existing;
+						}
+					} else {
+						new_threads++;
+						nextNode = node.cloneNode(true);
+					}
+
+					orderedNodes.push(nextNode);
+				});
+
+				while (currentThreads.firstChild) {
+					currentThreads.removeChild(currentThreads.firstChild);
+				}
+
+				orderedNodes.forEach(function(threadNode) {
+					currentThreads.appendChild(threadNode);
 
 					$(threadNode).find('.post').each(function() {
 						if (window.EirinchanFrontend && typeof window.EirinchanFrontend.initPost === 'function') {
@@ -377,7 +405,7 @@ $(document).ready(function(){
 							$(document).trigger('new_post', this);
 						}
 					});
-				}
+				});
 
 				if ($('#auto_update_status').is(':checked')) {
 					poll_interval_delay = poll_interval_mindelay;
