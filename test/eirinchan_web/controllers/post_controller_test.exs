@@ -2,6 +2,7 @@ defmodule EirinchanWeb.PostControllerTest do
   use EirinchanWeb.ConnCase, async: true
 
   import ExUnit.CaptureLog
+  alias Eirinchan.ThreadWatcher
 
   test "classic posting redirects OP creation to the thread page", %{conn: conn} do
     board = board_fixture(%{title: "Technology"})
@@ -48,8 +49,11 @@ defmodule EirinchanWeb.PostControllerTest do
     thread = thread_fixture(board, %{body: "thread body", subject: "thread subject"})
     referer = "http://www.example.com/#{board.uri}/index.html"
 
+    token = "reply-watch-token-123456"
+
     conn =
       conn
+      |> put_req_cookie("browser_token", token)
       |> put_req_header("referer", referer)
       |> post(~p"/#{board.uri}/post", %{
         "thread" => Integer.to_string(thread.id),
@@ -61,10 +65,17 @@ defmodule EirinchanWeb.PostControllerTest do
 
     thread_id = thread.id
 
-    assert %{"id" => id, "thread_id" => ^thread_id, "redirect" => redirect, "noko" => true} =
-             json_response(conn, 200)
+    assert %{
+             "id" => id,
+             "thread_id" => ^thread_id,
+             "redirect" => redirect,
+             "noko" => true,
+             "watcher_count" => 1,
+             "watcher_you_count" => 0
+           } = json_response(conn, 200)
 
     assert redirect == "/#{board.uri}/res/#{thread.id}.html#p#{id}"
+    assert ThreadWatcher.watched?(token, board.uri, thread.id)
 
     encoded_cookie =
       referer
