@@ -16,6 +16,7 @@ defmodule Eirinchan.Posts do
   alias Eirinchan.Posts.Cite
   alias Eirinchan.Posts.Flags, as: PostsFlags
   alias Eirinchan.Posts.Metadata, as: PostsMetadata
+  alias Eirinchan.Posts.ThreadLookup, as: PostsThreadLookup
   alias Eirinchan.Posts.Validation, as: PostsValidation
   alias Eirinchan.Posts.Moderation, as: PostsModeration
   alias Eirinchan.Posts.NntpReference
@@ -25,7 +26,6 @@ defmodule Eirinchan.Posts do
   alias Eirinchan.Posts.UploadPreparation, as: PostsUploadPreparation
   alias Eirinchan.Repo
   alias Eirinchan.Runtime.Config
-  alias Eirinchan.ThreadPaths
   alias Eirinchan.Uploads
 
   @spec create_post(BoardRecord.t(), map(), keyword()) ::
@@ -80,7 +80,7 @@ defmodule Eirinchan.Posts do
            :ok <- validate_dnsbl(request, config),
            :ok <- validate_ban(request, board),
            :ok <- validate_board_lock(config, request, board),
-           {:ok, thread} <- fetch_thread(board, thread_param, repo),
+           {:ok, thread} <- PostsThreadLookup.fetch_thread(board, thread_param, repo),
            :ok <- validate_thread_lock(thread, request, board),
            {:ok, attrs} <- normalize_post_metadata(attrs, config, request, op?),
            :ok <- Antispam.check_post(board, attrs, request, config, repo: repo),
@@ -106,7 +106,7 @@ defmodule Eirinchan.Posts do
     repo = Keyword.get(opts, :repo, Repo)
     config = Keyword.get(opts, :config, Config.compose())
 
-    with {:ok, [thread | _]} <- get_thread(board, thread_id, repo: repo),
+    with {:ok, [thread | _]} <- PostsThreadLookup.get_thread(board, thread_id, repo: repo),
          {:ok, updated_thread} <-
            thread
            |> Post.thread_state_changeset(attrs)
@@ -126,7 +126,7 @@ defmodule Eirinchan.Posts do
     config = Keyword.get(opts, :config, Config.compose())
     password = trim_to_nil(password)
 
-    with {:ok, normalized_post_id} <- normalize_thread_id(post_id),
+    with {:ok, normalized_post_id} <- PostsThreadLookup.normalize_thread_id(post_id),
          %Post{} = post <- repo.get_by(Post, id: normalized_post_id, board_id: board.id),
          :ok <- validate_delete_password(post, password),
          file_paths <- post_delete_file_paths(post, repo),
@@ -158,7 +158,7 @@ defmodule Eirinchan.Posts do
   def get_post(%BoardRecord{} = board, post_id, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
 
-    with {:ok, normalized_post_id} <- normalize_thread_id(post_id),
+    with {:ok, normalized_post_id} <- PostsThreadLookup.normalize_thread_id(post_id),
          %Post{} = post <- repo.get_by(Post, id: normalized_post_id, board_id: board.id) do
       {:ok, repo.preload(post, :extra_files)}
     else
@@ -518,98 +518,21 @@ defmodule Eirinchan.Posts do
   @spec get_thread(BoardRecord.t(), String.t() | integer(), keyword()) ::
           {:ok, [Post.t()]} | {:error, :not_found}
   def get_thread(%BoardRecord{} = board, thread_id, opts \\ []) do
-    repo = Keyword.get(opts, :repo, Repo)
-
-    with {:ok, normalized_thread_id} <- normalize_thread_id(thread_id),
-         %Post{} = thread <-
-           repo.one(
-             from post in Post,
-               where:
-                 post.id == ^normalized_thread_id and post.board_id == ^board.id and
-                   is_nil(post.thread_id)
-           ) do
-      replies =
-        repo.all(
-          from post in Post,
-            where: post.board_id == ^board.id and post.thread_id == ^thread.id,
-            order_by: [asc: post.inserted_at, asc: post.id]
-        )
-        |> repo.preload(:extra_files)
-
-      {:ok, [repo.preload(thread, :extra_files) | replies]}
-    else
-      _ -> {:error, :not_found}
-    end
+    PostsThreadLookup.get_thread(board, thread_id, opts)
   end
 
   @spec find_thread_page(BoardRecord.t(), String.t() | integer(), keyword()) ::
           {:ok, pos_integer()} | {:error, :not_found}
   def find_thread_page(%BoardRecord{} = board, thread_id, opts \\ []) do
-    repo = Keyword.get(opts, :repo, Repo)
-    config = Keyword.get(opts, :config, Config.compose())
-
-    with {:ok, normalized_thread_id} <- normalize_thread_id(thread_id) do
-      visible_thread_ids =
-        repo.all(
-          from post in Post,
-            where: post.board_id == ^board.id and is_nil(post.thread_id),
-            order_by: [
-              desc: post.sticky,
-              desc_nulls_last: post.bump_at,
-              desc: post.inserted_at,
-              desc: post.id
-            ],
-            limit: ^(config.threads_per_page * config.max_pages),
-            select: post.id
-        )
-
-      case Enum.find_index(visible_thread_ids, &(&1 == normalized_thread_id)) do
-        nil -> {:error, :not_found}
-        index -> {:ok, div(index, config.threads_per_page) + 1}
-      end
-    else
-      :error -> {:error, :not_found}
-    end
+    opts = Keyword.put_new(opts, :config, Config.compose())
+    PostsThreadLookup.find_thread_page(board, thread_id, opts)
   end
 
   @spec get_thread_view(BoardRecord.t(), String.t() | integer(), keyword()) ::
           {:ok, map()} | {:error, :not_found}
   def get_thread_view(%BoardRecord{} = board, thread_id, opts \\ []) do
-    repo = Keyword.get(opts, :repo, Repo)
-    config = Keyword.get(opts, :config, Config.compose())
-    last_posts = normalize_last_posts(Keyword.get(opts, :last_posts), config)
-
-    with {:ok, [thread | replies]} <- get_thread(board, thread_id, repo: repo) do
-      reply_image_count = Enum.sum(Enum.map(replies, &post_image_count/1))
-      total_reply_count = length(replies)
-      has_noko50 = total_reply_count >= config.noko50_min
-
-      shown_replies =
-        if(has_noko50, do: maybe_truncate_replies(replies, last_posts), else: replies)
-
-      {:ok,
-       %{
-         thread: thread,
-         replies: shown_replies,
-         reply_count: total_reply_count,
-         image_count: reply_image_count + post_image_count(thread),
-         omitted_posts:
-           if(last_posts, do: max(total_reply_count - length(shown_replies), 0), else: 0),
-         omitted_images:
-           if(last_posts,
-             do:
-               max(
-                 reply_image_count - Enum.sum(Enum.map(shown_replies, &post_image_count/1)),
-                 0
-               ),
-             else: 0
-           ),
-         last_modified: thread.bump_at || thread.inserted_at,
-         has_noko50: has_noko50,
-         is_noko50: not is_nil(last_posts) and has_noko50,
-         last_count: last_posts || config.noko50_count
-       }}
-    end
+    opts = Keyword.put_new(opts, :config, Config.compose())
+    PostsThreadLookup.get_thread_view(board, thread_id, opts)
   end
 
   @spec captcha_required?(map(), boolean()) :: boolean()
@@ -1128,22 +1051,6 @@ defmodule Eirinchan.Posts do
     end
   end
 
-  defp fetch_thread(_board, nil, _repo), do: {:ok, nil}
-
-  defp fetch_thread(board, thread_param, repo) do
-    with {:ok, thread_id} <- normalize_thread_id(thread_param),
-         %Post{} = thread <-
-           repo.one(
-             from post in Post,
-               where:
-                 post.id == ^thread_id and post.board_id == ^board.id and is_nil(post.thread_id)
-           ) do
-      {:ok, thread}
-    else
-      _ -> {:error, :thread_not_found}
-    end
-  end
-
   defp maybe_bump_thread(nil, _attrs, _config, _repo, _now), do: :ok
 
   defp maybe_bump_thread(thread, attrs, config, repo, now) do
@@ -1210,17 +1117,6 @@ defmodule Eirinchan.Posts do
 
     :ok
   end
-
-  defp normalize_thread_id(value), do: ThreadPaths.parse_thread_id(value)
-
-  defp normalize_last_posts(nil, _config), do: nil
-  defp normalize_last_posts(false, _config), do: nil
-  defp normalize_last_posts(true, config), do: config.noko50_count
-  defp normalize_last_posts(value, _config) when is_integer(value) and value > 0, do: value
-  defp normalize_last_posts(_value, _config), do: nil
-
-  defp maybe_truncate_replies(replies, nil), do: replies
-  defp maybe_truncate_replies(replies, count), do: Enum.take(replies, -count)
 
   defp build_thread_summaries(_board, [], _config, _repo, _opts), do: []
 
