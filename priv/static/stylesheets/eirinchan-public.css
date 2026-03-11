@@ -319,17 +319,6 @@ body.active-catalog .catalog-nav-row .pages {
 .admin-shortcuts-form {
   display: inline;
 }
-
-.admin-shortcuts-button {
-  background: none;
-  border: 0;
-  color: inherit;
-  cursor: pointer;
-  font: inherit;
-  padding: 0;
-  text-decoration: underline;
-  vertical-align: baseline;
-}
 .watcher-list{display:flex;flex-direction:column;gap:0.75rem;}
 .watcher-thread{margin:0;}
 .watcher-entry{padding:0.5rem 0.75rem;}

@@ -133,7 +133,7 @@ defmodule EirinchanWeb.PostComponents do
       <form action="/manage/logout/browser" method="post" class="inline-form admin-shortcuts-form">
         <input type="hidden" name="_csrf_token" value={Phoenix.Controller.get_csrf_token()} />
         <input type="hidden" name="_method" value="delete" />
-        <input type="submit" value="Logout" class="admin-shortcuts-button" />
+        <a href="/manage/logout/browser" class="admin-shortcuts-logout" onclick="this.closest('form').submit(); return false;">Logout</a>
       </form>
     </div>
     """
