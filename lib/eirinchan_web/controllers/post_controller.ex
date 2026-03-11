@@ -132,7 +132,8 @@ defmodule EirinchanWeb.PostController do
         id: post.id,
         thread_id: thread_id,
         redirect: redirect_path,
-        noko: meta.noko
+        noko: meta.noko,
+        fragment_kind: if(post.thread_id, do: "reply", else: "thread")
       }
 
       payload =
