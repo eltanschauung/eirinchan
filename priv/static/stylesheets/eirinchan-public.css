@@ -89,10 +89,6 @@ body.active-catalog .catalog-updater-meta {
   color: #0a0 !important;
 }
 
-.board-live-updater.paused #update_thread {
-  color: red;
-}
-
 .board-live-updater.paused .live-page-indicator {
   color: red !important;
 }
