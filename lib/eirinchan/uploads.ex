@@ -557,11 +557,10 @@ defmodule Eirinchan.Uploads do
 
   defp generate_thumbnail(source, destination, config, metadata, op?) do
     cond do
-      Map.get(metadata, :spoiler) ->
-        generate_spoiler_thumbnail(destination, config)
-
       image?(metadata) ->
-        generate_image_thumbnail(source, destination, config, op?)
+        with :ok <- generate_image_thumbnail(source, destination, config, op?) do
+          if Map.get(metadata, :spoiler), do: generate_spoiler_thumbnail(destination, config), else: :ok
+        end
 
       true ->
         generate_placeholder_thumbnail(destination, config, metadata)
@@ -689,30 +688,25 @@ defmodule Eirinchan.Uploads do
     end
   end
 
-  defp generate_spoiler_thumbnail(destination, config) do
-    size = "#{config.thumb_width}x#{config.thumb_height}"
+  defp generate_spoiler_thumbnail(destination, _config) do
+    temp_destination = destination <> ".blur.png"
 
     case System.cmd(
            "convert",
-           [
-             "-size",
-             size,
-             "xc:#202020",
-             "-fill",
-             "#f0f0f0",
-             "-gravity",
-             "center",
-             "-pointsize",
-             "26",
-             "-annotate",
-             "0",
-             "SPOILER",
-             destination
-           ],
+           [destination, "-blur", "0x8", temp_destination],
            stderr_to_stdout: true
          ) do
-      {_output, 0} -> :ok
-      _ -> {:error, :upload_failed}
+      {_output, 0} ->
+        case File.rename(temp_destination, destination) do
+          :ok -> :ok
+          {:error, _reason} ->
+            _ = File.rm(temp_destination)
+            {:error, :upload_failed}
+        end
+
+      _ ->
+        _ = File.rm(temp_destination)
+        {:error, :upload_failed}
     end
   end
 
