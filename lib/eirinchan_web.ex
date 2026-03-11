@@ -37,6 +37,7 @@ defmodule EirinchanWeb do
         favicon.ico
         reisen_up.png
         robots.txt
+        spoiler_skillet.png
         tewi_down.png
       )
 

@@ -107,4 +107,22 @@ defmodule EirinchanWeb.PostViewTest do
     assert html =~ ~s(href="#671")
     assert html =~ ~s(class="mentioned-672")
   end
+
+  test "file_image_html uses the configured spoiler image for spoilered files" do
+    config = Config.compose()
+
+    file = %{
+      file_name: "example.jpg",
+      file_path: "/bant/src/example.jpg",
+      thumb_path: "/bant/thumb/example.jpg",
+      image_width: 640,
+      image_height: 480,
+      spoiler: true
+    }
+
+    html = PostView.file_image_html(file, config)
+
+    assert html =~ ~s(src="/static/spoiler_skillet.png")
+    refute html =~ ~s(src="/bant/thumb/example.jpg")
+  end
 end

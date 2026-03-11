@@ -102,6 +102,8 @@ defmodule Eirinchan.Runtime.Config do
     reply_limit: 250,
     reply_hard_limit: 0,
     image_hard_limit: 0,
+    spoiler_images: true,
+    spoiler_image: "static/spoiler_skillet.png",
     cycle_limit: 250,
     always_noko: false,
     slugify: false,
