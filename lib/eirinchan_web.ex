@@ -35,7 +35,9 @@ defmodule EirinchanWeb do
         background_christmas.jpg
         christmas_alice.png
         favicon.ico
+        reisen_up.png
         robots.txt
+        tewi_down.png
       )
 
   def router do
