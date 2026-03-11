@@ -306,5 +306,6 @@ body.active-catalog .catalog-nav-row .pages {
 #server-watcher-dialog{display:none;position:fixed;inset:0;z-index:10000;}
 .watcher-dialog-background{position:absolute;inset:0;background:rgba(0,0,0,0.35);}
 .watcher-dialog-panel{position:relative;max-width:920px;margin:4rem auto;padding:0.75rem 1rem;max-height:calc(100vh - 8rem);overflow:auto;}
+.watcher-dialog-panel.post.reply{display:block;}
 .watcher-dialog-close{float:right;text-decoration:none;}
 .watcher-dialog-body{clear:both;}
