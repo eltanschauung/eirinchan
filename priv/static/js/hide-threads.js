@@ -39,10 +39,11 @@ $(document).ready(function(){
 	var fields_to_hide = 'div.file,div.post,div.video-container,video,iframe,img:not(.unanimated),canvas,p.fileinfo,a.hide-thread-link,div.new-posts,br';
 
 	var ensure_control_rail = function(thread_container) {
-		var rail = thread_container.children('.thread-top-controls');
+		var intro = thread_container.find('div.post.op > p.intro').first();
+		var rail = intro.children('.thread-top-controls');
 		if (!rail.length) {
 			rail = $('<span class="thread-top-controls"></span>');
-			rail.insertBefore(thread_container.find(':not(h2,h2 *):first'));
+			intro.prepend(rail);
 		}
 		return rail;
 	};

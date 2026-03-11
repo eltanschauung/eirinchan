@@ -352,11 +352,11 @@ if (active_page === 'thread' || active_page === 'index' || active_page === 'cata
 				$('.hide-thread-link').remove();*/
 
 			if ($(ele).hasClass('op') && !$(ele).find('.hide-thread-link').length) {
-				var thread = $(ele).closest('.thread');
-				var rail = thread.children('.thread-top-controls');
+				var intro = $(ele).find('p.intro').first();
+				var rail = intro.children('.thread-top-controls');
 				if (!rail.length) {
 					rail = $('<span class="thread-top-controls"></span>');
-					rail.insertBefore(thread.find(':not(h2,h2 *):first'));
+					intro.prepend(rail);
 				}
 				$('<a class="hide-thread-link" href="javascript:void(0)">[' + ($(ele).data('hidden') ? '+' : '&ndash;') + ']</a>')
 					.prependTo(rail)
