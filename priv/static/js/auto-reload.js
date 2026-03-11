@@ -343,7 +343,7 @@ $(document).ready(function(){
 				var currentThreads = document.querySelector('#board-threads');
 				var new_threads = 0;
 				var currentNodes = {};
-				var orderedNodes = [];
+				var orderedEntries = [];
 				var replacementThreads;
 
 				if (!replacement || !current || !currentThreads) {
@@ -367,6 +367,7 @@ $(document).ready(function(){
 					var id = node.id;
 					var existing = id ? currentNodes[id] : null;
 					var nextNode;
+					var nextSeparator = node.nextElementSibling && node.nextElementSibling.tagName === 'HR' ? node.nextElementSibling.cloneNode(true) : document.createElement('hr');
 
 					if (existing) {
 						if (existing.outerHTML !== node.outerHTML) {
@@ -388,15 +389,17 @@ $(document).ready(function(){
 						nextNode = node.cloneNode(true);
 					}
 
-					orderedNodes.push(nextNode);
+					orderedEntries.push({threadNode: nextNode, separatorNode: nextSeparator});
 				});
 
 				while (currentThreads.firstChild) {
 					currentThreads.removeChild(currentThreads.firstChild);
 				}
 
-				orderedNodes.forEach(function(threadNode) {
+				orderedEntries.forEach(function(entry) {
+					var threadNode = entry.threadNode;
 					currentThreads.appendChild(threadNode);
+					currentThreads.appendChild(entry.separatorNode);
 
 					$(threadNode).find('.post').each(function() {
 						if (window.EirinchanFrontend && typeof window.EirinchanFrontend.initPost === 'function') {
