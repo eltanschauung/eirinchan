@@ -877,7 +877,8 @@ defmodule EirinchanWeb.PostView do
     media_width = media_display_width(post, config, opts)
 
     media_count(post) > 0 and
-      ((metrics.lines >= 3 and media_width >= 110) or
+      ((metrics.lines >= 2 and media_width >= 200) or
+         (metrics.lines >= 3 and media_width >= 110) or
          (metrics.length >= 120 and media_width >= 140) or
          (metrics.longest_line >= 36 and media_width >= 140) or
          (body_complex_enough?(metrics) and media_width >= 200))
