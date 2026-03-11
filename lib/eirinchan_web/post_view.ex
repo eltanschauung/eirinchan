@@ -417,7 +417,12 @@ defmodule EirinchanWeb.PostView do
         value -> ~s( class="#{html_escape_to_string(value)}")
       end
 
-    ~s|<a href="#{html_escape_to_string(file.file_path)}" target="_blank"#{class_attr}><img class="post-image" src="#{html_escape_to_string(file_thumb_src(file, config))}"#{thumb_style_attr} alt="" /></a>|
+    image_classes =
+      ["post-image", if(Map.get(file, :spoiler, false), do: "spoiler-image", else: nil)]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.join(" ")
+
+    ~s|<a href="#{html_escape_to_string(file.file_path)}" target="_blank"#{class_attr}><img class="#{image_classes}" src="#{html_escape_to_string(file_thumb_src(file, config))}"#{thumb_style_attr} alt="" /></a>|
   end
 
   def post_container_style(post), do: if(media_count(post) > 1, do: "clear:both", else: nil)
@@ -771,9 +776,6 @@ defmodule EirinchanWeb.PostView do
       has_embed?(post) ->
         youtube_thumbnail(post.embed)
 
-      Map.get(post, :spoiler, false) ->
-        spoiler_image_path(config)
-
       present?(post.thumb_path) ->
         post.thumb_path
 
@@ -798,26 +800,13 @@ defmodule EirinchanWeb.PostView do
     end
   end
 
-  defp file_thumb_src(file, config) do
+  defp file_thumb_src(file, _config) do
     cond do
-      Map.get(file, :spoiler, false) ->
-        spoiler_image_path(config)
-
       present?(file.thumb_path) ->
         file.thumb_path
 
       true ->
         file.file_path
-    end
-  end
-
-  defp spoiler_image_path(config) do
-    case Map.get(config, :spoiler_image) do
-      value when is_binary(value) and value != "" ->
-        if String.starts_with?(value, "/"), do: value, else: "/" <> value
-
-      _ ->
-        "/static/spoiler_skillet.png"
     end
   end
 
