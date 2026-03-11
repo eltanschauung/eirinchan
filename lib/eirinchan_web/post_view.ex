@@ -535,14 +535,18 @@ defmodule EirinchanWeb.PostView do
   end
 
   defp post_flags_html(post, config) do
-    Enum.map_join(post_flags(post, config), "", fn flag ->
+    post_flags(post, config)
+    |> Enum.with_index()
+    |> Enum.map_join("", fn {flag, index} ->
       style_attr =
         case flag_style(config) do
           nil -> ""
           value -> ~s( style="#{html_escape_to_string(value)}")
         end
 
-      ~s(<img class="flag" src="#{html_escape_to_string(flag.src)}" alt="#{html_escape_to_string(flag.alt)}" title="#{html_escape_to_string(flag.alt)}"#{style_attr} />)
+      separator = if index > 0, do: " ", else: ""
+
+      ~s(#{separator}<img class="flag" src="#{html_escape_to_string(flag.src)}" alt="#{html_escape_to_string(flag.alt)}" title="#{html_escape_to_string(flag.alt)}"#{style_attr} />)
     end)
   end
 
