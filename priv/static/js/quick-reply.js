@@ -295,17 +295,18 @@
 				return;
 			}
 
-			var $spoilerCell = $('<td class="spoiler"></td>').append(
-				$('<input type="checkbox" name="spoiler" value="1" id="q-spoiler-image">'),
-				' ',
-				$('<label for="q-spoiler-image">').text(_('Spoiler'))
-			);
+			var $spoilerCell = $('<td class="spoiler"></td>').append($('<input type="checkbox" name="spoiler" value="1" id="q-spoiler-image">'), ' ', $('<label for="q-spoiler-image">').text(_('Spoiler')));
 
 			$submitCell.after($spoilerCell);
 			$postForm.find('td.submit').prev('td[colspan="2"]').removeAttr('colspan');
 		};
 
 		ensure_spoiler_control();
+
+		$postForm.find('input[name="user_flag"], select[name="user_flag"], textarea[name="user_flag"]').each(function() {
+			$(this).css('width', '90px');
+			$(this).attr('size', '10');
+		});
 
 		$postForm.find('table').prepend('<tr><th colspan="2">\
 			<span class="handle">\
