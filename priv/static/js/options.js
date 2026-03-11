@@ -10,7 +10,7 @@
 
 +function(){
 
-var options_button, admin_button, options_links, options_handler, options_background, options_div
+var options_button, admin_button, watcher_button, options_links, options_handler, options_background, options_div
   , options_close, options_tablist, options_tabs, options_current_tab;
 
 var Options = {};
@@ -106,16 +106,22 @@ $(function(){
   options_links = $("<span id='admin_options_links'></span>").css({"float": "right"});
   options_button = $("<a href='javascript:void(0)' title='"+_("Options")+"'>["+_("Options")+"]</a>");
   admin_button = $("<a href='/manage' title='"+_("Admin")+"'>["+_("Admin")+"]</a>");
+  watcher_button = $("<a href='/watcher' title='"+_("Watcher")+"'>["+_("Watcher")+"]</a>");
 
   if ($(".boardlist.compact-boardlist").length) {
     options_button.addClass("cb-item cb-fa").html("<i class='fa fa-gear'></i>");
     admin_button.addClass("cb-item").text(_("Admin"));
+    watcher_button.addClass("cb-item").text(_("Watcher"));
     admin_button.appendTo(options_links);
+    $("<span>&nbsp;</span>").appendTo(options_links);
+    watcher_button.appendTo(options_links);
     $("<span>&nbsp;</span>").appendTo(options_links);
     options_button.appendTo(options_links);
   }
   else {
     admin_button.appendTo(options_links);
+    $("<span>&nbsp;</span>").appendTo(options_links);
+    watcher_button.appendTo(options_links);
     $("<span>&nbsp;</span>").appendTo(options_links);
     options_button.appendTo(options_links);
   }

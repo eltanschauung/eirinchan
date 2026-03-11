@@ -236,3 +236,12 @@ body.active-catalog .catalog-nav-row .pages {
 .faq-page-shell .content {
   padding: 4px;
 }
+
+.watcher-page{max-width:860px;margin:1rem auto;}
+.watcher-list{display:flex;flex-direction:column;gap:0.75rem;}
+.watcher-entry{border:1px solid #b7c5d9;background:#d6daf0;padding:0.5rem 0.75rem;}
+.watcher-entry.has-unread{border-color:#789922;}
+.watcher-entry-top{display:flex;justify-content:space-between;gap:1rem;align-items:baseline;flex-wrap:wrap;}
+.watcher-meta{font-size:11px;color:#555;}
+.watcher-excerpt{margin-top:0.35rem;white-space:normal;}
+.watcher-actions{margin-top:0.35rem;}

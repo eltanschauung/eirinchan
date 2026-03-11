@@ -9,6 +9,7 @@ defmodule EirinchanWeb.PageController do
   alias Eirinchan.Installation
   alias Eirinchan.News
   alias Eirinchan.Posts
+  alias Eirinchan.ThreadWatcher
   alias Eirinchan.Posts.{Post, PostFile}
   alias Eirinchan.Repo
   alias Eirinchan.Runtime.Config
@@ -140,6 +141,34 @@ defmodule EirinchanWeb.PageController do
         page ->
           render_custom_page(conn, page)
       end
+    end
+  end
+
+  def watcher(conn, _params) do
+    if Installation.setup_required?() do
+      redirect(conn, to: ~p"/setup")
+    else
+      summaries =
+        case conn.assigns[:browser_token] do
+          token when is_binary(token) ->
+            ThreadWatcher.list_watch_summaries(token)
+            |> Enum.map(fn summary ->
+              Map.put(summary, :thread_path, thread_watcher_path(summary))
+            end)
+
+          _ ->
+            []
+        end
+
+      render(
+        conn,
+        :watcher,
+        Keyword.merge(
+          public_page_assigns(conn, "active-page", "watcher"),
+          layout: false,
+          watch_summaries: summaries
+        )
+      )
     end
   end
 
@@ -605,5 +634,15 @@ defmodule EirinchanWeb.PageController do
     value
     |> Phoenix.HTML.html_escape()
     |> Phoenix.HTML.safe_to_string()
+  end
+
+  defp thread_watcher_path(summary) do
+    base = "/#{summary.board_uri}/res/#{summary.thread_id}"
+
+    if is_binary(summary.slug) and summary.slug != "" do
+      base <> "-" <> summary.slug <> ".html"
+    else
+      base <> ".html"
+    end
   end
 end
