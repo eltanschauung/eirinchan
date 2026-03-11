@@ -108,6 +108,12 @@ defmodule EirinchanWeb.PostViewTest do
     assert html =~ ~s(class="mentioned-672")
   end
 
+  test "post_number_links_html explicitly returns citeReply result" do
+    html = PostView.post_number_links_html(670, "/bant/res/668.html#670", "/bant/res/668.html#q670")
+
+    assert html =~ ~s|onclick="return citeReply(670)"|
+  end
+
   test "file_image_html uses blurred spoiler class on the normal thumbnail" do
     config = Config.compose()
 
