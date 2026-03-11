@@ -15,7 +15,7 @@
           data-thread-id={thread.id}
           data-watch-url={"/watcher/#{@board.uri}/#{thread.id}"}
           data-unwatch-url={"/watcher/#{@board.uri}/#{thread.id}"}
-          data-watched={watch.watched}
+          data-watched={to_string(watch.watched)}
         >
           <div :if={PostView.media_entries(thread, @config) != []} class="files">
             <%= for media <- PostView.media_entries(thread, @config) do %>
