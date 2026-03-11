@@ -240,6 +240,14 @@ body.active-catalog .catalog-nav-row .pages {
 .watcher-page{max-width:860px;margin:1rem auto;}
 .watcher-page-shell{max-width:860px;margin:1rem auto;}
 .watcher-page-panel{display:block;padding:0.75rem 1rem;}
+.watcher-you-count {
+  margin-left: 0.35em;
+}
+
+#watcher-link.replies-quoting-you,
+.watcher-you-count.replies-quoting-you {
+  color: red;
+}
 
 .thread-top-controls {
   display: inline-flex;

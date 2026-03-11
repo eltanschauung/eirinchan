@@ -9,9 +9,14 @@
     return field ? field.value : null;
   };
 
-  var setWatcherCount = function(count) {
+  var setWatcherCount = function(count, youCount) {
+    if (typeof youCount !== 'number' || isNaN(youCount)) {
+      youCount = parseInt(document.body && document.body.dataset ? document.body.dataset.watcherYouCount || '0' : '0', 10) || 0;
+    }
+
     if (document.body && document.body.dataset) {
       document.body.dataset.watcherCount = String(count);
+      document.body.dataset.watcherYouCount = String(youCount);
     }
 
     var link = document.getElementById('watcher-link');
@@ -21,6 +26,7 @@
       link.title = label;
       link.setAttribute('aria-label', label);
       link.dataset.count = String(count);
+      link.classList.toggle('replies-quoting-you', youCount > 0);
     }
   };
 
@@ -86,6 +92,11 @@
       body: JSON.stringify({last_seen_post_id: lastSeenPostId})
     }).then(function(response) {
       if (!response.ok && response.status !== 404) throw new Error('watch seen failed');
+      return response.ok ? response.json() : null;
+    }).then(function(payload) {
+      if (payload && typeof payload.watcher_count === 'number') {
+        setWatcherCount(payload.watcher_count, payload.watcher_you_count);
+      }
     }).catch(function(error) {
       console.error(error);
     });
@@ -175,7 +186,7 @@
     }).then(function(payload) {
       syncWatchLinks(payload.thread_id, !!payload.watched);
       if (typeof payload.watcher_count === 'number') {
-        setWatcherCount(payload.watcher_count);
+        setWatcherCount(payload.watcher_count, payload.watcher_you_count);
       }
       if (watcherTab && window.Options && Options.get_tab && Options.get_tab('watcher') && watcherTab.icon.hasClass('active')) {
         refreshWatcherTab();
@@ -190,7 +201,10 @@
   document.addEventListener('DOMContentLoaded', function() {
     if (window.Options && Options.get_tab) {
       ensureWatcherTab();
-      setWatcherCount(parseInt(document.body && document.body.dataset ? document.body.dataset.watcherCount || '0' : '0', 10) || 0);
+      setWatcherCount(
+        parseInt(document.body && document.body.dataset ? document.body.dataset.watcherCount || '0' : '0', 10) || 0,
+        parseInt(document.body && document.body.dataset ? document.body.dataset.watcherYouCount || '0' : '0', 10) || 0
+      );
     }
   });
 })();

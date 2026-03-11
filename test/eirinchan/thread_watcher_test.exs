@@ -2,6 +2,7 @@ defmodule Eirinchan.ThreadWatcherTest do
   use Eirinchan.DataCase, async: true
 
   alias Eirinchan.ThreadWatcher
+  alias Eirinchan.PostOwnership
 
   test "watch_thread upserts and watched_thread_ids batches" do
     assert {:ok, _watch} = ThreadWatcher.watch_thread("token-1234567890123456", "bant", 10)
@@ -47,5 +48,28 @@ defmodule Eirinchan.ThreadWatcherTest do
              state[thread.id]
 
     assert ThreadWatcher.watch_count("token-state-1234567890") == 1
+  end
+
+  test "watch metrics include unread (You) replies" do
+    board = board_fixture(%{uri: "watchyou", title: "Watch You"})
+    thread = thread_fixture(board, %{body: "OP"})
+    owned_reply = reply_fixture(board, thread, %{body: "Owned reply"})
+    _citing_reply = reply_fixture(board, thread, %{body: ">>#{owned_reply.id} cited"})
+    token = "token-you-1234567890"
+
+    assert {:ok, _} = PostOwnership.record(token, owned_reply.id)
+
+    assert {:ok, _watch} =
+             ThreadWatcher.watch_thread(token, board.uri, thread.id, %{
+               last_seen_post_id: owned_reply.id
+             })
+
+    assert %{watcher_count: 1, watcher_you_count: 1} = ThreadWatcher.watch_metrics(token)
+
+    state = ThreadWatcher.watch_state_for_board(token, board.uri)
+    assert %{you_unread_count: 1} = state[thread.id]
+
+    [summary] = ThreadWatcher.list_watch_summaries(token)
+    assert summary.you_unread_count == 1
   end
 end

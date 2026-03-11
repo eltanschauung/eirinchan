@@ -20,7 +20,8 @@ defmodule EirinchanWeb.ThreadWatcherController do
         watched: true,
         thread_id: thread.id,
         board: board.uri,
-        watcher_count: ThreadWatcher.watch_count(conn.assigns.browser_token)
+        watcher_count: ThreadWatcher.watch_count(conn.assigns.browser_token),
+        watcher_you_count: ThreadWatcher.watch_metrics(conn.assigns.browser_token).watcher_you_count
       })
     else
       {:error, :not_found} -> send_resp(conn, :not_found, "")
@@ -39,7 +40,8 @@ defmodule EirinchanWeb.ThreadWatcherController do
         watched: false,
         thread_id: thread.id,
         board: board.uri,
-        watcher_count: ThreadWatcher.watch_count(conn.assigns.browser_token)
+        watcher_count: ThreadWatcher.watch_count(conn.assigns.browser_token),
+        watcher_you_count: ThreadWatcher.watch_metrics(conn.assigns.browser_token).watcher_you_count
       })
     else
       {:error, :not_found} -> send_resp(conn, :not_found, "")
@@ -60,7 +62,13 @@ defmodule EirinchanWeb.ThreadWatcherController do
              thread.id,
              parsed_last_seen_post_id
            ) do
-      json(conn, %{ok: true, thread_id: thread.id, last_seen_post_id: parsed_last_seen_post_id})
+      json(conn, %{
+        ok: true,
+        thread_id: thread.id,
+        last_seen_post_id: parsed_last_seen_post_id,
+        watcher_count: ThreadWatcher.watch_count(conn.assigns.browser_token),
+        watcher_you_count: ThreadWatcher.watch_metrics(conn.assigns.browser_token).watcher_you_count
+      })
     else
       {:error, :not_found} -> send_resp(conn, :not_found, "")
       {:error, :thread_not_found} -> send_resp(conn, :not_found, "")

@@ -15,7 +15,13 @@ defmodule EirinchanWeb.ThreadWatcherControllerTest do
       |> put_req_cookie("browser_token", token)
       |> post("/watcher/#{board.uri}/#{thread.id}", %{"_csrf_token" => CSRFProtection.get_csrf_token()})
 
-    assert %{"ok" => true, "watched" => true, "thread_id" => ^thread_id, "watcher_count" => 1} =
+    assert %{
+             "ok" => true,
+             "watched" => true,
+             "thread_id" => ^thread_id,
+             "watcher_count" => 1,
+             "watcher_you_count" => 0
+           } =
              json_response(conn, 200)
     assert ThreadWatcher.watched?(token, board.uri, thread_id)
 
@@ -25,7 +31,13 @@ defmodule EirinchanWeb.ThreadWatcherControllerTest do
       |> put_req_header("x-csrf-token", CSRFProtection.get_csrf_token())
       |> delete("/watcher/#{board.uri}/#{thread_id}")
 
-    assert %{"ok" => true, "watched" => false, "thread_id" => ^thread_id, "watcher_count" => 0} =
+    assert %{
+             "ok" => true,
+             "watched" => false,
+             "thread_id" => ^thread_id,
+             "watcher_count" => 0,
+             "watcher_you_count" => 0
+           } =
              json_response(conn, 200)
 
     refute ThreadWatcher.watched?(token, board.uri, thread_id)
@@ -59,7 +71,13 @@ defmodule EirinchanWeb.ThreadWatcherControllerTest do
       |> put_req_header("x-csrf-token", CSRFProtection.get_csrf_token())
       |> patch("/watcher/#{board.uri}/#{thread_id}", %{"last_seen_post_id" => Integer.to_string(thread_id + 5)})
 
-    assert %{"ok" => true, "thread_id" => ^thread_id, "last_seen_post_id" => last_seen_post_id} =
+    assert %{
+             "ok" => true,
+             "thread_id" => ^thread_id,
+             "last_seen_post_id" => last_seen_post_id,
+             "watcher_count" => 1,
+             "watcher_you_count" => 0
+           } =
              json_response(conn, 200)
 
     assert last_seen_post_id == thread_id + 5

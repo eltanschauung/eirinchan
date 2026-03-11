@@ -85,6 +85,7 @@
     class={assigns[:body_class] || "8chan vichan"}
     data-stylesheet={assigns[:body_data_stylesheet]}
     data-watcher-count={assigns[:watcher_count] || 0}
+    data-watcher-you-count={assigns[:watcher_you_count] || 0}
   >
     <%= if assigns[:global_boardlist_html] do %>
       <%= Phoenix.HTML.raw(assigns[:global_boardlist_html]) %>

@@ -76,7 +76,8 @@ defmodule EirinchanWeb.BoardController do
       {:ok, page_data} ->
         chrome = BoardChrome.for_board(board)
         thread_watch_state = thread_watch_state(conn, board)
-        watcher_count = watcher_count(conn)
+        %{watcher_count: watcher_count, watcher_you_count: watcher_you_count} =
+          watcher_metrics(conn)
         own_post_ids = ShowYous.owned_post_ids(conn, Enum.map(page_data.threads, & &1.thread))
         show_yous = ShowYous.enabled?(conn)
         fragment? = Keyword.get(opts, :fragment?, false)
@@ -91,6 +92,7 @@ defmodule EirinchanWeb.BoardController do
           threads: page_data.threads,
           thread_watch_state: thread_watch_state,
           watcher_count: watcher_count,
+          watcher_you_count: watcher_you_count,
           own_post_ids: own_post_ids,
           show_yous: show_yous,
           config: config,
@@ -115,7 +117,8 @@ defmodule EirinchanWeb.BoardController do
               resource_version: conn.assigns[:asset_version],
               theme_label: conn.assigns[:theme_label],
               theme_options: conn.assigns[:theme_options],
-              watcher_count: watcher_count
+              watcher_count: watcher_count,
+              watcher_you_count: watcher_you_count
             ),
           eager_javascript_urls: PublicShell.eager_javascript_urls(:catalog, config),
           javascript_urls: PublicShell.javascript_urls(:catalog, config),
@@ -143,7 +146,8 @@ defmodule EirinchanWeb.BoardController do
         chrome = BoardChrome.for_board(board)
         backlinks_map = page_backlinks_map(page_data)
         thread_watch_state = thread_watch_state(conn, board)
-        watcher_count = watcher_count(conn)
+        %{watcher_count: watcher_count, watcher_you_count: watcher_you_count} =
+          watcher_metrics(conn)
         own_post_ids = own_post_ids(conn, page_data)
         show_yous = ShowYous.enabled?(conn)
         fragment? = Keyword.get(opts, :fragment?, false)
@@ -161,6 +165,7 @@ defmodule EirinchanWeb.BoardController do
           show_yous: show_yous,
           thread_watch_state: thread_watch_state,
           watcher_count: watcher_count,
+          watcher_you_count: watcher_you_count,
           config: config,
           boards: boards,
           board_chrome: chrome,
@@ -182,7 +187,8 @@ defmodule EirinchanWeb.BoardController do
               resource_version: conn.assigns[:asset_version],
               theme_label: conn.assigns[:theme_label],
               theme_options: conn.assigns[:theme_options],
-              watcher_count: watcher_count
+              watcher_count: watcher_count,
+              watcher_you_count: watcher_you_count
             ),
           eager_javascript_urls: PublicShell.eager_javascript_urls(:index, config),
           javascript_urls: PublicShell.javascript_urls(:index, config),
@@ -247,9 +253,13 @@ defmodule EirinchanWeb.BoardController do
   end
 
   defp watcher_count(conn) do
+    watcher_metrics(conn).watcher_count
+  end
+
+  defp watcher_metrics(conn) do
     case conn.assigns[:browser_token] do
-      token when is_binary(token) -> ThreadWatcher.watch_count(token)
-      _ -> 0
+      token when is_binary(token) -> ThreadWatcher.watch_metrics(token)
+      _ -> %{watcher_count: 0, watcher_you_count: 0}
     end
   end
 
