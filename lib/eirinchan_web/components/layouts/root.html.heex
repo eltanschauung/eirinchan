@@ -44,6 +44,7 @@
     />
     <script
       :for={script_url <- assigns[:javascript_urls] || []}
+      defer={assigns[:public_shell]}
       type="text/javascript"
       src={versioned_asset(script_url, assigns[:asset_version])}
     >
@@ -76,7 +77,9 @@
       <%= Phoenix.HTML.raw(assigns[:global_boardlist_html]) %>
       <%= if assigns[:javascript_urls] && assigns[:javascript_urls] != [] do %>
         <script type="text/javascript">
-          if (typeof do_boardlist !== 'undefined') do_boardlist();
+          document.addEventListener('DOMContentLoaded', function () {
+            if (typeof do_boardlist !== 'undefined') do_boardlist();
+          }, { once: true });
         </script>
       <% end %>
     <% end %>
