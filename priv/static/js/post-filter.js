@@ -221,11 +221,14 @@ if (active_page === 'thread' || active_page === 'index' || active_page === 'cata
 				submenu.add_item('filter-remove-trip', _('Tripcode'));
 
 			Menu.onclick(function (e, $buffer) {
-				var ele = e.target.parentElement.parentElement;
+				var ele = e.target.dataset.postTarget
+					? document.getElementById(e.target.dataset.postTarget)
+					: $(e.target).closest('.post')[0];
 				var $ele = $(ele);
+				var $thread = $ele.closest('.thread');
 
-				var threadId = $ele.parent().attr('id').replace('thread_', '');
-				var boardId = $ele.parent().data('board');
+				var threadId = ($thread.attr('id') || '').replace('thread_', '');
+				var boardId = $thread.data('board');
 				var postId = $ele.find('.post_no').not('[id]').text();
 				if (pageData.hasUID) {
 					var postUid = $ele.find('.poster_id').text();
