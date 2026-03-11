@@ -15,28 +15,4 @@
  *
  */
 
-onReady(function() {
-	let doOriginalFilename = function() {
-		let filename, truncated;
-		if ($(this).attr('title')) {
-			filename = $(this).attr('title');
-			truncated = true;
-		} else {
-			filename = $(this).text();
-		}
-
-		$(this).replaceWith(
-			$('<a></a>')
-				.attr('download', filename)
-				.append($(this).contents())
-				.attr('href', $(this).parent().parent().find('a').attr('href'))
-				.attr('title', _('Save as original filename') + (truncated ? ' (' + filename + ')' : ''))
-			);
-	};
-
-	$('.postfilename').each(doOriginalFilename);
-
-	$(document).on('new_post', function(e, post) {
-		$(post).find('.postfilename').each(doOriginalFilename);
-	});
-});
+onReady(function() {});
