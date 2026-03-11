@@ -313,12 +313,13 @@
 
     if (!cookieValue) return saved;
 
-    var parts = String(cookieValue).split(":");
-    if (parts.length === 2) {
-      saved[document.location] = saved[document.location];
-      saved[window.location.origin + "/" + parts[0] + "/res/" + parts[1] + ".html"] = null;
-      saved[window.location.origin + "/" + parts[0]] = null;
-      saved[window.location.origin + "/" + parts[0] + "/"] = null;
+    try {
+      var successful = JSON.parse(cookieValue);
+
+      Object.keys(successful).forEach(function(url) {
+        saved[url] = null;
+      });
+    } catch (_error) {
     }
 
     document.cookie = cookieName + "=;expires=0;path=/;";

@@ -516,18 +516,40 @@ defmodule EirinchanWeb.PostController do
   defp captcha_field("hcaptcha"), do: "h-captcha-response"
   defp captcha_field(_provider), do: "captcha"
 
-  defp put_post_success_cookie(conn, board, %{thread_id: nil}) do
-    put_resp_cookie(conn, "eirinchan_posted", "#{board.uri}:new", max_age: 120, path: "/")
+  defp put_post_success_cookie(conn, _board, _post) do
+    referer =
+      conn
+      |> get_req_header("referer")
+      |> List.first()
+
+    if is_binary(referer) and referer != "" do
+      successful =
+        conn.req_cookies
+        |> Map.get("eirinchan_posted")
+        |> decode_post_success_cookie()
+        |> Map.put(referer, true)
+
+      put_resp_cookie(
+        conn,
+        "eirinchan_posted",
+        Jason.encode!(successful),
+        max_age: 120,
+        path: "/"
+      )
+    else
+      conn
+    end
   end
 
-  defp put_post_success_cookie(conn, board, %{thread_id: thread_id}) do
-    put_resp_cookie(
-      conn,
-      "eirinchan_posted",
-      "#{board.uri}:#{thread_id}",
-      max_age: 120,
-      path: "/"
-    )
+  defp decode_post_success_cookie(raw_cookie) when is_binary(raw_cookie) do
+    case Jason.decode(raw_cookie) do
+      {:ok, decoded} when is_map(decoded) -> decoded
+      _ -> %{}
+    end
+  end
+
+  defp decode_post_success_cookie(_raw_cookie) do
+    %{}
   end
 
   defp log_post_error(reason, status, conn) do
