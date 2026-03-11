@@ -154,6 +154,7 @@ defmodule EirinchanWeb.PageController do
         Keyword.merge(
           public_page_assigns(conn, "active-page", "watcher"),
           layout: false,
+          hide_theme_switcher: true,
           watch_summaries: watcher_summaries(conn)
         )
       )
