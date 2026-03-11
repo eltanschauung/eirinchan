@@ -123,6 +123,11 @@
     <%= if @analytics_html do %>
       <%= Phoenix.HTML.raw(@analytics_html) %>
     <% end %>
+    <%= if assigns[:public_shell] && !assigns[:hide_theme_switcher] && assigns[:theme_options] && assigns[:theme_options] != [] do %>
+      <%= Phoenix.HTML.raw(
+        EirinchanWeb.PublicShell.style_select_html(@theme_options, @theme_label || "Yotsuba")
+      ) %>
+    <% end %>
     <%= if assigns[:public_shell] && !assigns[:hide_theme_switcher] && assigns[:show_styles_block] != false && assigns[:theme_options] && assigns[:theme_options] != [] do %>
       <%= Phoenix.HTML.raw(
         EirinchanWeb.PublicShell.styles_html(@theme_options, @theme_label || "Yotsuba")

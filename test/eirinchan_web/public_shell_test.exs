@@ -115,7 +115,23 @@ defmodule EirinchanWeb.PublicShellTest do
     assert PublicShell.javascript_urls(:thread, config) == [
              "/main.js",
              "/js/jquery.min.js",
-             "/js/ajax.js"
+           "/js/ajax.js"
+           ]
+  end
+
+  test "filters legacy style select script from additional javascript" do
+    config = %{
+      root: "/",
+      url_javascript: "/main.js",
+      additional_javascript: ["js/jquery.min.js", "js/style-select.js", "js/options/general.js"],
+      additional_javascript_url: "/",
+      additional_javascript_compile: false
+    }
+
+    assert PublicShell.javascript_urls(:thread, config) == [
+             "/main.js",
+             "/js/jquery.min.js",
+             "/js/options/general.js"
            ]
   end
 
@@ -158,5 +174,23 @@ defmodule EirinchanWeb.PublicShellTest do
     assert html =~ "genpassword_chars"
     assert html =~ "post_success_cookie_name"
     assert html =~ "eirinchan_posted"
+  end
+
+  test "renders a hidden style select for the options menu" do
+    html =
+      PublicShell.style_select_html(
+        [
+          %{label: "Yotsuba", name: "default", stylesheet: "/stylesheets/yotsuba.css"},
+          %{label: "Tomorrow", name: "tomorrow", stylesheet: "/stylesheets/tomorrow.css"}
+        ],
+        "Tomorrow"
+      )
+
+    assert html =~ ~s(<div id="style-select")
+    assert html =~ ~s(display:none)
+    assert html =~ ~s(Style: <select)
+    assert html =~ ~s(<option value="Yotsuba">Yotsuba</option>)
+    assert html =~ ~s(<option value="Tomorrow" selected="selected">Tomorrow</option>)
+    assert html =~ ~s|onchange="return changeStyle(this.value)"|
   end
 end

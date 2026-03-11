@@ -141,6 +141,25 @@ defmodule EirinchanWeb.PublicShell do
     "<div class=\"styles\">#{options}</div>"
   end
 
+  def style_select_html(theme_options, selected_label) do
+    options =
+      theme_options
+      |> List.wrap()
+      |> Enum.map(fn option ->
+        label = option.label || option.name || "Style"
+        selected_attr = if label == selected_label, do: " selected=\"selected\"", else: ""
+        escaped_label = Phoenix.HTML.html_escape(label) |> Phoenix.HTML.safe_to_string()
+        escaped_value = Phoenix.HTML.html_escape(label) |> Phoenix.HTML.safe_to_string()
+        "<option value=\"#{escaped_value}\"#{selected_attr}>#{escaped_label}</option>"
+      end)
+      |> Enum.join("")
+
+    """
+    <div id="style-select" style="display:none;float:right;margin-bottom:10px">Style: <select onchange="return changeStyle(this.value)">${options}</select></div>
+    """
+    |> String.replace("${options}", options)
+  end
+
   defp additional_javascript(config) do
     config
     |> Map.get(:additional_javascript, [])
@@ -148,7 +167,7 @@ defmodule EirinchanWeb.PublicShell do
     |> Enum.map(&to_string/1)
     |> Enum.map(&String.trim/1)
     |> Enum.reject(&(&1 == ""))
-    |> Enum.reject(&(&1 in ["js/unspoiler3.js", "/js/unspoiler3.js"]))
+    |> Enum.reject(&(&1 in ["js/unspoiler3.js", "/js/unspoiler3.js", "js/style-select.js", "/js/style-select.js"]))
     |> Enum.filter(&safe_script_url?/1)
     |> ensure_hide_threads()
     |> ensure_menu_framework()
