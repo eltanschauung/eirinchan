@@ -15,7 +15,8 @@ defmodule EirinchanWeb.ThreadWatcherControllerTest do
       |> put_req_cookie("browser_token", token)
       |> post("/watcher/#{board.uri}/#{thread.id}", %{"_csrf_token" => CSRFProtection.get_csrf_token()})
 
-    assert %{"ok" => true, "watched" => true, "thread_id" => ^thread_id} = json_response(conn, 200)
+    assert %{"ok" => true, "watched" => true, "thread_id" => ^thread_id, "watcher_count" => 1} =
+             json_response(conn, 200)
     assert ThreadWatcher.watched?(token, board.uri, thread_id)
 
     conn =
@@ -24,7 +25,7 @@ defmodule EirinchanWeb.ThreadWatcherControllerTest do
       |> put_req_header("x-csrf-token", CSRFProtection.get_csrf_token())
       |> delete("/watcher/#{board.uri}/#{thread_id}")
 
-    assert %{"ok" => true, "watched" => false, "thread_id" => ^thread_id} =
+    assert %{"ok" => true, "watched" => false, "thread_id" => ^thread_id, "watcher_count" => 0} =
              json_response(conn, 200)
 
     refute ThreadWatcher.watched?(token, board.uri, thread_id)

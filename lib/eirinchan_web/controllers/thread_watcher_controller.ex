@@ -15,7 +15,13 @@ defmodule EirinchanWeb.ThreadWatcherController do
              thread.id,
              %{last_seen_post_id: thread.id}
            ) do
-      json(conn, %{ok: true, watched: true, thread_id: thread.id, board: board.uri})
+      json(conn, %{
+        ok: true,
+        watched: true,
+        thread_id: thread.id,
+        board: board.uri,
+        watcher_count: ThreadWatcher.watch_count(conn.assigns.browser_token)
+      })
     else
       {:error, :not_found} -> send_resp(conn, :not_found, "")
       {:error, :thread_not_found} -> send_resp(conn, :not_found, "")
@@ -28,7 +34,13 @@ defmodule EirinchanWeb.ThreadWatcherController do
          {:ok, thread} <- Posts.fetch_thread(board, thread_id),
          {:ok, _count} <-
            ThreadWatcher.unwatch_thread(conn.assigns.browser_token, board.uri, thread.id) do
-      json(conn, %{ok: true, watched: false, thread_id: thread.id, board: board.uri})
+      json(conn, %{
+        ok: true,
+        watched: false,
+        thread_id: thread.id,
+        board: board.uri,
+        watcher_count: ThreadWatcher.watch_count(conn.assigns.browser_token)
+      })
     else
       {:error, :not_found} -> send_resp(conn, :not_found, "")
       {:error, :thread_not_found} -> send_resp(conn, :not_found, "")

@@ -148,27 +148,23 @@ defmodule EirinchanWeb.PageController do
     if Installation.setup_required?() do
       redirect(conn, to: ~p"/setup")
     else
-      summaries =
-        case conn.assigns[:browser_token] do
-          token when is_binary(token) ->
-            ThreadWatcher.list_watch_summaries(token)
-            |> Enum.map(fn summary ->
-              Map.put(summary, :thread_path, thread_watcher_path(summary))
-            end)
-
-          _ ->
-            []
-        end
-
       render(
         conn,
         :watcher,
         Keyword.merge(
           public_page_assigns(conn, "active-page", "watcher"),
           layout: false,
-          watch_summaries: summaries
+          watch_summaries: watcher_summaries(conn)
         )
       )
+    end
+  end
+
+  def watcher_fragment(conn, _params) do
+    if Installation.setup_required?() do
+      redirect(conn, to: ~p"/setup")
+    else
+      render(conn, :watcher_fragment, layout: false, watch_summaries: watcher_summaries(conn))
     end
   end
 
@@ -659,6 +655,19 @@ defmodule EirinchanWeb.PageController do
       base <> "-" <> summary.slug <> ".html"
     else
       base <> ".html"
+    end
+  end
+
+  defp watcher_summaries(conn) do
+    case conn.assigns[:browser_token] do
+      token when is_binary(token) ->
+        ThreadWatcher.list_watch_summaries(token)
+        |> Enum.map(fn summary ->
+          Map.put(summary, :thread_path, thread_watcher_path(summary))
+        end)
+
+      _ ->
+        []
     end
   end
 end
