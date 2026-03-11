@@ -1,7 +1,7 @@
 <a id="top"></a>
 
 <header>
-  <img class="board_image" style="margin-bottom:1em;width:300px;height:100px" src={EirinchanWeb.BannerAsset.banner_url(Eirinchan.Settings.current_instance_config())} alt="" />
+  <img class="board_image" data-random-banner="/b.php" style="margin-bottom:1em;width:300px;height:100px;cursor:pointer" src={EirinchanWeb.BannerAsset.banner_url(Eirinchan.Settings.current_instance_config())} alt="" />
   <h1><%= PostView.board_heading(@board) %></h1>
   <div class="subtitle">
     <%= if @board.uri == "bant", do: "", else: @board_chrome.subtitle || @board.subtitle %>

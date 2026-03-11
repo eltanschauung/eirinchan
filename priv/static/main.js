@@ -38,6 +38,22 @@
     document.body.appendChild(container);
   }
 
+  function bindRandomBanners() {
+    Array.prototype.forEach.call(document.querySelectorAll('img[data-random-banner]'), function (img) {
+      if (img.dataset.randomBannerBound === 'true') return;
+
+      img.addEventListener('click', function (event) {
+        var endpoint = img.getAttribute('data-random-banner');
+        if (!endpoint) return;
+
+        event.preventDefault();
+        img.src = endpoint + (endpoint.indexOf('?') === -1 ? '?' : '&') + 'ts=' + Date.now();
+      });
+
+      img.dataset.randomBannerBound = 'true';
+    });
+  }
+
   function cookieThemeName() {
     var match = document.cookie.match('(?:^|; )theme=([^;]*)');
     return match ? decodeURIComponent(match[1]) : null;
@@ -617,6 +633,7 @@
       document.body.classList.add('desktop-style');
       window.initStyleChooser();
       restoreSavedStyle();
+      bindRandomBanners();
       seedPostControlsPassword();
 
       if (
