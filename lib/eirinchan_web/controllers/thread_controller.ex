@@ -43,7 +43,8 @@ defmodule EirinchanWeb.ThreadController do
           backlinks_map = Posts.backlinks_map_for_posts([summary.thread | summary.replies])
           thread_watch = thread_watch(conn, board, summary.thread.id)
           _ = maybe_mark_thread_seen(conn, board, summary)
-          watcher_count = watcher_count(conn)
+          %{watcher_count: watcher_count, watcher_you_count: watcher_you_count} =
+            watcher_metrics(conn)
           own_post_ids = ShowYous.owned_post_ids(conn, [summary.thread | summary.replies])
           show_yous = ShowYous.enabled?(conn)
 
@@ -61,6 +62,7 @@ defmodule EirinchanWeb.ThreadController do
             show_yous: show_yous,
             thread_watch: thread_watch,
             watcher_count: watcher_count,
+            watcher_you_count: watcher_you_count,
             config: config,
             page_num: page_num,
             boards: boards,
@@ -84,7 +86,8 @@ defmodule EirinchanWeb.ThreadController do
                 resource_version: conn.assigns[:asset_version],
                 theme_label: conn.assigns[:theme_label],
                 theme_options: conn.assigns[:theme_options],
-                watcher_count: watcher_count
+                watcher_count: watcher_count,
+                watcher_you_count: watcher_you_count
               ),
             head_after_assets_html: PublicShell.thread_meta_html(board, summary.thread, config),
             eager_javascript_urls: PublicShell.eager_javascript_urls(:thread, config),
@@ -170,9 +173,13 @@ defmodule EirinchanWeb.ThreadController do
   end
 
   defp watcher_count(conn) do
+    watcher_metrics(conn).watcher_count
+  end
+
+  defp watcher_metrics(conn) do
     case conn.assigns[:browser_token] do
-      token when is_binary(token) -> ThreadWatcher.watch_count(token)
-      _ -> 0
+      token when is_binary(token) -> ThreadWatcher.watch_metrics(token)
+      _ -> %{watcher_count: 0, watcher_you_count: 0}
     end
   end
 end

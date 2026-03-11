@@ -2,6 +2,8 @@ defmodule Eirinchan.ThreadWatcher do
   import Ecto.Query, warn: false
 
   alias Eirinchan.Boards.BoardRecord
+  alias Eirinchan.PostOwnership.Ownership
+  alias Eirinchan.Posts.Cite
   alias Eirinchan.Posts.Post
   alias Eirinchan.Repo
   alias Eirinchan.ThreadWatcher.Watch
@@ -41,6 +43,7 @@ defmodule Eirinchan.ThreadWatcher do
 
       stats = thread_stats(thread_ids)
       unread = unread_counts(watches, thread_ids)
+      you_unread = unread_you_counts(watches, thread_ids, browser_token)
 
       watches
       |> Enum.map(fn watch ->
@@ -64,7 +67,8 @@ defmodule Eirinchan.ThreadWatcher do
               post_count: stat.post_count,
               last_post_id: stat.last_post_id,
               last_seen_post_id: watch.last_seen_post_id || watch.thread_id,
-              unread_count: Map.get(unread, {watch.board_uri, watch.thread_id}, 0)
+              unread_count: Map.get(unread, {watch.board_uri, watch.thread_id}, 0),
+              you_unread_count: Map.get(you_unread, {watch.board_uri, watch.thread_id}, 0)
             }
         end
       end)
@@ -111,15 +115,18 @@ defmodule Eirinchan.ThreadWatcher do
     else
       thread_ids = Enum.map(watches, & &1.thread_id)
       unread = unread_counts(watches, thread_ids)
+      you_unread = unread_you_counts(watches, thread_ids, browser_token)
 
       watches
       |> Enum.map(fn watch ->
         unread_count = Map.get(unread, {watch.board_uri, watch.thread_id}, 0)
+        you_unread_count = Map.get(you_unread, {watch.board_uri, watch.thread_id}, 0)
 
         {watch.thread_id,
          %{
            watched: true,
            unread_count: unread_count,
+           you_unread_count: you_unread_count,
            last_seen_post_id: watch.last_seen_post_id || watch.thread_id
          }}
       end)
@@ -133,6 +140,23 @@ defmodule Eirinchan.ThreadWatcher do
     |> select([watch], count(watch.id))
     |> Repo.one()
     |> Kernel.||(0)
+  end
+
+  def watch_metrics(browser_token) when is_binary(browser_token) do
+    watches = list_watches(browser_token)
+
+    if watches == [] do
+      %{watcher_count: 0, watcher_you_count: 0}
+    else
+      thread_ids = Enum.map(watches, & &1.thread_id)
+
+      watcher_you_count =
+        unread_you_counts(watches, thread_ids, browser_token)
+        |> Map.values()
+        |> Enum.sum()
+
+      %{watcher_count: length(watches), watcher_you_count: watcher_you_count}
+    end
   end
 
   def watched?(browser_token, board_uri, thread_id)
@@ -218,6 +242,38 @@ defmodule Eirinchan.ThreadWatcher do
       from(post in Post,
         where: post.id in ^thread_ids or post.thread_id in ^thread_ids,
         where: post.id > ^min_seen,
+        select: {fragment("COALESCE(?, ?)", post.thread_id, post.id), post.id}
+      )
+      |> Repo.all()
+      |> Enum.group_by(fn {thread_id, _post_id} -> thread_id end, fn {_thread_id, post_id} ->
+        post_id
+      end)
+
+    watches
+    |> Enum.map(fn watch ->
+      seen = watch.last_seen_post_id || watch.thread_id
+      count = posts |> Map.get(watch.thread_id, []) |> Enum.count(&(&1 > seen))
+      {{watch.board_uri, watch.thread_id}, count}
+    end)
+    |> Map.new()
+  end
+
+  defp unread_you_counts(watches, thread_ids, browser_token) do
+    min_seen =
+      watches
+      |> Enum.map(fn watch -> watch.last_seen_post_id || watch.thread_id end)
+      |> Enum.min()
+
+    posts =
+      from(post in Post,
+        join: cite in Cite,
+        on: cite.post_id == post.id,
+        join: ownership in Ownership,
+        on:
+          ownership.post_id == cite.target_post_id and ownership.browser_token == ^browser_token,
+        where: post.id in ^thread_ids or post.thread_id in ^thread_ids,
+        where: post.id > ^min_seen,
+        distinct: post.id,
         select: {fragment("COALESCE(?, ?)", post.thread_id, post.id), post.id}
       )
       |> Repo.all()

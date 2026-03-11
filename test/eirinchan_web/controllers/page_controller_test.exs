@@ -2,6 +2,7 @@ defmodule EirinchanWeb.PageControllerTest do
   use EirinchanWeb.ConnCase
 
   alias Eirinchan.ThreadWatcher
+  alias Eirinchan.PostOwnership
 
   setup do
     original_path = Application.get_env(:eirinchan, :instance_config_path)
@@ -429,6 +430,31 @@ defmodule EirinchanWeb.PageControllerTest do
     refute body =~ "Thread Watcher"
   end
 
+  test "watcher fragment shows unread you counts", %{conn: conn} do
+    moderator_fixture()
+    board = board_fixture(%{uri: "watchyoufrag", title: "Watch You Frag"})
+    thread = thread_fixture(board, %{subject: "Watched Thread", body: "Opening"})
+    owned_reply = reply_fixture(board, thread, %{body: "Owned"})
+    _citing_reply = reply_fixture(board, thread, %{body: ">>#{owned_reply.id} cited"})
+    token = "watcher-you-fragment-token"
+
+    {:ok, _} = PostOwnership.record(token, owned_reply.id)
+
+    {:ok, _watch} =
+      ThreadWatcher.watch_thread(token, board.uri, thread.id, %{last_seen_post_id: owned_reply.id})
+
+    body =
+      conn
+      |> put_req_cookie("browser_token", token)
+      |> get("/watcher/fragment")
+      |> html_response(200)
+
+    assert body =~ "watcher-you-count"
+    assert body =~ "(You)s:"
+    assert body =~ "(1)"
+    assert body =~ "replies-quoting-you"
+  end
+
   test "public pages expose watcher count for top bar", %{conn: conn} do
     moderator_fixture()
     board = board_fixture(%{uri: "watchhome", title: "Watch Home"})
@@ -445,5 +471,30 @@ defmodule EirinchanWeb.PageControllerTest do
 
     assert page =~ ~s(data-watcher-count="1")
     assert page =~ ~s(var watcher_count = 1;)
+  end
+
+  test "public pages expose watcher you count for top bar", %{conn: conn} do
+    moderator_fixture()
+    board = board_fixture(%{uri: "watchyouhome", title: "Watch You Home"})
+    thread = thread_fixture(board, %{body: "Watcher home thread"})
+    owned_reply = reply_fixture(board, thread, %{body: "Owned"})
+    _citing_reply = reply_fixture(board, thread, %{body: ">>#{owned_reply.id} cited"})
+    token = "token-home-watch-you-123456"
+
+    {:ok, _} = PostOwnership.record(token, owned_reply.id)
+
+    assert {:ok, _watch} =
+             ThreadWatcher.watch_thread(token, board.uri, thread.id, %{
+               last_seen_post_id: owned_reply.id
+             })
+
+    page =
+      conn
+      |> put_req_cookie("browser_token", token)
+      |> get("/")
+      |> html_response(200)
+
+    assert page =~ ~s(data-watcher-you-count="1")
+    assert page =~ ~s(var watcher_you_count = 1;)
   end
 end

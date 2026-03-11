@@ -108,8 +108,10 @@ $(function(){
   admin_button = $("<a href='/manage' title='"+_("Admin")+"'>["+_("Admin")+"]</a>");
   var watcherCount = parseInt(document.body && document.body.dataset ? document.body.dataset.watcherCount : '0', 10);
   if (isNaN(watcherCount)) watcherCount = 0;
-  var watcherLabel = _("Watcher") + (watcherCount > 0 ? ' (' + watcherCount + ')' : '');
+  var watcherYouCount = parseInt(document.body && document.body.dataset ? document.body.dataset.watcherYouCount : '0', 10);
+  if (isNaN(watcherYouCount)) watcherYouCount = 0;
   watcher_button = $("<a id='watcher-link' href='javascript:void(0)' title='"+_("Watcher")+"' aria-label='"+_("Watcher")+"'>👁</a>");
+  watcher_button.toggleClass('replies-quoting-you', watcherYouCount > 0);
 
   if ($(".boardlist.compact-boardlist").length) {
     options_button.addClass("cb-item cb-fa").html("<i class='fa fa-gear'></i>");

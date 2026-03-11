@@ -45,6 +45,9 @@ defmodule EirinchanWeb.PageHTML do
                   >
                     [Unwatch<%= if watch.unread_count > 0, do: " (#{watch.unread_count})", else: "" %>]
                   </a>
+                  <span class={["watcher-you-count", watch.you_unread_count > 0 && "replies-quoting-you"]}>
+                    [<span>(You)s:</span> (<%= watch.you_unread_count %>)]
+                  </span>
                 </p>
               </div>
             </div>
