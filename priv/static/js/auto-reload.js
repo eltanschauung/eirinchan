@@ -187,6 +187,29 @@ $(document).ready(function(){
 		url.searchParams.set('fragment', '1');
 		return url.toString();
 	};
+
+	var sync_thread_seen = function() {
+		if (!is_thread_page || typeof window.markWatchedThreadSeen !== 'function') {
+			return;
+		}
+
+		var watchLink = document.querySelector('[data-thread-watch][data-thread-id]');
+		if (!watchLink || watchLink.dataset.watched !== 'true') {
+			return;
+		}
+
+		var replyIds = Array.prototype.map.call(document.querySelectorAll('div.thread div.post[id^="reply_"]'), function(node) {
+			return parseInt(node.id.replace('reply_', ''), 10);
+		}).filter(function(value) {
+			return !isNaN(value);
+		});
+
+		var threadId = parseInt(watchLink.dataset.threadId, 10);
+		var lastSeenPostId = replyIds.length ? Math.max.apply(null, replyIds) : threadId;
+		if (threadId > lastSeenPostId) lastSeenPostId = threadId;
+
+		window.markWatchedThreadSeen(watchLink.dataset.boardUri, threadId, lastSeenPostId);
+	};
 	
 	var poll_catalog = function(manualUpdate) {
 		if (!can_start_poll()) {
@@ -426,6 +449,7 @@ $(document).ready(function(){
 						}
 					}
 				});
+				sync_thread_seen();
 				time_loaded = Date.now(); // interop with watch.js
 				
 				

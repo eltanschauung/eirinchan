@@ -42,4 +42,25 @@ defmodule EirinchanWeb.ThreadWatcherControllerTest do
 
     assert response(conn, 404)
   end
+
+  test "marks watched thread as seen", %{conn: conn} do
+    board = board_fixture(%{uri: "watchseen", title: "Watch Seen"})
+    thread = thread_fixture(board, %{body: "Watch me"})
+    token = "token-abcdef1234567890"
+    thread_id = thread.id
+
+    {:ok, _watch} =
+      ThreadWatcher.watch_thread(token, board.uri, thread_id, %{last_seen_post_id: thread_id})
+
+    conn =
+      conn
+      |> put_req_cookie("browser_token", token)
+      |> put_req_header("x-csrf-token", CSRFProtection.get_csrf_token())
+      |> patch("/watcher/#{board.uri}/#{thread_id}", %{"last_seen_post_id" => Integer.to_string(thread_id + 5)})
+
+    assert %{"ok" => true, "thread_id" => ^thread_id, "last_seen_post_id" => last_seen_post_id} =
+             json_response(conn, 200)
+
+    assert last_seen_post_id == thread_id + 5
+  end
 end

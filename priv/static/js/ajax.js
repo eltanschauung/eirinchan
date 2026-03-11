@@ -70,6 +70,22 @@ $(window).ready(function() {
 				}
 			};
 
+			var syncSeenForReply = function(post_response) {
+				if (!is_reply_form || typeof window.markWatchedThreadSeen !== 'function') {
+					return;
+				}
+
+				var threadId = parseInt($(form).find('input[name="thread_id"], input[name="thread"]').first().val(), 10);
+				var boardUri = $(form).find('input[name="board"]').first().val();
+				var watchLink = document.querySelector('[data-thread-watch][data-thread-id="' + threadId + '"]');
+
+				if (!threadId || !boardUri || !watchLink || watchLink.dataset.watched !== 'true') {
+					return;
+				}
+
+				window.markWatchedThreadSeen(boardUri, threadId, post_response.id);
+			};
+
 
 			var clearReplyFields = function() {
 				$(form).find('input[name="subject"],input[name="file_url"],\
@@ -157,6 +173,7 @@ $(window).ready(function() {
 
 								clearReplyFields();
 								resetSubmit();
+								syncSeenForReply(post_response);
 								triggerAjaxAfterPost(post_response);
 
 								try {
