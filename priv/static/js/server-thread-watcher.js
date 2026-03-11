@@ -30,6 +30,7 @@
       link.dataset.watched = watched ? 'true' : 'false';
       if (link.classList.contains('watch-thread-link')) {
         link.classList.toggle('watched', watched);
+        link.classList.toggle('post-btn', watched);
         link.title = (watched ? 'Unwatch' : 'Watch') + ' Thread';
       } else {
         link.textContent = watched ? '[Unwatch]' : '[Watch]';
