@@ -264,6 +264,13 @@ if (active_page === 'thread' || active_page === 'index' || active_page === 'cata
 						blacklist.add.post(boardId, threadId, postId, false);
 					});
 					$buffer.find('#filter-menu-hide-plus').click(function () {
+						if ($ele.hasClass('op')) {
+							var threadHideLink = $ele.find('p.intro .hide-thread-link').first();
+							if (threadHideLink.length) {
+								threadHideLink.click();
+								return;
+							}
+						}
 						blacklist.add.post(boardId, threadId, postId, true);
 					});
 				}

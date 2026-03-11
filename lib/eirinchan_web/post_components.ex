@@ -118,7 +118,7 @@ defmodule EirinchanWeb.PostComponents do
 
     ~H"""
     <span class="thread-top-controls">
-      <a :if={@show_hide} class="hide-thread-link" href="javascript:void(0)">[–]</a>
+      <a :if={@show_hide} class="hide-thread-link" href="javascript:void(0)" title="Hide thread">[–]</a>
       <a href="#" class="post-btn" title="Post menu" data-post-target={@post_target}>▶</a>
       <a
         href="javascript:;"
