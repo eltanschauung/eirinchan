@@ -95,6 +95,11 @@
               <%= for icon <- PostView.state_icons(thread, @config) do %>
                 <img class="icon" title={icon.title} src={icon.path} alt={icon.title} />
               <% end %>
+              <span :if={thread.sticky} style="display:none">[Sticky]</span>
+              <span :if={thread.locked} style="display:none">[Locked]</span>
+              <span :if={thread.cycle} style="display:none">[Cyclical]</span>
+              <span :if={thread.sage} style="display:none">[Bumplocked]</span>
+              <a href={PostView.thread_path(@board, thread, @config)}>[Reply]</a>
               <%= raw(
                 PostView.post_controls_html(
                   thread,
@@ -107,6 +112,7 @@
 
             <%= raw(
               PostView.body_container_html(thread, @board, thread, @config,
+                hide_fileboard: true,
                 own_post_ids: @own_post_ids,
                 show_yous: @show_yous
               )
