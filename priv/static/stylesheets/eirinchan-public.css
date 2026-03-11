@@ -253,6 +253,10 @@ body.active-catalog .catalog-nav-row .pages {
   flex: 0 0 auto;
 }
 
+input.delete {
+  display: none;
+}
+
 .post-btn {
   transition: transform 0.1s;
   width: 15px;
