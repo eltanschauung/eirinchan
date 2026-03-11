@@ -46,10 +46,11 @@ defmodule EirinchanWeb.PostControllerTest do
   test "json posting returns reply metadata", %{conn: conn} do
     board = board_fixture(%{title: "Technology"})
     thread = thread_fixture(board, %{body: "thread body", subject: "thread subject"})
+    referer = "http://www.example.com/#{board.uri}/index.html"
 
     conn =
       conn
-      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> put_req_header("referer", referer)
       |> post(~p"/#{board.uri}/post", %{
         "thread" => Integer.to_string(thread.id),
         "email" => "noko",
@@ -65,9 +66,14 @@ defmodule EirinchanWeb.PostControllerTest do
 
     assert redirect == "/#{board.uri}/res/#{thread.id}.html#p#{id}"
 
+    encoded_cookie =
+      referer
+      |> then(&%{&1 => true})
+      |> Jason.encode!()
+
     assert Enum.any?(
              get_resp_header(conn, "set-cookie"),
-             &String.contains?(&1, "eirinchan_posted=#{board.uri}:#{thread.id}")
+             &String.contains?(&1, "eirinchan_posted=#{encoded_cookie}")
            )
   end
 
@@ -103,10 +109,11 @@ defmodule EirinchanWeb.PostControllerTest do
 
   test "successful OP posts set a draft-clear cookie", %{conn: conn} do
     board = board_fixture(%{title: "Technology"})
+    referer = "http://www.example.com/#{board.uri}/index.html"
 
     conn =
       conn
-      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> put_req_header("referer", referer)
       |> post(~p"/#{board.uri}/post", %{
         "name" => "anon",
         "subject" => "launch",
@@ -117,9 +124,14 @@ defmodule EirinchanWeb.PostControllerTest do
 
     assert %{"id" => _id} = json_response(conn, 200)
 
+    encoded_cookie =
+      referer
+      |> then(&%{&1 => true})
+      |> Jason.encode!()
+
     assert Enum.any?(
              get_resp_header(conn, "set-cookie"),
-             &String.contains?(&1, "eirinchan_posted=#{board.uri}:new")
+             &String.contains?(&1, "eirinchan_posted=#{encoded_cookie}")
            )
   end
 
