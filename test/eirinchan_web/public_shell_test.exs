@@ -96,6 +96,7 @@ defmodule EirinchanWeb.PublicShellTest do
     assert PublicShell.javascript_urls(:thread, config) == [
              "/main.js",
              "/js/jquery.min.js",
+             "/js/hide-threads.js",
              "/js/post-menu.js",
              "/js/post-filter.js",
              "/js/fix-report-delete-submit.js"
