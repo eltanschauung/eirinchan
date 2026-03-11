@@ -11,6 +11,19 @@
 if (active_page == 'thread' || active_page == 'index' || active_page == 'ukko') {
 $(document).on('menu_ready', function(){
 var Menu = window.Menu;
+
+function ensureQuickActionForm($post, postId) {
+	var $checkbox = $('#delete_' + postId);
+	if (!$checkbox.length) {
+		return $();
+	}
+
+	if (!$checkbox.prop('checked')) {
+		$checkbox.prop('checked', true).trigger('change');
+	}
+
+	return $post.find('form.post-actions');
+}
 	
 if ($('#delete-fields #password').length) {
 	Menu.add_item("delete_post_menu", _("Delete post"));
@@ -18,21 +31,29 @@ if ($('#delete-fields #password').length) {
 	Menu.onclick(function(e, $buf) {
 		var ele = e.target.parentElement.parentElement;
 		var $ele = $(ele);
-		var threadId = $ele.parent().attr('id').replace('thread_', '');
 		var postId = $ele.find('.post_no').not('[id]').text();
-		var board_name = $ele.parent().data('board');
+		var hasFiles = $ele.find('.files .file, .files .multifile').length > 0;
+
+		if (!hasFiles) {
+			$buf.find('#delete_file_menu').addClass('hidden');
+		}
 
 		$buf.find('#delete_post_menu,#delete_file_menu').click(function(e) {
 			e.preventDefault();
-			$('#delete_'+postId).prop('checked', 'checked');
-		
-			if ($(this).attr('id') === 'delete_file_menu') {
-				$('#delete_file').prop('checked', 'checked');
-			} else {
-				$('#delete_file').prop('checked', '');
+			var $form = ensureQuickActionForm($ele, postId);
+
+			if (!$form.length) {
+				return;
 			}
-			$('input[type="hidden"][name="board"]').val(board_name);
-			$('input[name=delete][type=submit]').click();
+
+			var $fileToggle = $form.find('#delete_file_' + postId);
+			if ($(this).attr('id') === 'delete_file_menu') {
+				$fileToggle.prop('checked', true);
+			} else {
+				$fileToggle.prop('checked', false);
+			}
+
+			$form.find('input[name="password"]').trigger('focus');
 		});
 	});
 }
@@ -42,17 +63,17 @@ Menu.add_item("report_menu", _("Report"));
 Menu.onclick(function(e, $buf) {
 	var ele = e.target.parentElement.parentElement;
 	var $ele = $(ele);
-	var threadId = $ele.parent().attr('id').replace('thread_', '');
 	var postId = $ele.find('.post_no').not('[id]').text();
-	var board_name = $ele.parent().data('board');
 
 	$buf.find('#report_menu,#global_report_menu').click(function(e) {
-		if ($(this).attr('id') === "global_report_menu") {
-			var global = '&global';
-		} else {
-			var global = '';
+		e.preventDefault();
+		var $form = ensureQuickActionForm($ele, postId);
+
+		if (!$form.length) {
+			return;
 		}
-		window.open(configRoot+'report.php?board='+board_name+'&post=delete_'+postId+global, "", (global?"width=600, height=575":"width=500, height=275"));
+
+		$form.find('input[name="reason"]').trigger('focus');
 	});
 });
 
