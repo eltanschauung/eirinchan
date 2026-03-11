@@ -278,7 +278,16 @@
           data-sticky={to_string(post.sticky || false)}
           data-locked={to_string(post.locked || false)}
         >
-          <div class="thread grid-li grid-size-large" id={"catalog-#{post.id}"}>
+          <% watch = Map.get(@thread_watch_state, post.id, %{watched: false, unread_count: 0}) %>
+          <div
+            class="thread grid-li grid-size-large"
+            id={"catalog-#{post.id}"}
+            data-board-uri={@board.uri}
+            data-thread-id={post.id}
+            data-watch-url={"/watcher/#{@board.uri}/#{post.id}"}
+            data-unwatch-url={"/watcher/#{@board.uri}/#{post.id}"}
+            data-watched={watch.watched}
+          >
             <a href={
               Eirinchan.ThreadPaths.thread_path(template.board, template.post, template.config)
             }>
@@ -301,23 +310,6 @@
             </a>
             <div class="replies">
               <strong>R: <%= summary.reply_count %> / I: <%= summary.image_count %></strong>
-              <% watch = Map.get(@thread_watch_state, post.id, %{watched: false, unread_count: 0}) %>
-              <a
-                href="#"
-                class="thread-watch-toggle"
-                data-thread-watch
-                data-board-uri={@board.uri}
-                data-thread-id={post.id}
-                data-watch-url={"/watcher/#{@board.uri}/#{post.id}"}
-                data-unwatch-url={"/watcher/#{@board.uri}/#{post.id}"}
-                data-watched={watch.watched}
-              >
-                [<%= if watch.watched, do: "Unwatch", else: "Watch" %><%= if watch.unread_count >
-                                                                               0,
-                                                                             do:
-                                                                               " (#{watch.unread_count})",
-                                                                             else: "" %>]
-              </a>
               <p :if={PostView.catalog_label(post, @config)} class="intro">
                 <span class="subject"><%= PostView.catalog_label(post, @config) %></span>
               </p>

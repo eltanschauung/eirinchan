@@ -160,7 +160,7 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
 
   test "board page renders watch links for threads", %{conn: conn} do
     board = board_fixture(%{uri: "watchlinks", title: "Watch Links"})
-    _thread = thread_fixture(board, %{body: "Watching"})
+    thread = thread_fixture(board, %{body: "Watching"})
 
     response =
       conn
@@ -168,8 +168,10 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
       |> get(~p"/#{board.uri}")
       |> html_response(200)
 
-    assert response =~ ~s(data-thread-watch)
-    assert response =~ "[Watch]"
+    assert response =~ ~s(data-thread-id="#{thread.id}")
+    refute response =~ ~s(class="thread-watch-toggle")
+    refute response =~ "[Watch]"
+    assert response =~ ~s(data-watch-url="/watcher/#{board.uri}/#{thread.id}")
   end
 
   test "board page uses configured catalog name in search links", %{conn: conn} do
@@ -750,6 +752,7 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
       |> html_response(200)
 
     assert page =~ ~s(data-watcher-count="1")
-    assert page =~ "[Unwatch (1)]"
+    assert page =~ ~s(data-thread-id="#{thread.id}")
+    assert page =~ ~s(data-watch-url="/watcher/#{board.uri}/#{thread.id}")
   end
 end

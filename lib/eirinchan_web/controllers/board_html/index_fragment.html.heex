@@ -6,7 +6,17 @@
     <div id="board-threads">
       <%= for summary <- @page_data.threads do %>
         <% thread = summary.thread %>
-        <div class="thread" id={"thread_#{thread.id}"} data-board={@board.uri}>
+        <% watch = Map.get(@thread_watch_state, thread.id, %{watched: false, unread_count: 0}) %>
+        <div
+          class="thread"
+          id={"thread_#{thread.id}"}
+          data-board={@board.uri}
+          data-board-uri={@board.uri}
+          data-thread-id={thread.id}
+          data-watch-url={"/watcher/#{@board.uri}/#{thread.id}"}
+          data-unwatch-url={"/watcher/#{@board.uri}/#{thread.id}"}
+          data-watched={watch.watched}
+        >
           <div :if={PostView.media_entries(thread, @config) != []} class="files">
             <%= for media <- PostView.media_entries(thread, @config) do %>
               <%= if PostView.embed_entry?(media) do %>
@@ -96,9 +106,9 @@
             <%= raw(PostView.body_container_html(thread, @board, thread, @config)) %>
           </div>
 
-          <%= if summary.omitted_count > 0 do %>
+          <%= if PostView.omitted_text(summary) do %>
             <span class="omitted">
-              <%= summary.omitted_count %> post<%= if summary.omitted_count != 1, do: "s" %> omitted. Click Reply to view.
+              <%= PostView.omitted_text(summary) %>
             </span>
           <% end %>
 

@@ -28,9 +28,46 @@
     var selector = '[data-thread-watch][data-thread-id="' + threadId + '"]';
     document.querySelectorAll(selector).forEach(function(link) {
       link.dataset.watched = watched ? 'true' : 'false';
-      link.textContent = watched ? '[Unwatch]' : '[Watch]';
+      if (link.classList.contains('watch-thread-link')) {
+        link.classList.toggle('watched', watched);
+        link.title = (watched ? 'Unwatch' : 'Watch') + ' Thread';
+      } else {
+        link.textContent = watched ? '[Unwatch]' : '[Watch]';
+      }
+    });
+
+    document.querySelectorAll('.thread[data-thread-id="' + threadId + '"]').forEach(function(thread) {
+      thread.dataset.watched = watched ? 'true' : 'false';
     });
   };
+
+  if (typeof window.jQuery !== 'undefined') {
+    jQuery(document).on('menu_ready', function() {
+      var Menu = window.Menu;
+      if (!Menu || Menu.__watchThreadMenuInstalled) return;
+      Menu.__watchThreadMenuInstalled = true;
+      Menu.add_item('watch_thread_menu', 'Watch');
+      Menu.onclick(function(e, $buf) {
+        var post = e.target.parentElement && e.target.parentElement.parentElement;
+        var thread = post && post.closest && post.closest('.thread');
+
+        if (!thread || !thread.dataset || !thread.dataset.threadId) {
+          $buf.find('#watch_thread_menu').addClass('hidden');
+          return;
+        }
+
+        var watched = thread.dataset.watched === 'true';
+        var $item = $buf.find('#watch_thread_menu');
+        $item.removeClass('hidden').text(watched ? 'Unwatch' : 'Watch').off('click').on('click', function(event) {
+          event.preventDefault();
+          var toggler = thread.querySelector('.watch-thread-link[data-thread-watch]');
+          if (toggler) {
+            toggler.click();
+          }
+        });
+      });
+    });
+  }
 
   window.markWatchedThreadSeen = function(boardUri, threadId, lastSeenPostId) {
     var token = csrfToken(document.body);

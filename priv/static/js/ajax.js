@@ -77,7 +77,7 @@ $(window).ready(function() {
 
 				var threadId = parseInt($(form).find('input[name="thread_id"], input[name="thread"]').first().val(), 10);
 				var boardUri = $(form).find('input[name="board"]').first().val();
-				var watchLink = document.querySelector('[data-thread-watch][data-thread-id="' + threadId + '"]');
+				var watchLink = document.querySelector('.thread[data-thread-id="' + threadId + '"]');
 
 				if (!threadId || !boardUri || !watchLink || watchLink.dataset.watched !== 'true') {
 					return;

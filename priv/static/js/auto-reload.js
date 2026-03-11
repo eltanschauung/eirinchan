@@ -193,7 +193,7 @@ $(document).ready(function(){
 			return;
 		}
 
-		var watchLink = document.querySelector('[data-thread-watch][data-thread-id]');
+		var watchLink = document.querySelector('.thread[data-thread-id]');
 		if (!watchLink || watchLink.dataset.watched !== 'true') {
 			return;
 		}

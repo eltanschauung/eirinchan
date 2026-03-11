@@ -284,7 +284,17 @@
     <div id="board-threads">
       <%= for summary <- @page_data.threads do %>
         <% thread = summary.thread %>
-        <div class="thread" id={"thread_#{thread.id}"} data-board={@board.uri}>
+        <% watch = Map.get(@thread_watch_state, thread.id, %{watched: false, unread_count: 0}) %>
+        <div
+          class="thread"
+          id={"thread_#{thread.id}"}
+          data-board={@board.uri}
+          data-board-uri={@board.uri}
+          data-thread-id={thread.id}
+          data-watch-url={"/watcher/#{@board.uri}/#{thread.id}"}
+          data-unwatch-url={"/watcher/#{@board.uri}/#{thread.id}"}
+          data-watched={watch.watched}
+        >
           <div :if={PostView.media_entries(thread, @config) != []} class="files">
             <%= for media <- PostView.media_entries(thread, @config) do %>
               <%= if PostView.embed_entry?(media) do %>
@@ -365,24 +375,6 @@
               <span :if={thread.cycle} style="display:none">[Cyclical]</span>
               <span :if={thread.sage} style="display:none">[Bumplocked]</span>
               <a href={PostView.thread_path(@board, thread, @config)}>[Reply]</a>
-              <% watch =
-                Map.get(@thread_watch_state, thread.id, %{watched: false, unread_count: 0}) %>
-              <a
-                href="#"
-                class="thread-watch-toggle"
-                data-thread-watch
-                data-board-uri={@board.uri}
-                data-thread-id={thread.id}
-                data-watch-url={"/watcher/#{@board.uri}/#{thread.id}"}
-                data-unwatch-url={"/watcher/#{@board.uri}/#{thread.id}"}
-                data-watched={watch.watched}
-              >
-                [<%= if watch.watched, do: "Unwatch", else: "Watch" %><%= if watch.unread_count >
-                                                                               0,
-                                                                             do:
-                                                                               " (#{watch.unread_count})",
-                                                                             else: "" %>]
-              </a>
               <%= raw(
                 PostView.post_controls_html(
                   thread,

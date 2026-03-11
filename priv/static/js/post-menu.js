@@ -104,9 +104,27 @@ function buildMenu(e) {
 
 function addButton(post) {
 	var $ele = $(post);
-	$ele.find('input.delete').after(
-		$('<a>', {href: '#', class: 'post-btn', title: 'Post menu'}).text('▶')
-	);
+	var $postBtn = $('<a>', {href: '#', class: 'post-btn', title: 'Post menu'}).text('▶');
+	$ele.find('input.delete').after($postBtn);
+
+	if ($ele.hasClass('op')) {
+		var thread = post.closest('.thread');
+		if (thread && thread.dataset && thread.dataset.threadId) {
+			$postBtn.after(
+				$('<a>', {
+					href: 'javascript:;',
+					class: 'watch-thread-link',
+					title: thread.dataset.watched === 'true' ? 'Unwatch Thread' : 'Watch Thread',
+					'data-thread-watch': '',
+					'data-board-uri': thread.dataset.boardUri,
+					'data-thread-id': thread.dataset.threadId,
+					'data-watch-url': thread.dataset.watchUrl,
+					'data-unwatch-url': thread.dataset.unwatchUrl,
+					'data-watched': thread.dataset.watched
+				})
+			);
+		}
+	}
 }
 
 
@@ -165,7 +183,9 @@ cssString =
 	'.post-menu.hidden, .post-menu .hidden {display: none;}\n' +
 	'.post-btn {transition: transform 0.1s; width: 15px; text-align: center; font-size: 10pt; opacity: 0.8; text-decoration: none; margin: -6px 0px 0px -5px !important; display: inline-block;}\n' +
 	'.post-btn:hover {opacity: 1;}\n' +
-	'.post-btn-open {transform: rotate(90deg);}\n';
+	'.post-btn-open {transform: rotate(90deg);}\n' +
+	'.watch-thread-link {padding-top: 18px; width: 18px; height: 0px; display: inline-block; background-repeat: no-repeat; opacity: 0.2; position: relative; top: 1px; margin-left: 2px; background-image: url("data:image/svg+xml,<svg viewBox=\'0 0 26 26\' preserveAspectRatio=\'true\' xmlns=\'http://www.w3.org/2000/svg\'><path fill=\'rgb(0,0,0)\' d=\'M24.132,7.971c-2.203-2.205-5.916-2.098-8.25,0.235L15.5,8.588l-0.382-0.382c-2.334-2.333-6.047-2.44-8.25-0.235c-2.204,2.203-2.098,5.916,0.235,8.249l8.396,8.396l8.396-8.396C26.229,13.887,26.336,10.174,24.132,7.971z\'/></svg>");}\n' +
+	'.watch-thread-link.watched {opacity: 1;}\n';
 
 if (!$('style.generated-css').length) $('<style class="generated-css">').appendTo('head');
 $('style.generated-css').html($('style.generated-css').html() + cssString);
