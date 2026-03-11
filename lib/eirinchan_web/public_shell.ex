@@ -144,7 +144,35 @@ defmodule EirinchanWeb.PublicShell do
     |> Enum.reject(&(&1 == ""))
     |> Enum.reject(&(&1 in ["js/unspoiler3.js", "/js/unspoiler3.js"]))
     |> Enum.filter(&safe_script_url?/1)
+    |> ensure_menu_framework()
     |> Enum.uniq()
+  end
+
+  defp ensure_menu_framework(scripts) do
+    needs_menu? =
+      Enum.any?(scripts, &(&1 in ["js/post-filter.js", "js/fix-report-delete-submit.js"]))
+
+    has_menu? = "js/post-menu.js" in scripts
+
+    cond do
+      not needs_menu? ->
+        scripts
+
+      has_menu? ->
+        scripts
+
+      true ->
+        prepend_before_first(scripts, "js/post-menu.js", ["js/post-filter.js", "js/fix-report-delete-submit.js"])
+    end
+  end
+
+  defp prepend_before_first(scripts, script, anchors) do
+    index = Enum.find_index(scripts, &(&1 in anchors))
+
+    case index do
+      nil -> scripts ++ [script]
+      _ -> List.insert_at(scripts, index, script)
+    end
   end
 
   defp maybe_add_catalog_scripts(scripts, :catalog) do

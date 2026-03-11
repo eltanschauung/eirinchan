@@ -84,6 +84,24 @@ defmodule EirinchanWeb.PublicShellTest do
            ]
   end
 
+  test "injects post-menu before dependent menu scripts" do
+    config = %{
+      root: "/",
+      url_javascript: "/main.js",
+      additional_javascript: ["js/jquery.min.js", "js/post-filter.js", "js/fix-report-delete-submit.js"],
+      additional_javascript_url: "/",
+      additional_javascript_compile: false
+    }
+
+    assert PublicShell.javascript_urls(:thread, config) == [
+             "/main.js",
+             "/js/jquery.min.js",
+             "/js/post-menu.js",
+             "/js/post-filter.js",
+             "/js/fix-report-delete-submit.js"
+           ]
+  end
+
   test "filters legacy unspoiler script from additional javascript" do
     config = %{
       root: "/",

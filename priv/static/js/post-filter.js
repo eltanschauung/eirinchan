@@ -205,6 +205,7 @@ if (active_page === 'thread' || active_page === 'index' || active_page === 'cata
 			var Menu = window.Menu;
 			var submenu;
 			Menu.add_item('filter-menu-hide', _('Hide post'));
+			Menu.add_item('filter-menu-hide-plus', _('Hide post +'), _('Hide post and all replies'));
 			Menu.add_item('filter-menu-unhide', _('Unhide post'));
 
 			submenu = Menu.add_submenu('filter-menu-add', _('Add filter'));
@@ -249,10 +250,14 @@ if (active_page === 'thread' || active_page === 'index' || active_page === 'cata
 						show(ele);
 					});
 					$buffer.find('#filter-menu-hide').addClass('hidden');
+					$buffer.find('#filter-menu-hide-plus').addClass('hidden');
 				} else {
 					$buffer.find('#filter-menu-unhide').addClass('hidden');
 					$buffer.find('#filter-menu-hide').click(function () {
 						blacklist.add.post(boardId, threadId, postId, false);
+					});
+					$buffer.find('#filter-menu-hide-plus').click(function () {
+						blacklist.add.post(boardId, threadId, postId, true);
 					});
 				}
 
@@ -262,6 +267,7 @@ if (active_page === 'thread' || active_page === 'index' || active_page === 'cata
 						blacklist.add.post(boardId, threadId, postId, true);
 					});
 				} else {
+					$buffer.find('#filter-menu-hide-plus').addClass('hidden');
 					$buffer.find('#filter-add-post-plus').addClass('hidden');
 				}
 
