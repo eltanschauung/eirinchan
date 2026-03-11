@@ -112,7 +112,7 @@ function addButton(post) {
 		if (thread) {
 			var $rail = $(thread).children('.thread-top-controls');
 			if (!$rail.length) {
-				$rail = $('<div class="thread-top-controls"></div>');
+				$rail = $('<span class="thread-top-controls"></span>');
 				$rail.insertBefore($(thread).find(':not(h2,h2 *):first'));
 			}
 
