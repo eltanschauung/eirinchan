@@ -225,8 +225,10 @@ defmodule EirinchanWeb.ThreadControllerTest do
       |> get("/#{board.uri}/res/#{thread.id}.html")
       |> html_response(200)
 
-    assert page =~ ~s(data-thread-watch)
-    assert page =~ "[Unwatch]"
+    assert page =~ ~s(data-thread-id="#{thread.id}")
+    refute page =~ ~s(class="thread-watch-toggle")
+    refute page =~ "[Unwatch]"
+    assert page =~ ~s(data-watch-url="/watcher/#{board.uri}/#{thread.id}")
   end
 
   test "thread pages render stored OP tags", %{conn: conn} do
@@ -507,6 +509,7 @@ defmodule EirinchanWeb.ThreadControllerTest do
       |> html_response(200)
 
     assert page =~ ~s(data-watcher-count="1")
-    assert page =~ "[Unwatch (1)]"
+    assert page =~ ~s(data-thread-id="#{thread.id}")
+    assert page =~ ~s(data-watch-url="/watcher/#{board.uri}/#{thread.id}")
   end
 end

@@ -239,7 +239,16 @@
   <input type="hidden" id="thread_delete_post_id" name="delete_post_id" value="" />
   <input type="hidden" id="thread_report_post_id" name="report_post_id" value="" />
 
-  <div class="thread" id={"thread_#{post.id}"} data-board={@board.uri}>
+  <div
+    class="thread"
+    id={"thread_#{post.id}"}
+    data-board={@board.uri}
+    data-board-uri={@board.uri}
+    data-thread-id={post.id}
+    data-watch-url={"/watcher/#{@board.uri}/#{post.id}"}
+    data-unwatch-url={"/watcher/#{@board.uri}/#{post.id}"}
+    data-watched={@thread_watch.watched}
+  >
     <a id={to_string(post.id)} class="post_anchor"></a>
     <div :if={PostView.media_entries(post, @config) != []} class="files">
       <%= for media <- PostView.media_entries(post, @config) do %>
@@ -440,22 +449,6 @@
         href={"/#{@board.uri}/catalog.html"}
       >
         [<%= @config.catalog_name %>]
-      </a>
-      <a
-        href="#"
-        class="thread-watch-toggle"
-        data-thread-watch
-        data-board-uri={@board.uri}
-        data-thread-id={@summary.thread.id}
-        data-watch-url={"/watcher/#{@board.uri}/#{@summary.thread.id}"}
-        data-unwatch-url={"/watcher/#{@board.uri}/#{@summary.thread.id}"}
-        data-watched={@thread_watch.watched}
-      >
-        [<%= if @thread_watch.watched, do: "Unwatch", else: "Watch" %><%= if @thread_watch.unread_count >
-                                                                               0,
-                                                                             do:
-                                                                               " (#{@thread_watch.unread_count})",
-                                                                             else: "" %>]
       </a>
       <span id="updater" class="board-live-updater">
         <a
