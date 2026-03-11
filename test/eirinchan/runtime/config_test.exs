@@ -195,6 +195,26 @@ defmodule Eirinchan.Runtime.ConfigTest do
     assert config.search_query_global_limit_count == 0
   end
 
+  test "builds default vichan flood filters when filters are unset" do
+    config =
+      Config.compose(
+        %{
+          root: "/",
+          dir: %{img: "img/", thumb: "thumb/", res: "res/"}
+        },
+        %{},
+        %{}
+      )
+
+    assert config.flood_time == 0
+    assert config.flood_time_ip == 0
+    assert config.flood_time_same == 0
+    assert config.max_threads_per_hour == 0
+    assert config.max_links == 20
+    assert config.markup_urls
+    assert config.filters == []
+  end
+
   test "provides post form row defaults" do
     config =
       Config.compose(

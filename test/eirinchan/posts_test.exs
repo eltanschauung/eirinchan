@@ -2434,7 +2434,7 @@ defmodule Eirinchan.PostsTest do
   end
 
   test "create_post records flood entries and rejects rapid repeated posts from the same ip" do
-    board = board_fixture(%{config_overrides: %{flood_time_ip: 60}})
+    board = board_fixture(%{config_overrides: %{flood_time: 60, flood_time_ip: 0, flood_time_same: 0}})
     config = post_config(board.config_overrides)
 
     request = %{
@@ -2464,8 +2464,8 @@ defmodule Eirinchan.PostsTest do
              )
   end
 
-  test "create_post rejects repeated bodies within the flood repeat window" do
-    board = board_fixture(%{config_overrides: %{flood_time_same: 60}})
+  test "create_post rejects repeated bodies within the same-ip repeat window" do
+    board = board_fixture(%{config_overrides: %{flood_time: 0, flood_time_ip: 60, flood_time_same: 0}})
     config = post_config(board.config_overrides)
 
     request = %{
@@ -2490,6 +2490,120 @@ defmodule Eirinchan.PostsTest do
                request: request,
                repo: Repo
              )
+  end
+
+  test "create_post rejects repeated bodies across different ips within the flood same window" do
+    board = board_fixture(%{config_overrides: %{flood_time: 0, flood_time_ip: 0, flood_time_same: 60}})
+    config = post_config(board.config_overrides)
+
+    assert {:ok, _thread, _meta} =
+             Posts.create_post(
+               board,
+               %{"body" => "same body", "post" => "New Topic"},
+               config: config,
+               request: %{referer: "http://example.test/#{board.uri}/index.html", remote_ip: {203, 0, 113, 21}},
+               repo: Repo
+             )
+
+    assert {:error, :antispam} =
+             Posts.create_post(
+               board,
+               %{"body" => "same body", "post" => "New Topic"},
+               config: config,
+               request: %{referer: "http://example.test/#{board.uri}/index.html", remote_ip: {203, 0, 113, 22}},
+               repo: Repo
+             )
+  end
+
+  test "create_post rejects too many links" do
+    board = board_fixture()
+    config = post_config(board.config_overrides)
+
+    body =
+      1..21
+      |> Enum.map_join("\n", fn index -> "https://example.test/#{index}" end)
+
+    assert {:error, :toomanylinks} =
+             Posts.create_post(
+               board,
+               %{"body" => body, "post" => "New Topic"},
+               config: config,
+               request: post_request(board.uri),
+               repo: Repo
+             )
+  end
+
+  test "create_post enforces max threads per hour" do
+    board =
+      board_fixture(%{
+        config_overrides: %{max_threads_per_hour: 1, flood_time: 0, flood_time_ip: 0, flood_time_same: 0}
+      })
+    config = post_config(board.config_overrides)
+    request = post_request(board.uri)
+
+    assert {:ok, _thread, _meta} =
+             Posts.create_post(
+               board,
+               %{"body" => "first thread", "post" => "New Topic"},
+               config: config,
+               request: request,
+               repo: Repo
+             )
+
+    assert {:error, :too_many_threads} =
+             Posts.create_post(
+               board,
+               %{"body" => "second thread", "post" => "New Topic"},
+               config: config,
+               request: request,
+               repo: Repo
+             )
+  end
+
+  test "anti_bump_flood keeps thread bump time at the latest non-sage reply" do
+    board =
+      board_fixture(%{
+        config_overrides: %{anti_bump_flood: true, flood_time: 0, flood_time_ip: 0, flood_time_same: 0}
+      })
+    config = post_config(board.config_overrides)
+    request = Map.put(post_request(board.uri), :remote_ip, {203, 0, 113, 34})
+
+    assert {:ok, thread, _meta} =
+             Posts.create_post(
+               board,
+               %{"body" => "thread", "post" => "New Topic"},
+               config: config,
+               request: request,
+               repo: Repo
+             )
+
+    assert {:ok, _reply, _meta} =
+             Posts.create_post(
+               board,
+               %{"thread" => Integer.to_string(thread.id), "body" => "bump", "post" => "Reply"},
+               config: config,
+               request: request,
+               repo: Repo
+             )
+
+    bumped_thread = Repo.get!(Post, thread.id)
+    first_bump_at = bumped_thread.bump_at
+
+    assert {:ok, _sage_reply, _meta} =
+             Posts.create_post(
+               board,
+               %{
+                 "thread" => Integer.to_string(thread.id),
+                 "body" => "sage",
+                 "email" => "sage",
+                 "post" => "Reply"
+               },
+               config: config,
+               request: request,
+               repo: Repo
+             )
+
+    assert Repo.get!(Post, thread.id).bump_at == first_bump_at
   end
 
   test "move_thread moves posts, files, and rebuilds both boards" do

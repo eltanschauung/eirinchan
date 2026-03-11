@@ -438,6 +438,8 @@ defmodule EirinchanWeb.PostController do
   defp error_status(:thread_locked), do: :forbidden
   defp error_status(:invalid_referer), do: :forbidden
   defp error_status(:antispam), do: :unprocessable_entity
+  defp error_status(:too_many_threads), do: :unprocessable_entity
+  defp error_status(:toomanylinks), do: :unprocessable_entity
   defp error_status(:invalid_captcha), do: :unprocessable_entity
   defp error_status(:invalid_embed), do: :unprocessable_entity
   defp error_status(:invalid_post_mode), do: :forbidden
@@ -466,6 +468,8 @@ defmodule EirinchanWeb.PostController do
   defp error_message(:thread_locked, config), do: config.error.locked
   defp error_message(:invalid_referer, config), do: config.error.referer
   defp error_message(:antispam, config), do: config.error.antispam
+  defp error_message(:too_many_threads, config), do: config.error.too_many_threads
+  defp error_message(:toomanylinks, config), do: config.error.toomanylinks
   defp error_message(:invalid_captcha, config), do: config.error.captcha
   defp error_message(:invalid_embed, config), do: config.error.invalid_embed
   defp error_message(:invalid_post_mode, config), do: config.error.bot
