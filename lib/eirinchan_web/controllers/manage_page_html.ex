@@ -126,6 +126,9 @@ defmodule EirinchanWeb.ManagePageHTML do
   attr :post, :map, required: true
   attr :config, :map, required: true
   attr :op?, :boolean, default: false
+  attr :board, :map, default: nil
+  attr :moderator, :map, default: nil
+  attr :secure_manage_token, :string, default: nil
 
   defp files_block(assigns) do
     ~H"""
