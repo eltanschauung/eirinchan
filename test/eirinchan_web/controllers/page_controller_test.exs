@@ -130,6 +130,22 @@ defmodule EirinchanWeb.PageControllerTest do
     assert get_resp_header(faq_conn, "content-type") == ["text/html; charset=utf-8"]
   end
 
+  test "GET /watcher/fragment returns fragment without layout chrome", %{conn: conn} do
+    moderator_fixture()
+
+    conn =
+      conn
+      |> put_req_header("x-requested-with", "XMLHttpRequest")
+      |> get("/watcher/fragment")
+
+    html = response(conn, 200)
+
+    assert html =~ ~s(class="watcher-page")
+    refute html =~ "<!doctype html>"
+    refute html =~ ~s(class="boardlist bottom")
+    refute html =~ ~s(class="styles")
+  end
+
   test "GET /formatting renders copied formatting page", %{conn: conn} do
     moderator_fixture()
 

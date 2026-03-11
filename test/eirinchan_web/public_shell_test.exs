@@ -148,6 +148,8 @@ defmodule EirinchanWeb.PublicShellTest do
     assert html =~ ~s([Yotsuba])
     assert html =~ ~s([Tomorrow])
     assert html =~ ~s(class="selected")
+    assert html =~ "onclick=\"return changeStyle(&quot;Yotsuba&quot;, this)\""
+    assert html =~ "onclick=\"return changeStyle(&quot;Tomorrow&quot;, this)\""
   end
 
   test "renders password generation variables into head html" do
