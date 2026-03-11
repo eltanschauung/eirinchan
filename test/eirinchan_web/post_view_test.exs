@@ -163,7 +163,7 @@ defmodule EirinchanWeb.PostViewTest do
 
     html = PostView.backlinks_html(post, %{670 => [671, 672]})
 
-    assert html =~ ~s(<span class="mentioned unimportant">)
+    assert html =~ ~s(<span class="mentioned">)
     assert html =~ ~s(class="mentioned-671")
     assert html =~ ~s(href="#671")
     assert html =~ ~s(class="mentioned-672")

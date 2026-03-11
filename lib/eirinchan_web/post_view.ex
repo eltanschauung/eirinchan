@@ -118,7 +118,7 @@ defmodule EirinchanWeb.PostView do
             ~s|<a class="mentioned-#{backlink_id}" onclick="highlightReply('#{backlink_id}');" href="##{backlink_id}">&gt;&gt;#{backlink_id}</a>|
           end)
 
-        ~s|<span class="mentioned unimportant">#{links}</span>|
+        ~s|<span class="mentioned">#{links}</span>|
     end
   end
 
