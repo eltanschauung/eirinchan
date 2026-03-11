@@ -5,6 +5,7 @@ defmodule EirinchanWeb.Router do
     plug :accepts, ["html"]
     plug :fetch_session
     plug :fetch_cookies
+    plug EirinchanWeb.Plugs.FetchBrowserToken
     plug EirinchanWeb.Plugs.FetchCurrentModerator
     plug EirinchanWeb.Plugs.FetchTheme
     plug EirinchanWeb.Plugs.FetchSiteAssets
@@ -20,6 +21,8 @@ defmodule EirinchanWeb.Router do
   pipeline :api do
     plug :accepts, ["json"]
     plug :fetch_session
+    plug :fetch_cookies
+    plug EirinchanWeb.Plugs.FetchBrowserToken
     plug EirinchanWeb.Plugs.FetchCurrentModerator
     plug EirinchanWeb.Plugs.SecureHeaders
   end

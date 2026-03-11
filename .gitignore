@@ -32,4 +32,7 @@ security_skeleton.txt
 /priv/static/whalestickers/
 
 js_migration_plan.txt
+thread_watcher_spec.md
 /priv/static/static/banners/
+
+thread_watcher_spec.md
