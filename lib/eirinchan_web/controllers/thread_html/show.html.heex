@@ -305,15 +305,7 @@
           post_target={"op_#{post.id}"}
           watch={@thread_watch}
         />
-        <input
-          type="checkbox"
-          class="delete"
-          name={"delete_#{post.id}"}
-          id={"delete_#{post.id}"}
-          value={post.id}
-          data-post-select
-        />
-        <label for={"delete_#{post.id}"}>
+        <label>
           <.post_identity
             post={post}
             config={@config}

@@ -351,13 +351,7 @@
                 watch={watch}
                 show_hide={true}
               />
-              <input
-                type="checkbox"
-                class="delete"
-                name={"delete_#{thread.id}"}
-                id={"delete_#{thread.id}"}
-              />
-              <label for={"delete_#{thread.id}"}>
+              <label>
                 <.post_identity
                   post={thread}
                   config={@config}

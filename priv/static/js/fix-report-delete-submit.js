@@ -77,10 +77,6 @@ Menu.onclick(function(e, $buf) {
 	});
 });
 
-$(document).on('new_post', function(){
-	$('input.delete').hide();
-});
-$('input.delete').hide();
 $('#post-moderation-fields').hide();
 });
 
