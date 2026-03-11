@@ -312,7 +312,7 @@
 		ensure_spoiler_control();
 
 		$postForm.find('input[name="user_flag"], select[name="user_flag"], textarea[name="user_flag"]').each(function() {
-			$(this).css('width', '90px');
+			$(this).css('width', '75%');
 			$(this).attr('size', '10');
 		});
 		$postForm.find('.quick-reply-spoiler').css({
