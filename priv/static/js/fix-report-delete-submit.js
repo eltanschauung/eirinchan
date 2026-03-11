@@ -47,13 +47,19 @@ if ($('#delete-fields #password').length) {
 			}
 
 			var $fileToggle = $form.find('#delete_file_' + postId);
+			var $password = $form.find('input[name="password"]');
+			var passwordValue = $.trim($password.val() || '');
 			if ($(this).attr('id') === 'delete_file_menu') {
 				$fileToggle.prop('checked', true);
 			} else {
 				$fileToggle.prop('checked', false);
 			}
 
-			$form.find('input[name="password"]').trigger('focus');
+			if (passwordValue.length) {
+				$form.find('input[name="delete"]').trigger('click');
+			} else {
+				$password.trigger('focus');
+			}
 		});
 	});
 }

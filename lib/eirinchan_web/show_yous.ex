@@ -1,7 +1,12 @@
 defmodule EirinchanWeb.ShowYous do
   alias Eirinchan.PostOwnership
 
-  def enabled?(conn), do: conn.req_cookies["show_yous"] == "true"
+  def enabled?(conn) do
+    case conn.req_cookies["show_yous"] do
+      "false" -> false
+      _ -> true
+    end
+  end
 
   def owned_post_ids(conn, posts) do
     if enabled?(conn) do
