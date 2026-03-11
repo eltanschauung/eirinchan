@@ -108,17 +108,18 @@ function addButton(post) {
 	var $postBtn = $('<a>', {href: '#', class: 'post-btn', title: 'Post menu'}).text('▶');
 
 	if ($ele.hasClass('op')) {
-		var thread = post.closest('.thread');
-		if (thread) {
-			var $rail = $(thread).children('.thread-top-controls');
+		if (post) {
+			var $intro = $ele.find('p.intro').first();
+			var $rail = $intro.children('.thread-top-controls');
 			if (!$rail.length) {
 				$rail = $('<span class="thread-top-controls"></span>');
-				$rail.insertBefore($(thread).find(':not(h2,h2 *):first'));
+				$intro.prepend($rail);
 			}
 
 			$postBtn.attr('data-post-target', postId);
 			$rail.append($postBtn);
 
+			var thread = post.closest('.thread');
 			if (thread.dataset && thread.dataset.threadId && !$rail.find('.watch-thread-link').length) {
 				$rail.append(
 					$('<a>', {
@@ -194,7 +195,7 @@ cssString =
 	'.post-menu li:hover>ul {display: block; left: 100%; margin-top: -3px;}\n' +
 	'.post-menu-arrow {float: right; margin-left: 10px;}\n' +
 	'.post-menu.hidden, .post-menu .hidden {display: none;}\n' +
-	'.thread-top-controls {display: flex; align-items: center; gap: 5px; float: left; margin-right: 5px; min-height: 18px;}\n' +
+	'.thread-top-controls {display: inline-flex; align-items: center; gap: 5px; margin-right: 5px; vertical-align: middle;}\n' +
 	'.post-btn {transition: transform 0.1s; width: 15px; text-align: center; font-size: 10pt; opacity: 0.8; text-decoration: none; margin: 0 !important; display: inline-block; line-height: 1; vertical-align: middle; float: none;}\n' +
 	'.post-btn:hover {opacity: 1;}\n' +
 	'.post-btn-open {transform: rotate(90deg);}\n' +
