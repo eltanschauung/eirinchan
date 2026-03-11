@@ -13,6 +13,7 @@ defmodule EirinchanWeb.SearchController do
   alias EirinchanWeb.BoardChrome
   alias EirinchanWeb.PublicShell
   alias EirinchanWeb.RequestMeta
+  alias EirinchanWeb.ShowYous
   import Ecto.Query, only: [from: 2]
 
   plug :assign_search_shell
@@ -66,6 +67,11 @@ defmodule EirinchanWeb.SearchController do
   end
 
   defp render_search(conn, query, board, boards, results, error) do
+    own_post_ids =
+      results
+      |> Enum.map(& &1.post)
+      |> then(&ShowYous.owned_post_ids(conn, &1))
+
     render(conn, :show,
       query: query,
       board: board,
@@ -77,6 +83,8 @@ defmodule EirinchanWeb.SearchController do
         EirinchanWeb.PostView.boardlist_html(EirinchanWeb.PostView.boardlist_groups(boards)),
       current_moderator: conn.assigns[:current_moderator],
       secure_manage_token: conn.assigns[:secure_manage_token],
+      own_post_ids: own_post_ids,
+      show_yous: ShowYous.enabled?(conn),
       results: results,
       result_count: length(results),
       grouped_results: group_search_results(results),

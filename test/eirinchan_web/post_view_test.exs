@@ -75,6 +75,19 @@ defmodule EirinchanWeb.PostViewTest do
     assert html =~ ~s(<img src="/whalestickers/gojo.png" title=":gojo:">waow)
   end
 
+  test "body_html marks owned quote targets server-side" do
+    config = Config.compose()
+    post = %Post{body: ">>123"}
+
+    html =
+      PostView.body_html(post, %BoardRecord{uri: "bant"}, %Post{id: 1}, config,
+        own_post_ids: MapSet.new([123]),
+        show_yous: true
+      )
+
+    assert html =~ ~s|<small>(You)</small>|
+  end
+
   test "body_html renders vichan-style inline and line formatting" do
     config = Config.compose()
 

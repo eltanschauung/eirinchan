@@ -384,7 +384,9 @@ defmodule EirinchanWeb.PostView do
         config,
         moderator \\ nil,
         session_token \\ nil,
-        backlinks_map \\ %{}
+        backlinks_map \\ %{},
+        own_post_ids \\ MapSet.new(),
+        show_yous \\ false
       ) do
     identity =
       [
@@ -395,6 +397,10 @@ defmodule EirinchanWeb.PostView do
         name_html(post, config),
         if(present?(post.tripcode),
           do: ~s(<span class="trip">#{html_escape_to_string(post.tripcode)}</span>),
+          else: nil
+        ),
+        if(show_yous and MapSet.member?(own_post_ids, post.id),
+          do: ~s|<span class="own_post">(You)</span>|,
           else: nil
         ),
         ip_link_html(post, board, moderator),
@@ -422,7 +428,7 @@ defmodule EirinchanWeb.PostView do
       ]
       |> Enum.join("")
 
-    ~s(<div class="post reply" id="reply_#{post.id}"><p class="intro">#{intro}</p><div class="files">#{files_html(post, config, moderator, board, session_token)}</div>#{post_controls_html(post, board, moderator, session_token) || ""}#{reply_body_container_html(post, board, thread, config)}</div><br class="clear" />)
+    ~s(<div class="post reply" id="reply_#{post.id}"><p class="intro">#{intro}</p><div class="files">#{files_html(post, config, moderator, board, session_token)}</div>#{post_controls_html(post, board, moderator, session_token) || ""}#{reply_body_container_html(post, board, thread, config, own_post_ids: own_post_ids, show_yous: show_yous)}</div><br class="clear" />)
   end
 
   def file_size_text(file), do: human_file_size(Map.get(file, :file_size))
@@ -690,7 +696,7 @@ defmodule EirinchanWeb.PostView do
     end
   end
 
-  def body_html(post, board, thread, config) do
+  def body_html(post, board, thread, config, opts \\ []) do
     post.body
     |> Kernel.||("")
     |> String.replace("\r\n", "\n")
@@ -698,7 +704,7 @@ defmodule EirinchanWeb.PostView do
     |> html_escape()
     |> safe_to_string()
     |> String.split("\n", trim: false)
-    |> Enum.map(&format_body_line(&1, board, thread, config))
+    |> Enum.map(&format_body_line(&1, board, thread, config, opts))
     |> Enum.join("<br/>")
   end
 
@@ -707,7 +713,7 @@ defmodule EirinchanWeb.PostView do
   end
 
   def body_container_html(post, board, thread, config, opts \\ []) do
-    body = body_html(post, board, thread, config)
+    body = body_html(post, board, thread, config, opts)
     style_attr = body_style_attr(post, config, opts)
 
     tag_html =
@@ -736,8 +742,8 @@ defmodule EirinchanWeb.PostView do
     ~s(<div class="body"#{style_attr}>#{body}#{tag_html}#{fileboard_html}</div>)
   end
 
-  def reply_body_container_html(post, board, thread, config) do
-    body = body_html(post, board, thread, config)
+  def reply_body_container_html(post, board, thread, config, opts \\ []) do
+    body = body_html(post, board, thread, config, opts)
     style_attr = body_style_attr(post, config)
 
     tag_html =
@@ -1105,10 +1111,10 @@ defmodule EirinchanWeb.PostView do
 
   defp maybe_add_omitted(parts, _count, _label), do: parts
 
-  defp format_body_line(line, board, thread, config) do
+  defp format_body_line(line, board, thread, config, opts) do
     rendered =
       line
-      |> render_quote_links(board, thread, config)
+      |> render_quote_links(board, thread, config, opts)
       |> WhaleStickers.replace_line(config)
       |> render_line_formatting()
       |> render_inline_formatting()
@@ -1155,10 +1161,20 @@ defmodule EirinchanWeb.PostView do
     |> then(&Regex.replace(~r/(&#39;){2}(.+?)(&#39;){2}/u, &1, ~s(<em>\\2</em>)))
   end
 
-  defp render_quote_links(line, board, thread, config) do
+  defp render_quote_links(line, board, thread, config, opts) do
+    own_post_ids = Keyword.get(opts, :own_post_ids, MapSet.new())
+    show_yous = Keyword.get(opts, :show_yous, false)
+
     Regex.replace(~r/&gt;&gt;(\d+)/, line, fn _match, id ->
+      post_id = String.to_integer(id)
       href = ThreadPaths.thread_path(board, thread, config) <> "##{id}"
-      "<a onclick=\"highlightReply('#{id}', event);\" href=\"#{href}\">&gt;&gt;#{id}</a>"
+
+      you =
+        if show_yous and MapSet.member?(own_post_ids, post_id),
+          do: " <small>(You)</small>",
+          else: ""
+
+      "<a onclick=\"highlightReply('#{id}', event);\" href=\"#{href}\">&gt;&gt;#{id}</a>#{you}"
     end)
   end
 

@@ -8,6 +8,7 @@ defmodule EirinchanWeb.BoardController do
   alias EirinchanWeb.BoardChrome
   alias EirinchanWeb.PostView
   alias EirinchanWeb.PublicShell
+  alias EirinchanWeb.ShowYous
 
   plug EirinchanWeb.Plugs.LoadBoard when action in [:show]
   plug EirinchanWeb.Plugs.LoadBoard when action in [:show_page]
@@ -76,6 +77,8 @@ defmodule EirinchanWeb.BoardController do
         chrome = BoardChrome.for_board(board)
         thread_watch_state = thread_watch_state(conn, board)
         watcher_count = watcher_count(conn)
+        own_post_ids = ShowYous.owned_post_ids(conn, Enum.map(page_data.threads, & &1.thread))
+        show_yous = ShowYous.enabled?(conn)
         fragment? = Keyword.get(opts, :fragment?, false)
 
         conn = if fragment?, do: put_root_layout(conn, false), else: conn
@@ -88,6 +91,8 @@ defmodule EirinchanWeb.BoardController do
           threads: page_data.threads,
           thread_watch_state: thread_watch_state,
           watcher_count: watcher_count,
+          own_post_ids: own_post_ids,
+          show_yous: show_yous,
           config: config,
           boards: boards,
           board_chrome: chrome,
@@ -139,6 +144,8 @@ defmodule EirinchanWeb.BoardController do
         backlinks_map = page_backlinks_map(page_data)
         thread_watch_state = thread_watch_state(conn, board)
         watcher_count = watcher_count(conn)
+        own_post_ids = own_post_ids(conn, page_data)
+        show_yous = ShowYous.enabled?(conn)
         fragment? = Keyword.get(opts, :fragment?, false)
 
         conn = if fragment?, do: put_root_layout(conn, false), else: conn
@@ -150,6 +157,8 @@ defmodule EirinchanWeb.BoardController do
           page_title: "/#{board.uri}/ - #{board.title}",
           page_data: page_data,
           backlinks_map: backlinks_map,
+          own_post_ids: own_post_ids,
+          show_yous: show_yous,
           thread_watch_state: thread_watch_state,
           watcher_count: watcher_count,
           config: config,
@@ -242,5 +251,13 @@ defmodule EirinchanWeb.BoardController do
       token when is_binary(token) -> ThreadWatcher.watch_count(token)
       _ -> 0
     end
+  end
+
+  defp own_post_ids(conn, page_data) do
+    posts =
+      page_data.threads
+      |> Enum.flat_map(fn summary -> [summary.thread | summary.replies] end)
+
+    ShowYous.owned_post_ids(conn, posts)
   end
 end

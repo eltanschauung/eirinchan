@@ -9,6 +9,7 @@ defmodule EirinchanWeb.ThreadController do
   alias EirinchanWeb.BoardChrome
   alias EirinchanWeb.PostView
   alias EirinchanWeb.PublicShell
+  alias EirinchanWeb.ShowYous
 
   plug EirinchanWeb.Plugs.LoadBoard
 
@@ -43,6 +44,8 @@ defmodule EirinchanWeb.ThreadController do
           thread_watch = thread_watch(conn, board, summary.thread.id)
           _ = maybe_mark_thread_seen(conn, board, summary)
           watcher_count = watcher_count(conn)
+          own_post_ids = ShowYous.owned_post_ids(conn, [summary.thread | summary.replies])
+          show_yous = ShowYous.enabled?(conn)
 
           conn = if fragment_request?(conn.params), do: put_root_layout(conn, false), else: conn
 
@@ -54,6 +57,8 @@ defmodule EirinchanWeb.ThreadController do
               "/#{board.uri}/ - #{summary.thread.subject || summary.thread.body || summary.thread.id}",
             summary: summary,
             backlinks_map: backlinks_map,
+            own_post_ids: own_post_ids,
+            show_yous: show_yous,
             thread_watch: thread_watch,
             watcher_count: watcher_count,
             config: config,

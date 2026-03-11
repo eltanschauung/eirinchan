@@ -5,11 +5,13 @@ defmodule EirinchanWeb.PostController do
 
   alias Eirinchan.Bans
   alias Eirinchan.LogSystem
+  alias Eirinchan.PostOwnership
   alias Eirinchan.Posts
   alias Eirinchan.Reports
   alias Eirinchan.ThreadPaths
   alias EirinchanWeb.PostView
   alias EirinchanWeb.RequestMeta
+  alias EirinchanWeb.ShowYous
 
   plug EirinchanWeb.Plugs.LoadBoard
 
@@ -111,6 +113,7 @@ defmodule EirinchanWeb.PostController do
   defp respond_created(conn, board, post, params, meta) do
     thread_id = post.thread_id || post.id
     config = conn.assigns.current_board_config
+    _ = maybe_record_post_ownership(conn, post)
     conn = put_post_success_cookie(conn, board, post)
     op? = is_nil(post.thread_id)
 
@@ -149,7 +152,10 @@ defmodule EirinchanWeb.PostController do
                   thread,
                   config,
                   conn.assigns[:current_moderator],
-                  conn.assigns[:secure_manage_token]
+                  conn.assigns[:secure_manage_token],
+                  %{},
+                  MapSet.new([post.id]),
+                  ShowYous.enabled?(conn)
                 )
               )
 
@@ -163,6 +169,13 @@ defmodule EirinchanWeb.PostController do
       json(conn, payload)
     else
       redirect(conn, to: redirect_path)
+    end
+  end
+
+  defp maybe_record_post_ownership(conn, post) do
+    case conn.assigns[:browser_token] do
+      token when is_binary(token) -> PostOwnership.record(token, post.id)
+      _ -> :ok
     end
   end
 

@@ -7,6 +7,7 @@ defmodule EirinchanWeb.PostComponents do
   attr :config, :map, required: true
   attr :board, :map, required: true
   attr :moderator, :map, default: nil
+  attr :own, :boolean, default: false
 
   def post_identity(assigns) do
     assigns =
@@ -15,7 +16,32 @@ defmodule EirinchanWeb.PostComponents do
       |> assign(:flags, PostView.post_flags(assigns.post, assigns.config))
 
     ~H"""
-    <span :if={@post.subject} class="subject"><%= @post.subject %></span><%= if @post.subject, do: " " %><%= if PostView.email_link?(@post.email, @config) do %><a class="email" href={"mailto:" <> to_string(@post.email)}><span class="name"><%= PostView.display_name(@post, @config) %></span></a><% else %><span class="name"><%= PostView.display_name(@post, @config) %></span><% end %><%= if @post.tripcode, do: " " %><span :if={@post.tripcode} class="trip"><%= @post.tripcode %></span><%= if @visible_ip, do: " " %><a :if={@visible_ip} class="ip-link" style="margin:0;" href={"/mod.php?/IP/" <> @visible_ip}>[<%= @visible_ip %>]</a><%= if @flags != [], do: " " %><%= for flag <- @flags do %><img class="flag" src={flag.src} alt={flag.alt} title={flag.alt} style={PostView.flag_style(@config)} /><% end %><%= if @flags != [], do: " " %><time datetime={PostView.iso_timestamp(@post)}><%= PostView.formatted_timestamp(@post) %></time>
+    <span :if={@post.subject} class="subject"><%= @post.subject %></span><%= if @post.subject, do: " " %>
+    <%= if PostView.email_link?(@post.email, @config) do %>
+      <a class="email" href={"mailto:" <> to_string(@post.email)}>
+        <span class="name"><%= PostView.display_name(@post, @config) %></span>
+      </a>
+    <% else %>
+      <span class="name"><%= PostView.display_name(@post, @config) %></span>
+    <% end %>
+    <%= if @own, do: " " %><span :if={@own} class="own_post">(You)</span><%= if @post.tripcode,
+      do: " " %><span :if={@post.tripcode} class="trip"><%= @post.tripcode %></span><%= if @visible_ip,
+      do: " " %><a
+      :if={@visible_ip}
+      class="ip-link"
+      style="margin:0;"
+      href={"/mod.php?/IP/" <> @visible_ip}
+    >[<%= @visible_ip %>]</a><%= if @flags != [], do: " " %>
+    <%= for flag <- @flags do %>
+      <img
+        class="flag"
+        src={flag.src}
+        alt={flag.alt}
+        title={flag.alt}
+        style={PostView.flag_style(@config)}
+      />
+    <% end %>
+    <%= if @flags != [], do: " " %><time datetime={PostView.iso_timestamp(@post)}><%= PostView.formatted_timestamp(@post) %></time>
     """
   end
 
@@ -39,10 +65,11 @@ defmodule EirinchanWeb.PostComponents do
       href={@quote_href}
       data-quote-to={@quote_to}
       data-quick-reply-thread={@quick_reply_thread}
-    ><%= @post_id %></a>
+    >
+      <%= @post_id %>
+    </a>
     """
   end
-
 
   attr :post_target, :string, required: true
 
@@ -70,7 +97,9 @@ defmodule EirinchanWeb.PostComponents do
           class={"mentioned-#{backlink_id}"}
           onclick={"highlightReply('#{backlink_id}');"}
           href={"##{backlink_id}"}
-        >&gt;&gt;<%= backlink_id %></a>
+        >
+          &gt;&gt;<%= backlink_id %>
+        </a>
       <% end %>
     </span>
     """
@@ -100,7 +129,8 @@ defmodule EirinchanWeb.PostComponents do
         data-watch-url={"/watcher/#{@board_uri}/#{@thread_id}"}
         data-unwatch-url={"/watcher/#{@board_uri}/#{@thread_id}"}
         data-watched={to_string(@watched)}
-      ></a>
+      >
+      </a>
     </span>
     """
   end
