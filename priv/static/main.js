@@ -304,7 +304,6 @@
         window.jQuery(textarea).change();
       }
 
-      textarea.focus();
       return false;
     } catch (_error) {
       return false;
