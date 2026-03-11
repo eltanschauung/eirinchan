@@ -1,6 +1,8 @@
 defmodule EirinchanWeb.PageControllerTest do
   use EirinchanWeb.ConnCase
 
+  alias Eirinchan.ThreadWatcher
+
   setup do
     original_path = Application.get_env(:eirinchan, :instance_config_path)
 
@@ -345,5 +347,27 @@ defmodule EirinchanWeb.PageControllerTest do
   test "GET /flag redirects to /flags", %{conn: conn} do
     conn = get(conn, "/flag")
     assert redirected_to(conn) == "/flags"
+  end
+
+  test "renders watcher page with watched threads", %{conn: conn} do
+    moderator_fixture()
+    board = Eirinchan.BoardsFixtures.board_fixture(%{uri: "watchtest", title: "Watch Test"})
+    thread = Eirinchan.PostsFixtures.thread_fixture(board, %{body: "watch body"})
+    token = "token-1234567890123456"
+
+    assert {:ok, _} =
+             ThreadWatcher.watch_thread(token, board.uri, thread.id, %{
+               last_seen_post_id: thread.id
+             })
+
+    conn =
+      conn
+      |> put_req_cookie("browser_token", token)
+      |> get(~p"/watcher")
+
+    body = html_response(conn, 200)
+    assert body =~ "Thread Watcher"
+    assert body =~ "/watchtest/ - Opening subject"
+    assert body =~ "[Unwatch]"
   end
 end

@@ -10,7 +10,7 @@ defmodule EirinchanWeb.BannerAsset do
 
   defp pick_banner(config) do
     config
-    |> Map.get(:banners, [])
+    |> Map.get(:banners, Map.get(config, "banners", []))
     |> Enum.filter(&(is_binary(&1) and String.trim(&1) != ""))
     |> Enum.random()
   rescue
