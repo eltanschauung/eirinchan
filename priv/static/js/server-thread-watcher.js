@@ -98,7 +98,7 @@
     watcherDialog.id = 'server-watcher-dialog';
     watcherDialog.innerHTML =
       '<div class="watcher-dialog-background"></div>' +
-      '<div class="watcher-dialog-panel">' +
+      '<div class="watcher-dialog-panel post reply">' +
       '<a href="javascript:void(0)" class="watcher-dialog-close">[Close]</a>' +
       '<div class="watcher-dialog-body"></div>' +
       '</div>';
