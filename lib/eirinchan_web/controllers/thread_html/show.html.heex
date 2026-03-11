@@ -362,8 +362,9 @@
       ) %>
     </div>
 
-    <%= for reply <- @summary.replies do %>
-      <div class="post reply" id={"reply_#{reply.id}"}>
+    <div id="thread-refresh-target" data-fragment-md5={@fragment_md5}>
+      <%= for reply <- @summary.replies do %>
+        <div class="post reply" id={"reply_#{reply.id}"}>
         <p class="intro">
           <a id={to_string(reply.id)} class="post_anchor"></a>
           <input
@@ -443,9 +444,10 @@
             show_yous: @show_yous
           )
         ) %>
-      </div>
-      <br />
-    <% end %>
+        </div>
+        <br />
+      <% end %>
+    </div>
 
     <br class="clear" />
     <hr />
