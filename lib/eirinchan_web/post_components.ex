@@ -127,13 +127,13 @@ defmodule EirinchanWeb.PostComponents do
 
   def admin_shortcuts(assigns) do
     ~H"""
-    <div :if={@moderator} class="admin-shortcuts">
+    <div :if={@moderator} class="admin-shortcuts unimportant">
       <a href="/manage">Return to Dashboard</a>
       |
       <form action="/manage/logout/browser" method="post" class="inline-form admin-shortcuts-form">
         <input type="hidden" name="_csrf_token" value={Phoenix.Controller.get_csrf_token()} />
         <input type="hidden" name="_method" value="delete" />
-        <button type="submit" class="admin-shortcuts-button">Logout</button>
+        <input type="submit" value="Logout" class="admin-shortcuts-button" />
       </form>
     </div>
     """
