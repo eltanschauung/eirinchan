@@ -130,10 +130,16 @@ defmodule EirinchanWeb.PostComponents do
     <div :if={@moderator} class="admin-shortcuts unimportant">
       <a href="/manage">Return to Dashboard</a>
       |
-      <form action="/manage/logout/browser" method="post" class="inline-form admin-shortcuts-form">
+      <a href="/manage/logout/browser" onclick="document.getElementById('admin-shortcuts-logout-form').submit(); return false;">Logout</a>
+      <form
+        id="admin-shortcuts-logout-form"
+        action="/manage/logout/browser"
+        method="post"
+        class="inline-form admin-shortcuts-form"
+        hidden
+      >
         <input type="hidden" name="_csrf_token" value={Phoenix.Controller.get_csrf_token()} />
         <input type="hidden" name="_method" value="delete" />
-        <a href="/manage/logout/browser" class="admin-shortcuts-logout" onclick="this.closest('form').submit(); return false;">Logout</a>
       </form>
     </div>
     """
