@@ -8,7 +8,8 @@ defmodule EirinchanWeb.Plugs.FetchSiteAssets do
   @default_config %{
     version: nil,
     custom_javascript: [],
-    analytics_html: nil
+    analytics_html: nil,
+    url_favicon: "favicon.ico"
   }
 
   def init(opts), do: opts
@@ -20,6 +21,7 @@ defmodule EirinchanWeb.Plugs.FetchSiteAssets do
     |> assign(:asset_version, blank_to_nil(config.version))
     |> assign(:custom_javascript_urls, parse_custom_javascript(config.custom_javascript))
     |> assign(:analytics_html, blank_to_nil(config.analytics_html))
+    |> assign(:favicon_url, normalize_favicon_url(config.url_favicon))
   end
 
   def parse_custom_javascript(value) when is_list(value) do
@@ -61,11 +63,25 @@ defmodule EirinchanWeb.Plugs.FetchSiteAssets do
       version: Map.get(instance_config, :asset_version, site_assets.version),
       custom_javascript:
         Map.get(instance_config, :custom_javascript, site_assets.custom_javascript),
-      analytics_html: Map.get(instance_config, :analytics_html, site_assets.analytics_html)
+      analytics_html: Map.get(instance_config, :analytics_html, site_assets.analytics_html),
+      url_favicon: Map.get(instance_config, :url_favicon, site_assets.url_favicon)
     })
   end
 
   defp blank_to_nil(nil), do: nil
   defp blank_to_nil(""), do: nil
   defp blank_to_nil(value), do: value
+
+  defp normalize_favicon_url(nil), do: nil
+  defp normalize_favicon_url(""), do: nil
+
+  defp normalize_favicon_url(value) when is_binary(value) do
+    trimmed = String.trim(value)
+
+    cond do
+      trimmed == "" -> nil
+      String.starts_with?(trimmed, ["http://", "https://", "//", "/"]) -> trimmed
+      true -> "/" <> trimmed
+    end
+  end
 end

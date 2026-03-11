@@ -10,6 +10,7 @@
       name="viewport"
       content={assigns[:viewport_content] || "width=device-width, initial-scale=1"}
     />
+    <link :if={assigns[:favicon_url]} rel="shortcut icon" href={assigns[:favicon_url]} />
     <meta :if={!assigns[:public_shell]} name="csrf-token" content={get_csrf_token()} />
     <link
       :if={assigns[:base_stylesheet]}
