@@ -109,12 +109,12 @@ $(function(){
   var watcherCount = parseInt(document.body && document.body.dataset ? document.body.dataset.watcherCount : '0', 10);
   if (isNaN(watcherCount)) watcherCount = 0;
   var watcherLabel = _("Watcher") + (watcherCount > 0 ? ' (' + watcherCount + ')' : '');
-  watcher_button = $("<a id='watcher-link' href='/watcher' title='"+_("Watcher")+"' class='fa fa-eye' aria-label='"+_("Watcher")+"'></a>");
+  watcher_button = $("<a id='watcher-link' href='/watcher' title='"+_("Watcher")+"' aria-label='"+_("Watcher")+"'>👁</a>");
 
   if ($(".boardlist.compact-boardlist").length) {
     options_button.addClass("cb-item cb-fa").html("<i class='fa fa-gear'></i>");
     admin_button.addClass("cb-item").text(_("Admin"));
-    watcher_button.addClass("cb-item cb-fa");
+    watcher_button.addClass("cb-item");
     watcher_button.appendTo(options_links);
     $("<span>&nbsp;</span>").appendTo(options_links);
     admin_button.appendTo(options_links);
