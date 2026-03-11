@@ -263,6 +263,41 @@
     return hasPostPayload(form);
   }
 
+  function findPostContainer(id) {
+    return (
+      document.getElementById('reply_' + id) ||
+      document.getElementById('op_' + id) ||
+      (function () {
+        var anchor = document.getElementById(String(id));
+        return anchor ? anchor.closest('.post, .thread') : null;
+      })()
+    );
+  }
+
+  function highlightReply(id) {
+    if (typeof window.event !== 'undefined' && window.event && window.event.which === 2) {
+      return true;
+    }
+
+    document.querySelectorAll('.post.highlighted, .thread.highlighted').forEach(function (node) {
+      node.className = node.className.replace(/\s*highlighted\b/g, '');
+    });
+
+    if (!id) return true;
+
+    var post = findPostContainer(id);
+
+    if (post && !/\bhighlighted\b/.test(post.className)) {
+      post.className += ' highlighted';
+    }
+
+    if (window.location.hash !== '#' + id) {
+      window.location.hash = id;
+    }
+
+    return true;
+  }
+
   function citeReply(id, withLink) {
     try {
       var textarea = document.getElementById('body');
@@ -544,6 +579,7 @@
   window.do_boardlist = window.do_boardlist || function () {};
   window.dopost = window.dopost || doPost;
   window.doPost = window.doPost || window.dopost;
+  window.highlightReply = window.highlightReply || highlightReply;
   window.citeReply = window.citeReply || citeReply;
   window.rememberStuff = window.rememberStuff || rememberStuff;
   window.EirinchanFrontend =
