@@ -295,6 +295,16 @@
             </a>
             <div class="replies">
               <strong>R: <%= summary.reply_count %> / I: <%= summary.image_count %></strong>
+              <a
+                href="#"
+                class="thread-watch-toggle"
+                data-thread-watch
+                data-board-uri={@board.uri}
+                data-thread-id={post.id}
+                data-watch-url={"/watcher/#{@board.uri}/#{post.id}"}
+                data-unwatch-url={"/watcher/#{@board.uri}/#{post.id}"}
+                data-watched={MapSet.member?(@watched_thread_ids, post.id)}
+              >[<%= if MapSet.member?(@watched_thread_ids, post.id), do: "Unwatch", else: "Watch" %>]</a>
               <p :if={PostView.catalog_label(post, @config)} class="intro">
                 <span class="subject"><%= PostView.catalog_label(post, @config) %></span>
               </p>

@@ -156,6 +156,20 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     assert response =~ ~s(id="board-refresh-target")
   end
 
+  test "board page renders watch links for threads", %{conn: conn} do
+    board = board_fixture(%{uri: "watchlinks", title: "Watch Links"})
+    _thread = thread_fixture(board, %{body: "Watching"})
+
+    response =
+      conn
+      |> put_req_cookie("browser_token", "token-1234567890123456")
+      |> get(~p"/#{board.uri}")
+      |> html_response(200)
+
+    assert response =~ ~s(data-thread-watch)
+    assert response =~ "[Watch]"
+  end
+
   test "board page uses configured catalog name in search links", %{conn: conn} do
     :ok = Eirinchan.Themes.enable_page_theme("catalog")
 

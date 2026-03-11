@@ -535,6 +535,13 @@ defmodule Eirinchan.Posts do
     PostsThreadLookup.get_thread_view(board, thread_id, opts)
   end
 
+  @spec fetch_thread(BoardRecord.t(), String.t() | integer() | nil, keyword()) ::
+          {:ok, Post.t() | nil} | {:error, :thread_not_found}
+  def fetch_thread(%BoardRecord{} = board, thread_id, opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+    PostsThreadLookup.fetch_thread(board, thread_id, repo)
+  end
+
   @spec captcha_required?(map(), boolean()) :: boolean()
   def captcha_required?(config, op?) do
     captcha = Map.get(config, :captcha, %{})
