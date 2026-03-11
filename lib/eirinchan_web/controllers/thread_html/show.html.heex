@@ -180,7 +180,9 @@
         <input :if={@config.max_images > 1} type="file" name="files[]" id="upload_file" multiple />
         <input :if={@config.max_images <= 1} type="file" name="file" id="upload_file" />
         <script type="text/javascript">
-          if (typeof init_file_selector !== 'undefined') init_file_selector(<%= @config.max_images %>);
+          document.addEventListener('DOMContentLoaded', function () {
+            if (typeof init_file_selector !== 'undefined') init_file_selector(<%= @config.max_images %>);
+          }, { once: true });
         </script>
       </td>
     </tr>
@@ -214,7 +216,9 @@
 </form>
 
 <script type="text/javascript">
-  rememberStuff();
+  document.addEventListener('DOMContentLoaded', function () {
+    if (typeof rememberStuff === 'function') rememberStuff();
+  }, { once: true });
 </script>
 
 <hr />
