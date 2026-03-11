@@ -99,7 +99,7 @@ defmodule EirinchanWeb.PostView do
       end)
       |> Enum.join("")
 
-    ~s|&nbsp;<a class="post_no" id="post_no_#{post_id}" onclick="highlightReply(#{post_id})" href="#{html_escape_to_string(post_href)}">No.</a><a class="post_no" onclick="return citeReply(#{post_id}, false, event)" href="#{html_escape_to_string(quote_href)}"#{quote_attrs}>#{post_id}</a>|
+    ~s|&nbsp;<a class="post_no" id="post_no_#{post_id}" onclick="highlightReply(#{post_id})" href="#{html_escape_to_string(post_href)}">No.</a><a class="post_no" onclick="return citeReply(#{post_id}, false)" href="#{html_escape_to_string(quote_href)}"#{quote_attrs}>#{post_id}</a>|
   end
 
   def backlinks_html(post, backlinks_map \\ %{}) do
