@@ -1,0 +1,54 @@
+<div id="Grid">
+  <%= if @threads == [] do %>
+    <p class="unimportant">No threads yet.</p>
+  <% else %>
+    <%= for summary <- @threads do %>
+      <% post = summary.thread %>
+      <% template = PostView.template_assigns(@board, post, @config) %>
+      <div
+        class="mix"
+        data-reply={summary.reply_count}
+        data-bump={PostView.unix_timestamp(post.bump_at || post.inserted_at)}
+        data-time={PostView.unix_timestamp(post.inserted_at)}
+        data-id={post.id}
+        data-sticky={to_string(post.sticky || false)}
+        data-locked={to_string(post.locked || false)}
+      >
+        <div class="thread grid-li grid-size-large" id={"catalog-#{post.id}"}>
+          <a href={
+            Eirinchan.ThreadPaths.thread_path(template.board, template.post, template.config)
+          }>
+            <img
+              :if={PostView.catalog_media_path(post, @config)}
+              src={PostView.catalog_media_path(post, @config)}
+              data-fullimage={PostView.catalog_fullimage_path(post, @config)}
+              loading="lazy"
+              id={"img-#{post.id}"}
+              data-subject={post.subject || ""}
+              data-name={PostView.display_name(post, @config)}
+              data-muhdifference=""
+              class={[
+                @board.uri,
+                "thread-image",
+                if(post.spoiler, do: "spoiler-image", else: nil)
+              ]}
+              title={PostView.formatted_timestamp(post)}
+            />
+          </a>
+          <div class="replies">
+            <strong>R: <%= summary.reply_count %> / I: <%= summary.image_count %></strong>
+            <p :if={PostView.catalog_label(post, @config)} class="intro">
+              <span class="subject"><%= PostView.catalog_label(post, @config) %></span>
+            </p>
+            <%= if PostView.catalog_label(post, @config), do: raw(""), else: raw("<br />") %>
+            <%= raw(PostView.body_html(post, @board, post, @config)) %>
+          </div>
+        </div>
+      </div>
+      <form class="catalog-delete" action="/post.php" method="post" hidden>
+        <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+        <input type="hidden" name="delete_post_id" value={summary.thread.id} />
+      </form>
+    <% end %>
+  <% end %>
+</div>

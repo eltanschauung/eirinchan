@@ -176,6 +176,33 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     refute response =~ "[Catalog]"
   end
 
+  test "board page fragment renders refresh target only", %{conn: conn} do
+    board = board_fixture(%{uri: "frag", title: "Fragment Test"})
+
+    response =
+      conn
+      |> get(~p"/#{board.uri}?fragment=1")
+      |> html_response(200)
+
+    assert response =~ ~s(id="board-refresh-target")
+    refute response =~ ~s(<html)
+    refute response =~ ~s(action="/search.php")
+  end
+
+  test "catalog fragment renders grid only", %{conn: conn} do
+    :ok = Eirinchan.Themes.enable_page_theme("catalog")
+    board = board_fixture(%{uri: "catfrag", title: "Catalog Fragment"})
+
+    response =
+      conn
+      |> get(~p"/#{board.uri}/catalog.html?fragment=1")
+      |> html_response(200)
+
+    assert response =~ ~s(id="Grid")
+    refute response =~ ~s(<html)
+    refute response =~ ~s(Return to Index)
+  end
+
   test "board page renders global message as a blotter above the search form", %{conn: conn} do
     :ok = Eirinchan.Settings.persist_instance_config(%{global_message: "Important notice"})
     board = board_fixture(%{uri: "blottertest", title: "Blotter Test"})
