@@ -97,6 +97,27 @@ defmodule EirinchanWeb.PostViewTest do
     assert html =~ ~s(clear:left)
   end
 
+  test "large media clears below short multiline replies" do
+    config = Config.compose()
+
+    post = %Post{
+      id: 679,
+      thread_id: 1,
+      body: ">>678\nsad but true",
+      file_path: "/bant/src/example.jpg",
+      thumb_path: "/bant/thumb/example.jpg",
+      image_width: 1200,
+      image_height: 900,
+      file_name: "example.jpg",
+      file_type: "image/jpeg",
+      file_md5: "abc"
+    }
+
+    html = PostView.reply_body_container_html(post, %BoardRecord{uri: "bant"}, post, config)
+
+    assert html =~ ~s(clear:left)
+  end
+
   test "body_html normalizes windows line endings before inserting br tags" do
     config = Config.compose()
     post = %Post{body: "a\r\nb\r\nc"}
