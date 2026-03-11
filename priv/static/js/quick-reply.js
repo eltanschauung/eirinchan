@@ -46,22 +46,13 @@
 			border-color: ' + reply_border_color + ';\
 			margin: 0;\
 			width: 100%;\
-			table-layout: fixed;\
 		}\
-		#quick-reply tr td:first-child {\
-			width: auto;\
-		}\
-		#quick-reply tr td:nth-child(2), #quick-reply td.submit, #quick-reply td.spoiler {\
+		#quick-reply tr td:nth-child(2) {\
 			white-space: nowrap;\
 			text-align: right;\
-			width: 1%;\
 			padding-right: 4px;\
 		}\
-		#quick-reply tr td:first-child input[type="text"], #quick-reply tr td:first-child select {\
-			width: 100%;\
-			min-width: 0;\
-		}\
-		#quick-reply tr td:nth-child(2) input[type="submit"], #quick-reply td.submit input[type="submit"] {\
+		#quick-reply tr td:nth-child(2) input[type="submit"] {\
 			width: 100%;\
 		}\
 		#quick-reply th, #quick-reply td {\
