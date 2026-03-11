@@ -18,6 +18,11 @@ defmodule Eirinchan.ThreadWatcherTest do
     assert watch.last_seen_post_id == 99
   end
 
+  test "mark_seen does not create a watch for untracked threads" do
+    assert {:ok, nil} = ThreadWatcher.mark_seen("token-1234567890123456", "bant", 999, 1000)
+    refute ThreadWatcher.watched?("token-1234567890123456", "bant", 999)
+  end
+
   test "unwatch_thread removes one watch" do
     assert {:ok, _watch} = ThreadWatcher.watch_thread("token-1234567890123456", "bant", 13)
     assert {:ok, 1} = ThreadWatcher.unwatch_thread("token-1234567890123456", "bant", 13)

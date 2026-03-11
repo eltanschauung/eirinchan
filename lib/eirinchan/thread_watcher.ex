@@ -180,7 +180,19 @@ defmodule Eirinchan.ThreadWatcher do
   def mark_seen(browser_token, board_uri, thread_id, last_seen_post_id)
       when is_binary(browser_token) and is_binary(board_uri) and is_integer(thread_id) and
              is_integer(last_seen_post_id) do
-    watch_thread(browser_token, board_uri, thread_id, %{last_seen_post_id: last_seen_post_id})
+    case Repo.get_by(Watch,
+           browser_token: browser_token,
+           board_uri: board_uri,
+           thread_id: thread_id
+         ) do
+      nil ->
+        {:ok, nil}
+
+      watch ->
+        watch
+        |> Watch.changeset(%{last_seen_post_id: last_seen_post_id})
+        |> Repo.update()
+    end
   end
 
   defp thread_stats(thread_ids) do
