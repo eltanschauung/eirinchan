@@ -163,9 +163,7 @@
         <input :if={@config.max_images > 1} type="file" name="files[]" id="upload_file" multiple />
         <input :if={@config.max_images <= 1} type="file" name="file" id="upload_file" />
         <script type="text/javascript">
-          document.addEventListener('DOMContentLoaded', function () {
-            if (typeof init_file_selector !== 'undefined') init_file_selector(<%= @config.max_images %>);
-          }, { once: true });
+          if (typeof init_file_selector !== 'undefined') init_file_selector(<%= @config.max_images %>);
         </script>
         <div
           :if={@config.upload_by_url_enabled}
@@ -217,9 +215,7 @@
 </form>
 
 <script type="text/javascript">
-  document.addEventListener('DOMContentLoaded', function () {
-    if (typeof rememberStuff === 'function') rememberStuff();
-  }, { once: true });
+  rememberStuff();
 </script>
 
 <%= if @board_chrome.post_form_blotter_html do %>

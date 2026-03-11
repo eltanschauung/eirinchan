@@ -160,9 +160,7 @@
         <input :if={@config.max_images > 1} type="file" name="files[]" id="upload_file" multiple />
         <input :if={@config.max_images <= 1} type="file" name="file" id="upload_file" />
         <script type="text/javascript">
-          document.addEventListener('DOMContentLoaded', function () {
-            if (typeof init_file_selector !== 'undefined') init_file_selector(<%= @config.max_images %>);
-          }, { once: true });
+          if (typeof init_file_selector !== 'undefined') init_file_selector(<%= @config.max_images %>);
         </script>
         <div
           :if={@config.upload_by_url_enabled}
@@ -186,7 +184,14 @@
     <tr :if={!@config.field_disable_password}>
       <th>Password</th>
       <td>
-        <input type="text" name="password" value="" size="12" maxlength="18" autocomplete="new-password" />
+        <input
+          type="text"
+          name="password"
+          value=""
+          size="12"
+          maxlength="18"
+          autocomplete="new-password"
+        />
         <span class="unimportant">(For file deletion.)</span>
       </td>
     </tr>
@@ -220,7 +225,8 @@
     <span id="thread-links">
       <a id="thread-return" href={Eirinchan.ThreadPaths.board_page_path(@board, 1, @config)}>
         [Return to Index]
-      </a><a id="thread-bottom" href="#bottom">[Go to bottom]</a><span id="updater"><a
+      </a>
+      <a id="thread-bottom" href="#bottom">[Go to bottom]</a><span id="updater"><a
         href="#"
         id="update_thread"
       >[Update]</a><span class="catalog-updater-meta"> (<input
@@ -279,7 +285,11 @@
                 data-subject={post.subject || ""}
                 data-name={PostView.display_name(post, @config)}
                 data-muhdifference=""
-                class={[@board.uri, "thread-image", if(post.spoiler, do: "spoiler-image", else: nil)]}
+                class={[
+                  @board.uri,
+                  "thread-image",
+                  if(post.spoiler, do: "spoiler-image", else: nil)
+                ]}
                 title={PostView.formatted_timestamp(post)}
               />
             </a>

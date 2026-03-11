@@ -75,6 +75,7 @@ defmodule EirinchanWeb.ThreadController do
                 theme_options: conn.assigns[:theme_options]
               ),
             head_after_assets_html: PublicShell.thread_meta_html(board, summary.thread, config),
+            eager_javascript_urls: PublicShell.eager_javascript_urls(:thread, config),
             javascript_urls: PublicShell.javascript_urls(:thread, config),
             body_end_html: PublicShell.body_end_html(),
             primary_stylesheet: board_primary_stylesheet(conn),

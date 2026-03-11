@@ -180,9 +180,7 @@
         <input :if={@config.max_images > 1} type="file" name="files[]" id="upload_file" multiple />
         <input :if={@config.max_images <= 1} type="file" name="file" id="upload_file" />
         <script type="text/javascript">
-          document.addEventListener('DOMContentLoaded', function () {
-            if (typeof init_file_selector !== 'undefined') init_file_selector(<%= @config.max_images %>);
-          }, { once: true });
+          if (typeof init_file_selector !== 'undefined') init_file_selector(<%= @config.max_images %>);
         </script>
       </td>
     </tr>
@@ -216,9 +214,7 @@
 </form>
 
 <script type="text/javascript">
-  document.addEventListener('DOMContentLoaded', function () {
-    if (typeof rememberStuff === 'function') rememberStuff();
-  }, { once: true });
+  rememberStuff();
 </script>
 
 <hr />
@@ -460,11 +456,13 @@
           href="#"
           id="update_thread"
           title="This thread is updated automatically to display new posts."
-        >[Live Page&nbsp;<span
+        >
+          [Live Page&nbsp;<span
             class="live-page-indicator"
             aria-hidden="true"
             style="color:#0a0 !important;"
-          >⬤</span>]</a>
+          >⬤</span>]
+        </a>
         <input type="checkbox" id="auto_update_status" checked hidden />
         <span id="update_secs" hidden>4</span>
       </span>
@@ -477,7 +475,14 @@
       <div id="delete-fields">
         Delete Post [<input title="Delete file only" type="checkbox" name="file" id="delete_file" />
         <label for="delete_file">File</label>] <label for="password">Password</label>
-        <input id="password" type="password" name="password" size="12" maxlength="18" autocomplete="off" />
+        <input
+          id="password"
+          type="password"
+          name="password"
+          size="12"
+          maxlength="18"
+          autocomplete="off"
+        />
         <input type="submit" name="delete" value="Delete" data-post-action="delete" />
       </div>
 

@@ -43,7 +43,19 @@
       href={versioned_asset(stylesheet, assigns[:asset_version])}
     />
     <script
-      :for={script_url <- assigns[:javascript_urls] || []}
+      :for={script_url <- assigns[:eager_javascript_urls] || []}
+      type="text/javascript"
+      src={versioned_asset(script_url, assigns[:asset_version])}
+    >
+    </script>
+    <script
+      :for={
+        script_url <-
+          Enum.reject(
+            assigns[:javascript_urls] || [],
+            &(&1 in (assigns[:eager_javascript_urls] || []))
+          )
+      }
       defer={assigns[:public_shell]}
       type="text/javascript"
       src={versioned_asset(script_url, assigns[:asset_version])}
@@ -109,7 +121,9 @@
       <%= Phoenix.HTML.raw(@analytics_html) %>
     <% end %>
     <%= if assigns[:public_shell] && assigns[:theme_options] && assigns[:theme_options] != [] do %>
-      <%= Phoenix.HTML.raw(EirinchanWeb.PublicShell.styles_html(@theme_options, @theme_label || "Yotsuba")) %>
+      <%= Phoenix.HTML.raw(
+        EirinchanWeb.PublicShell.styles_html(@theme_options, @theme_label || "Yotsuba")
+      ) %>
     <% end %>
     <%= if assigns[:body_end_html] do %>
       <%= Phoenix.HTML.raw(assigns[:body_end_html]) %>
