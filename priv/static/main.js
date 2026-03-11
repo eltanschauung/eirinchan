@@ -310,6 +310,24 @@
     }
   }
 
+  function jumpToQuotedPost(id) {
+    var target = document.getElementById(String(id));
+    if (!target) return;
+
+    if (typeof window.highlightReply === 'function') {
+      window.highlightReply(id);
+    }
+
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        target.scrollIntoView({ block: 'start' });
+        if (window.location.hash !== '#' + id) {
+          window.location.hash = id;
+        }
+      });
+    });
+  }
+
   function clearSuccessfulPostsCookie(saved) {
     var cookieName = window.post_success_cookie_name || "eirinchan_posted";
     var cookieValue = window.getCookie(cookieName);
@@ -384,7 +402,9 @@
     persistIdentityFields(form);
 
     if (window.location.hash.indexOf("q") === 1) {
-      window.citeReply(window.location.hash.substring(2), true);
+      var quotedId = window.location.hash.substring(2);
+      window.citeReply(quotedId, true);
+      jumpToQuotedPost(quotedId);
     }
 
     restoreBodyDraft(form);
