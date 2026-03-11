@@ -56,7 +56,8 @@
           return;
         }
 
-        var watched = thread.dataset.watched === 'true';
+        var toggler = thread.querySelector('.watch-thread-link[data-thread-watch]');
+        var watched = toggler ? toggler.dataset.watched === 'true' : thread.dataset.watched === 'true';
         var $item = $buf.find('#watch_thread_menu');
         $item.removeClass('hidden').text(watched ? 'Unwatch' : 'Watch').off('click').on('click', function(event) {
           event.preventDefault();

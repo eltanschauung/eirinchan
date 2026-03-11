@@ -247,7 +247,7 @@
     data-thread-id={post.id}
     data-watch-url={"/watcher/#{@board.uri}/#{post.id}"}
     data-unwatch-url={"/watcher/#{@board.uri}/#{post.id}"}
-    data-watched={@thread_watch.watched}
+    data-watched={to_string(@thread_watch.watched)}
   >
     <a id={to_string(post.id)} class="post_anchor"></a>
     <div :if={PostView.media_entries(post, @config) != []} class="files">

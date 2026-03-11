@@ -286,7 +286,7 @@
             data-thread-id={post.id}
             data-watch-url={"/watcher/#{@board.uri}/#{post.id}"}
             data-unwatch-url={"/watcher/#{@board.uri}/#{post.id}"}
-            data-watched={watch.watched}
+            data-watched={to_string(watch.watched)}
           >
             <a href={
               Eirinchan.ThreadPaths.thread_path(template.board, template.post, template.config)
