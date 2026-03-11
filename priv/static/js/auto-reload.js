@@ -423,13 +423,10 @@ $(document).ready(function(){
 				var doc = parser.parseFromString(data, 'text/html');
 				var replacement = doc.querySelector('#board-refresh-target');
 				var current = document.querySelector('#board-refresh-target');
-				var currentThreads = document.querySelector('#board-threads');
-				var new_threads = 0;
-				var currentNodes = {};
-				var orderedEntries = [];
-				var replacementThreads;
+				var currentThreads;
+				var hiddenStateById = {};
 
-				if (!replacement || !current || !currentThreads) {
+				if (!replacement || !current) {
 					$('#update_secs').text(_("Unknown error"));
 					if ($('#auto_update_status').is(':checked')) {
 						poll_interval_delay = poll_interval_errordelay;
@@ -438,63 +435,41 @@ $(document).ready(function(){
 					return;
 				}
 
-				if (replacement.dataset && replacement.dataset.fragmentMd5) {
-					current.dataset.fragmentMd5 = replacement.dataset.fragmentMd5;
-				}
-
-				Array.prototype.forEach.call(currentThreads.querySelectorAll('.thread'), function(node) {
-					if (node.id) {
-						currentNodes[node.id] = node;
-					}
-				});
-
-				replacementThreads = replacement.querySelectorAll('#board-threads .thread');
-
-				Array.prototype.forEach.call(replacementThreads, function(node) {
-					var id = node.id;
-					var existing = id ? currentNodes[id] : null;
-					var nextNode;
-					var nextSeparator = node.nextElementSibling && node.nextElementSibling.tagName === 'HR' ? node.nextElementSibling.cloneNode(true) : document.createElement('hr');
-
-					if (existing) {
-						if (existing.outerHTML !== node.outerHTML) {
-							nextNode = node.cloneNode(true);
-							if (existing.classList.contains('thread-hidden')) {
-								nextNode.classList.add('thread-hidden');
-							}
-							if (existing.style.display === 'none') {
-								nextNode.style.display = 'none';
-							}
-							if (existing.dataset && existing.dataset.watched) {
-								nextNode.dataset.watched = existing.dataset.watched;
-							}
-						} else {
-							nextNode = existing;
-						}
-					} else {
-						new_threads++;
-						nextNode = node.cloneNode(true);
-					}
-
-					orderedEntries.push({threadNode: nextNode, separatorNode: nextSeparator});
-				});
-
-				while (currentThreads.firstChild) {
-					currentThreads.removeChild(currentThreads.firstChild);
-				}
-
-				orderedEntries.forEach(function(entry) {
-					var threadNode = entry.threadNode;
-					currentThreads.appendChild(threadNode);
-					currentThreads.appendChild(entry.separatorNode);
-
-					$(threadNode).find('.post').each(function() {
-						if (window.EirinchanFrontend && typeof window.EirinchanFrontend.initPost === 'function') {
-							window.EirinchanFrontend.initPost(this);
-						} else {
-							$(document).trigger('new_post', this);
-						}
+				currentThreads = current.querySelector('#board-threads');
+				if (currentThreads) {
+					Array.prototype.forEach.call(currentThreads.querySelectorAll('.thread'), function(node) {
+						if (!node.id) return;
+						hiddenStateById[node.id] = {
+							threadHidden: node.classList.contains('thread-hidden'),
+							display: node.style.display || '',
+							watched: node.dataset ? node.dataset.watched : null
+						};
 					});
+				}
+
+				Array.prototype.forEach.call(replacement.querySelectorAll('#board-threads .thread'), function(node) {
+					var state = node.id ? hiddenStateById[node.id] : null;
+					if (!state) return;
+
+					if (state.threadHidden) {
+						node.classList.add('thread-hidden');
+					}
+					if (state.display) {
+						node.style.display = state.display;
+					}
+					if (state.watched !== null && node.dataset) {
+						node.dataset.watched = state.watched;
+					}
+				});
+
+				current.replaceWith(replacement);
+
+				$(replacement).find('.post').each(function() {
+					if (window.EirinchanFrontend && typeof window.EirinchanFrontend.initPost === 'function') {
+						window.EirinchanFrontend.initPost(this);
+					} else {
+						$(document).trigger('new_post', this);
+					}
 				});
 
 				if ($('#auto_update_status').is(':checked')) {
