@@ -8,6 +8,7 @@ defmodule EirinchanWeb.PostController do
   alias Eirinchan.PostOwnership
   alias Eirinchan.Posts
   alias Eirinchan.Reports
+  alias Eirinchan.ThreadWatcher
   alias Eirinchan.ThreadPaths
   alias EirinchanWeb.PostView
   alias EirinchanWeb.RequestMeta
@@ -114,6 +115,7 @@ defmodule EirinchanWeb.PostController do
     thread_id = post.thread_id || post.id
     config = conn.assigns.current_board_config
     _ = maybe_record_post_ownership(conn, post)
+    watcher_metrics = maybe_watch_thread_on_reply(conn, board, post)
     conn = put_post_success_cookie(conn, board, post)
     op? = is_nil(post.thread_id)
 
@@ -136,7 +138,9 @@ defmodule EirinchanWeb.PostController do
         thread_id: thread_id,
         redirect: redirect_path,
         noko: meta.noko,
-        fragment_kind: if(post.thread_id, do: "reply", else: "thread")
+        fragment_kind: if(post.thread_id, do: "reply", else: "thread"),
+        watcher_count: watcher_metrics.watcher_count,
+        watcher_you_count: watcher_metrics.watcher_you_count
       }
 
       payload =
@@ -176,6 +180,24 @@ defmodule EirinchanWeb.PostController do
     case conn.assigns[:browser_token] do
       token when is_binary(token) -> PostOwnership.record(token, post.id)
       _ -> :ok
+    end
+  end
+
+  defp maybe_watch_thread_on_reply(conn, board, post) do
+    case {conn.assigns[:browser_token], post.thread_id} do
+      {token, thread_id} when is_binary(token) and is_integer(thread_id) ->
+        _ =
+          ThreadWatcher.watch_thread(token, board.uri, thread_id, %{
+            last_seen_post_id: post.id
+          })
+
+        ThreadWatcher.watch_metrics(token)
+
+      {token, _} when is_binary(token) ->
+        ThreadWatcher.watch_metrics(token)
+
+      _ ->
+        %{watcher_count: 0, watcher_you_count: 0}
     end
   end
 
