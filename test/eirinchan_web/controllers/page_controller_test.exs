@@ -44,6 +44,7 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ ~s(data-stylesheet="yotsuba.css")
     assert page =~ ~s(var active_page = "index", board_name = null;)
     assert page =~ ~s(src="/main.js)
+    assert page =~ ~s(id="style-select")
     assert page =~ "Tinyboard + vichan 5.2.2 +"
     assert page =~ ~s(href="https://github.com/eltanschauung/eirinchan-v1")
   end
