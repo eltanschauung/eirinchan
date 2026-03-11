@@ -348,31 +348,11 @@ if (active_page === 'thread' || active_page === 'index' || active_page === 'cata
 		 *  hide/unhide thread on index view
 		 */
 		function quickToggle(ele, threadId, pageData) {
-			/*if ($(ele).find('.hide-thread-link').length)
-				$('.hide-thread-link').remove();*/
-
-			if ($(ele).hasClass('op') && !$(ele).find('.hide-thread-link').length) {
-				var intro = $(ele).find('p.intro').first();
-				var rail = intro.children('.thread-top-controls');
-				if (!rail.length) {
-					rail = $('<span class="thread-top-controls"></span>');
-					intro.prepend(rail);
+			if ($(ele).hasClass('op')) {
+				var link = $(ele).find('p.intro .hide-thread-link').first();
+				if (link.length) {
+					link.html('[' + ($(ele).data('hidden') ? '+' : '&ndash;') + ']');
 				}
-				$('<a class="hide-thread-link" href="javascript:void(0)">[' + ($(ele).data('hidden') ? '+' : '&ndash;') + ']</a>')
-					.prependTo(rail)
-					.click(function() {
-						var postId = $(ele).find('.post_no').not('[id]').text();
-						var hidden = $(ele).data('hidden');
-						var boardId = $(ele).parents('.thread').data('board');
-					
-						if (hidden) {
-							blacklist.remove.post(boardId, threadId, postId, false);
-							$(this).html('[&ndash;]');
-						} else {
-							blacklist.add.post(boardId, threadId, postId, false);
-							$(this).text('[+]');
-						}
-					});
 			}
 		}
 

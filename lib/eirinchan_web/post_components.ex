@@ -67,6 +67,35 @@ defmodule EirinchanWeb.PostComponents do
     """
   end
 
+  attr :board_uri, :string, required: true
+  attr :thread_id, :integer, required: true
+  attr :post_target, :string, required: true
+  attr :watch, :map, default: %{watched: false, unread_count: 0}
+  attr :show_hide, :boolean, default: false
+
+  def thread_top_controls(assigns) do
+    watched = Map.get(assigns.watch || %{}, :watched, false)
+    assigns = assign(assigns, :watched, watched)
+
+    ~H"""
+    <span class="thread-top-controls">
+      <a :if={@show_hide} class="hide-thread-link" href="javascript:void(0)">[–]</a>
+      <a href="#" class="post-btn" title="Post menu" data-post-target={@post_target}>▶</a>
+      <a
+        href="javascript:;"
+        class={["watch-thread-link", @watched && "watched"]}
+        title={if @watched, do: "Unwatch Thread", else: "Watch Thread"}
+        data-thread-watch
+        data-board-uri={@board_uri}
+        data-thread-id={@thread_id}
+        data-watch-url={"/watcher/#{@board_uri}/#{@thread_id}"}
+        data-unwatch-url={"/watcher/#{@board_uri}/#{@thread_id}"}
+        data-watched={to_string(@watched)}
+      ></a>
+    </span>
+    """
+  end
+
   defp quote_onclick(post_id, :navigate), do: "citeReply(#{post_id})"
   defp quote_onclick(post_id, _mode), do: "return citeReply(#{post_id}, false)"
 
