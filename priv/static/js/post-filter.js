@@ -355,7 +355,7 @@ if (active_page === 'thread' || active_page === 'index' || active_page === 'cata
 				var thread = $(ele).closest('.thread');
 				var rail = thread.children('.thread-top-controls');
 				if (!rail.length) {
-					rail = $('<div class="thread-top-controls"></div>');
+					rail = $('<span class="thread-top-controls"></span>');
 					rail.insertBefore(thread.find(':not(h2,h2 *):first'));
 				}
 				$('<a class="hide-thread-link" href="javascript:void(0)">[' + ($(ele).data('hidden') ? '+' : '&ndash;') + ']</a>')

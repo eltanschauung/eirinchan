@@ -41,7 +41,7 @@ $(document).ready(function(){
 	var ensure_control_rail = function(thread_container) {
 		var rail = thread_container.children('.thread-top-controls');
 		if (!rail.length) {
-			rail = $('<div class="thread-top-controls"></div>');
+			rail = $('<span class="thread-top-controls"></span>');
 			rail.insertBefore(thread_container.find(':not(h2,h2 *):first'));
 		}
 		return rail;
