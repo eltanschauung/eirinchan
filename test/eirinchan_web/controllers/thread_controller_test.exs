@@ -377,6 +377,26 @@ defmodule EirinchanWeb.ThreadControllerTest do
     assert Floki.find(document, ~s(form#reply-form input[type="text"][name="password"])) != []
   end
 
+  test "thread pages render (You) markers from browser token ownership", %{conn: conn} do
+    board = board_fixture(%{uri: "showyous", title: "Show Yous"})
+    thread = thread_fixture(board, %{body: "Opening body"})
+    reply = reply_fixture(board, thread, %{body: ">>#{thread.id}"})
+    token = "show-yous-thread-token"
+
+    assert {:ok, _} = Eirinchan.PostOwnership.record(token, thread.id)
+    assert {:ok, _} = Eirinchan.PostOwnership.record(token, reply.id)
+
+    page =
+      conn
+      |> put_req_cookie("browser_token", token)
+      |> put_req_cookie("show_yous", "true")
+      |> get("/#{board.uri}/res/#{thread.id}.html")
+      |> html_response(200)
+
+    assert page =~ ~s|<span class="own_post">(You)</span>|
+    assert page =~ ~s|<small>(You)</small>|
+  end
+
   test "thread pages render poster tripcodes", %{conn: conn} do
     board = board_fixture()
     config = Config.compose(nil, %{}, board.config_overrides, request_host: "www.example.com")

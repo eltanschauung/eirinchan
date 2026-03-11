@@ -12,6 +12,8 @@ defmodule EirinchanWeb.ManagePageHTML do
   attr :moderator, :map, default: nil
   attr :secure_manage_token, :string, default: nil
   attr :backlinks_map, :map, default: %{}
+  attr :own_post_ids, :any, default: MapSet.new()
+  attr :show_yous, :boolean, default: false
 
   def moderation_post(assigns) do
     ~H"""
@@ -47,6 +49,7 @@ defmodule EirinchanWeb.ManagePageHTML do
                 config={@config}
                 board={@board}
                 moderator={@moderator}
+                own={@show_yous and MapSet.member?(@own_post_ids, @post.id)}
               />
             </label>
             <.post_number_links
@@ -62,7 +65,7 @@ defmodule EirinchanWeb.ManagePageHTML do
             <a href={PostView.thread_path(@board, @post, @config)}>[Reply]</a>
             <%= raw(PostView.post_controls_html(@post, @board, @moderator, @secure_manage_token)) %>
           </p>
-          <%= raw(PostView.body_container_html(@post, @board, @post, @config, op?: true)) %>
+          <%= raw(PostView.body_container_html(@post, @board, @post, @config, op?: true, own_post_ids: @own_post_ids, show_yous: @show_yous)) %>
         </div>
 
         <br class="clear" />
@@ -79,6 +82,7 @@ defmodule EirinchanWeb.ManagePageHTML do
               config={@config}
               board={@board}
               moderator={@moderator}
+              own={@show_yous and MapSet.member?(@own_post_ids, @post.id)}
             />
           </label>
           <.post_number_links
@@ -107,7 +111,7 @@ defmodule EirinchanWeb.ManagePageHTML do
             style -> [style: style]
           end}
         >
-          <%= raw(PostView.body_html(@post, @board, @thread, @config)) %>
+          <%= raw(PostView.body_html(@post, @board, @thread, @config, own_post_ids: @own_post_ids, show_yous: @show_yous)) %>
         </div>
       </div>
     <% end %>

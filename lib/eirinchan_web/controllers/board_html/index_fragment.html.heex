@@ -79,6 +79,7 @@
                   config={@config}
                   board={@board}
                   moderator={@current_moderator}
+                  own={@show_yous and MapSet.member?(@own_post_ids, thread.id)}
                 />
               </label>
               <%= raw(
@@ -104,7 +105,12 @@
               ) %>
             </p>
 
-            <%= raw(PostView.body_container_html(thread, @board, thread, @config)) %>
+            <%= raw(
+              PostView.body_container_html(thread, @board, thread, @config,
+                own_post_ids: @own_post_ids,
+                show_yous: @show_yous
+              )
+            ) %>
           </div>
 
           <%= if PostView.omitted_text(summary) do %>
@@ -130,6 +136,7 @@
                     config={@config}
                     board={@board}
                     moderator={@current_moderator}
+                    own={@show_yous and MapSet.member?(@own_post_ids, reply.id)}
                   />
                 </label>
                 <%= raw(
@@ -192,7 +199,12 @@
                 <% end %>
               </div>
 
-              <%= raw(PostView.body_container_html(reply, @board, thread, @config)) %>
+              <%= raw(
+                PostView.body_container_html(reply, @board, thread, @config,
+                  own_post_ids: @own_post_ids,
+                  show_yous: @show_yous
+                )
+              ) %>
             </div>
             <br class="clear" />
           <% end %>
