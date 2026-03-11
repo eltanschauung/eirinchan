@@ -708,6 +708,36 @@ defmodule EirinchanWeb.PostControllerTest do
              json_response(reply_conn, 422)
   end
 
+  test "posting allows file-only replies without a body", %{conn: conn} do
+    board = board_fixture()
+
+    thread_conn =
+      conn
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post(~p"/#{board.uri}/post", %{
+        "body" => "first post",
+        "file" => upload_fixture("thread.png", "thread"),
+        "json_response" => "1",
+        "post" => "New Topic"
+      })
+
+    assert %{"id" => thread_id} = json_response(thread_conn, 200)
+
+    reply_conn =
+      conn
+      |> recycle()
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post(~p"/#{board.uri}/post", %{
+        "thread" => Integer.to_string(thread_id),
+        "body" => " \n\t ",
+        "file" => upload_fixture("reply.png", "reply"),
+        "json_response" => "1",
+        "post" => "New Reply"
+      })
+
+    assert %{"thread_id" => ^thread_id, "id" => _reply_id} = json_response(reply_conn, 200)
+  end
+
   test "posting enforces split multi-file size limits", %{conn: conn} do
     board = board_fixture(%{config_overrides: %{max_filesize: 150, multiimage_method: "split"}})
 

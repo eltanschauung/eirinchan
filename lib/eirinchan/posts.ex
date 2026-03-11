@@ -1415,6 +1415,14 @@ defmodule Eirinchan.Posts do
     end
   end
 
+  defp body_blank?(nil), do: true
+
+  defp body_blank?(value) when is_binary(value) do
+    value
+    |> String.replace(~r/\s/u, "")
+    |> Kernel.==("")
+  end
+
   defp normalize_email(nil), do: nil
 
   defp normalize_email(value),
@@ -2045,9 +2053,12 @@ defmodule Eirinchan.Posts do
 
   defp validate_body(op?, attrs, config) do
     require_body = if(op?, do: config.force_body_op, else: config.force_body)
-    has_media = present_embed?(attrs) or Map.get(attrs, "__upload_entries__", []) != []
+    has_media =
+      present_embed?(attrs) or
+        match?(%Plug.Upload{}, Map.get(attrs, "file")) or
+        Map.get(attrs, "__upload_entries__", []) != []
 
-    if (require_body or not has_media) and is_nil(trim_to_nil(attrs["body"])) do
+    if (require_body or not has_media) and body_blank?(attrs["body"]) do
       {:error, :body_required}
     else
       :ok

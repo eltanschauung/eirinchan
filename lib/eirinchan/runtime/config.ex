@@ -73,7 +73,7 @@ defmodule Eirinchan.Runtime.Config do
     early_404_staged: false,
     noko50_count: 50,
     noko50_min: 100,
-    force_body: true,
+    force_body: false,
     force_body_op: true,
     force_image_op: false,
     max_body: 1_800,

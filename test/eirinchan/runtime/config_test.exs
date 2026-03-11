@@ -102,6 +102,21 @@ defmodule Eirinchan.Runtime.ConfigTest do
     refute config.multiple_flags
   end
 
+  test "defaults to requiring reply bodies only when explicitly enabled" do
+    config =
+      Config.compose(
+        %{
+          root: "/",
+          dir: %{img: "img/", thumb: "thumb/", res: "res/"}
+        },
+        %{},
+        %{}
+      )
+
+    refute config.force_body
+    assert config.force_body_op
+  end
+
   test "normalizes comma-separated default user flags when multiple_flags is enabled" do
     config =
       Config.compose(

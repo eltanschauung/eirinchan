@@ -274,6 +274,7 @@ defmodule Eirinchan.Installation do
       |> Map.put_new(:uri_flags, "static/flags/%s.png")
       |> Map.put_new(:geoip2_database_path, Application.app_dir(:eirinchan, "priv/geoip2/GeoLite2-Country.mmdb"))
       |> Map.put_new(:max_filesize, 10 * 1024 * 1024)
+      |> Map.put_new(:force_body, false)
       |> Map.put_new(:force_image_op, true)
       |> Map.put_new(:thumb_width, 208)
       |> Map.put_new(:field_disable_reply_subject, true)
