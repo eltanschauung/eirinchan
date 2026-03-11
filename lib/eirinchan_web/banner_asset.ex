@@ -42,8 +42,7 @@ defmodule EirinchanWeb.BannerAsset do
       {:ok, files} ->
         files
         |> Enum.reject(&String.starts_with?(&1, "."))
-        |> Enum.sort()
-        |> List.first()
+        |> Enum.random()
 
       _ ->
         nil
