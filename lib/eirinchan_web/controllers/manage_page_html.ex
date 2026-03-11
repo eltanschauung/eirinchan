@@ -17,7 +17,14 @@ defmodule EirinchanWeb.ManagePageHTML do
     ~H"""
     <%= if is_nil(@post.thread_id) do %>
       <div class="thread" id={"thread_#{@post.id}"} data-board={@board.uri}>
-        <.files_block post={@post} config={@config} op?={true} />
+        <.files_block
+          post={@post}
+          config={@config}
+          op?={true}
+          board={@board}
+          moderator={@moderator}
+          secure_manage_token={@secure_manage_token}
+        />
 
         <div
           class="post op"
@@ -106,7 +113,14 @@ defmodule EirinchanWeb.ManagePageHTML do
           <%= raw(PostView.backlinks_html(@post, @backlinks_map)) %>
         </p>
 
-        <.files_block post={@post} config={@config} op?={false} />
+        <.files_block
+          post={@post}
+          config={@config}
+          op?={false}
+          board={@board}
+          moderator={@moderator}
+          secure_manage_token={@secure_manage_token}
+        />
 
         <%= raw(PostView.post_controls_html(@post, @board, @moderator, @secure_manage_token)) %>
         <div
