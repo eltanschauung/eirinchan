@@ -263,12 +263,7 @@
     return hasPostPayload(form);
   }
 
-  function citeReply(id, withLink, event) {
-    if (event) {
-      if (typeof event.preventDefault === 'function') event.preventDefault();
-      if (typeof event.stopPropagation === 'function') event.stopPropagation();
-    }
-
+  function citeReply(id, withLink) {
     try {
       var textarea = document.getElementById('body');
 
