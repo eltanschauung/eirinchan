@@ -408,6 +408,7 @@ defmodule EirinchanWeb.PostView do
       [
         ~s(<a id="#{post.id}" class="post_anchor"></a>),
         ~s(<input type="checkbox" class="delete" name="delete_#{post.id}" id="delete_#{post.id}" value="#{post.id}" data-post-select />),
+        ~s(<a href="#" class="post-btn" title="Post menu" data-post-target="reply_#{post.id}">▶</a>),
         ~s(<label for="delete_#{post.id}">),
         identity,
         "</label>",

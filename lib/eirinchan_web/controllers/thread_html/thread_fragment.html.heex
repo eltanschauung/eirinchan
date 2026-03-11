@@ -9,6 +9,7 @@
           name={"delete_#{reply.id}"}
           id={"delete_#{reply.id}"}
         />
+        <.reply_post_button post_target={"reply_#{reply.id}"} />
         <label for={"delete_#{reply.id}"}>
           <.post_identity
             post={reply}

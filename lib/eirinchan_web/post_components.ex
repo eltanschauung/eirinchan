@@ -43,6 +43,15 @@ defmodule EirinchanWeb.PostComponents do
     """
   end
 
+
+  attr :post_target, :string, required: true
+
+  def reply_post_button(assigns) do
+    ~H"""
+    <a href="#" class="post-btn" title="Post menu" data-post-target={@post_target}>▶</a>
+    """
+  end
+
   attr :post, :map, required: true
   attr :backlinks_map, :map, default: %{}
 

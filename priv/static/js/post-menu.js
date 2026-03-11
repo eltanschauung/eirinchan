@@ -104,18 +104,10 @@ function buildMenu(e) {
 
 function addButton(post) {
 	var $ele = $(post);
-	var postId = post.id || '';
 
 	if ($ele.find('> p.intro > .thread-top-controls > .post-btn, > p.intro > .post-btn').length) {
 		return;
 	}
-
-	var $postBtn = $('<a>', {href: '#', class: 'post-btn', title: 'Post menu'}).text('▶');
-
-	if ($ele.hasClass('op')) {
-		return;
-	}
-	$ele.find('input.delete').after($postBtn);
 }
 
 
