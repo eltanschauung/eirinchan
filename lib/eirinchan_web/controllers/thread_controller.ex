@@ -4,6 +4,7 @@ defmodule EirinchanWeb.ThreadController do
   alias Eirinchan.Boards
   alias Eirinchan.Build
   alias Eirinchan.Posts
+  alias Eirinchan.ThreadWatcher
   alias Eirinchan.ThreadPaths
   alias EirinchanWeb.BoardChrome
   alias EirinchanWeb.PostView
@@ -39,6 +40,8 @@ defmodule EirinchanWeb.ThreadController do
             end
 
           backlinks_map = Posts.backlinks_map_for_posts([summary.thread | summary.replies])
+          watched_thread? = watched_thread?(conn, board, summary.thread.id)
+          _ = maybe_mark_thread_seen(conn, board, summary)
 
           conn = if fragment_request?(conn.params), do: put_root_layout(conn, false), else: conn
 
@@ -50,6 +53,7 @@ defmodule EirinchanWeb.ThreadController do
               "/#{board.uri}/ - #{summary.thread.subject || summary.thread.body || summary.thread.id}",
             summary: summary,
             backlinks_map: backlinks_map,
+            watched_thread?: watched_thread?,
             config: config,
             page_num: page_num,
             boards: boards,
@@ -130,4 +134,26 @@ defmodule EirinchanWeb.ThreadController do
 
   defp board_extra_stylesheets(_board),
     do: ["/stylesheets/eirinchan-public.css", "/stylesheets/eirinchan-bant.css"]
+
+  defp watched_thread?(conn, board, thread_id) do
+    case conn.assigns[:browser_token] do
+      token when is_binary(token) -> ThreadWatcher.watched?(token, board.uri, thread_id)
+      _ -> false
+    end
+  end
+
+  defp maybe_mark_thread_seen(conn, board, summary) do
+    case conn.assigns[:browser_token] do
+      token when is_binary(token) ->
+        last_seen_post_id =
+          [summary.thread | summary.replies]
+          |> Enum.map(& &1.id)
+          |> Enum.max(fn -> summary.thread.id end)
+
+        ThreadWatcher.mark_seen(token, board.uri, summary.thread.id, last_seen_post_id)
+
+      _ ->
+        :ok
+    end
+  end
 end

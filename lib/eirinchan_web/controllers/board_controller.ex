@@ -4,6 +4,7 @@ defmodule EirinchanWeb.BoardController do
   alias Eirinchan.Boards
   alias Eirinchan.Build
   alias Eirinchan.Posts
+  alias Eirinchan.ThreadWatcher
   alias EirinchanWeb.BoardChrome
   alias EirinchanWeb.PostView
   alias EirinchanWeb.PublicShell
@@ -73,6 +74,7 @@ defmodule EirinchanWeb.BoardController do
     case Posts.list_catalog_page(board, page_num, config: config) do
       {:ok, page_data} ->
         chrome = BoardChrome.for_board(board)
+        watched_thread_ids = watched_thread_ids(conn, board)
         fragment? = Keyword.get(opts, :fragment?, false)
 
         conn = if fragment?, do: put_root_layout(conn, false), else: conn
@@ -83,6 +85,7 @@ defmodule EirinchanWeb.BoardController do
           board_title: board.title,
           page_data: page_data,
           threads: page_data.threads,
+          watched_thread_ids: watched_thread_ids,
           config: config,
           boards: boards,
           board_chrome: chrome,
@@ -131,6 +134,7 @@ defmodule EirinchanWeb.BoardController do
       {:ok, page_data} ->
         chrome = BoardChrome.for_board(board)
         backlinks_map = page_backlinks_map(page_data)
+        watched_thread_ids = watched_thread_ids(conn, board)
         fragment? = Keyword.get(opts, :fragment?, false)
 
         conn = if fragment?, do: put_root_layout(conn, false), else: conn
@@ -142,6 +146,7 @@ defmodule EirinchanWeb.BoardController do
           page_title: "/#{board.uri}/ - #{board.title}",
           page_data: page_data,
           backlinks_map: backlinks_map,
+          watched_thread_ids: watched_thread_ids,
           config: config,
           boards: boards,
           board_chrome: chrome,
@@ -217,5 +222,12 @@ defmodule EirinchanWeb.BoardController do
 
   defp require_catalog_theme(conn, _opts) do
     EirinchanWeb.Plugs.RequirePageTheme.call(conn, theme: "catalog")
+  end
+
+  defp watched_thread_ids(conn, board) do
+    case conn.assigns[:browser_token] do
+      token when is_binary(token) -> ThreadWatcher.watched_thread_ids(token, board.uri)
+      _ -> MapSet.new()
+    end
   end
 end

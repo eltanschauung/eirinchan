@@ -3,6 +3,7 @@ defmodule EirinchanWeb.ThreadControllerTest do
 
   alias Eirinchan.Posts
   alias Eirinchan.Runtime.Config
+  alias Eirinchan.ThreadWatcher
   alias Eirinchan.ThreadPaths
 
   setup do
@@ -210,6 +211,22 @@ defmodule EirinchanWeb.ThreadControllerTest do
 
     assert page =~ "[Orin]"
     refute page =~ "[Catalog]"
+  end
+
+  test "thread page renders watch link state from backend watcher", %{conn: conn} do
+    board = board_fixture(%{uri: "watchthread", title: "Watch Thread"})
+    thread = thread_fixture(board, %{body: "Thread body"})
+    token = "token-1234567890123456"
+    assert {:ok, _watch} = ThreadWatcher.watch_thread(token, board.uri, thread.id)
+
+    page =
+      conn
+      |> put_req_cookie("browser_token", token)
+      |> get("/#{board.uri}/res/#{thread.id}.html")
+      |> html_response(200)
+
+    assert page =~ ~s(data-thread-watch)
+    assert page =~ "[Unwatch]"
   end
 
   test "thread pages render stored OP tags", %{conn: conn} do

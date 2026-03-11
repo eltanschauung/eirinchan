@@ -150,6 +150,8 @@ defmodule EirinchanWeb.Router do
     get "/b.php", BannerController, :show
     get "/search.php", SearchController, :show
     post "/post.php", PostController, :create
+    post "/watcher/:board/:thread_id", ThreadWatcherController, :create
+    delete "/watcher/:board/:thread_id", ThreadWatcherController, :delete
     post "/theme", ThemeController, :update
     get "/auth", IpAccessAuthController, :show
     post "/auth", IpAccessAuthController, :create

@@ -28,7 +28,7 @@ defmodule Eirinchan.Runtime.Config do
     archive_url: false,
     file_mod: "mod.php",
     file_script: "main.js",
-    additional_javascript: ["js/jquery.min.js", "js/inline-expanding.js"],
+    additional_javascript: ["js/jquery.min.js", "js/inline-expanding.js", "js/server-thread-watcher.js"],
     additional_javascript_compile: false,
     generation_strategy: "immediate",
     fileboard: false,

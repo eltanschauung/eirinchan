@@ -445,6 +445,16 @@
       >
         [<%= @config.catalog_name %>]
       </a>
+      <a
+        href="#"
+        class="thread-watch-toggle"
+        data-thread-watch
+        data-board-uri={@board.uri}
+        data-thread-id={@summary.thread.id}
+        data-watch-url={"/watcher/#{@board.uri}/#{@summary.thread.id}"}
+        data-unwatch-url={"/watcher/#{@board.uri}/#{@summary.thread.id}"}
+        data-watched={@watched_thread?}
+      >[<%= if @watched_thread?, do: "Unwatch", else: "Watch" %>]</a>
       <span id="updater" class="board-live-updater">
         <a
           href="#"
