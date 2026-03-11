@@ -9,6 +9,7 @@
 <header>
   <h1><%= PostView.board_heading(@board) %></h1>
   <div class="subtitle"><%= @board_chrome.subtitle || @board.subtitle %></div>
+  <.admin_shortcuts moderator={@current_moderator} />
 </header>
 
 <%= if @board_chrome.top_news_html do %>

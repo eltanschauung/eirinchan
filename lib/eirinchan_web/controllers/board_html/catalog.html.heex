@@ -12,6 +12,7 @@
   <div class="subtitle">
     <%= if @board.uri == "bant", do: "", else: @board_chrome.subtitle || @board.subtitle %>
   </div>
+  <.admin_shortcuts moderator={@current_moderator} />
 </header>
 <form
   name="post"
