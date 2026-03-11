@@ -27,6 +27,7 @@ defmodule Eirinchan.Runtime.Config do
     catalog_name: "Catalog",
     archive_url: false,
     url_favicon: "favicon.ico",
+    show_styles_block: true,
     file_mod: "mod.php",
     file_script: "main.js",
     additional_javascript: ["js/jquery.min.js", "js/inline-expanding.js", "js/server-thread-watcher.js"],

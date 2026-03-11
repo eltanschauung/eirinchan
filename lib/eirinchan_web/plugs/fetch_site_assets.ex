@@ -9,7 +9,8 @@ defmodule EirinchanWeb.Plugs.FetchSiteAssets do
     version: nil,
     custom_javascript: [],
     analytics_html: nil,
-    url_favicon: "favicon.ico"
+    url_favicon: "favicon.ico",
+    show_styles_block: true
   }
 
   def init(opts), do: opts
@@ -22,6 +23,7 @@ defmodule EirinchanWeb.Plugs.FetchSiteAssets do
     |> assign(:custom_javascript_urls, parse_custom_javascript(config.custom_javascript))
     |> assign(:analytics_html, blank_to_nil(config.analytics_html))
     |> assign(:favicon_url, normalize_favicon_url(config.url_favicon))
+    |> assign(:show_styles_block, config.show_styles_block != false)
   end
 
   def parse_custom_javascript(value) when is_list(value) do
@@ -64,7 +66,9 @@ defmodule EirinchanWeb.Plugs.FetchSiteAssets do
       custom_javascript:
         Map.get(instance_config, :custom_javascript, site_assets.custom_javascript),
       analytics_html: Map.get(instance_config, :analytics_html, site_assets.analytics_html),
-      url_favicon: Map.get(instance_config, :url_favicon, site_assets.url_favicon)
+      url_favicon: Map.get(instance_config, :url_favicon, site_assets.url_favicon),
+      show_styles_block:
+        Map.get(instance_config, :show_styles_block, site_assets.show_styles_block)
     })
   end
 
