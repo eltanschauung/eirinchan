@@ -106,6 +106,7 @@ defmodule EirinchanWeb.BoardController do
               theme_label: conn.assigns[:theme_label],
               theme_options: conn.assigns[:theme_options]
             ),
+          eager_javascript_urls: PublicShell.eager_javascript_urls(:catalog, config),
           javascript_urls: PublicShell.javascript_urls(:catalog, config),
           body_end_html: PublicShell.body_end_html(),
           primary_stylesheet: board_primary_stylesheet(conn),
@@ -163,6 +164,7 @@ defmodule EirinchanWeb.BoardController do
               theme_label: conn.assigns[:theme_label],
               theme_options: conn.assigns[:theme_options]
             ),
+          eager_javascript_urls: PublicShell.eager_javascript_urls(:index, config),
           javascript_urls: PublicShell.javascript_urls(:index, config),
           body_end_html: PublicShell.body_end_html(),
           primary_stylesheet: board_primary_stylesheet(conn),

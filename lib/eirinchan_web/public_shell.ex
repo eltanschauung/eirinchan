@@ -10,7 +10,8 @@ defmodule EirinchanWeb.PublicShell do
   ]
 
   def head_html(active_page, opts \\ []) do
-    config = Keyword.get(opts, :config) || Config.compose(nil, Settings.current_instance_config(), %{})
+    config =
+      Keyword.get(opts, :config) || Config.compose(nil, Settings.current_instance_config(), %{})
 
     board_name =
       case Keyword.get(opts, :board_name) do
@@ -53,6 +54,23 @@ defmodule EirinchanWeb.PublicShell do
   def javascript_urls(active_page) do
     javascript_urls(active_page, javascript_config(active_page))
   end
+
+  def eager_javascript_urls(active_page, config)
+      when active_page in [:index, :thread, :catalog] do
+    javascript_urls(active_page, config)
+    |> Enum.filter(
+      &(&1 in [
+          config.url_javascript,
+          "/js/jquery.min.js",
+          "/js/ajax.js",
+          "/js/file-selector.js",
+          "/js/upload-selection.js",
+          "/js/save-user_flag.js"
+        ])
+    )
+  end
+
+  def eager_javascript_urls(_active_page, _config), do: []
 
   def javascript_urls(active_page, config) do
     main = [config.url_javascript]
