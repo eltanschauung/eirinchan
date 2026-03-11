@@ -152,6 +152,7 @@ defmodule EirinchanWeb.Router do
     post "/post.php", PostController, :create
     post "/watcher/:board/:thread_id", ThreadWatcherController, :create
     delete "/watcher/:board/:thread_id", ThreadWatcherController, :delete
+    patch "/watcher/:board/:thread_id", ThreadWatcherController, :update
     post "/theme", ThemeController, :update
     get "/auth", IpAccessAuthController, :show
     post "/auth", IpAccessAuthController, :create

@@ -370,4 +370,25 @@ defmodule EirinchanWeb.PageControllerTest do
     assert body =~ "/watchtest/ - Opening subject"
     assert body =~ "[Unwatch]"
   end
+
+  test "renders watcher unread counts", %{conn: conn} do
+    moderator_fixture()
+    board = Eirinchan.BoardsFixtures.board_fixture(%{uri: "watchunread", title: "Watch Unread"})
+    thread = Eirinchan.PostsFixtures.thread_fixture(board, %{body: "watch body"})
+    _reply = Eirinchan.PostsFixtures.reply_fixture(board, thread, %{body: "Unread reply"})
+    token = "watcher-token-unread"
+
+    assert {:ok, _} =
+             ThreadWatcher.watch_thread(token, board.uri, thread.id, %{
+               last_seen_post_id: thread.id
+             })
+
+    conn =
+      conn
+      |> put_req_cookie("browser_token", token)
+      |> get(~p"/watcher")
+
+    body = html_response(conn, 200)
+    assert body =~ "unread: 1"
+  end
 end

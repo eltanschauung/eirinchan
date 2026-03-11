@@ -1,4 +1,11 @@
 (function() {
+  var csrfToken = function(trigger) {
+    var form = trigger && trigger.closest('form');
+    var field = (form && form.querySelector('input[name="_csrf_token"]')) ||
+      document.querySelector('input[name="_csrf_token"]');
+    return field ? field.value : null;
+  };
+
   var syncWatchLinks = function(threadId, watched) {
     var selector = '[data-thread-watch][data-thread-id="' + threadId + '"]';
     document.querySelectorAll(selector).forEach(function(link) {
@@ -7,11 +14,25 @@
     });
   };
 
-  var csrfToken = function(trigger) {
-    var form = trigger && trigger.closest('form');
-    var field = (form && form.querySelector('input[name="_csrf_token"]')) ||
-      document.querySelector('input[name="_csrf_token"]');
-    return field ? field.value : null;
+  window.markWatchedThreadSeen = function(boardUri, threadId, lastSeenPostId) {
+    var token = csrfToken(document.body);
+
+    if (!boardUri || !threadId || !lastSeenPostId || !token) return Promise.resolve();
+
+    return fetch('/watcher/' + encodeURIComponent(boardUri) + '/' + encodeURIComponent(threadId), {
+      method: 'PATCH',
+      headers: {
+        'content-type': 'application/json',
+        'x-csrf-token': token,
+        'x-requested-with': 'XMLHttpRequest'
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({last_seen_post_id: lastSeenPostId})
+    }).then(function(response) {
+      if (!response.ok && response.status !== 404) throw new Error('watch seen failed');
+    }).catch(function(error) {
+      console.error(error);
+    });
   };
 
   document.addEventListener('click', function(event) {
