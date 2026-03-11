@@ -363,6 +363,32 @@
     });
   }
 
+  function processQuotedHash(attempts) {
+    if (window.location.hash.indexOf('#q') !== 0) return;
+
+    var remaining = typeof attempts === 'number' ? attempts : 20;
+    var quotedId = window.location.hash.substring(2);
+    var target = document.getElementById(String(quotedId));
+
+    if (!window.__eirinchanQuotedHashInserted) {
+      window.__eirinchanQuotedHashInserted = true;
+      window.citeReply(quotedId, true);
+    }
+
+    if (target) {
+      jumpToQuotedPost(quotedId);
+      return;
+    }
+
+    if (remaining <= 0) {
+      return;
+    }
+
+    setTimeout(function () {
+      processQuotedHash(remaining - 1);
+    }, 25);
+  }
+
   function clearSuccessfulPostsCookie(saved) {
     var cookieName = window.post_success_cookie_name || "eirinchan_posted";
     var cookieValue = window.getCookie(cookieName);
@@ -436,11 +462,7 @@
     bindIdentityPersistence(form);
     persistIdentityFields(form);
 
-    if (window.location.hash.indexOf("q") === 1) {
-      var quotedId = window.location.hash.substring(2);
-      window.citeReply(quotedId, true);
-      jumpToQuotedPost(quotedId);
-    }
+    processQuotedHash();
 
     restoreBodyDraft(form);
     seedPostControlsPassword();
@@ -604,7 +626,13 @@
       ) {
         window.highlightReply(window.location.hash.substring(1));
       }
+
+      processQuotedHash();
     };
+
+  window.addEventListener('load', function () {
+    processQuotedHash();
+  });
 
   window.alert = function (message) {
     showAlert(message);
