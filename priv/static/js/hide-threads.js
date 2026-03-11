@@ -37,6 +37,15 @@ $(document).ready(function(){
 	}
 
 	var fields_to_hide = 'div.file,div.post,div.video-container,video,iframe,img:not(.unanimated),canvas,p.fileinfo,a.hide-thread-link,div.new-posts,br';
+
+	var ensure_control_rail = function(thread_container) {
+		var rail = thread_container.children('.thread-top-controls');
+		if (!rail.length) {
+			rail = $('<div class="thread-top-controls"></div>');
+			rail.insertBefore(thread_container.find(':not(h2,h2 *):first'));
+		}
+		return rail;
+	};
 	
 	var do_hide_threads = function() {
 		var id = $(this).children('p.intro').children('a.post_no:eq(1)').text();
@@ -48,9 +57,11 @@ $(document).ready(function(){
 			hidden_data[board] = {}; // id : timestamp
 		}
 	
-		$('<a class="hide-thread-link" style="float:left;margin-right:5px;display:inline-block;line-height:1;vertical-align:middle;" href="javascript:void(0)">[–]</a><span> </span>')
-			.insertBefore(thread_container.find(':not(h2,h2 *):first'))
-			.click(function() {
+		var rail = ensure_control_rail(thread_container);
+		var hideLink = $('<a class="hide-thread-link" href="javascript:void(0)">[–]</a>');
+		rail.append(hideLink);
+
+		hideLink.click(function() {
 				hidden_data[board][id] = Math.round(Date.now() / 1000);
 				store_data();
 				
@@ -62,7 +73,7 @@ $(document).ready(function(){
 				hidden_div.html(hidden_div.html().replace(' [] ', ' '));
 				hidden_div.html(hidden_div.html().replace(' [] ', ' '));
 				
-				$('<a class="unhide-thread-link" style="float:left;margin-right:5px;margin-left:0px;display:inline-block;line-height:1;vertical-align:middle;" href="javascript:void(0)">[+]</a><span> </span>')
+				$('<a class="unhide-thread-link" style="margin-right:5px;" href="javascript:void(0)">[+]</a><span> </span>')
 					.insertBefore(hidden_div.find(':first'))
 					.click(function() {
 						delete hidden_data[board][id];
