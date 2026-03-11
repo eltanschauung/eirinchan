@@ -106,6 +106,7 @@ defmodule EirinchanWeb do
       import Phoenix.HTML
       # Core UI components and translation
       import EirinchanWeb.CoreComponents
+      import EirinchanWeb.PostComponents
 
       # Shortcut for generating JS commands
       alias Phoenix.LiveView.JS

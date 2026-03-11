@@ -308,22 +308,18 @@
           <% end %>
           <%= raw(PostView.time_html(post)) %>
         </label>
-        <%= raw(
-          PostView.post_number_links_html(
-            post.id,
+        <.post_number_links
+          post_id={post.id}
+          post_href={
             Eirinchan.ThreadPaths.thread_path(template.board, template.post, template.config) <>
-              "##{post.id}",
-            PostView.reply_path(
-              template.board,
-              template.post,
-              template.post,
-              template.config,
-              :quote
-            ),
-            "data-quote-to": post.id
-          )
-        ) %>
-        <%= raw(PostView.backlinks_html(post, @backlinks_map)) %>
+              "##{post.id}"
+          }
+          quote_href={
+            PostView.reply_path(template.board, template.post, template.post, template.config, :quote)
+          }
+          quote_to={post.id}
+        />
+        <.backlinks post={post} backlinks_map={@backlinks_map} />
         <%= for icon <- PostView.state_icons(post, @config) do %>
           <img class="icon" title={icon.title} src={icon.path} alt={icon.title} />
         <% end %>
@@ -369,15 +365,13 @@
             <% end %>
             <%= raw(PostView.time_html(reply)) %>
           </label>
-          <%= raw(
-            PostView.post_number_links_html(
-              reply.id,
-              Eirinchan.ThreadPaths.thread_path(@board, post, @config) <> "##{reply.id}",
-              PostView.reply_path(@board, post, reply, @config, :quote),
-              "data-quote-to": reply.id
-            )
-          ) %>
-          <%= raw(PostView.backlinks_html(reply, @backlinks_map)) %>
+          <.post_number_links
+            post_id={reply.id}
+            post_href={Eirinchan.ThreadPaths.thread_path(@board, post, @config) <> "##{reply.id}"}
+            quote_href={PostView.reply_path(@board, post, reply, @config, :quote)}
+            quote_to={reply.id}
+          />
+          <.backlinks post={reply} backlinks_map={@backlinks_map} />
         </p>
 
         <div class="files">
