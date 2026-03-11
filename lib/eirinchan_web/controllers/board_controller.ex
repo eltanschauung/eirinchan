@@ -15,8 +15,8 @@ defmodule EirinchanWeb.BoardController do
   plug :require_catalog_theme when action in [:catalog]
   plug :require_catalog_theme when action in [:catalog_page]
 
-  def show(conn, _params) do
-    render_page(conn, 1)
+  def show(conn, params) do
+    render_page(conn, 1, fragment?: fragment_request?(params))
   end
 
   def show_page(conn, %{"page_num_html" => page_num_html}) do
@@ -35,14 +35,14 @@ defmodule EirinchanWeb.BoardController do
       end
 
     if is_integer(page_num) and page_num > 0 do
-      render_page(conn, page_num)
+      render_page(conn, page_num, fragment?: fragment_request?(conn.params))
     else
       send_resp(conn, :not_found, "Page not found")
     end
   end
 
-  def catalog(conn, _params) do
-    render_catalog_page(conn, 1)
+  def catalog(conn, params) do
+    render_catalog_page(conn, 1, fragment?: fragment_request?(params))
   end
 
   def catalog_page(conn, %{"page_num_html" => page_num_html}) do
@@ -58,13 +58,13 @@ defmodule EirinchanWeb.BoardController do
       end
 
     if is_integer(page_num) and page_num > 1 do
-      render_catalog_page(conn, page_num)
+      render_catalog_page(conn, page_num, fragment?: fragment_request?(conn.params))
     else
       send_resp(conn, :not_found, "Page not found")
     end
   end
 
-  defp render_catalog_page(conn, page_num) do
+  defp render_catalog_page(conn, page_num, opts \\ []) do
     board = conn.assigns.current_board
     config = conn.assigns.current_board_config
     boards = Boards.list_boards()
@@ -73,8 +73,11 @@ defmodule EirinchanWeb.BoardController do
     case Posts.list_catalog_page(board, page_num, config: config) do
       {:ok, page_data} ->
         chrome = BoardChrome.for_board(board)
+        fragment? = Keyword.get(opts, :fragment?, false)
 
-        render(conn, :catalog,
+        conn = if fragment?, do: put_root_layout(conn, false), else: conn
+
+        render(conn, if(fragment?, do: :catalog_fragment, else: :catalog),
           layout: false,
           board: board,
           board_title: board.title,
@@ -117,7 +120,7 @@ defmodule EirinchanWeb.BoardController do
     end
   end
 
-  defp render_page(conn, page) do
+  defp render_page(conn, page, opts \\ []) do
     board = conn.assigns.current_board
     config = conn.assigns.current_board_config
     boards = Boards.list_boards()
@@ -127,8 +130,11 @@ defmodule EirinchanWeb.BoardController do
       {:ok, page_data} ->
         chrome = BoardChrome.for_board(board)
         backlinks_map = page_backlinks_map(page_data)
+        fragment? = Keyword.get(opts, :fragment?, false)
 
-        render(conn, :show,
+        conn = if fragment?, do: put_root_layout(conn, false), else: conn
+
+        render(conn, if(fragment?, do: :index_fragment, else: :show),
           layout: false,
           board: board,
           board_title: board.title,
@@ -203,6 +209,9 @@ defmodule EirinchanWeb.BoardController do
 
   defp board_extra_stylesheets(_board),
     do: ["/stylesheets/eirinchan-public.css", "/stylesheets/eirinchan-bant.css"]
+
+  defp fragment_request?(%{"fragment" => value}) when value in ["1", "true", "yes"], do: true
+  defp fragment_request?(_params), do: false
 
   defp require_catalog_theme(conn, _opts) do
     EirinchanWeb.Plugs.RequirePageTheme.call(conn, theme: "catalog")

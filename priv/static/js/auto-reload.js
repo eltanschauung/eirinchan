@@ -182,6 +182,12 @@ $(document).ready(function(){
 		}
 	}
 	
+	var fragment_url = function() {
+		var url = new URL(document.location.href);
+		url.searchParams.set('fragment', '1');
+		return url.toString();
+	};
+	
 	var poll_catalog = function(manualUpdate) {
 		if (!can_start_poll()) {
 			return false;
@@ -191,7 +197,7 @@ $(document).ready(function(){
 		$('#update_secs').text("0");
 
 		var request = $.ajax({
-			url: document.location,
+			url: fragment_url(),
 			cache: false,
 			success: function(data) {
 				var new_threads = 0;
@@ -304,7 +310,7 @@ $(document).ready(function(){
 		$('#update_secs').text("0");
 
 		var request = $.ajax({
-			url: document.location,
+			url: fragment_url(),
 			cache: false,
 			success: function(data) {
 				var parser = new DOMParser();
@@ -389,7 +395,7 @@ $(document).ready(function(){
 		$('#update_secs').text("0");
 	
 		var request = $.ajax({
-			url: document.location,
+			url: fragment_url(),
 			cache: false,
 			success: function(data) {
 				var loaded_posts = 0;	// the number of new posts loaded in this update

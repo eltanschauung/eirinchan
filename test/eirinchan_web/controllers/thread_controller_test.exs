@@ -25,6 +25,19 @@ defmodule EirinchanWeb.ThreadControllerTest do
     :ok
   end
 
+  test "thread fragment renders replies only", %{conn: conn} do
+    board = board_fixture()
+    thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
+    _reply = reply_fixture(board, thread, %{body: "Reply body"})
+
+    page = conn |> get("/#{board.uri}/res/#{thread.id}.html?fragment=1") |> html_response(200)
+
+    assert page =~ ~s(id="thread-refresh-target")
+    assert page =~ ~s(class="post reply")
+    refute page =~ ~s(class="post op")
+    refute page =~ ~s(<html)
+  end
+
   test "plain thread urls redirect to the canonical slug path", %{conn: conn} do
     board = board_fixture(%{config_overrides: %{slugify: true}})
     config = Config.compose(nil, %{}, board.config_overrides, request_host: "www.example.com")

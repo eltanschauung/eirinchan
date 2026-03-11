@@ -38,10 +38,11 @@ defmodule EirinchanWeb.ThreadController do
               {:error, :not_found} -> 1
             end
 
-          backlinks_map =
-            Posts.backlinks_map_for_posts([summary.thread | summary.replies])
+          backlinks_map = Posts.backlinks_map_for_posts([summary.thread | summary.replies])
 
-          render(conn, :show,
+          conn = if fragment_request?(conn.params), do: put_root_layout(conn, false), else: conn
+
+          render(conn, if(fragment_request?(conn.params), do: :thread_fragment, else: :show),
             layout: false,
             board: board,
             board_title: board.title,
@@ -107,6 +108,9 @@ defmodule EirinchanWeb.ThreadController do
 
     {id, noko50?}
   end
+
+  defp fragment_request?(%{"fragment" => value}) when value in ["1", "true", "yes"], do: true
+  defp fragment_request?(_params), do: false
 
   defp board_body_class(conn) do
     moderator_class =
