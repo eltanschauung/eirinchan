@@ -99,7 +99,7 @@ $(document).ready(function(){
 	});
 	
 
-	$('#auto_update_status').click(function() {
+	$('#auto_update_status').change(function() {
 		if($("#auto_update_status").is(':checked')) {
 			auto_update(poll_interval_mindelay);
 		} else {
@@ -107,6 +107,7 @@ $(document).ready(function(){
 			$('#update_secs').text("");
 		}
 
+		update_live_button_state();
 	});
 	
 
@@ -150,11 +151,21 @@ $(document).ready(function(){
 
 		poll_current_time = delay;		
 		countdown_interval = setInterval(decrement_timer, 1000);
-		$('#update_secs').text(poll_current_time/1000);		
+		$('#update_secs').text(poll_current_time/1000);
+		update_live_button_state();
 	}
 	
 	var stop_auto_update = function() {
 		clearInterval(countdown_interval);
+		update_live_button_state();
+	}
+
+	var update_live_button_state = function() {
+		var updater = $('#updater');
+		var active = $('#auto_update_status').is(':checked') && !$('#auto_update_status').is(':disabled');
+
+		updater.toggleClass('paused', !active);
+		updater.toggleClass('active', active);
 	}
 
 	var can_start_poll = function() {
@@ -559,15 +570,13 @@ $(document).ready(function(){
 	}
 
 	$('#update_thread').on('click', function() {
-		if (is_catalog_page) {
-			return poll_catalog(manualUpdate = true);
-		}
-		if (is_board_page) {
-			return poll_board(manualUpdate = true);
-		}
-
-		return poll_thread(manualUpdate = true);
+		var checkbox = $('#auto_update_status');
+		checkbox.prop('checked', !checkbox.is(':checked'));
+		checkbox.trigger('change');
+		return false;
 	});
+
+	update_live_button_state();
 
 	if($("#auto_update_status").is(':checked')) {
 		auto_update(poll_interval_delay);
