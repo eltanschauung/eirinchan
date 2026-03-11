@@ -33,6 +33,8 @@ defmodule EirinchanWeb do
         theme-thumbs
         whalestickers
         background_christmas.jpg
+        eientei_day.jpg
+        eientei_night.jpg
         christmas_alice.png
         favicon.ico
         reisen_up.png
