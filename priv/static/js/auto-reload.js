@@ -116,13 +116,12 @@ $(document).ready(function(){
 		if (poll_current_time <= 0) {
 			poll_current_time = 0;
 			$('#update_secs').text("0");
-			stop_auto_update();
 			if (is_catalog_page) {
-				poll_catalog(manualUpdate = false);
+				refresh_if_changed(poll_catalog);
 			} else if (is_board_page) {
-				poll_board(manualUpdate = false);
+				refresh_if_changed(poll_board);
 			} else {
-				poll_thread(manualUpdate = false);
+				refresh_if_changed(poll_thread);
 			}
 			return;
 		}
@@ -199,6 +198,75 @@ $(document).ready(function(){
 		return url.toString();
 	};
 
+	var fragment_md5_url = function() {
+		var url = new URL(document.location.href);
+		url.searchParams.set('fragment', 'md5');
+		return url.toString();
+	};
+
+	var current_fragment_container = function() {
+		if (is_catalog_page)
+			return document.getElementById('Grid');
+		if (is_board_page)
+			return document.getElementById('board-refresh-target');
+		if (is_thread_page)
+			return document.getElementById('thread-refresh-target');
+		return null;
+	};
+
+	var current_fragment_md5 = function() {
+		var container = current_fragment_container();
+		if (!container || !container.dataset) {
+			return '';
+		}
+
+		return container.dataset.fragmentMd5 || '';
+	};
+
+	var refresh_if_changed = function(pollFn) {
+		if (!can_start_poll()) {
+			return false;
+		}
+
+		stop_auto_update();
+		$('#update_secs').text("0");
+
+		var localMd5 = current_fragment_md5();
+		var request = $.ajax({
+			url: fragment_md5_url(),
+			cache: false,
+			success: function(data) {
+				var serverMd5 = $.trim(data || '');
+
+				if (serverMd5 && localMd5 && serverMd5 === localMd5) {
+					if ($('#auto_update_status').is(':checked')) {
+						poll_interval_delay = poll_interval_mindelay;
+						auto_update(poll_interval_delay);
+					}
+					return;
+				}
+
+				finish_poll();
+				pollFn(false);
+			},
+			error: function() {
+				$('#update_secs').text("0");
+				if ($('#auto_update_status').is(':checked')) {
+					poll_interval_delay = poll_interval_errordelay;
+					auto_update(poll_interval_delay);
+				}
+			},
+			complete: function() {
+				if (active_poll_request === request) {
+					finish_poll();
+				}
+			}
+		});
+
+		begin_poll(request);
+		return false;
+	};
+
 	var sync_thread_seen = function() {
 		if (!is_thread_page || typeof window.markWatchedThreadSeen !== 'function') {
 			return;
@@ -250,6 +318,10 @@ $(document).ready(function(){
 						auto_update(poll_interval_delay);
 					}
 					return;
+				}
+
+				if (replacement.dataset && replacement.dataset.fragmentMd5) {
+					currentGrid.dataset.fragmentMd5 = replacement.dataset.fragmentMd5;
 				}
 
 				$(currentGrid).children('.mix').each(function() {
@@ -366,6 +438,10 @@ $(document).ready(function(){
 					return;
 				}
 
+				if (replacement.dataset && replacement.dataset.fragmentMd5) {
+					current.dataset.fragmentMd5 = replacement.dataset.fragmentMd5;
+				}
+
 				Array.prototype.forEach.call(currentThreads.querySelectorAll('.thread'), function(node) {
 					if (node.id) {
 						currentNodes[node.id] = node;
@@ -463,10 +539,19 @@ $(document).ready(function(){
 			url: fragment_url(),
 			cache: false,
 			success: function(data) {
+				var parser = new DOMParser();
+				var doc = parser.parseFromString(data, 'text/html');
+				var replacement = doc.querySelector('#thread-refresh-target');
 				var loaded_posts = 0;	// the number of new posts loaded in this update
 				var elementsToAppend = [];
 				var insertedPostIds = [];
-				$(data).find('div.post.reply').each(function() {
+				if (replacement && replacement.dataset && replacement.dataset.fragmentMd5) {
+					var currentContainer = document.getElementById('thread-refresh-target');
+					if (currentContainer) {
+						currentContainer.dataset.fragmentMd5 = replacement.dataset.fragmentMd5;
+					}
+				}
+				$(replacement || data).find('div.post.reply').each(function() {
 					var id = $(this).attr('id');
 					if($('#' + id).length == 0) {
 						if (!new_posts) {

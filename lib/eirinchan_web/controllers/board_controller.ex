@@ -18,7 +18,10 @@ defmodule EirinchanWeb.BoardController do
   plug :require_catalog_theme when action in [:catalog_page]
 
   def show(conn, params) do
-    render_page(conn, 1, fragment?: fragment_request?(params))
+    render_page(conn, 1,
+      fragment?: fragment_request?(params),
+      fragment_md5?: fragment_md5_request?(params)
+    )
   end
 
   def show_page(conn, %{"page_num_html" => page_num_html}) do
@@ -37,14 +40,20 @@ defmodule EirinchanWeb.BoardController do
       end
 
     if is_integer(page_num) and page_num > 0 do
-      render_page(conn, page_num, fragment?: fragment_request?(conn.params))
+      render_page(conn, page_num,
+        fragment?: fragment_request?(conn.params),
+        fragment_md5?: fragment_md5_request?(conn.params)
+      )
     else
       send_resp(conn, :not_found, "Page not found")
     end
   end
 
   def catalog(conn, params) do
-    render_catalog_page(conn, 1, fragment?: fragment_request?(params))
+    render_catalog_page(conn, 1,
+      fragment?: fragment_request?(params),
+      fragment_md5?: fragment_md5_request?(params)
+    )
   end
 
   def catalog_page(conn, %{"page_num_html" => page_num_html}) do
@@ -60,7 +69,10 @@ defmodule EirinchanWeb.BoardController do
       end
 
     if is_integer(page_num) and page_num > 1 do
-      render_catalog_page(conn, page_num, fragment?: fragment_request?(conn.params))
+      render_catalog_page(conn, page_num,
+        fragment?: fragment_request?(conn.params),
+        fragment_md5?: fragment_md5_request?(conn.params)
+      )
     else
       send_resp(conn, :not_found, "Page not found")
     end
@@ -81,10 +93,9 @@ defmodule EirinchanWeb.BoardController do
         own_post_ids = ShowYous.owned_post_ids(conn, Enum.map(page_data.threads, & &1.thread))
         show_yous = ShowYous.enabled?(conn)
         fragment? = Keyword.get(opts, :fragment?, false)
+        fragment_md5? = Keyword.get(opts, :fragment_md5?, false)
 
-        conn = if fragment?, do: put_root_layout(conn, false), else: conn
-
-        render(conn, if(fragment?, do: :catalog_fragment, else: :catalog),
+        render_assigns = [
           layout: false,
           board: board,
           board_title: board.title,
@@ -95,6 +106,8 @@ defmodule EirinchanWeb.BoardController do
           watcher_you_count: watcher_you_count,
           own_post_ids: own_post_ids,
           show_yous: show_yous,
+          current_moderator: conn.assigns[:current_moderator],
+          secure_manage_token: conn.assigns[:secure_manage_token],
           config: config,
           boards: boards,
           board_chrome: chrome,
@@ -128,7 +141,21 @@ defmodule EirinchanWeb.BoardController do
           extra_stylesheets: board_extra_stylesheets(board),
           hide_theme_switcher: true,
           skip_app_stylesheet: true
-        )
+        ]
+
+        fragment_md5 =
+          render_fragment_md5(EirinchanWeb.BoardHTML, :catalog_fragment, render_assigns)
+
+        if fragment_md5? do
+          text(conn, fragment_md5)
+        else
+
+          conn = if fragment?, do: put_root_layout(conn, false), else: conn
+
+          render(conn, if(fragment?, do: :catalog_fragment, else: :catalog),
+            Keyword.put(render_assigns, :fragment_md5, fragment_md5)
+          )
+        end
 
       {:error, :not_found} ->
         send_resp(conn, :not_found, "Page not found")
@@ -151,10 +178,9 @@ defmodule EirinchanWeb.BoardController do
         own_post_ids = own_post_ids(conn, page_data)
         show_yous = ShowYous.enabled?(conn)
         fragment? = Keyword.get(opts, :fragment?, false)
+        fragment_md5? = Keyword.get(opts, :fragment_md5?, false)
 
-        conn = if fragment?, do: put_root_layout(conn, false), else: conn
-
-        render(conn, if(fragment?, do: :index_fragment, else: :show),
+        render_assigns = [
           layout: false,
           board: board,
           board_title: board.title,
@@ -166,6 +192,8 @@ defmodule EirinchanWeb.BoardController do
           thread_watch_state: thread_watch_state,
           watcher_count: watcher_count,
           watcher_you_count: watcher_you_count,
+          current_moderator: conn.assigns[:current_moderator],
+          secure_manage_token: conn.assigns[:secure_manage_token],
           config: config,
           boards: boards,
           board_chrome: chrome,
@@ -198,7 +226,21 @@ defmodule EirinchanWeb.BoardController do
           extra_stylesheets: board_extra_stylesheets(board),
           hide_theme_switcher: true,
           skip_app_stylesheet: true
-        )
+        ]
+
+        fragment_md5 =
+          render_fragment_md5(EirinchanWeb.BoardHTML, :index_fragment, render_assigns)
+
+        if fragment_md5? do
+          text(conn, fragment_md5)
+        else
+
+          conn = if fragment?, do: put_root_layout(conn, false), else: conn
+
+          render(conn, if(fragment?, do: :index_fragment, else: :show),
+            Keyword.put(render_assigns, :fragment_md5, fragment_md5)
+          )
+        end
 
       {:error, :not_found} ->
         send_resp(conn, :not_found, "Page not found")
@@ -240,6 +282,23 @@ defmodule EirinchanWeb.BoardController do
 
   defp fragment_request?(%{"fragment" => value}) when value in ["1", "true", "yes"], do: true
   defp fragment_request?(_params), do: false
+
+  defp fragment_md5_request?(%{"fragment" => "md5"}), do: true
+  defp fragment_md5_request?(_params), do: false
+
+  defp render_fragment_md5(view, template, assigns) do
+    html =
+      Phoenix.Template.render_to_string(
+        view,
+        Atom.to_string(template),
+        "html",
+        Keyword.put(assigns, :fragment_md5, nil)
+      )
+
+    :md5
+    |> :crypto.hash(html)
+    |> Base.encode16(case: :lower)
+  end
 
   defp require_catalog_theme(conn, _opts) do
     EirinchanWeb.Plugs.RequirePageTheme.call(conn, theme: "catalog")

@@ -48,9 +48,10 @@ defmodule EirinchanWeb.ThreadController do
           own_post_ids = ShowYous.owned_post_ids(conn, [summary.thread | summary.replies])
           show_yous = ShowYous.enabled?(conn)
 
-          conn = if fragment_request?(conn.params), do: put_root_layout(conn, false), else: conn
+          fragment? = fragment_request?(conn.params)
+          fragment_md5? = fragment_md5_request?(conn.params)
 
-          render(conn, if(fragment_request?(conn.params), do: :thread_fragment, else: :show),
+          render_assigns = [
             layout: false,
             board: board,
             board_title: board.title,
@@ -63,6 +64,8 @@ defmodule EirinchanWeb.ThreadController do
             thread_watch: thread_watch,
             watcher_count: watcher_count,
             watcher_you_count: watcher_you_count,
+            current_moderator: conn.assigns[:current_moderator],
+            secure_manage_token: conn.assigns[:secure_manage_token],
             config: config,
             page_num: page_num,
             boards: boards,
@@ -98,7 +101,20 @@ defmodule EirinchanWeb.ThreadController do
             extra_stylesheets: board_extra_stylesheets(board),
             hide_theme_switcher: true,
             skip_app_stylesheet: true
-          )
+          ]
+
+          fragment_md5 =
+            render_fragment_md5(EirinchanWeb.ThreadHTML, :thread_fragment, render_assigns)
+
+          if fragment_md5? do
+            text(conn, fragment_md5)
+          else
+            conn = if fragment?, do: put_root_layout(conn, false), else: conn
+
+            render(conn, if(fragment?, do: :thread_fragment, else: :show),
+              Keyword.put(render_assigns, :fragment_md5, fragment_md5)
+            )
+          end
         end
 
       {:error, :not_found} ->
@@ -127,6 +143,23 @@ defmodule EirinchanWeb.ThreadController do
 
   defp fragment_request?(%{"fragment" => value}) when value in ["1", "true", "yes"], do: true
   defp fragment_request?(_params), do: false
+
+  defp fragment_md5_request?(%{"fragment" => "md5"}), do: true
+  defp fragment_md5_request?(_params), do: false
+
+  defp render_fragment_md5(view, template, assigns) do
+    html =
+      Phoenix.Template.render_to_string(
+        view,
+        Atom.to_string(template),
+        "html",
+        Keyword.put(assigns, :fragment_md5, nil)
+      )
+
+    :md5
+    |> :crypto.hash(html)
+    |> Base.encode16(case: :lower)
+  end
 
   defp board_body_class(conn) do
     moderator_class =

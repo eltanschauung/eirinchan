@@ -276,7 +276,7 @@
 <!-- End Search Form -->
 <p :if={@page_data.threads == []} class="unimportant">No threads yet.</p>
 
-<div id="board-refresh-target">
+<div id="board-refresh-target" data-fragment-md5={@fragment_md5}>
   <form name="postcontrols" action="/post.php" method="post">
     <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
     <input type="hidden" name="board" value={@board.uri} />
