@@ -208,7 +208,28 @@ defmodule EirinchanWeb.PostControllerTest do
 
     {:ok, [thread | _]} = Eirinchan.Posts.get_thread(board, id)
     assert thread.file_type == "image/gif"
-    assert thread.thumb_path =~ ~r/\.png$/
+    assert thread.thumb_path =~ ~r/\.gif$/
+  end
+
+  test "posting accepts mp4 uploads with jpg thumbnails", %{conn: conn} do
+    board = board_fixture()
+    upload = video_upload_fixture("clip.mp4")
+
+    create_conn =
+      conn
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post(~p"/#{board.uri}/post", %{
+        "body" => "video post",
+        "file" => upload,
+        "json_response" => "1",
+        "post" => "New Topic"
+      })
+
+    assert %{"id" => id} = json_response(create_conn, 200)
+
+    {:ok, [thread | _]} = Eirinchan.Posts.get_thread(board, id)
+    assert thread.file_type == "video/mp4"
+    assert thread.thumb_path =~ ~r/\.jpg$/
   end
 
   test "posting accepts YouTube embeds and renders the lazy embed block", %{conn: conn} do

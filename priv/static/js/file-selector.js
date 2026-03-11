@@ -16,7 +16,18 @@ function init_file_selector(max_images) {
 $(document).ready(function () {
 	// add options panel item
 	if (window.Options && Options.get_tab('general')) {
-		Options.extend_tab('general', '<label id="file-drag-drop"><input type="checkbox">' + _('Drag and drop file selection') + '</label>');
+		if (!$('#file-drag-drop').length) {
+			Options.extend_tab('general', '<label id="file-drag-drop"><input type="checkbox">' + _('Drag and drop file selection') + '</label>');
+		}
+		var movePreference = function () {
+			var prefs = $('#general-preferences');
+			if (prefs.length) {
+				$('#file-drag-drop').detach().appendTo(prefs);
+			}
+		};
+
+		movePreference();
+		$(document).off('general_preferences_ready.file_drag_drop').on('general_preferences_ready.file_drag_drop', movePreference);
 
 		$('#file-drag-drop>input').on('click', function() {
 			if ($('#file-drag-drop>input').is(':checked')) {

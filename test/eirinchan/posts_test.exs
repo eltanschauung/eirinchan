@@ -179,6 +179,26 @@ defmodule Eirinchan.PostsTest do
     assert File.exists?(Eirinchan.Uploads.filesystem_path(thread.thumb_path))
   end
 
+  test "create_post keeps jpg thumbnails as jpg" do
+    board = board_fixture()
+    upload = upload_fixture("photo.jpg", "jpg-bytes")
+
+    assert {:ok, thread, %{noko: false}} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "jpg post",
+                 "file" => upload,
+                 "post" => "New Topic"
+               },
+               config: post_config(board.config_overrides),
+               request: post_request(board.uri)
+             )
+
+    assert thread.file_type == "image/jpeg"
+    assert thread.thumb_path =~ ~r|^/#{board.uri}/thumb/\d+s\.jpg$|
+  end
+
   test "create_post allows file-only replies without a body" do
     board = board_fixture()
     thread = thread_fixture(board)
@@ -434,7 +454,29 @@ defmodule Eirinchan.PostsTest do
     assert extra.position == 1
     assert extra.file_name == "second.gif"
     assert extra.file_path =~ ~r|^/#{board.uri}/src/\d+-1\.gif$|
-    assert extra.thumb_path =~ ~r|^/#{board.uri}/thumb/\d+-1s\.png$|
+    assert extra.thumb_path =~ ~r|^/#{board.uri}/thumb/\d+-1s\.gif$|
+  end
+
+  test "create_post generates jpg thumbnails for video uploads" do
+    board = board_fixture()
+    upload = video_upload_fixture("clip.webm")
+
+    assert {:ok, thread, %{noko: false}} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "video post",
+                 "file" => upload,
+                 "post" => "New Topic"
+               },
+               config: post_config(board.config_overrides),
+               request: post_request(board.uri)
+             )
+
+    assert thread.file_type == "video/webm"
+    assert thread.thumb_path =~ ~r|^/#{board.uri}/thumb/\d+s\.jpg$|
+    assert thread.image_width == 64
+    assert thread.image_height == 48
   end
 
   test "create_post marks spoiler uploads on primary and extra files" do

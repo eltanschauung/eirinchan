@@ -7,6 +7,7 @@ defmodule Eirinchan.Uploads do
   alias Eirinchan.Posts.Post
 
   @image_extensions [".png", ".jpg", ".jpeg", ".gif"]
+  @video_extensions [".webm", ".mp4"]
 
   @spec describe(Plug.Upload.t(), map()) :: {:ok, map()} | {:error, atom()}
   def describe(%Plug.Upload{} = upload, config) do
@@ -19,7 +20,7 @@ defmodule Eirinchan.Uploads do
         |> String.downcase()
 
       file_type = detect_mime_type(upload.path, normalized_name)
-      image_metadata = maybe_image_metadata(upload.path, file_type)
+      media_metadata = maybe_media_metadata(upload.path, file_type, ext, config)
 
       metadata = %{
         binary: binary,
@@ -28,12 +29,12 @@ defmodule Eirinchan.Uploads do
         file_size: byte_size(binary),
         file_type: file_type,
         file_md5: :crypto.hash(:md5, binary) |> Base.encode64(),
-        image_width: image_metadata.width,
-        image_height: image_metadata.height,
+        image_width: media_metadata.width,
+        image_height: media_metadata.height,
         spoiler: false
       }
 
-      normalized_upload_metadata(upload.path, metadata)
+      normalized_upload_metadata(upload.path, metadata, config)
     else
       {:error, _reason} -> {:error, :upload_failed}
     end
@@ -66,7 +67,8 @@ defmodule Eirinchan.Uploads do
     base_name = unique_timestamp_base_name(board, post, config, metadata.ext, suffix)
     storage_name = "#{base_name}#{metadata.ext}"
     destination = Path.join([board_root(), board.uri, config.dir.img, storage_name])
-    thumb_name = "#{base_name}s.png"
+    thumb_ext = thumbnail_extension(metadata, config)
+    thumb_name = "#{base_name}s#{thumb_ext}"
     thumb_destination = Path.join([board_root(), board.uri, config.dir.thumb, thumb_name])
 
     destination
@@ -80,7 +82,7 @@ defmodule Eirinchan.Uploads do
     case move_to_destination(upload.path, destination) do
       :ok ->
         with :ok <- normalize_stored_upload(destination, config, metadata),
-             {:ok, stored_metadata} <- refresh_stored_metadata(destination, metadata),
+             {:ok, stored_metadata} <- refresh_stored_metadata(destination, metadata, config),
              :ok <-
                generate_thumbnail(
                  destination,
@@ -177,6 +179,8 @@ defmodule Eirinchan.Uploads do
       ext in [".jpg", ".jpeg"] -> file_type == "image/jpeg"
       ext == ".png" -> file_type == "image/png"
       ext == ".gif" -> file_type == "image/gif"
+      ext == ".webm" -> file_type == "video/webm"
+      ext == ".mp4" -> file_type in ["video/mp4", "application/mp4"]
       ext == ".txt" -> file_type == "inode/x-empty" or String.starts_with?(file_type, "text/")
       true -> true
     end
@@ -186,6 +190,9 @@ defmodule Eirinchan.Uploads do
 
   def image_extension?(ext) when is_binary(ext), do: ext in @image_extensions
   def image_extension?(_ext), do: false
+
+  def video_extension?(ext) when is_binary(ext), do: ext in @video_extensions
+  def video_extension?(_ext), do: false
 
   @spec fetch_remote_upload(String.t(), map()) :: {:ok, Plug.Upload.t()} | {:error, atom()}
   def fetch_remote_upload(url, config) when is_binary(url) do
@@ -204,14 +211,22 @@ defmodule Eirinchan.Uploads do
 
   def fetch_remote_upload(_url, _config), do: {:error, :upload_failed}
 
-  defp maybe_image_metadata(path, file_type) do
-    if String.starts_with?(file_type, "image/") do
-      case image_metadata(path) do
-        {:ok, data} -> data
-        {:error, :invalid_image} -> %{width: nil, height: nil}
-      end
-    else
-      %{width: nil, height: nil}
+  defp maybe_media_metadata(path, file_type, ext, config) do
+    cond do
+      String.starts_with?(file_type, "image/") ->
+        case image_metadata(path) do
+          {:ok, data} -> data
+          {:error, :invalid_image} -> %{width: nil, height: nil}
+        end
+
+      video_extension?(ext) ->
+        case video_metadata(path, ext, config) do
+          {:ok, data} -> data
+          {:error, _reason} -> %{width: nil, height: nil}
+        end
+
+      true ->
+        %{width: nil, height: nil}
     end
   end
 
@@ -271,7 +286,16 @@ defmodule Eirinchan.Uploads do
       |> then(fn value -> if is_binary(suffix), do: "#{value}-#{suffix}", else: value end)
 
     img_path = Path.join([board_root(), board.uri, config.dir.img, "#{base}#{ext}"])
-    thumb_path = Path.join([board_root(), board.uri, config.dir.thumb, "#{base}s.png"])
+    thumb_ext =
+      thumbnail_extension(
+        %{
+          ext: ext,
+          file_type: ext |> MIME.type() |> to_string()
+        },
+        config
+      )
+
+    thumb_path = Path.join([board_root(), board.uri, config.dir.thumb, "#{base}s#{thumb_ext}"])
 
     if File.exists?(img_path) or File.exists?(thumb_path) do
       resolve_timestamp_base_name(board, config, timestamp + 1, ext, suffix)
@@ -502,13 +526,13 @@ defmodule Eirinchan.Uploads do
     end
   end
 
-  defp normalized_upload_metadata(path, metadata) do
+  defp normalized_upload_metadata(path, metadata, config) do
     if image?(metadata) do
       temp_path = "#{path}.normalized"
 
       with :ok <- File.cp(path, temp_path),
            :ok <- normalize_stored_upload(temp_path, %{}, metadata),
-           {:ok, normalized} <- refresh_stored_metadata(temp_path, metadata) do
+           {:ok, normalized} <- refresh_stored_metadata(temp_path, metadata, config) do
         _ = File.rm(temp_path)
         {:ok, normalized}
       else
@@ -521,10 +545,10 @@ defmodule Eirinchan.Uploads do
     end
   end
 
-  defp refresh_stored_metadata(path, metadata) do
+  defp refresh_stored_metadata(path, metadata, config) do
     with {:ok, binary} <- File.read(path) do
       file_type = detect_mime_type(path, metadata.file_name)
-      image_metadata = maybe_image_metadata(path, file_type)
+      media_metadata = maybe_media_metadata(path, file_type, metadata.ext, config)
 
       {:ok,
        metadata
@@ -532,8 +556,8 @@ defmodule Eirinchan.Uploads do
        |> Map.put(:file_size, byte_size(binary))
        |> Map.put(:file_type, file_type)
        |> Map.put(:file_md5, :crypto.hash(:md5, binary) |> Base.encode64())
-       |> Map.put(:image_width, image_metadata.width)
-       |> Map.put(:image_height, image_metadata.height)}
+       |> Map.put(:image_width, media_metadata.width)
+       |> Map.put(:image_height, media_metadata.height)}
     else
       {:error, _reason} -> {:error, :upload_failed}
     end
@@ -562,28 +586,53 @@ defmodule Eirinchan.Uploads do
           if Map.get(metadata, :spoiler), do: generate_spoiler_thumbnail(destination, config), else: :ok
         end
 
+      video_extension?(metadata.ext) and get_in(config, [:webm, :use_ffmpeg]) ->
+        with :ok <- generate_video_thumbnail(source, destination, config, metadata, op?) do
+          if Map.get(metadata, :spoiler), do: generate_spoiler_thumbnail(destination, config), else: :ok
+        end
+
       true ->
         generate_placeholder_thumbnail(destination, config, metadata)
     end
   end
 
   defp generate_image_thumbnail(source, destination, config, op?) do
-    if minimum_copy_resize?(source, config) do
+    cond do
+      animated_gif_thumb?(source, config) ->
+        generate_animated_gif_thumbnail(source, destination, config, op?)
+
+      minimum_copy_resize?(source, config) ->
       case File.cp(source, destination) do
         :ok -> :ok
         {:error, _reason} -> {:error, :upload_failed}
       end
-    else
-      geometry = image_thumbnail_geometry(config, op?)
 
-      case System.cmd(
-             "convert",
-             [first_frame_path(source), "-auto-orient", "-thumbnail", geometry, destination],
-             stderr_to_stdout: true
-           ) do
-        {_output, 0} -> :ok
-        _ -> {:error, :upload_failed}
-      end
+      true ->
+        geometry = image_thumbnail_geometry(config, op?)
+
+        case System.cmd(
+               "convert",
+               [first_frame_path(source), "-auto-orient", "-thumbnail", geometry, destination],
+               stderr_to_stdout: true
+             ) do
+          {_output, 0} -> :ok
+          _ -> {:error, :upload_failed}
+        end
+    end
+  end
+
+  defp generate_animated_gif_thumbnail(source, destination, config, op?) do
+    geometry = image_thumbnail_geometry(config, op?)
+    frames = max(Map.get(config, :thumb_keep_animation_frames, 1) - 1, 0)
+    source_frames = "#{source}[0-#{frames}]"
+
+    case System.cmd(
+           "convert",
+           [source_frames, "-coalesce", "-thumbnail", geometry, "-layers", "Optimize", destination],
+           stderr_to_stdout: true
+         ) do
+      {_output, 0} -> :ok
+      _ -> {:error, :upload_failed}
     end
   end
 
@@ -611,6 +660,12 @@ defmodule Eirinchan.Uploads do
         _ ->
           false
       end
+  end
+
+  defp animated_gif_thumb?(source, config) do
+    String.downcase(Path.extname(source)) == ".gif" and
+      gif_thumbnail_extension(config) == ".gif" and
+      max(Map.get(config, :thumb_keep_animation_frames, 1), 1) > 1
   end
 
   defp generate_placeholder_thumbnail(destination, config, metadata) do
@@ -683,9 +738,21 @@ defmodule Eirinchan.Uploads do
       is_binary(icon_name) and File.exists?(icon_name) ->
         icon_name
 
+      is_binary(icon_name) ->
+        resolve_bundled_icon(icon_name)
+
       true ->
         nil
     end
+  end
+
+  defp resolve_bundled_icon(icon_name) do
+    candidates = [
+      Path.join(Application.app_dir(:eirinchan, "priv/static/static"), icon_name),
+      Path.join(Application.app_dir(:eirinchan, "priv/static"), icon_name)
+    ]
+
+    Enum.find(candidates, &File.exists?/1)
   end
 
   defp generate_spoiler_thumbnail(destination, _config) do
@@ -708,6 +775,199 @@ defmodule Eirinchan.Uploads do
         _ = File.rm(temp_destination)
         {:error, :upload_failed}
     end
+  end
+
+  defp thumbnail_extension(metadata, config) do
+    cond do
+      video_extension?(metadata.ext) ->
+        ".jpg"
+
+      metadata.ext in [".jpg", ".jpeg"] ->
+        ".jpg"
+
+      metadata.ext == ".png" ->
+        ".png"
+
+      metadata.ext == ".gif" ->
+        gif_thumbnail_extension(config)
+
+      true ->
+        ".png"
+    end
+  end
+
+  defp gif_thumbnail_extension(config) do
+    case Map.get(config, :thumb_ext, "") do
+      "" -> ".gif"
+      "gif" -> ".gif"
+      ".gif" -> ".gif"
+      "jpg" -> ".jpg"
+      ".jpg" -> ".jpg"
+      "jpeg" -> ".jpg"
+      ".jpeg" -> ".jpg"
+      "png" -> ".png"
+      ".png" -> ".png"
+      _ -> ".png"
+    end
+  end
+
+  defp video_metadata(path, ext, config) do
+    ffprobe = get_in(config, [:webm, :ffprobe_path]) || "ffprobe"
+
+    case System.cmd(
+           ffprobe,
+           ["-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", path],
+           stderr_to_stdout: true
+         ) do
+      {output, 0} ->
+        with {:ok, data} <- Jason.decode(output),
+             :ok <- validate_video_metadata(data, ext, config),
+             %{"width" => width, "height" => height} = stream <- primary_video_stream(data) do
+          {:ok, %{width: width, height: height, duration: video_duration(data), stream: stream}}
+        else
+          _ -> {:error, :invalid_video}
+        end
+
+      _ ->
+        {:error, :invalid_video}
+    end
+  end
+
+  defp primary_video_stream(%{"streams" => streams}) when is_list(streams) do
+    Enum.find(streams, fn stream -> Map.get(stream, "codec_type") == "video" end)
+  end
+
+  defp primary_video_stream(_), do: nil
+
+  defp audio_streams(%{"streams" => streams}) when is_list(streams) do
+    Enum.filter(streams, fn stream -> Map.get(stream, "codec_type") == "audio" end)
+  end
+
+  defp audio_streams(_), do: []
+
+  defp video_duration(%{"format" => %{"duration" => duration}}) when is_binary(duration) do
+    case Float.parse(duration) do
+      {value, _} -> value
+      :error -> 0.0
+    end
+  end
+
+  defp video_duration(_), do: 0.0
+
+  defp validate_video_metadata(data, ext, config) do
+    with %{"format" => format} <- data,
+         %{"format_name" => format_name} <- format,
+         %{"codec_name" => codec} <- primary_video_stream(data),
+         :ok <- validate_video_format(ext, format_name, codec),
+         :ok <- validate_video_audio(data, config),
+         :ok <- validate_video_duration(data, config) do
+      :ok
+    else
+      _ -> {:error, :invalid_video}
+    end
+  end
+
+  defp validate_video_format(".webm", "matroska,webm", codec) when codec in ["vp8", "vp9", "av1"],
+    do: :ok
+
+  defp validate_video_format(".webm", _format_name, _codec), do: {:error, :invalid_video}
+
+  defp validate_video_format(".mp4", format_name, codec) do
+    if String.contains?(format_name, "mp4") and codec in ["h264", "av1"] do
+      :ok
+    else
+      {:error, :invalid_video}
+    end
+  end
+
+  defp validate_video_format(_ext, _format_name, _codec), do: {:error, :invalid_video}
+
+  defp validate_video_audio(data, config) do
+    if get_in(config, [:webm, :allow_audio]) || audio_streams(data) == [] do
+      :ok
+    else
+      {:error, :invalid_video}
+    end
+  end
+
+  defp validate_video_duration(data, config) do
+    max_length = get_in(config, [:webm, :max_length]) || 120
+
+    if video_duration(data) <= max_length do
+      :ok
+    else
+      {:error, :invalid_video}
+    end
+  end
+
+  defp generate_video_thumbnail(source, destination, config, metadata, op?) do
+    ffmpeg = get_in(config, [:webm, :ffmpeg_path]) || "ffmpeg"
+    {width, height} = thumbnail_dimensions_for_video(metadata, config, op?)
+    midpoint = max(floor(Map.get(metadata, :duration, 0.0) / 2), 0)
+
+    args = [
+      "-y",
+      "-strict",
+      "-2",
+      "-ss",
+      Integer.to_string(midpoint),
+      "-i",
+      source,
+      "-v",
+      "quiet",
+      "-an",
+      "-vframes",
+      "1",
+      "-f",
+      "mjpeg",
+      "-vf",
+      "scale=#{width}:#{height}",
+      destination
+    ]
+
+    case System.cmd(ffmpeg, args, stderr_to_stdout: true) do
+      {_output, 0} ->
+        if File.exists?(destination), do: :ok, else: generate_video_thumbnail_from_start(source, destination, config, metadata, op?)
+
+      _ ->
+        generate_video_thumbnail_from_start(source, destination, config, metadata, op?)
+    end
+  end
+
+  defp generate_video_thumbnail_from_start(source, destination, config, metadata, op?) do
+    ffmpeg = get_in(config, [:webm, :ffmpeg_path]) || "ffmpeg"
+    {width, height} = thumbnail_dimensions_for_video(metadata, config, op?)
+
+    case System.cmd(
+           ffmpeg,
+           ["-y", "-strict", "-2", "-ss", "0", "-i", source, "-v", "quiet", "-an", "-vframes", "1", "-f", "mjpeg", "-vf", "scale=#{width}:#{height}", destination],
+           stderr_to_stdout: true
+         ) do
+      {_output, 0} ->
+        if File.exists?(destination), do: :ok, else: {:error, :upload_failed}
+
+      _ -> {:error, :upload_failed}
+    end
+  end
+
+  defp thumbnail_dimensions_for_video(metadata, config, op?) do
+    max_width = if op?, do: config.thumb_op_width, else: config.thumb_width
+    max_height = if op?, do: config.thumb_op_height, else: config.thumb_height
+
+    case fit_dimensions(Map.get(metadata, :image_width), Map.get(metadata, :image_height), max_width, max_height) do
+      {width, height} -> {width, height}
+      nil -> {max_width, max_height}
+    end
+  end
+
+  defp fit_dimensions(nil, _height, _max_width, _max_height), do: nil
+  defp fit_dimensions(_width, nil, _max_width, _max_height), do: nil
+
+  defp fit_dimensions(width, height, max_width, max_height)
+       when is_integer(width) and is_integer(height) and width > 0 and height > 0 do
+    scale = min(max_width / width, max_height / height)
+    scale = if scale > 1.0, do: 1.0, else: scale
+    {max(trunc(width * scale), 1), max(trunc(height * scale), 1)}
   end
 
   defp normalized_filename(filename, config) do
