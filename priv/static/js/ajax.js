@@ -70,28 +70,6 @@ $(window).ready(function() {
 				}
 			};
 
-			var completeReplyArrival = function(postId, onReady, attempts) {
-				var remaining = typeof attempts === 'number' ? attempts : 20;
-				var $reply = $('div.post#reply_' + postId).first();
-
-				if ($reply.length) {
-					window.requestAnimationFrame(function() {
-						window.requestAnimationFrame(function() {
-							onReady($reply);
-						});
-					});
-					return;
-				}
-
-				if (remaining <= 0) {
-					onReady($reply);
-					return;
-				}
-
-				setTimeout(function() {
-					completeReplyArrival(postId, onReady, remaining - 1);
-				}, 25);
-			};
 
 			var clearReplyFields = function() {
 				$(form).find('input[name="subject"],input[name="file_url"],\
@@ -148,10 +126,9 @@ $(window).ready(function() {
 					} else if (post_response.redirect && post_response.id) {
 						if (is_reply_form) {
 							$submit.val(_('Posted...'));
-							var $insertedReply = $();
-							var $currentReply = $('div.post#reply_' + post_response.id).first();
+							var $reply = $('div.post#reply_' + post_response.id).first();
 
-							if (post_response.html && !$currentReply.length) {
+							if (post_response.html && !$reply.length) {
 								var $newReply = $(post_response.html);
 								var $lastPost = $('div.thread > div.post.reply:last');
 
@@ -172,57 +149,57 @@ $(window).ready(function() {
 									}
 								}
 
-								$insertedReply = $('div.post#reply_' + post_response.id).first();
+								$reply = $('div.post#reply_' + post_response.id).first();
 							}
 
-							completeReplyArrival(post_response.id, function($target) {
-								if ($target.length) {
-									var anchor = document.getElementById(String(post_response.id)) || $target[0];
+							if ($reply.length) {
+								var anchor = document.getElementById(String(post_response.id)) || $reply[0];
 
-									clearReplyFields();
-									resetSubmit();
-									triggerAjaxAfterPost(post_response)
+								clearReplyFields();
+								resetSubmit();
+								triggerAjaxAfterPost(post_response);
 
-									setTimeout(function() {
+								try {
+									if (window.EirinchanFrontend && typeof window.EirinchanFrontend.initPost === 'function') {
+										window.EirinchanFrontend.initPost($reply[0]);
+									} else {
+										$(document).trigger('new_post', $reply[0]);
+									}
+								} catch (e) {
+									console.error(e);
+								}
+
+								window.requestAnimationFrame(function() {
+									window.requestAnimationFrame(function() {
 										try {
-											if (window.EirinchanFrontend && typeof window.EirinchanFrontend.initPost === 'function') {
-												window.EirinchanFrontend.initPost($target[0]);
+											if (history && history.replaceState) {
+												history.replaceState(null, document.title, window.location.pathname + window.location.search + '#' + post_response.id);
 											} else {
-												$(document).trigger('new_post', $target[0]);
+												window.location.hash = post_response.id;
 											}
+										} catch (_e) {
+											window.location.hash = post_response.id;
+										}
+
+										if (anchor.scrollIntoView) {
+											anchor.scrollIntoView({block: "start"});
+										} else {
+											$(window).scrollTop($reply.offset().top);
+										}
+
+										try {
+											highlightReply(post_response.id);
 										} catch (e) {
 											console.error(e);
 										}
-									}, 0);
 
-									try {
-										if (history && history.replaceState) {
-											history.replaceState(null, document.title, window.location.pathname + window.location.search + '#' + post_response.id);
-										} else {
-											window.location.hash = post_response.id;
-										}
-									} catch (_e) {
-										window.location.hash = post_response.id;
-									}
-
-									if (anchor.scrollIntoView) {
-										anchor.scrollIntoView({block: "start"});
-									} else {
-										$(window).scrollTop($target.offset().top);
-									}
-
-									try {
-										highlightReply(post_response.id);
-									} catch (e) {
-										console.error(e);
-									}
-
-									setTimeout(function() { $(window).trigger("scroll"); }, 50);
-								} else {
-									resetSubmit();
-									document.location = window.location.pathname + window.location.search + '#' + post_response.id;
-								}
-							});
+										setTimeout(function() { $(window).trigger("scroll"); }, 50);
+									});
+								});
+							} else {
+								resetSubmit();
+								document.location = window.location.pathname + window.location.search + '#' + post_response.id;
+							}
 						} else {
 							triggerAjaxAfterPost(post_response)
 							document.location = post_response.redirect;
