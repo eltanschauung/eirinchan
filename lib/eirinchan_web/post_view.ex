@@ -77,6 +77,16 @@ defmodule EirinchanWeb.PostView do
     end
   end
 
+  def email_link?(email, config) when is_binary(email) do
+    trimmed = String.trim(email)
+
+    trimmed != "" and
+      Map.get(config, :hide_email, false) != true and
+      (Map.get(config, :hide_sage, false) != true or trimmed != "sage")
+  end
+
+  def email_link?(_email, _config), do: false
+
   def board_heading(board), do: "/#{board.uri}/ - #{board.title}"
 
   def thread_path(board, post, config), do: ThreadPaths.thread_path(board, post, config)
@@ -897,16 +907,6 @@ defmodule EirinchanWeb.PostView do
       style -> ~s( style="#{html_escape_to_string(style)}")
     end
   end
-
-  defp email_link?(email, config) when is_binary(email) do
-    trimmed = String.trim(email)
-
-    trimmed != "" and
-      Map.get(config, :hide_email, false) != true and
-      (Map.get(config, :hide_sage, false) != true or trimmed != "sage")
-  end
-
-  defp email_link?(_email, _config), do: false
 
   defp confirm_control(post, board, session_token, action) do
     %{href: href, secure: secure_href, title: title, label: label, confirm: message} =

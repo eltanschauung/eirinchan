@@ -341,20 +341,12 @@
                 id={"delete_#{thread.id}"}
               />
               <label for={"delete_#{thread.id}"}>
-                <span :if={thread.subject} class="subject"><%= thread.subject %></span>
-                <%= raw(PostView.name_html(thread, @config)) %>
-                <span :if={thread.tripcode} class="trip"><%= thread.tripcode %></span>
-                <%= raw(PostView.ip_link_html(thread, @board, @current_moderator)) %>
-                <%= for flag <- PostView.post_flags(thread, @config) do %>
-                  <img
-                    class="flag"
-                    src={flag.src}
-                    alt={flag.alt}
-                    title={flag.alt}
-                    style={PostView.flag_style(@config)}
-                  />
-                <% end %>
-                <%= raw(PostView.time_html(thread)) %>
+                <.post_identity
+                  post={thread}
+                  config={@config}
+                  board={@board}
+                  moderator={@current_moderator}
+                />
               </label>
               <.post_number_links
                 post_id={thread.id}
@@ -418,20 +410,12 @@
                   id={"delete_#{reply.id}"}
                 />
                 <label for={"delete_#{reply.id}"}>
-                  <span :if={reply.subject} class="subject"><%= reply.subject %></span>
-                  <%= raw(PostView.name_html(reply, @config)) %>
-                  <span :if={reply.tripcode} class="trip"><%= reply.tripcode %></span>
-                  <%= raw(PostView.ip_link_html(reply, @board, @current_moderator)) %>
-                  <%= for flag <- PostView.post_flags(reply, @config) do %>
-                    <img
-                      class="flag"
-                      src={flag.src}
-                      alt={flag.alt}
-                      title={flag.alt}
-                      style={PostView.flag_style(@config)}
-                    />
-                  <% end %>
-                  <%= raw(PostView.time_html(reply)) %>
+                  <.post_identity
+                    post={reply}
+                    config={@config}
+                    board={@board}
+                    moderator={@current_moderator}
+                  />
                 </label>
                 <.post_number_links
                   post_id={reply.id}

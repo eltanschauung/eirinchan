@@ -1,6 +1,24 @@
 defmodule EirinchanWeb.PostComponents do
   use Phoenix.Component
 
+  alias EirinchanWeb.{IpPresentation, PostView}
+
+  attr :post, :map, required: true
+  attr :config, :map, required: true
+  attr :board, :map, required: true
+  attr :moderator, :map, default: nil
+
+  def post_identity(assigns) do
+    assigns =
+      assigns
+      |> assign(:visible_ip, visible_ip(assigns.post, assigns.board, assigns.moderator))
+      |> assign(:flags, PostView.post_flags(assigns.post, assigns.config))
+
+    ~H"""
+    <span :if={@post.subject} class="subject"><%= @post.subject %></span><%= if @post.subject, do: " " %><%= if PostView.email_link?(@post.email, @config) do %><a class="email" href={"mailto:" <> to_string(@post.email)}><span class="name"><%= PostView.display_name(@post, @config) %></span></a><% else %><span class="name"><%= PostView.display_name(@post, @config) %></span><% end %><%= if @post.tripcode, do: " " %><span :if={@post.tripcode} class="trip"><%= @post.tripcode %></span><%= if @visible_ip, do: " " %><a :if={@visible_ip} class="ip-link" style="margin:0;" href={"/mod.php?/IP/" <> @visible_ip}>[<%= @visible_ip %>]</a><%= if @flags != [], do: " " %><%= for flag <- @flags do %><img class="flag" src={flag.src} alt={flag.alt} title={flag.alt} style={PostView.flag_style(@config)} /><% end %><%= if @flags != [], do: " " %><time datetime={PostView.iso_timestamp(@post)}><%= PostView.formatted_timestamp(@post) %></time>
+    """
+  end
+
   attr :post_id, :integer, required: true
   attr :post_href, :string, required: true
   attr :quote_href, :string, required: true
@@ -51,4 +69,10 @@ defmodule EirinchanWeb.PostComponents do
 
   defp quote_onclick(post_id, :navigate), do: "citeReply(#{post_id})"
   defp quote_onclick(post_id, _mode), do: "return citeReply(#{post_id}, false)"
+
+  defp visible_ip(post, board, moderator) do
+    if PostView.can_view_ip?(moderator, board) and post.ip_subnet do
+      IpPresentation.display_ip(post.ip_subnet, moderator)
+    end
+  end
 end

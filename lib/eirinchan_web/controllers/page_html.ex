@@ -7,5 +7,49 @@ defmodule EirinchanWeb.PageHTML do
   use EirinchanWeb, :html
   alias EirinchanWeb.PostView
 
+  attr :watch_summaries, :list, default: []
+
+  def watcher_list(assigns) do
+    ~H"""
+    <div class="watcher-page">
+      <%= if @watch_summaries == [] do %>
+        <p>No watched threads yet.</p>
+      <% else %>
+        <div class="watcher-list">
+          <%= for watch <- @watch_summaries do %>
+            <div class={["watcher-entry", watch.unread_count > 0 && "has-unread"]}>
+              <div class="watcher-entry-top">
+                <a href={watch.thread_path}>
+                  /<%= watch.board_uri %>/ - <%= watch.subject || watch.excerpt ||
+                    "Thread ##{watch.thread_id}" %>
+                </a>
+                <span class="watcher-meta">
+                  posts: <%= watch.post_count %> | unread: <%= watch.unread_count %>
+                </span>
+              </div>
+              <%= if watch.excerpt do %>
+                <div class="watcher-excerpt"><%= watch.excerpt %></div>
+              <% end %>
+              <div class="watcher-actions">
+                <a
+                  href="#"
+                  data-thread-watch
+                  data-board-uri={watch.board_uri}
+                  data-thread-id={watch.thread_id}
+                  data-watch-url={"/watcher/" <> watch.board_uri <> "/" <> Integer.to_string(watch.thread_id)}
+                  data-unwatch-url={"/watcher/" <> watch.board_uri <> "/" <> Integer.to_string(watch.thread_id)}
+                  data-watched="true"
+                >
+                  [Unwatch<%= if watch.unread_count > 0, do: " (#{watch.unread_count})", else: "" %>]
+                </a>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+    """
+  end
+
   embed_templates "page_html/*"
 end

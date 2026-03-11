@@ -1,9 +1,27 @@
 (function() {
+  var watcherDialog;
+
   var csrfToken = function(trigger) {
     var form = trigger && trigger.closest('form');
     var field = (form && form.querySelector('input[name="_csrf_token"]')) ||
       document.querySelector('input[name="_csrf_token"]');
     return field ? field.value : null;
+  };
+
+  var watcherCountLabel = function(count) {
+    return '[' + 'Watcher' + (count > 0 ? ' (' + count + ')' : '') + ']';
+  };
+
+  var setWatcherCount = function(count) {
+    if (document.body && document.body.dataset) {
+      document.body.dataset.watcherCount = String(count);
+    }
+
+    var link = document.getElementById('watcher-link');
+
+    if (link) {
+      link.textContent = watcherCountLabel(count);
+    }
   };
 
   var syncWatchLinks = function(threadId, watched) {
@@ -35,7 +53,64 @@
     });
   };
 
+  var ensureWatcherDialog = function() {
+    if (watcherDialog) return watcherDialog;
+
+    watcherDialog = document.createElement('div');
+    watcherDialog.id = 'server-watcher-dialog';
+    watcherDialog.innerHTML =
+      '<div class="watcher-dialog-background"></div>' +
+      '<div class="watcher-dialog-panel">' +
+      '<a href="javascript:void(0)" class="watcher-dialog-close">[Close]</a>' +
+      '<div class="watcher-dialog-body"></div>' +
+      '</div>';
+
+    watcherDialog.querySelector('.watcher-dialog-background').addEventListener('click', function() {
+      watcherDialog.style.display = 'none';
+    });
+
+    watcherDialog.querySelector('.watcher-dialog-close').addEventListener('click', function(event) {
+      event.preventDefault();
+      watcherDialog.style.display = 'none';
+    });
+
+    document.body.appendChild(watcherDialog);
+    return watcherDialog;
+  };
+
+  var renderWatcherDialog = function(html) {
+    var dialog = ensureWatcherDialog();
+    dialog.querySelector('.watcher-dialog-body').innerHTML = html;
+    dialog.style.display = 'block';
+  };
+
+  var watcherDialogOpen = function() {
+    return watcherDialog && watcherDialog.style.display === 'block';
+  };
+
+  var refreshWatcherDialog = function() {
+    return fetch('/watcher/fragment', {
+      headers: {'x-requested-with': 'XMLHttpRequest'},
+      credentials: 'same-origin'
+    }).then(function(response) {
+      if (!response.ok) throw new Error('watcher fragment failed');
+      return response.text();
+    }).then(function(html) {
+      renderWatcherDialog(html);
+    }).catch(function() {
+      if (typeof alert === 'function') alert('Watcher refresh failed.');
+    });
+  };
+
   document.addEventListener('click', function(event) {
+    var watcherLink = event.target.closest('#watcher-link');
+
+    if (watcherLink && event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
+      event.preventDefault();
+      refreshWatcherDialog();
+      return;
+    }
+
     var link = event.target.closest('[data-thread-watch]');
     if (!link) return;
 
@@ -64,6 +139,12 @@
       return response.json();
     }).then(function(payload) {
       syncWatchLinks(payload.thread_id, !!payload.watched);
+      if (typeof payload.watcher_count === 'number') {
+        setWatcherCount(payload.watcher_count);
+      }
+      if (watcherDialogOpen()) {
+        refreshWatcherDialog();
+      }
     }).catch(function() {
       if (typeof alert === 'function') alert('Watcher update failed.');
     }).finally(function() {

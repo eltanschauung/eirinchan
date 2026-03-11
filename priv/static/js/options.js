@@ -109,7 +109,7 @@ $(function(){
   var watcherCount = parseInt(document.body && document.body.dataset ? document.body.dataset.watcherCount : '0', 10);
   if (isNaN(watcherCount)) watcherCount = 0;
   var watcherLabel = _("Watcher") + (watcherCount > 0 ? ' (' + watcherCount + ')' : '');
-  watcher_button = $("<a href='/watcher' title='"+_("Watcher")+"'>["+watcherLabel+"]</a>");
+  watcher_button = $("<a id='watcher-link' href='/watcher' title='"+_("Watcher")+"'>["+watcherLabel+"]</a>");
 
   if ($(".boardlist.compact-boardlist").length) {
     options_button.addClass("cb-item cb-fa").html("<i class='fa fa-gear'></i>");

@@ -392,6 +392,27 @@ defmodule EirinchanWeb.PageControllerTest do
     assert body =~ "unread: 1"
   end
 
+  test "renders watcher fragment without page chrome", %{conn: conn} do
+    moderator_fixture()
+    board = board_fixture(%{uri: "watchfrag", title: "Watch Frag"})
+    thread = thread_fixture(board, %{subject: "Watched Thread", body: "Opening"})
+    token = "watcher-fragment-token"
+
+    {:ok, _watch} =
+      ThreadWatcher.watch_thread(token, board.uri, thread.id, %{last_seen_post_id: thread.id})
+
+    body =
+      conn
+      |> put_req_cookie("browser_token", token)
+      |> get("/watcher/fragment")
+      |> html_response(200)
+
+    assert body =~ "watcher-page"
+    assert body =~ "Watched Thread"
+    refute body =~ "<header>"
+    refute body =~ "Thread Watcher"
+  end
+
   test "public pages expose watcher count for top bar", %{conn: conn} do
     moderator_fixture()
     board = board_fixture(%{uri: "watchhome", title: "Watch Home"})
