@@ -59,7 +59,7 @@ $(document).ready(function(){
 	
 		var rail = ensure_control_rail(thread_container);
 		var hideLink = $('<a class="hide-thread-link" href="javascript:void(0)">[–]</a>');
-		rail.append(hideLink);
+		rail.prepend(hideLink);
 
 		hideLink.click(function() {
 				hidden_data[board][id] = Math.round(Date.now() / 1000);
