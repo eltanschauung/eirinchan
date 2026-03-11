@@ -42,13 +42,18 @@ $(window).ready(function() {
 			if (do_not_ajax)
 				return true;
 			var form = this;
+			var $wrappedForm = $(form);
 			var $submit = $(form).find('input[type="submit"]');
 			var submit_txt = $(this).find('input[type="submit"]').val();
 			var is_reply_form = $(form).find('input[name="thread_id"], input[name="thread"]').length > 0;
 			if (window.FormData === undefined)
 				return true;
+			if ($wrappedForm.data('ajax-posting')) {
+				return false;
+			}
 
 			var resetSubmit = function() {
+				$wrappedForm.removeData('ajax-posting');
 				$submit.val(submit_txt);
 				$submit.removeAttr('disabled');
 			};
@@ -105,6 +110,8 @@ $(window).ready(function() {
 				}
 				$(form).find('input[type="submit"]').val(_('Posting... (#%)').replace('#', percentage));
 			};
+
+			$wrappedForm.data('ajax-posting', true);
 
 			$.ajax({
 				url: this.action,
@@ -230,7 +237,12 @@ $(window).ready(function() {
 				data: formData,
 				cache: false,
 				contentType: false,
-				processData: false
+				processData: false,
+				complete: function() {
+					if ($submit.val() !== _('Posted...')) {
+						$wrappedForm.removeData('ajax-posting');
+					}
+				}
 			}, 'json');
 			
 			$submit.val(_('Posting...'));

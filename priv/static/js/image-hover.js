@@ -110,6 +110,8 @@ function initImageHover() { //Pashe, influenced by tux, et al, WTFPL
 		});
 	}
 
+	window.bind_image_hover = bindEvents;
+
 	bindEvents(document.body);
 	$(document).on('new_post', function(e, post) {
 		bindEvents(post);

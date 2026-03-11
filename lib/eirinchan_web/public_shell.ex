@@ -124,6 +124,7 @@ defmodule EirinchanWeb.PublicShell do
     |> Enum.map(&String.trim/1)
     |> Enum.reject(&(&1 == ""))
     |> Enum.filter(&safe_script_url?/1)
+    |> Enum.uniq()
   end
 
   defp maybe_add_catalog_scripts(scripts, :catalog) do
