@@ -7,7 +7,7 @@ if (active_page === 'thread' || active_page === 'index' || active_page === 'cata
       '<label id="show-yous"><input type="checkbox">' + _('Show (You)s') + '</label>'
     );
 
-    var enabled = document.cookie.indexOf('show_yous=true') !== -1;
+    var enabled = document.cookie.indexOf('show_yous=false') === -1;
     $('#show-yous>input').prop('checked', enabled);
 
     $('#show-yous>input').on('click', function () {
