@@ -290,13 +290,21 @@
 				return;
 			}
 
+			var $spoilerInput = $('<input type="checkbox" name="spoiler" value="1" id="q-spoiler-image">');
+			var $spoilerLabel = $('<label for="q-spoiler-image">').text(_('Spoiler'));
+			var $spoilerWrap = $('<span class="quick-reply-spoiler"></span>').append($spoilerInput, ' ', $spoilerLabel);
+			var $flagField = $postForm.find('input[name="user_flag"], select[name="user_flag"], textarea[name="user_flag"]').first();
+			if ($flagField.length) {
+				$flagField.closest('td').append(' ', $spoilerWrap);
+				return;
+			}
+
 			var $submitCell = $postForm.find('td.submit').first();
 			if (!$submitCell.length) {
 				return;
 			}
 
-			var $spoilerCell = $('<td class="spoiler"></td>').append($('<input type="checkbox" name="spoiler" value="1" id="q-spoiler-image">'), ' ', $('<label for="q-spoiler-image">').text(_('Spoiler')));
-
+			var $spoilerCell = $('<td class="spoiler"></td>').append($spoilerWrap);
 			$submitCell.after($spoilerCell);
 			$postForm.find('td.submit').prev('td[colspan="2"]').removeAttr('colspan');
 		};
@@ -306,6 +314,10 @@
 		$postForm.find('input[name="user_flag"], select[name="user_flag"], textarea[name="user_flag"]').each(function() {
 			$(this).css('width', '90px');
 			$(this).attr('size', '10');
+		});
+		$postForm.find('.quick-reply-spoiler').css({
+			'margin-left': '4px',
+			'white-space': 'nowrap'
 		});
 
 		$postForm.find('table').prepend('<tr><th colspan="2">\
