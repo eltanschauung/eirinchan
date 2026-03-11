@@ -279,6 +279,34 @@
 		$postForm.find('textarea:not([name="body"]),input[type="hidden"]:not(.captcha_cookie)').removeAttr('id').appendTo($dummyStuff);
 	
 		$postForm.find('br').remove();
+
+		var ensure_spoiler_control = function() {
+			if ($postForm.find('input[name="spoiler"]').length) {
+				return;
+			}
+
+			var $sourceSpoiler = $('form[name="post"] input[name="spoiler"]').first();
+			if (!$sourceSpoiler.length) {
+				return;
+			}
+
+			var $submitCell = $postForm.find('td.submit').first();
+			if (!$submitCell.length) {
+				return;
+			}
+
+			var $spoilerCell = $('<td class="spoiler"></td>').append(
+				$('<input type="checkbox" name="spoiler" value="1" id="q-spoiler-image">'),
+				' ',
+				$('<label for="q-spoiler-image">').text(_('Spoiler'))
+			);
+
+			$submitCell.after($spoilerCell);
+			$postForm.find('td.submit').prev('td[colspan="2"]').removeAttr('colspan');
+		};
+
+		ensure_spoiler_control();
+
 		$postForm.find('table').prepend('<tr><th colspan="2">\
 			<span class="handle">\
 				<a class="close-btn" href="javascript:void(0)">×</a>\
