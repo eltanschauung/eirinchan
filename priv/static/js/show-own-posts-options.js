@@ -34,9 +34,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
             var board = thread.attr('data-board');
             var posts = JSON.parse(localStorage.own_posts || '{}');
-            var id = $(this).attr('id').split('_')[1];
+            var id = String($(this).attr('id').split('_')[1]);
+            var ownPosts = (posts[board] || []).map(String);
 
-            if (posts[board] && posts[board].indexOf(id) !== -1) {
+            if (ownPosts.indexOf(id) !== -1) {
                 $(this).addClass('you');
                 $(this).find('span.name').first().append(' <span class="own_post">'+_('(You)')+'</span>');
             }
@@ -49,7 +50,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 else
                     return;
 
-                if (posts[board] && posts[board].indexOf(postID) !== -1) {
+                if (ownPosts.indexOf(String(postID)) !== -1) {
                     $(this).after(' <small>'+_('(You)')+'</small>');
                 }
             });
@@ -69,7 +70,7 @@ document.addEventListener('DOMContentLoaded', function() {
         $(document).on('ajax_after_post', function(e, r) {
             var posts = JSON.parse(localStorage.own_posts || '{}');
             posts[board] = posts[board] || [];
-            posts[board].push(r.id);
+            posts[board].push(String(r.id));
             localStorage.own_posts = JSON.stringify(posts);
         });
 
