@@ -20,61 +20,31 @@
             own={@show_yous and MapSet.member?(@own_post_ids, reply.id)}
           />
         </label>
-        <%= raw(
-          PostView.post_number_links_html(
-            reply.id,
-            Eirinchan.ThreadPaths.thread_path(@board, @summary.thread, @config) <> "##{reply.id}",
-            PostView.reply_path(@board, @summary.thread, reply, @config, :quote),
-            "data-quote-to": reply.id
-          )
-        ) %>
-        <%= raw(PostView.backlinks_html(reply, @backlinks_map)) %>
+        <.post_number_links
+          post_id={reply.id}
+          post_href={Eirinchan.ThreadPaths.thread_path(@board, @summary.thread, @config) <> "##{reply.id}"}
+          quote_href={PostView.reply_path(@board, @summary.thread, reply, @config, :quote)}
+          quote_to={reply.id}
+        />
+        <.backlinks post={reply} backlinks_map={@backlinks_map} />
       </p>
 
-      <div class="files">
-        <%= for media <- PostView.media_entries(reply, @config) do %>
-          <%= if PostView.embed_entry?(media) do %>
-            <%= raw(media.embed_html) %>
-          <% else %>
-            <% file = media %>
-            <div
-              class={PostView.file_class(reply)}
-              {case PostView.multifile_style(file, @config, multifile: PostView.media_multifile?(reply)) do
-                nil -> []
-                style -> [style: style]
-              end}
-            >
-              <p class="fileinfo">
-                File: <a href={file.file_path}><%= PostView.stored_file_name(file) %></a>
-                <span>
-                  (<%= PostView.file_size_text(file) %><%= if PostView.file_dimensions(file),
-                    do: raw(", " <> PostView.file_dimensions(file)) %>, <span
-                    class="postfilename"
-                    title={PostView.original_file_name(file)}
-                  ><%= PostView.display_file_name(file, @config) %></span>)
-                </span>
-                <%= raw(
-                  PostView.file_controls_html(
-                    reply,
-                    file,
-                    @board,
-                    @current_moderator,
-                    @secure_manage_token
-                  ) || ""
-                ) %>
-              </p>
-              <%= raw(PostView.file_image_html(file, @config)) %>
-            </div>
-          <% end %>
-        <% end %>
-      </div>
+      <.files_block
+        post={reply}
+        config={@config}
+        board={@board}
+        moderator={@current_moderator}
+        secure_manage_token={@secure_manage_token}
+      />
 
-      <%= raw(
-        PostView.body_container_html(reply, @board, @summary.thread, @config,
-          own_post_ids: @own_post_ids,
-          show_yous: @show_yous
-        )
-      ) %>
+      <.body_container
+        post={reply}
+        board={@board}
+        thread={@summary.thread}
+        config={@config}
+        own_post_ids={@own_post_ids}
+        show_yous={@show_yous}
+      />
     </div>
     <br class="clear" />
   <% end %>

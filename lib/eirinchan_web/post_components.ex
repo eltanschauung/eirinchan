@@ -1,5 +1,6 @@
 defmodule EirinchanWeb.PostComponents do
   use Phoenix.Component
+  import Phoenix.HTML, only: [raw: 1]
 
   alias EirinchanWeb.{IpPresentation, PostView}
 
@@ -145,6 +146,113 @@ defmodule EirinchanWeb.PostComponents do
     """
   end
 
+  attr :post, :map, required: true
+  attr :config, :map, required: true
+  attr :op?, :boolean, default: false
+  attr :board, :map, default: nil
+  attr :moderator, :map, default: nil
+  attr :secure_manage_token, :string, default: nil
+
+  def files_block(assigns) do
+    ~H"""
+    <div class="files">
+      <%= for media <- PostView.media_entries(@post, @config) do %>
+        <%= if PostView.embed_entry?(media) do %>
+          <%= raw(media.embed_html) %>
+        <% else %>
+          <.file_block
+            post={@post}
+            file={media}
+            config={@config}
+            op?={@op?}
+            board={@board}
+            moderator={@moderator}
+            secure_manage_token={@secure_manage_token}
+          />
+        <% end %>
+      <% end %>
+    </div>
+    """
+  end
+
+  attr :post, :map, required: true
+  attr :file, :map, required: true
+  attr :config, :map, required: true
+  attr :op?, :boolean, default: false
+  attr :board, :map, default: nil
+  attr :moderator, :map, default: nil
+  attr :secure_manage_token, :string, default: nil
+
+  def file_block(assigns) do
+    ~H"""
+    <div
+      class={PostView.file_class(@post)}
+      {case PostView.multifile_style(@file, @config, multifile: PostView.media_multifile?(@post)) do
+        nil -> []
+        style -> [style: style]
+      end}
+    >
+      <p class="fileinfo">
+        File:
+        <a href={@file.file_path}><%= PostView.stored_file_name(@file) %></a>
+        <span>
+          (<%= PostView.file_size_text(@file) %><%= if PostView.file_dimensions(@file),
+            do: raw(", " <> PostView.file_dimensions(@file)) %>, <span
+            class="postfilename"
+            title={PostView.original_file_name(@file)}
+          ><%= PostView.display_file_name(@file, @config) %></span>)
+        </span>
+        <%= raw(
+          PostView.file_controls_html(
+            @post,
+            @file,
+            @board,
+            @moderator,
+            @secure_manage_token
+          ) || ""
+        ) %>
+      </p>
+      <%= raw(PostView.file_image_html(@file, @config, op?: @op?)) %>
+    </div>
+    """
+  end
+
+  attr :post, :map, required: true
+  attr :board, :map, required: true
+  attr :thread, :map, required: true
+  attr :config, :map, required: true
+  attr :op?, :boolean, default: false
+  attr :hide_fileboard, :boolean, default: false
+  attr :own_post_ids, :any, default: MapSet.new()
+  attr :show_yous, :boolean, default: false
+
+  def body_container(assigns) do
+    ~H"""
+    <div
+      class="body"
+      {case body_style_attr(@post, @config, @op?) do
+        nil -> []
+        style -> [style: style]
+      end}
+    >
+      <%= raw(
+        PostView.body_html(@post, @board, @thread, @config,
+          own_post_ids: @own_post_ids,
+          show_yous: @show_yous
+        )
+      ) %>
+      <span :if={@post.tag} class="tag-line">Tag: <%= if is_map(@config.allowed_tags),
+        do: Map.get(@config.allowed_tags, @post.tag, @post.tag),
+        else: @post.tag %></span>
+      <span
+        :if={@config.fileboard && PostView.show_fileboard_summary?(@post)}
+        class="tag-line"
+        style={if @hide_fileboard, do: "display:none", else: nil}
+      >Fileboard: <%= PostView.fileboard_summary(@post) %></span>
+    </div>
+    """
+  end
+
   defp quote_onclick(post_id, :navigate), do: "citeReply(#{post_id})"
   defp quote_onclick(post_id, _mode), do: "return citeReply(#{post_id}, false)"
 
@@ -152,5 +260,9 @@ defmodule EirinchanWeb.PostComponents do
     if PostView.can_view_ip?(moderator, board) and post.ip_subnet do
       IpPresentation.display_ip(post.ip_subnet, moderator)
     end
+  end
+
+  defp body_style_attr(post, config, _op?) do
+    if length(PostView.media_entries(post, config)) > 1, do: "clear:both", else: nil
   end
 end

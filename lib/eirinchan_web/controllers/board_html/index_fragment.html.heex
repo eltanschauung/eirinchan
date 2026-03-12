@@ -17,45 +17,15 @@
           data-unwatch-url={"/watcher/#{@board.uri}/#{thread.id}"}
           data-watched={to_string(watch.watched)}
         >
-          <div :if={PostView.media_entries(thread, @config) != []} class="files">
-            <%= for media <- PostView.media_entries(thread, @config) do %>
-              <%= if PostView.embed_entry?(media) do %>
-                <%= raw(media.embed_html) %>
-              <% else %>
-                <% file = media %>
-                <div
-                  class={PostView.file_class(thread)}
-                  {case PostView.multifile_style(file, @config,
-                    multifile: PostView.media_multifile?(thread)
-                  ) do
-                nil -> []
-                style -> [style: style]
-              end}
-                >
-                  <p class="fileinfo">
-                    File: <a href={file.file_path}><%= PostView.stored_file_name(file) %></a>
-                    <span>
-                      (<%= PostView.file_size_text(file) %><%= if PostView.file_dimensions(file),
-                        do: raw(", " <> PostView.file_dimensions(file)) %>, <span
-                        class="postfilename"
-                        title={PostView.original_file_name(file)}
-                      ><%= PostView.display_file_name(file, @config) %></span>)
-                    </span>
-                    <%= raw(
-                      PostView.file_controls_html(
-                        thread,
-                        file,
-                        @board,
-                        @current_moderator,
-                        @secure_manage_token
-                      ) || ""
-                    ) %>
-                  </p>
-                  <%= raw(PostView.file_image_html(file, @config, op?: true)) %>
-                </div>
-              <% end %>
-            <% end %>
-          </div>
+          <.files_block
+            :if={PostView.media_entries(thread, @config) != []}
+            post={thread}
+            config={@config}
+            op?={true}
+            board={@board}
+            moderator={@current_moderator}
+            secure_manage_token={@secure_manage_token}
+          />
 
           <div
             class="post op"
@@ -109,13 +79,16 @@
               ) %>
             </p>
 
-            <%= raw(
-              PostView.body_container_html(thread, @board, thread, @config,
-                hide_fileboard: true,
-                own_post_ids: @own_post_ids,
-                show_yous: @show_yous
-              )
-            ) %>
+            <.body_container
+              post={thread}
+              board={@board}
+              thread={thread}
+              config={@config}
+              op?={true}
+              hide_fileboard={true}
+              own_post_ids={@own_post_ids}
+              show_yous={@show_yous}
+            />
           </div>
 
           <span :if={PostView.omitted_text(summary)} class="omitted">
@@ -153,53 +126,13 @@
                 <.backlinks post={reply} backlinks_map={@backlinks_map} />
               </p>
 
-              <div class="files">
-                <%= for media <- PostView.media_entries(reply, @config) do %>
-                  <%= if PostView.embed_entry?(media) do %>
-                    <%= raw(media.embed_html) %>
-                  <% else %>
-                    <% file = media %>
-                    <div
-                      class={PostView.file_class(reply)}
-                      {case PostView.multifile_style(file, @config,
-                        multifile: PostView.media_multifile?(reply)
-                      ) do
-                    nil -> []
-                    style -> [style: style]
-                  end}
-                    >
-                      <p class="fileinfo">
-                        File: <a href={file.file_path}><%= PostView.stored_file_name(file) %></a>
-                        <span>
-                          (<%= PostView.file_size_text(file) %><%= if PostView.file_dimensions(
-                                                                        file
-                                                                      ),
-                                                                      do:
-                                                                        raw(
-                                                                          ", " <>
-                                                                            PostView.file_dimensions(
-                                                                              file
-                                                                            )
-                                                                        ) %>, <span
-                            class="postfilename"
-                            title={PostView.original_file_name(file)}
-                          ><%= PostView.display_file_name(file, @config) %></span>)
-                        </span>
-                        <%= raw(
-                          PostView.file_controls_html(
-                            reply,
-                            file,
-                            @board,
-                            @current_moderator,
-                            @secure_manage_token
-                          ) || ""
-                        ) %>
-                      </p>
-                      <%= raw(PostView.file_image_html(file, @config)) %>
-                    </div>
-                  <% end %>
-                <% end %>
-              </div>
+              <.files_block
+                post={reply}
+                config={@config}
+                board={@board}
+                moderator={@current_moderator}
+                secure_manage_token={@secure_manage_token}
+              />
 
               <%= raw(
                 PostView.post_controls_html(
@@ -209,12 +142,14 @@
                   @secure_manage_token
                 )
               ) %>
-              <%= raw(
-                PostView.reply_body_container_html(reply, @board, thread, @config,
-                  own_post_ids: @own_post_ids,
-                  show_yous: @show_yous
-                )
-              ) %>
+              <.body_container
+                post={reply}
+                board={@board}
+                thread={thread}
+                config={@config}
+                own_post_ids={@own_post_ids}
+                show_yous={@show_yous}
+              />
             </div>
             <br />
           <% end %>

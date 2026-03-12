@@ -65,7 +65,15 @@ defmodule EirinchanWeb.ManagePageHTML do
             <a href={PostView.thread_path(@board, @post, @config)}>[Reply]</a>
             <%= raw(PostView.post_controls_html(@post, @board, @moderator, @secure_manage_token)) %>
           </p>
-          <%= raw(PostView.body_container_html(@post, @board, @post, @config, op?: true, own_post_ids: @own_post_ids, show_yous: @show_yous)) %>
+          <.body_container
+            post={@post}
+            board={@board}
+            thread={@post}
+            config={@config}
+            op?={true}
+            own_post_ids={@own_post_ids}
+            show_yous={@show_yous}
+          />
         </div>
 
         <br class="clear" />
@@ -104,68 +112,16 @@ defmodule EirinchanWeb.ManagePageHTML do
         />
 
         <%= raw(PostView.post_controls_html(@post, @board, @moderator, @secure_manage_token)) %>
-        <div
-          class="body"
-          {case PostView.reply_body_style(@post, @config) do
-            nil -> []
-            style -> [style: style]
-          end}
-        >
-          <%= raw(PostView.body_html(@post, @board, @thread, @config, own_post_ids: @own_post_ids, show_yous: @show_yous)) %>
-        </div>
+        <.body_container
+          post={@post}
+          board={@board}
+          thread={@thread}
+          config={@config}
+          own_post_ids={@own_post_ids}
+          show_yous={@show_yous}
+        />
       </div>
     <% end %>
-    """
-  end
-
-  attr :post, :map, required: true
-  attr :config, :map, required: true
-  attr :op?, :boolean, default: false
-  attr :board, :map, default: nil
-  attr :moderator, :map, default: nil
-  attr :secure_manage_token, :string, default: nil
-
-  defp files_block(assigns) do
-    ~H"""
-    <div class="files">
-      <%= for media <- PostView.media_entries(@post, @config) do %>
-        <%= if PostView.embed_entry?(media) do %>
-          <%= raw(media.embed_html) %>
-        <% else %>
-          <% file = media %>
-          <div
-            class={PostView.file_class(@post)}
-            {case PostView.multifile_style(file, @config,
-                  multifile: PostView.media_multifile?(@post)
-                ) do
-              nil -> []
-              style -> [style: style]
-            end}
-          >
-            <p class="fileinfo">
-              File: <a href={file.file_path}><%= PostView.stored_file_name(file) %></a>
-              <span>
-                (<%= PostView.file_size_text(file) %><%= if PostView.file_dimensions(file),
-                  do: raw(", " <> PostView.file_dimensions(file)) %>, <span
-                  class="postfilename"
-                  title={PostView.original_file_name(file)}
-                ><%= PostView.display_file_name(file, @config) %></span>)
-              </span>
-              <%= raw(
-                PostView.file_controls_html(
-                  @post,
-                  file,
-                  @board,
-                  @moderator,
-                  @secure_manage_token
-                ) || ""
-              ) %>
-            </p>
-            <%= raw(PostView.file_image_html(file, @config, op?: @op?)) %>
-          </div>
-        <% end %>
-      <% end %>
-    </div>
     """
   end
 end
