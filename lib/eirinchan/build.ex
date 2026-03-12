@@ -732,7 +732,13 @@ defmodule Eirinchan.Build do
   end
 
   defp render_body(post, board, thread, config),
-    do: PostView.body_html(post, board, thread, config)
+    do:
+      EirinchanWeb.PostComponents.formatted_body_segments_html(%{
+        post: post,
+        board: board,
+        thread: thread,
+        config: config
+      })
 
   defp html_escape(nil), do: ""
 
