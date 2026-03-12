@@ -176,9 +176,12 @@ $('.reply:not(.hidden), .thread>.op').each(function () {
 
  /*  event handlers
   */
-$('form[name=postcontrols]').on('click', '.post-btn', function (e) {
+$(document).on('click', '.post-btn', function (e) {
 	e.preventDefault();
-	var post = e.target.dataset.postTarget ? document.getElementById(e.target.dataset.postTarget) : e.target.parentElement.parentElement;
+	var post = e.target.dataset.postTarget ? document.getElementById(e.target.dataset.postTarget) : $(e.target).closest('.post')[0];
+	if (!post) {
+		return;
+	}
 	$('.post-menu').remove();
 
 	if ($(e.target).hasClass('post-btn-open')) {
