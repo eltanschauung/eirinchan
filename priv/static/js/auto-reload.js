@@ -248,9 +248,6 @@ $(document).ready(function(){
 			return false;
 		}
 
-		stop_auto_update();
-		$('#update_secs').text("0");
-
 		var localMd5 = current_fragment_md5();
 		var request = $.ajax({
 			url: fragment_md5_url(),
@@ -270,7 +267,6 @@ $(document).ready(function(){
 				pollFn(false);
 			},
 			error: function() {
-				$('#update_secs').text("0");
 				if ($('#auto_update_status').is(':checked')) {
 					poll_interval_delay = poll_interval_errordelay;
 					auto_update(poll_interval_delay);
