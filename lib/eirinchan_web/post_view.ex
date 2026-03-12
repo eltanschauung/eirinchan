@@ -606,6 +606,11 @@ defmodule EirinchanWeb.PostView do
   end
 
   def body_html(post, board, thread, config, opts \\ []) do
+    body_segments(post, board, thread, config, opts)
+    |> Enum.join("<br/>")
+  end
+
+  def body_segments(post, board, thread, config, opts \\ []) do
     post.body
     |> Kernel.||("")
     |> String.replace("\r\n", "\n")
@@ -614,7 +619,6 @@ defmodule EirinchanWeb.PostView do
     |> safe_to_string()
     |> String.split("\n", trim: false)
     |> Enum.map(&format_body_line(&1, board, thread, config, opts))
-    |> Enum.join("<br/>")
   end
 
   def body_container_html(post, board, thread, config, opts \\ []) do

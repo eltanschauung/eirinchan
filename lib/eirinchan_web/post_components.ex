@@ -451,15 +451,43 @@ defmodule EirinchanWeb.PostComponents do
   def summary_body(assigns) do
     ~H"""
     <div class={@class}>
-      <%= for {segment, index} <-
-            Enum.with_index(
-              PostView.body_segments(@post, @board, @thread, @config,
-                own_post_ids: @own_post_ids,
-                show_yous: @show_yous
-              )
-            ) do %><%= if index > 0, do: raw("<br/>") %><%= raw(segment) %><% end %>
+      <.formatted_body_segments
+        post={@post}
+        board={@board}
+        thread={@thread}
+        config={@config}
+        own_post_ids={@own_post_ids}
+        show_yous={@show_yous}
+      />
     </div>
     """
+  end
+
+  attr :post, :map, required: true
+  attr :board, :map, required: true
+  attr :thread, :map, required: true
+  attr :config, :map, required: true
+  attr :own_post_ids, :any, default: MapSet.new()
+  attr :show_yous, :boolean, default: false
+
+  def formatted_body_segments(assigns) do
+    ~H"""
+    <%= for {segment, index} <-
+          Enum.with_index(
+            PostView.body_segments(@post, @board, @thread, @config,
+              own_post_ids: @own_post_ids,
+              show_yous: @show_yous
+            )
+          ) do %><%= if index > 0, do: raw("<br/>") %><%= raw(segment) %><% end %>
+    """
+  end
+
+  def formatted_body_segments_html(assigns) do
+    assigns
+    |> with_component_assigns()
+    |> formatted_body_segments()
+    |> to_iodata()
+    |> IO.iodata_to_binary()
   end
 
   attr :post, :map, required: true
