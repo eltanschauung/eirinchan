@@ -209,11 +209,11 @@ if (active_page === 'thread' || active_page === 'index' || active_page === 'cata
 			Menu.add_item('filter-menu-unhide', _('Unhide post'));
 
 			submenu = Menu.add_submenu('filter-menu-add', _('Add filter'));
-				submenu.add_item('filter-add-post-plus', _('Post +'), _('Hide post and all replies'));
 				submenu.add_item('filter-add-id', _('ID'));
 				submenu.add_item('filter-add-id-plus', _('ID +'), _('Hide ID and all replies'));
 				submenu.add_item('filter-add-name', _('Name'));
 				submenu.add_item('filter-add-trip', _('Tripcode'));
+				submenu.add_item('filter-add-flag', _('Flag'));
 
 			submenu = Menu.add_submenu('filter-menu-remove', _('Remove filter'));
 				submenu.add_item('filter-remove-id', _('ID'));
@@ -278,14 +278,8 @@ if (active_page === 'thread' || active_page === 'index' || active_page === 'cata
 					});
 				}
 
-				//  post id
-				if (!$ele.data('hiddenByPost')) {
-					$buffer.find('#filter-add-post-plus').click(function () {
-						blacklist.add.post(boardId, threadId, postId, true);
-					});
-				} else {
+				if ($ele.data('hiddenByPost')) {
 					$buffer.find('#filter-menu-hide-plus').addClass('hidden');
-					$buffer.find('#filter-add-post-plus').addClass('hidden');
 				}
 
 				// UID
@@ -348,6 +342,15 @@ if (active_page === 'thread' || active_page === 'index' || active_page === 'cata
 					// board has forced anon
 					$buffer.find('#filter-remove-trip').addClass('hidden');
 					$buffer.find('#filter-add-trip').addClass('hidden');
+				}
+
+				//  flag
+				if (hasFlag && !$ele.data('hiddenByFlag') && typeof flag !== 'undefined' && flag !== '') {
+					$buffer.find('#filter-add-flag').click(function () {
+						addFilter('flag', flag, false);
+					});
+				} else {
+					$buffer.find('#filter-add-flag').addClass('hidden');
 				}
 
 				/*  hide sub menus if all items are hidden
