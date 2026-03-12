@@ -102,6 +102,16 @@ defmodule EirinchanWeb.ThreadController do
             skip_app_stylesheet: true
           ]
 
+          quick_reply_html =
+            Phoenix.Template.render_to_string(
+              EirinchanWeb.ThreadHTML,
+              "quick_reply",
+              "html",
+              render_assigns
+            )
+
+          render_assigns = Keyword.put(render_assigns, :quick_reply_html, quick_reply_html)
+
           fragment_md5 =
             render_fragment_md5(EirinchanWeb.ThreadHTML, :thread_fragment, render_assigns)
 
@@ -202,10 +212,6 @@ defmodule EirinchanWeb.ThreadController do
       _ ->
         :ok
     end
-  end
-
-  defp watcher_count(conn) do
-    watcher_metrics(conn).watcher_count
   end
 
   defp watcher_metrics(conn) do

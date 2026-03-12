@@ -1,0 +1,140 @@
+<form
+  name="post"
+  id="quick-reply"
+  onsubmit="return dopost(this);"
+  enctype="multipart/form-data"
+  action="/post.php"
+  method="post"
+  data-quick-reply-form
+>
+  <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+  <input type="hidden" name="board" value={@board.uri} />
+  <input type="hidden" name="thread" value={@summary.thread.id} />
+
+  <table>
+    <tr>
+      <th colspan="2">
+        <span class="handle">
+          <a class="close-btn" href="javascript:void(0)">×</a>
+          Quick Reply
+        </span>
+      </th>
+    </tr>
+    <tr :if={!@config.field_disable_name}>
+      <td colspan="2">
+        <input
+          type="text"
+          name="name"
+          maxlength="35"
+          autocomplete="off"
+          placeholder="Name"
+        />
+      </td>
+    </tr>
+    <tr :if={!@config.field_disable_email}>
+      <td colspan={if @config.field_disable_reply_subject, do: 1, else: 2}>
+        <%= if Map.get(@config, :field_email_selectbox, false) ||
+                 Map.get(@config, :hide_email, false) do %>
+          <select name="email" autocomplete="off">
+            <option value=""></option>
+            <option value="sage">sage</option>
+            <option :if={!@config.always_noko} value="noko">noko</option>
+            <option :if={@config.always_noko} value="nonoko">nonoko</option>
+          </select>
+        <% else %>
+          <input type="text" name="email" maxlength="40" autocomplete="off" placeholder="Email" />
+        <% end %>
+      </td>
+      <%= if @config.field_disable_reply_subject do %>
+        <td class="submit">
+          <input accesskey="s" type="submit" name="post" value={@config.button_reply} />
+        </td>
+      <% end %>
+    </tr>
+    <tr :if={!@config.field_disable_reply_subject}>
+      <td colspan="1">
+        <input type="text" name="subject" maxlength="100" autocomplete="off" placeholder="Subject" />
+      </td>
+      <td class="submit">
+        <input accesskey="s" type="submit" name="post" value={@config.button_reply} />
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <textarea name="body" rows="5" placeholder="Comment"></textarea>
+      </td>
+    </tr>
+    <tr :if={captcha_enabled?(@config) && @config.captcha.provider == "native"}>
+      <td colspan="2">
+        <label data-captcha-lazy>
+          <input type="text" name="captcha" placeholder={@config.captcha.challenge || "Captcha"} />
+        </label>
+      </td>
+    </tr>
+    <tr :if={captcha_enabled?(@config) && @config.captcha.provider == "recaptcha"}>
+      <td colspan="2">
+        <input type="text" name="g-recaptcha-response" placeholder="reCAPTCHA" data-captcha-lazy />
+      </td>
+    </tr>
+    <tr :if={captcha_enabled?(@config) && @config.captcha.provider == "hcaptcha"}>
+      <td colspan="2">
+        <input type="text" name="h-captcha-response" placeholder="hCaptcha" data-captcha-lazy />
+      </td>
+    </tr>
+    <tr :if={@config.user_flag}>
+      <td colspan="2">
+        <input
+          :if={@config.user_flag && @config.multiple_flags}
+          type="text"
+          name="user_flag"
+          id="user_flag_quick_reply"
+          autocomplete="off"
+          value={@config.default_user_flag}
+        />
+        <select
+          :if={@config.user_flag && !@config.multiple_flags}
+          name="user_flag"
+          id="user_flag_quick_reply"
+        >
+          <option value="">None</option>
+          <%= for {flag, text} <- @config.user_flags do %>
+            <option value={flag} selected={@config.default_user_flag == flag}><%= text %></option>
+          <% end %>
+        </select>
+        <span class="quick-reply-spoiler">
+          <input id="q-spoiler-image" name="spoiler" type="checkbox" value="1" />
+          <label for="q-spoiler-image">Spoiler</label>
+        </span>
+      </td>
+    </tr>
+    <tr :if={!@config.user_flag}>
+      <td colspan="1">
+        <input type="file" name={if @config.max_images > 1, do: "files[]", else: "file"} multiple={@config.max_images > 1} />
+      </td>
+      <td class="spoiler">
+        <input id="q-spoiler-image-fallback" name="spoiler" type="checkbox" value="1" />
+        <label for="q-spoiler-image-fallback">Spoiler</label>
+      </td>
+    </tr>
+    <tr :if={@config.user_flag}>
+      <td colspan="2">
+        <input type="file" name={if @config.max_images > 1, do: "files[]", else: "file"} multiple={@config.max_images > 1} />
+      </td>
+    </tr>
+    <tr
+      :if={Map.get(@config, :enable_embedding, false) && Map.get(@config, :post_form_embed, true)}
+    >
+      <td colspan="2">
+        <input type="text" name="embed" value="" maxlength="120" autocomplete="off" placeholder="Embed" />
+      </td>
+    </tr>
+    <tr :if={@config.antispam_question}>
+      <td colspan="2">
+        <input type="text" name="antispam_answer" placeholder={@config.antispam_question} />
+      </td>
+    </tr>
+  </table>
+
+  <input :if={!@config.field_disable_password} type="hidden" name="password" value="" autocomplete="off" />
+  <input :if={@config.hidden_input_hash} type="hidden" name={@config.hidden_input_name} value={@config.hidden_input_hash} />
+</form>
