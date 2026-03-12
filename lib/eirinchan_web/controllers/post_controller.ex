@@ -562,6 +562,7 @@ defmodule EirinchanWeb.PostController do
       conn
       |> get_req_header("referer")
       |> List.first()
+      |> normalize_post_success_url()
 
     if is_binary(referer) and referer != "" do
       successful =
@@ -591,6 +592,40 @@ defmodule EirinchanWeb.PostController do
 
   defp decode_post_success_cookie(_raw_cookie) do
     %{}
+  end
+
+  defp normalize_post_success_url(nil), do: nil
+
+  defp normalize_post_success_url(url) when is_binary(url) do
+    case URI.parse(url) do
+      %URI{scheme: scheme, host: host} = uri when is_binary(scheme) and is_binary(host) ->
+        path =
+          uri.path
+          |> case do
+            nil -> "/"
+            "" -> "/"
+            value -> value
+          end
+          |> case do
+            "/" = value -> value
+            value -> String.replace_trailing(value, "/", "")
+          end
+
+        port =
+          case {uri.port, scheme} do
+            {80, "http"} -> nil
+            {443, "https"} -> nil
+            {value, _} -> value
+          end
+
+        %{uri | path: path, fragment: nil, port: port}
+        |> URI.to_string()
+
+      _ ->
+        url
+        |> String.split("#", parts: 2)
+        |> hd()
+    end
   end
 
   defp log_post_error(reason, status, conn) do
