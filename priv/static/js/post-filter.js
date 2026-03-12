@@ -351,10 +351,18 @@ if (active_page === 'thread' || active_page === 'index' || active_page === 'cata
 				}
 
 				//  flag
-				if (postFlag !== '' && !$ele.data('hiddenByFlag')) {
-					$buffer.find('#filter-add-flag').click(function () {
-						addFilter('flag', postFlag, false);
-					});
+				if (postFlag !== '') {
+					if ($ele.data('hiddenByFlag')) {
+						$buffer.find('#filter-add-flag')
+							.text(_('Unfilter flag'))
+							.click(function () {
+								removeFilter('flag', postFlag, false);
+							});
+					} else {
+						$buffer.find('#filter-add-flag').click(function () {
+							addFilter('flag', postFlag, false);
+						});
+					}
 				} else {
 					$buffer.find('#filter-add-flag').addClass('hidden');
 				}
