@@ -535,6 +535,38 @@ defmodule EirinchanWeb.PostComponents do
   attr :board, :map, required: true
   attr :thread, :map, required: true
   attr :config, :map, required: true
+
+  def reply_preview(assigns) do
+    ~H"""
+    <div class="reply-preview" id={"p#{@post.id}"}>
+      <%= if PostView.media_entries(@post, @config) != [] do %>
+        <.files_block post={@post} config={@config} />
+      <% end %>
+      <.post_identity post={@post} board={@board} config={@config} />
+      <p>
+        <.formatted_body_segments
+          post={@post}
+          board={@board}
+          thread={@thread}
+          config={@config}
+        />
+      </p>
+    </div>
+    """
+  end
+
+  def reply_preview_html(assigns) do
+    assigns
+    |> with_component_assigns()
+    |> reply_preview()
+    |> to_iodata()
+    |> IO.iodata_to_binary()
+  end
+
+  attr :post, :map, required: true
+  attr :board, :map, required: true
+  attr :thread, :map, required: true
+  attr :config, :map, required: true
   attr :moderator, :map, default: nil
   attr :secure_manage_token, :string, default: nil
   attr :backlinks_map, :map, default: %{}

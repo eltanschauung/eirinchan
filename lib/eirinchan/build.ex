@@ -628,10 +628,12 @@ defmodule Eirinchan.Build do
 
   defp render_preview_replies(replies, board, thread, config) do
     Enum.map_join(replies, "\n", fn reply ->
-      body = render_body(reply, board, thread, config)
-      media = render_media(reply, config)
-
-      ~s(<div class="reply-preview" id="p#{reply.id}">#{media}#{render_post_identity(reply, board, config)}<p>#{body}</p>#{render_post_flags(reply)}</div>)
+      PostComponents.reply_preview_html(%{
+        post: reply,
+        board: board,
+        thread: thread,
+        config: config
+      })
     end)
   end
 
@@ -677,15 +679,6 @@ defmodule Eirinchan.Build do
     |> PostView.boardlist_groups()
     |> then(&EirinchanWeb.PostComponents.boardlist_html(%{groups: &1}))
   end
-
-  defp render_body(post, board, thread, config),
-    do:
-      EirinchanWeb.PostComponents.formatted_body_segments_html(%{
-        post: post,
-        board: board,
-        thread: thread,
-        config: config
-      })
 
   defp render_body_container(post, board, thread, config) do
     PostComponents.body_container_html(%{

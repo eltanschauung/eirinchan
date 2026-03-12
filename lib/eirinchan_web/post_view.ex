@@ -587,8 +587,14 @@ defmodule EirinchanWeb.PostView do
   end
 
   def body_html(post, board, thread, config, opts \\ []) do
-    body_segments(post, board, thread, config, opts)
-    |> Enum.join("<br/>")
+    EirinchanWeb.PostComponents.formatted_body_segments_html(%{
+      post: post,
+      board: board,
+      thread: thread,
+      config: config,
+      own_post_ids: Keyword.get(opts, :own_post_ids, MapSet.new()),
+      show_yous: Keyword.get(opts, :show_yous, false)
+    })
   end
 
   def body_segments(post, board, thread, config, opts \\ []) do
@@ -755,13 +761,6 @@ defmodule EirinchanWeb.PostView do
 
       true ->
         nil
-    end
-  end
-
-  defp body_style_attr(post, config, opts \\ []) do
-    case body_style(post, config, opts) do
-      nil -> ""
-      style -> ~s( style="#{html_escape_to_string(style)}")
     end
   end
 
