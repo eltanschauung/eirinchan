@@ -469,20 +469,12 @@ $(document).ready(function(){
 
 				current.replaceWith(replacement);
 
-				Array.prototype.forEach.call(replacement.querySelectorAll('.thread'), function(threadNode) {
+				$(replacement).find('.post').each(function() {
 					if (window.EirinchanFrontend && typeof window.EirinchanFrontend.initPost === 'function') {
-						window.EirinchanFrontend.initPost(threadNode);
+						window.EirinchanFrontend.initPost(this);
 					} else {
-						$(document).trigger('new_post', threadNode);
+						$(document).trigger('new_post', this);
 					}
-
-					Array.prototype.forEach.call(threadNode.querySelectorAll('div.post.reply'), function(replyNode) {
-						if (window.EirinchanFrontend && typeof window.EirinchanFrontend.initPost === 'function') {
-							window.EirinchanFrontend.initPost(replyNode);
-						} else {
-							$(document).trigger('new_post', replyNode);
-						}
-					});
 				});
 
 				if ($('#auto_update_status').is(':checked')) {
