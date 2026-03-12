@@ -201,6 +201,18 @@ defmodule EirinchanWeb.ThreadControllerTest do
     assert page =~ "img.youtube.com/vi/dQw4w9WgXcQ/0.jpg"
   end
 
+  test "thread pages embed a server rendered quick reply template", %{conn: conn} do
+    board = board_fixture()
+    thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
+
+    page = conn |> get("/#{board.uri}/res/#{thread.id}.html") |> html_response(200)
+    document = Floki.parse_document!(page)
+
+    assert Floki.find(document, ~s(template#quick-reply-template form#quick-reply)) != []
+    assert Floki.find(document, ~s(template#quick-reply-template input[name="thread"][value="#{thread.id}"])) != []
+    assert Floki.find(document, ~s(template#quick-reply-template textarea[name="body"][placeholder="Comment"])) != []
+  end
+
   test "thread page uses configured catalog label", %{conn: conn} do
     :ok = Eirinchan.Themes.enable_page_theme("catalog")
 
