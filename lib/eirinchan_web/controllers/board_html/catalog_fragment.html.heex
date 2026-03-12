@@ -41,7 +41,7 @@
               <span class="subject"><%= PostView.catalog_label(post, @config) %></span>
             </p>
             <%= if PostView.catalog_label(post, @config), do: raw(""), else: raw("<br />") %>
-            <%= raw(PostView.body_html(post, @board, post, @config)) %>
+            <.summary_body post={post} board={@board} thread={post} config={@config} />
           </div>
         </div>
       </div>

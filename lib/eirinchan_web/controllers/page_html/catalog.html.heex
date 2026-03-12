@@ -23,9 +23,13 @@
             /<%= board.uri %>/ <%= summary.thread.subject || "Untitled" %>
           </a>
         </h2>
-        <p>
-          <%= raw(PostView.body_html(summary.thread, board, summary.thread, %{fileboard: false})) %>
-        </p>
+        <.summary_body
+          class="body"
+          post={summary.thread}
+          board={board}
+          thread={summary.thread}
+          config={%{fileboard: false}}
+        />
         <p><%= summary.reply_count %> replies</p>
       </article>
       <hr />

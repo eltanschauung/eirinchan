@@ -266,6 +266,14 @@ defmodule EirinchanWeb.PostComponents do
     """
   end
 
+  def file_image_html(assigns) do
+    assigns
+    |> with_component_assigns()
+    |> file_image()
+    |> to_iodata()
+    |> IO.iodata_to_binary()
+  end
+
   attr :post, :map, required: true
   attr :board, :map, default: nil
   attr :moderator, :map, default: nil
@@ -299,6 +307,14 @@ defmodule EirinchanWeb.PostComponents do
     """
   end
 
+  def file_controls_html(assigns) do
+    assigns
+    |> with_component_assigns()
+    |> file_controls()
+    |> to_iodata()
+    |> IO.iodata_to_binary()
+  end
+
   attr :control, :map, required: true
 
   def control_link(assigns) do
@@ -309,6 +325,14 @@ defmodule EirinchanWeb.PostComponents do
       onclick={control_onclick(@control)}
     ><%= @control.label %></a>
     """
+  end
+
+  def post_controls_html(assigns) do
+    assigns
+    |> with_component_assigns()
+    |> post_controls()
+    |> to_iodata()
+    |> IO.iodata_to_binary()
   end
 
   attr :page_data, :map, required: true
@@ -396,6 +420,27 @@ defmodule EirinchanWeb.PostComponents do
         class="tag-line"
         style={if @hide_fileboard, do: "display:none", else: nil}
       >Fileboard: <%= PostView.fileboard_summary(@post) %></span>
+    </div>
+    """
+  end
+
+  attr :post, :map, required: true
+  attr :board, :map, required: true
+  attr :thread, :map, required: true
+  attr :config, :map, required: true
+  attr :class, :string, default: nil
+  attr :own_post_ids, :any, default: MapSet.new()
+  attr :show_yous, :boolean, default: false
+
+  def summary_body(assigns) do
+    ~H"""
+    <div class={@class}>
+      <%= raw(
+        PostView.body_html(@post, @board, @thread, @config,
+          own_post_ids: @own_post_ids,
+          show_yous: @show_yous
+        )
+      ) %>
     </div>
     """
   end
@@ -514,4 +559,10 @@ defmodule EirinchanWeb.PostComponents do
   end
 
   defp control_onclick(_control), do: nil
+
+  defp with_component_assigns(assigns) when is_map(assigns) do
+    assigns
+    |> Map.put_new(:__changed__, %{})
+    |> Map.put_new(:__given__, assigns)
+  end
 end

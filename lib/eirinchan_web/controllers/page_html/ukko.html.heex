@@ -26,9 +26,13 @@
             <%= summary.thread.subject || "Untitled" %>
           </a>
         </h3>
-        <div class="body">
-          <%= raw(PostView.body_html(summary.thread, board, summary.thread, %{fileboard: false})) %>
-        </div>
+        <.summary_body
+          class="body"
+          post={summary.thread}
+          board={board}
+          thread={summary.thread}
+          config={%{fileboard: false}}
+        />
       </article>
       <hr />
     <% end %>
