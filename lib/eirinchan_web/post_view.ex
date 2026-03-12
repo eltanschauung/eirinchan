@@ -316,64 +316,13 @@ defmodule EirinchanWeb.PostView do
   end
 
   def post_controls_html(post, board, moderator, session_token) do
-    if can_render_controls?(moderator, board) do
-      links =
-        []
-        |> maybe_add_control(
-          can_moderate?(moderator, board, :delete),
-          confirm_control(post, board, session_token, :delete)
-        )
-        |> maybe_add_control(
-          can_moderate?(moderator, board, :deletebyip),
-          confirm_control(post, board, session_token, :deletebyip)
-        )
-        |> maybe_add_control(
-          can_moderate?(moderator, board, :deletebyip_global),
-          confirm_control(post, board, session_token, :deletebyip_global)
-        )
-        |> maybe_add_control(
-          can_moderate?(moderator, board, :ban),
-          plain_control(post, board, :ban)
-        )
-        |> maybe_add_control(
-          can_moderate?(moderator, board, :bandelete),
-          plain_control(post, board, :bandelete)
-        )
-        |> maybe_add_control(
-          thread_op?(post) and can_moderate?(moderator, board, :sticky),
-          toggle_control(post, board, session_token, :sticky)
-        )
-        |> maybe_add_control(
-          thread_op?(post) and can_moderate?(moderator, board, :bumplock),
-          toggle_control(post, board, session_token, :bumplock)
-        )
-        |> maybe_add_control(
-          thread_op?(post) and can_moderate?(moderator, board, :lock),
-          toggle_control(post, board, session_token, :lock)
-        )
-        |> maybe_add_control(
-          can_moderate?(moderator, board, :move),
-          plain_control(post, board, :move)
-        )
-        |> maybe_add_control(
-          thread_op?(post) and can_moderate?(moderator, board, :cycle),
-          toggle_control(post, board, session_token, :cycle)
-        )
-        |> maybe_add_control(
-          can_moderate?(moderator, board, :editpost),
-          plain_control(post, board, :editpost)
-        )
+    case post_controls(post, board, moderator, session_token) do
+      [] ->
+        nil
 
-      case links do
-        [] ->
-          nil
-
-        entries ->
-          class_name = if thread_op?(post), do: "controls op", else: "controls"
-          ~s(<span class="#{class_name}">#{Enum.join(entries, "&nbsp;")}</span>)
-      end
-    else
-      nil
+      entries ->
+        class_name = if thread_op?(post), do: "controls op", else: "controls"
+        ~s(<span class="#{class_name}">#{Enum.map_join(entries, "&nbsp;", &control_entry_html/1)}</span>)
     end
   end
 
@@ -522,22 +471,77 @@ defmodule EirinchanWeb.PostView do
   end
 
   def file_controls_html(post, file, board, moderator, session_token) do
-    if present?(Map.get(file, :file_path)) do
-      controls =
-        []
-        |> maybe_add_control(
-          can_moderate?(moderator, board, :deletefile),
-          file_confirm_control(post, file, board, session_token, :deletefile)
-        )
-        |> maybe_add_control(
-          not Map.get(file, :spoiler, false) and can_moderate?(moderator, board, :spoilerimage),
-          file_confirm_control(post, file, board, session_token, :spoilerimage)
-        )
+    case file_controls(post, file, board, moderator, session_token) do
+      [] -> nil
+      entries -> ~s(<span class="controls">#{Enum.map_join(entries, "&nbsp;", &control_entry_html/1)}</span>)
+    end
+  end
 
-      case controls do
-        [] -> nil
-        entries -> ~s(<span class="controls">#{Enum.join(entries, "&nbsp;")}</span>)
-      end
+  def post_controls(post, board, moderator, session_token) do
+    if can_render_controls?(moderator, board) do
+      []
+      |> maybe_add_control_entry(
+        can_moderate?(moderator, board, :delete),
+        control_entry(post, board, session_token, :delete, :confirm)
+      )
+      |> maybe_add_control_entry(
+        can_moderate?(moderator, board, :deletebyip),
+        control_entry(post, board, session_token, :deletebyip, :confirm)
+      )
+      |> maybe_add_control_entry(
+        can_moderate?(moderator, board, :deletebyip_global),
+        control_entry(post, board, session_token, :deletebyip_global, :confirm)
+      )
+      |> maybe_add_control_entry(
+        can_moderate?(moderator, board, :ban),
+        control_entry(post, board, session_token, :ban, :plain)
+      )
+      |> maybe_add_control_entry(
+        can_moderate?(moderator, board, :bandelete),
+        control_entry(post, board, session_token, :bandelete, :plain)
+      )
+      |> maybe_add_control_entry(
+        thread_op?(post) and can_moderate?(moderator, board, :sticky),
+        control_entry(post, board, session_token, :sticky, :confirm)
+      )
+      |> maybe_add_control_entry(
+        thread_op?(post) and can_moderate?(moderator, board, :bumplock),
+        control_entry(post, board, session_token, :bumplock, :confirm)
+      )
+      |> maybe_add_control_entry(
+        thread_op?(post) and can_moderate?(moderator, board, :lock),
+        control_entry(post, board, session_token, :lock, :confirm)
+      )
+      |> maybe_add_control_entry(
+        can_moderate?(moderator, board, :move),
+        control_entry(post, board, session_token, :move, :plain)
+      )
+      |> maybe_add_control_entry(
+        thread_op?(post) and can_moderate?(moderator, board, :cycle),
+        control_entry(post, board, session_token, :cycle, :confirm)
+      )
+      |> maybe_add_control_entry(
+        can_moderate?(moderator, board, :editpost),
+        control_entry(post, board, session_token, :editpost, :plain)
+      )
+    else
+      []
+    end
+  end
+
+  def file_controls(post, file, board, moderator, session_token) do
+    if present?(Map.get(file, :file_path)) do
+      []
+      |> maybe_add_control_entry(
+        can_moderate?(moderator, board, :deletefile),
+        file_control_entry(post, file, board, session_token, :deletefile)
+      )
+      |> maybe_add_control_entry(
+        not Map.get(file, :spoiler, false) and can_moderate?(moderator, board, :spoilerimage),
+        file_control_entry(post, file, board, session_token, :spoilerimage)
+      )
+    else
+      []
     end
   end
 
@@ -926,22 +930,6 @@ defmodule EirinchanWeb.PostView do
     end
   end
 
-  defp confirm_control(post, board, session_token, action) do
-    %{href: href, secure: secure_href, title: title, label: label, confirm: message} =
-      control_metadata(post, board, session_token, action)
-
-    ~s|<a onclick="if (event.which==2) return true;if (confirm('#{js_escape(message)}')) document.location='#{html_escape_to_string(secure_href)}';return false;" title="#{html_escape_to_string(title)}" href="#{html_escape_to_string(href)}">#{label}</a>|
-  end
-
-  defp plain_control(post, board, action) do
-    %{href: href, title: title, label: label} = control_metadata(post, board, nil, action)
-
-    ~s(<a title="#{html_escape_to_string(title)}" href="#{html_escape_to_string(href)}">#{label}</a>)
-  end
-
-  defp toggle_control(post, board, session_token, action),
-    do: confirm_control(post, board, session_token, action)
-
   defp control_metadata(post, board, session_token, action) do
     action_path =
       case action do
@@ -1063,17 +1051,26 @@ defmodule EirinchanWeb.PostView do
     }
   end
 
-  defp file_confirm_control(post, file, board, session_token, action) do
-    %{href: href, secure: secure_href, title: title, label: label, confirm: message} =
-      file_control_metadata(post, file, board, session_token, action)
+  defp maybe_add_control_entry(list, true, entry) when is_map(entry), do: list ++ [entry]
+  defp maybe_add_control_entry(list, _condition, _entry), do: list
 
-    ~s|<a onclick="if (event.which==2) return true;if (confirm('#{js_escape(message)}')) document.location='#{html_escape_to_string(secure_href)}';return false;" title="#{html_escape_to_string(title)}" href="#{html_escape_to_string(href)}">#{label}</a>|
+  defp control_entry(post, board, session_token, action, kind) do
+    metadata = control_metadata(post, board, session_token, action)
+    Map.put(metadata, :kind, kind)
   end
 
-  defp maybe_add_control(list, true, html) when is_binary(html), do: list ++ [html]
-  defp maybe_add_control(list, _condition, _html), do: list
+  defp file_control_entry(post, file, board, session_token, action) do
+    metadata = file_control_metadata(post, file, board, session_token, action)
+    Map.put(metadata, :kind, :confirm)
+  end
 
-  defp thread_op?(post), do: is_nil(post.thread_id)
+  defp control_entry_html(%{kind: :confirm} = entry) do
+    ~s|<a onclick="if (event.which==2) return true;if (confirm('#{js_escape(entry.confirm)}')) document.location='#{html_escape_to_string(entry.secure)}';return false;" title="#{html_escape_to_string(entry.title)}" href="#{html_escape_to_string(entry.href)}">#{entry.label}</a>|
+  end
+
+  defp control_entry_html(entry) do
+    ~s(<a title="#{html_escape_to_string(entry.title)}" href="#{html_escape_to_string(entry.href)}">#{entry.label}</a>)
+  end
 
   defp js_escape(value) do
     value
@@ -1081,6 +1078,8 @@ defmodule EirinchanWeb.PostView do
     |> String.replace("\\", "\\\\")
     |> String.replace("'", "\\'")
   end
+
+  defp thread_op?(post), do: is_nil(post.thread_id)
 
   defp file_count(%{file_path: nil} = post), do: length(extra_files(post))
   defp file_count(post), do: 1 + length(extra_files(post))
