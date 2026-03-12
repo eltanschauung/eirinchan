@@ -156,25 +156,6 @@ defmodule EirinchanWeb.PostView do
     |> Enum.reject(&(&1 == []))
   end
 
-  def boardlist_html(groups, class_name \\ "boardlist") do
-    spans =
-      Enum.map_join(groups, "  ", fn group ->
-        links = group[:links] || group
-
-        description_attr =
-          if group[:description], do: ~s( data-description="#{group[:description]}"), else: ""
-
-        links_html =
-          Enum.map_join(links, " / ", fn link ->
-            ~s(<a href="#{html_escape_to_string(link.href)}" title="#{html_escape_to_string(link.title)}">#{html_escape_to_string(link.label)}</a>)
-          end)
-
-        ~s(<span class="sub"#{description_attr}>[ #{links_html} ]</span>)
-      end)
-
-    ~s(<div class="#{class_name}">#{spans}</div>)
-  end
-
   def pages_html(page_data, board_uri, config) do
     previous_html =
       if page_data.page > 1 do
@@ -393,33 +374,6 @@ defmodule EirinchanWeb.PostView do
     embed_entries ++ file_entries
   end
 
-  def files_html(post, config, moderator \\ nil, board \\ nil, session_token \\ nil) do
-    Enum.map_join(media_entries(post, config), "", fn media ->
-      if embed_entry?(media) do
-        media.embed_html || ""
-      else
-        file = media
-        class_name = file_class(post)
-
-        style_attr =
-          case multifile_style(file, config, multifile: media_multifile?(post)) do
-            nil -> ""
-            style -> ~s( style="#{html_escape_to_string(style)}")
-          end
-
-        dimensions =
-          case file_dimensions(file) do
-            nil -> ""
-            value -> ", " <> value
-          end
-
-        controls = file_controls_html(post, file, board, moderator, session_token) || ""
-
-        ~s|<div class="#{class_name}"#{style_attr}><p class="fileinfo">File: <a href="#{html_escape_to_string(file.file_path)}">#{html_escape_to_string(stored_file_name(file))}</a><span>(#{html_escape_to_string(file_size_text(file))}#{dimensions}, <span class="postfilename" title="#{html_escape_to_string(original_file_name(file))}">#{html_escape_to_string(display_file_name(file, config))}</span>)</span>#{controls}</p>#{file_image_html(file, config)}</div>|
-      end
-    end)
-  end
-
   def file_controls_html(post, file, board, moderator, session_token) do
     html =
       EirinchanWeb.PostComponents.file_controls_html(%{
@@ -499,22 +453,6 @@ defmodule EirinchanWeb.PostView do
     else
       []
     end
-  end
-
-  defp post_flags_html(post, config) do
-    post_flags(post, config)
-    |> Enum.with_index()
-    |> Enum.map_join("", fn {flag, index} ->
-      style_attr =
-        case flag_style(config) do
-          nil -> ""
-          value -> ~s( style="#{html_escape_to_string(value)}")
-        end
-
-      separator = if index > 0, do: " ", else: ""
-
-      ~s(#{separator}<img class="flag" src="#{html_escape_to_string(flag.src)}" alt="#{html_escape_to_string(flag.alt)}" title="#{html_escape_to_string(flag.alt)}"#{style_attr} />)
-    end)
   end
 
   def embed_entry?(%{kind: :embed}), do: true
@@ -677,10 +615,6 @@ defmodule EirinchanWeb.PostView do
     |> String.split("\n", trim: false)
     |> Enum.map(&format_body_line(&1, board, thread, config, opts))
     |> Enum.join("<br/>")
-  end
-
-  def time_html(post) do
-    ~s(<time datetime="#{html_escape_to_string(iso_timestamp(post))}">#{html_escape_to_string(formatted_timestamp(post))}</time>)
   end
 
   def body_container_html(post, board, thread, config, opts \\ []) do
@@ -1024,21 +958,6 @@ defmodule EirinchanWeb.PostView do
   defp file_control_entry(post, file, board, session_token, action) do
     metadata = file_control_metadata(post, file, board, session_token, action)
     Map.put(metadata, :kind, :confirm)
-  end
-
-  defp control_entry_html(%{kind: :confirm} = entry) do
-    ~s|<a onclick="if (event.which==2) return true;if (confirm('#{js_escape(entry.confirm)}')) document.location='#{html_escape_to_string(entry.secure)}';return false;" title="#{html_escape_to_string(entry.title)}" href="#{html_escape_to_string(entry.href)}">#{entry.label}</a>|
-  end
-
-  defp control_entry_html(entry) do
-    ~s(<a title="#{html_escape_to_string(entry.title)}" href="#{html_escape_to_string(entry.href)}">#{entry.label}</a>)
-  end
-
-  defp js_escape(value) do
-    value
-    |> to_string()
-    |> String.replace("\\", "\\\\")
-    |> String.replace("'", "\\'")
   end
 
   defp thread_op?(post), do: is_nil(post.thread_id)

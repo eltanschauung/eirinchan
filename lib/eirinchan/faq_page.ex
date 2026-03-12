@@ -15,7 +15,10 @@ defmodule Eirinchan.FaqPage do
       boards: boards,
       primary_board: primary_board,
       board_chrome: BoardChrome.for_board(primary_board),
-      global_boardlist_html: PostView.boardlist_html(PostView.boardlist_groups(boards)),
+      global_boardlist_html:
+        EirinchanWeb.PostComponents.boardlist_html(%{
+          groups: PostView.boardlist_groups(boards)
+        }),
       public_shell: true,
       viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",
       base_stylesheet: "/stylesheets/style.css",
@@ -71,7 +74,11 @@ defmodule Eirinchan.FaqPage do
   def refresh_boardlists(other), do: other
 
   defp replace_boardlist(html, class_name, boards) do
-    replacement = PostView.boardlist_html(PostView.boardlist_groups(boards), class_name)
+    replacement =
+      EirinchanWeb.PostComponents.boardlist_html(%{
+        groups: PostView.boardlist_groups(boards),
+        class_name: class_name
+      })
 
     Regex.replace(
       ~r/<div class="#{Regex.escape(class_name)}">.*?<\/div>/s,
