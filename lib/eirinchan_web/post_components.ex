@@ -211,8 +211,38 @@ defmodule EirinchanWeb.PostComponents do
           secure_manage_token={@secure_manage_token}
         />
       </p>
-      <%= raw(PostView.file_image_html(@file, @config, op?: @op?)) %>
+      <.file_image file={@file} config={@config} op?={@op?} />
     </div>
+    """
+  end
+
+  attr :file, :map, required: true
+  attr :config, :map, required: true
+  attr :op?, :boolean, default: false
+
+  def file_image(assigns) do
+    assigns =
+      assigns
+      |> assign(:thumb_style, PostView.thumb_style(assigns.file, assigns.config, op?: assigns.op?))
+      |> assign(:link_class, PostView.file_link_class(assigns.file))
+      |> assign(
+        :image_classes,
+        ["post-image", if(Map.get(assigns.file, :spoiler, false), do: "spoiler-image", else: nil)]
+        |> Enum.reject(&is_nil/1)
+        |> Enum.join(" ")
+      )
+
+    ~H"""
+    <a href={@file.file_path} target="_blank" class={@link_class}>
+      <img
+        class={@image_classes}
+        src={PostView.file_thumb_src(@file, @config)}
+        loading="lazy"
+        decoding="async"
+        style={@thumb_style}
+        alt=""
+      />
+    </a>
     """
   end
 

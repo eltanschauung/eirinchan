@@ -811,7 +811,7 @@ defmodule EirinchanWeb.PostView do
     end
   end
 
-  defp file_thumb_src(file, _config) do
+  def file_thumb_src(file, _config) do
     cond do
       present?(file.thumb_path) ->
         file.thumb_path
