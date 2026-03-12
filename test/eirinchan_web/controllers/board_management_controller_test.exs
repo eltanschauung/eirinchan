@@ -221,6 +221,47 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     refute response =~ ~s(Return to Index)
   end
 
+  test "board fragment md5 is stable across requests", %{conn: conn} do
+    board = board_fixture(%{uri: "stablemd5", title: "Stable Md5"})
+    _thread = thread_fixture(board, %{body: "Thread body"})
+
+    md5_a =
+      conn
+      |> get(~p"/#{board.uri}?fragment=md5")
+      |> response(200)
+      |> String.trim()
+
+    md5_b =
+      conn
+      |> recycle()
+      |> get(~p"/#{board.uri}?fragment=md5")
+      |> response(200)
+      |> String.trim()
+
+    assert md5_a == md5_b
+  end
+
+  test "catalog fragment md5 is stable across requests", %{conn: conn} do
+    :ok = Eirinchan.Themes.enable_page_theme("catalog")
+    board = board_fixture(%{uri: "catmd5", title: "Catalog Md5"})
+    _thread = thread_fixture(board, %{body: "Thread body"})
+
+    md5_a =
+      conn
+      |> get(~p"/#{board.uri}/catalog.html?fragment=md5")
+      |> response(200)
+      |> String.trim()
+
+    md5_b =
+      conn
+      |> recycle()
+      |> get(~p"/#{board.uri}/catalog.html?fragment=md5")
+      |> response(200)
+      |> String.trim()
+
+    assert md5_a == md5_b
+  end
+
   test "board page renders global message as a blotter above the search form", %{conn: conn} do
     :ok = Eirinchan.Settings.persist_instance_config(%{global_message: "Important notice"})
     board = board_fixture(%{uri: "blottertest", title: "Blotter Test"})

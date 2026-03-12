@@ -39,6 +39,27 @@ defmodule EirinchanWeb.ThreadControllerTest do
     refute page =~ ~s(<html)
   end
 
+  test "thread fragment md5 is stable across requests", %{conn: conn} do
+    board = board_fixture()
+    thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
+    _reply = reply_fixture(board, thread, %{body: "Reply body"})
+
+    md5_a =
+      conn
+      |> get("/#{board.uri}/res/#{thread.id}.html?fragment=md5")
+      |> response(200)
+      |> String.trim()
+
+    md5_b =
+      conn
+      |> recycle()
+      |> get("/#{board.uri}/res/#{thread.id}.html?fragment=md5")
+      |> response(200)
+      |> String.trim()
+
+    assert md5_a == md5_b
+  end
+
   test "plain thread urls redirect to the canonical slug path", %{conn: conn} do
     board = board_fixture(%{config_overrides: %{slugify: true}})
     config = Config.compose(nil, %{}, board.config_overrides, request_host: "www.example.com")
