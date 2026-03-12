@@ -33,6 +33,14 @@ defmodule EirinchanWeb.PostComponents do
     |> IO.iodata_to_binary()
   end
 
+  def post_identity_html(assigns) do
+    assigns
+    |> with_component_assigns()
+    |> post_identity()
+    |> to_iodata()
+    |> IO.iodata_to_binary()
+  end
+
   attr :post, :map, required: true
   attr :config, :map, required: true
   attr :board, :map, required: true
@@ -121,6 +129,22 @@ defmodule EirinchanWeb.PostComponents do
       <% end %>
     </span>
     """
+  end
+
+  def post_number_links_html(assigns) do
+    assigns
+    |> with_component_assigns()
+    |> post_number_links()
+    |> to_iodata()
+    |> IO.iodata_to_binary()
+  end
+
+  def backlinks_html(assigns) do
+    assigns
+    |> with_component_assigns()
+    |> backlinks()
+    |> to_iodata()
+    |> IO.iodata_to_binary()
   end
 
   attr :board_uri, :string, required: true
@@ -490,6 +514,14 @@ defmodule EirinchanWeb.PostComponents do
     |> IO.iodata_to_binary()
   end
 
+  def summary_body_html(assigns) do
+    assigns
+    |> with_component_assigns()
+    |> summary_body()
+    |> to_iodata()
+    |> IO.iodata_to_binary()
+  end
+
   attr :post, :map, required: true
   attr :board, :map, required: true
   attr :thread, :map, required: true
@@ -560,6 +592,22 @@ defmodule EirinchanWeb.PostComponents do
   end
 
   def reply_html(assigns), do: assigns |> reply() |> to_iodata() |> IO.iodata_to_binary()
+
+  def board_pages_html(assigns) do
+    assigns
+    |> with_component_assigns()
+    |> board_pages()
+    |> to_iodata()
+    |> IO.iodata_to_binary()
+  end
+
+  def catalog_pages_html(assigns) do
+    assigns
+    |> with_component_assigns()
+    |> catalog_pages()
+    |> to_iodata()
+    |> IO.iodata_to_binary()
+  end
 
   defp previous_page(page_data) do
     if page_data.page > 1, do: Enum.at(page_data.pages, page_data.page - 2), else: nil
