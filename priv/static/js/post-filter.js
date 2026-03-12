@@ -176,6 +176,7 @@ if (active_page === 'thread' || active_page === 'index' || active_page === 'cata
 
 			$(ele).data('hidden', true);
 			if ($ele.hasClass('op')) {
+				$ele.parent().addClass('thread-filter-hidden');
 				$ele.parent().find('.body, .files, .video-container').not($ele.children('.reply').children()).hide();
 
 				// hide thread replies on index view
@@ -190,6 +191,7 @@ if (active_page === 'thread' || active_page === 'index' || active_page === 'cata
 
 			$(ele).data('hidden', false);
 			if ($ele.hasClass('op')) {
+				$ele.parent().removeClass('thread-filter-hidden');
 				$ele.parent().find('.body, .files, .video-container').show();
 				if (active_page == 'index') $ele.parent().find('.omitted, .reply:not(.hidden), post_no, .mentioned, br').show();
 			} else {
@@ -848,12 +850,15 @@ if (active_page === 'thread' || active_page === 'index' || active_page === 'cata
 			// on new posts
 			$(document).on('new_post', function (e, post) {
 				var threadId;
+				var $post = $(post);
 
-				if ($(post).hasClass('reply')) {
-					threadId = $(post).parents('.thread').attr('id').replace('thread_', '');
+				if ($post.hasClass('reply')) {
+					threadId = $post.parents('.thread').attr('id').replace('thread_', '');
+				} else if ($post.hasClass('op')) {
+					threadId = $post.parents('.thread').attr('id').replace('thread_', '');
 				} else {
-					threadId = $(post).attr('id').replace('thread_', '');
-					post = $(post).children('.op')[0];
+					threadId = ($post.attr('id') || '').replace('thread_', '');
+					post = $post.children('.op')[0] || post;
 				}
 
 				filter(post, threadId, pageData);
