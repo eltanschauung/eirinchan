@@ -25,6 +25,14 @@ defmodule EirinchanWeb.PostComponents do
     """
   end
 
+  def boardlist_html(assigns) do
+    assigns
+    |> with_component_assigns()
+    |> boardlist()
+    |> to_iodata()
+    |> IO.iodata_to_binary()
+  end
+
   attr :post, :map, required: true
   attr :config, :map, required: true
   attr :board, :map, required: true
@@ -234,6 +242,14 @@ defmodule EirinchanWeb.PostComponents do
       <.file_image file={@file} config={@config} op?={@op?} />
     </div>
     """
+  end
+
+  def file_block_html(assigns) do
+    assigns
+    |> with_component_assigns()
+    |> file_block()
+    |> to_iodata()
+    |> IO.iodata_to_binary()
   end
 
   attr :file, :map, required: true

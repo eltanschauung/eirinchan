@@ -690,10 +690,11 @@ defmodule Eirinchan.Build do
         embed_html || ""
 
       file ->
-        label = html_escape(file.file_name || Path.basename(file.file_path))
-        image_html = PostView.file_image_html(file, config)
-
-        ~s(<figure class="post-file">#{image_html}<figcaption><a href="#{html_escape(file.file_path)}">#{label}</a></figcaption></figure>)
+        EirinchanWeb.PostComponents.file_block_html(%{
+          post: post,
+          file: file,
+          config: config
+        })
     end)
   end
 
@@ -727,7 +728,7 @@ defmodule Eirinchan.Build do
   defp render_boardlist(boards) do
     boards
     |> PostView.boardlist_groups()
-    |> PostView.boardlist_html()
+    |> then(&EirinchanWeb.PostComponents.boardlist_html(%{groups: &1}))
   end
 
   defp render_body(post, board, thread, config),

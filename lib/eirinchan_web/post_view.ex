@@ -438,47 +438,47 @@ defmodule EirinchanWeb.PostView do
       []
       |> maybe_add_control_entry(
         can_moderate?(moderator, board, :delete),
-        control_entry(post, board, session_token, :delete, :confirm)
+        fn -> control_entry(post, board, session_token, :delete, :confirm) end
       )
       |> maybe_add_control_entry(
         can_moderate?(moderator, board, :deletebyip),
-        control_entry(post, board, session_token, :deletebyip, :confirm)
+        fn -> control_entry(post, board, session_token, :deletebyip, :confirm) end
       )
       |> maybe_add_control_entry(
         can_moderate?(moderator, board, :deletebyip_global),
-        control_entry(post, board, session_token, :deletebyip_global, :confirm)
+        fn -> control_entry(post, board, session_token, :deletebyip_global, :confirm) end
       )
       |> maybe_add_control_entry(
         can_moderate?(moderator, board, :ban),
-        control_entry(post, board, session_token, :ban, :plain)
+        fn -> control_entry(post, board, session_token, :ban, :plain) end
       )
       |> maybe_add_control_entry(
         can_moderate?(moderator, board, :bandelete),
-        control_entry(post, board, session_token, :bandelete, :plain)
+        fn -> control_entry(post, board, session_token, :bandelete, :plain) end
       )
       |> maybe_add_control_entry(
         thread_op?(post) and can_moderate?(moderator, board, :sticky),
-        control_entry(post, board, session_token, :sticky, :confirm)
+        fn -> control_entry(post, board, session_token, :sticky, :confirm) end
       )
       |> maybe_add_control_entry(
         thread_op?(post) and can_moderate?(moderator, board, :bumplock),
-        control_entry(post, board, session_token, :bumplock, :confirm)
+        fn -> control_entry(post, board, session_token, :bumplock, :confirm) end
       )
       |> maybe_add_control_entry(
         thread_op?(post) and can_moderate?(moderator, board, :lock),
-        control_entry(post, board, session_token, :lock, :confirm)
+        fn -> control_entry(post, board, session_token, :lock, :confirm) end
       )
       |> maybe_add_control_entry(
         can_moderate?(moderator, board, :move),
-        control_entry(post, board, session_token, :move, :plain)
+        fn -> control_entry(post, board, session_token, :move, :plain) end
       )
       |> maybe_add_control_entry(
         thread_op?(post) and can_moderate?(moderator, board, :cycle),
-        control_entry(post, board, session_token, :cycle, :confirm)
+        fn -> control_entry(post, board, session_token, :cycle, :confirm) end
       )
       |> maybe_add_control_entry(
         can_moderate?(moderator, board, :editpost),
-        control_entry(post, board, session_token, :editpost, :plain)
+        fn -> control_entry(post, board, session_token, :editpost, :plain) end
       )
     else
       []
@@ -490,11 +490,11 @@ defmodule EirinchanWeb.PostView do
       []
       |> maybe_add_control_entry(
         can_moderate?(moderator, board, :deletefile),
-        file_control_entry(post, file, board, session_token, :deletefile)
+        fn -> file_control_entry(post, file, board, session_token, :deletefile) end
       )
       |> maybe_add_control_entry(
         not Map.get(file, :spoiler, false) and can_moderate?(moderator, board, :spoilerimage),
-        file_control_entry(post, file, board, session_token, :spoilerimage)
+        fn -> file_control_entry(post, file, board, session_token, :spoilerimage) end
       )
     else
       []
@@ -1007,8 +1007,14 @@ defmodule EirinchanWeb.PostView do
     }
   end
 
-  defp maybe_add_control_entry(list, true, entry) when is_map(entry), do: list ++ [entry]
-  defp maybe_add_control_entry(list, _condition, _entry), do: list
+  defp maybe_add_control_entry(list, true, entry_fun) when is_function(entry_fun, 0) do
+    case entry_fun.() do
+      entry when is_map(entry) -> list ++ [entry]
+      _ -> list
+    end
+  end
+
+  defp maybe_add_control_entry(list, _condition, _entry_fun), do: list
 
   defp control_entry(post, board, session_token, action, kind) do
     metadata = control_metadata(post, board, session_token, action)
