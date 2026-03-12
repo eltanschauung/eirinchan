@@ -210,6 +210,28 @@
     return bodyField ? bodyField.value : "";
   }
 
+  function normalizeDraftUrl(url) {
+    if (!url) return "";
+
+    try {
+      var parsed = new URL(String(url), window.location.origin);
+      var path = parsed.pathname || "/";
+
+      if (path !== "/" && /\/+$/.test(path)) {
+        path = path.replace(/\/+$/, "");
+      }
+
+      var port = parsed.port;
+      var includePort =
+        port &&
+        !((parsed.protocol === "http:" && port === "80") || (parsed.protocol === "https:" && port === "443"));
+
+      return parsed.protocol + "//" + parsed.hostname + (includePort ? ":" + port : "") + path + parsed.search;
+    } catch (_error) {
+      return String(url).replace(/#.*$/, "");
+    }
+  }
+
   function savePostDraft(form) {
     if (!form || !form.elements) return;
 
@@ -221,7 +243,7 @@
       saved = {};
     }
 
-    saved[document.location] = postBodyValue(form);
+    saved[normalizeDraftUrl(document.location)] = postBodyValue(form);
     window.sessionStorage.body = JSON.stringify(saved);
   }
 
@@ -438,8 +460,10 @@
     saved = clearSuccessfulPostsCookie(saved);
     window.sessionStorage.body = JSON.stringify(saved);
 
-    if (saved[document.location]) {
-      form.elements["body"].value = saved[document.location];
+    var draftKey = normalizeDraftUrl(document.location);
+
+    if (saved[draftKey]) {
+      form.elements["body"].value = saved[draftKey];
     }
 
     if (localStorage.body) {

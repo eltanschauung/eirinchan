@@ -146,6 +146,34 @@ defmodule EirinchanWeb.PostControllerTest do
            )
   end
 
+  test "successful OP posts normalize draft-clear cookie urls", %{conn: conn} do
+    board = board_fixture(%{title: "Technology"})
+    referer = "http://www.example.com/#{board.uri}/index.html#reply"
+
+    conn =
+      conn
+      |> put_req_header("referer", referer)
+      |> post(~p"/#{board.uri}/post", %{
+        "name" => "anon",
+        "subject" => "launch",
+        "body" => "first post",
+        "json_response" => "1",
+        "post" => "New Topic"
+      })
+
+    assert %{"id" => _id} = json_response(conn, 200)
+
+    encoded_cookie =
+      "http://www.example.com/#{board.uri}/index.html"
+      |> then(&%{&1 => true})
+      |> Jason.encode!()
+
+    assert Enum.any?(
+             get_resp_header(conn, "set-cookie"),
+             &String.contains?(&1, "eirinchan_posted=#{encoded_cookie}")
+           )
+  end
+
   test "posting stores uploads and serves them back under board src paths", %{conn: conn} do
     board = board_fixture()
     upload = upload_fixture("served.png", "served-image")
