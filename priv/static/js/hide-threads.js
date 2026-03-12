@@ -83,6 +83,11 @@ $(document).ready(function(){
 	$('div.post.op').each(do_hide_threads);
 
 	$(document).on('new_post', function(e, post) {
-		do_hide_threads.call($(post).find('div.post.op')[0]);
+		var op = $(post).is('div.post.op')
+			? post
+			: $(post).find('div.post.op')[0];
+		if (op) {
+			do_hide_threads.call(op);
+		}
 	});
 });
