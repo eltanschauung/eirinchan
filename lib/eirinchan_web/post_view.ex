@@ -102,40 +102,21 @@ defmodule EirinchanWeb.PostView do
   end
 
   def post_number_links_html(post_id, post_href, quote_href, attrs \\ [], quote_mode \\ :inline) do
-    quote_attrs =
-      attrs
-      |> Enum.map(fn {key, value} ->
-        ~s( #{key}="#{html_escape_to_string(value)}")
-      end)
-      |> Enum.join("")
-
-    quote_onclick =
-      case quote_mode do
-        :navigate -> ~s| onclick="citeReply(#{post_id})"|
-        _ -> ~s| onclick="return citeReply(#{post_id}, false)"|
-      end
-
-    ~s|&nbsp;<a class="post_no" id="post_no_#{post_id}" onclick="highlightReply(#{post_id})" href="#{html_escape_to_string(post_href)}">No.</a><a class="post_no"#{quote_onclick} href="#{html_escape_to_string(quote_href)}"#{quote_attrs}>#{post_id}</a>|
+    EirinchanWeb.PostComponents.post_number_links_html(%{
+      post_id: post_id,
+      post_href: post_href,
+      quote_href: quote_href,
+      quote_mode: quote_mode,
+      quote_to: Keyword.get(attrs, :data_quote_to),
+      quick_reply_thread: Keyword.get(attrs, :data_quick_reply_thread)
+    })
   end
 
   def backlinks_html(post, backlinks_map \\ %{}) do
-    backlinks =
-      post
-      |> Map.get(:id)
-      |> then(&Map.get(backlinks_map || %{}, &1, []))
-
-    case backlinks do
-      [] ->
-        ""
-
-      ids ->
-        links =
-          Enum.map_join(ids, " ", fn backlink_id ->
-            ~s|<a class="mentioned-#{backlink_id}" onclick="highlightReply('#{backlink_id}');" href="##{backlink_id}">&gt;&gt;#{backlink_id}</a>|
-          end)
-
-        ~s|<span class="mentioned">#{links}</span>|
-    end
+    EirinchanWeb.PostComponents.backlinks_html(%{
+      post: post,
+      backlinks_map: backlinks_map
+    })
   end
 
   def boardlist_groups(boards) do
@@ -622,59 +603,19 @@ defmodule EirinchanWeb.PostView do
   end
 
   def body_container_html(post, board, thread, config, opts \\ []) do
-    body = body_html(post, board, thread, config, opts)
-    style_attr = body_style_attr(post, config, opts)
-
-    tag_html =
-      case post.tag do
-        nil ->
-          ""
-
-        tag ->
-          label =
-            if is_map(config.allowed_tags), do: Map.get(config.allowed_tags, tag, tag), else: tag
-
-          ~s(<span class="tag-line">Tag: #{html_escape_to_string(label)}</span>)
-      end
-
-    fileboard_hidden? = Keyword.get(opts, :hide_fileboard, false)
-
-    fileboard_html =
-      if config.fileboard and show_fileboard_summary?(post) do
-        hidden_attr = if fileboard_hidden?, do: ~s( style="display:none"), else: ""
-
-        ~s(<span class="tag-line"#{hidden_attr}>Fileboard: #{html_escape_to_string(fileboard_summary(post))}</span>)
-      else
-        ""
-      end
-
-    ~s(<div class="body"#{style_attr}>#{body}#{tag_html}#{fileboard_html}</div>)
+    EirinchanWeb.PostComponents.body_container_html(%{
+      post: post,
+      board: board,
+      thread: thread,
+      config: config,
+      hide_fileboard: Keyword.get(opts, :hide_fileboard, false),
+      own_post_ids: Keyword.get(opts, :own_post_ids, MapSet.new()),
+      show_yous: Keyword.get(opts, :show_yous, false)
+    })
   end
 
   def reply_body_container_html(post, board, thread, config, opts \\ []) do
-    body = body_html(post, board, thread, config, opts)
-    style_attr = body_style_attr(post, config)
-
-    tag_html =
-      case post.tag do
-        nil ->
-          ""
-
-        tag ->
-          label =
-            if is_map(config.allowed_tags), do: Map.get(config.allowed_tags, tag, tag), else: tag
-
-          ~s(<span class="tag-line">Tag: #{html_escape_to_string(label)}</span>)
-      end
-
-    fileboard_html =
-      if config.fileboard and show_fileboard_summary?(post) do
-        ~s(<span class="tag-line">Fileboard: #{html_escape_to_string(fileboard_summary(post))}</span>)
-      else
-        ""
-      end
-
-    ~s(<div class="body"#{style_attr}>#{body}#{tag_html}#{fileboard_html}</div>)
+    body_container_html(post, board, thread, config, opts)
   end
 
   def has_embed?(%{embed: embed}) when is_binary(embed), do: String.trim(embed) != ""

@@ -90,10 +90,11 @@ defmodule EirinchanWeb.PostComponents do
   attr :quote_mode, :atom, default: :inline
   attr :quote_to, :integer, default: nil
   attr :quick_reply_thread, :integer, default: nil
+  attr :attrs, :global, default: %{}
 
   def post_number_links(assigns) do
     ~H"""
-    &nbsp;<a class="post_no" id={"post_no_#{@post_id}"} onclick={"highlightReply(#{@post_id})"} href={@post_href}>No.</a><a class="post_no" onclick={quote_onclick(@post_id, @quote_mode)} href={@quote_href} data-quote-to={@quote_to} data-quick-reply-thread={@quick_reply_thread}><%= @post_id %></a>
+    &nbsp;<a class="post_no" id={"post_no_#{@post_id}"} onclick={"highlightReply(#{@post_id})"} href={@post_href}>No.</a><a class="post_no" onclick={quote_onclick(@post_id, @quote_mode)} href={@quote_href} data-quote-to={@quote_to} data-quick-reply-thread={@quick_reply_thread} {@attrs}><%= @post_id %></a>
     """
   end
 
