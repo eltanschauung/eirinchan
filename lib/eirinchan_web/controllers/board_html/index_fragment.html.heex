@@ -154,6 +154,6 @@
       <% end %>
     </div>
 
-    <%= raw(PostView.pages_html(@page_data, @board.uri, @config)) %>
+    <.board_pages page_data={@page_data} board_uri={@board.uri} config={@config} />
   </form>
 </div>
