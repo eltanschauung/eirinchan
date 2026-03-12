@@ -738,6 +738,7 @@ if (active_page === 'thread' || active_page === 'index' || active_page === 'cata
 						nextPurge: {},
 						lastPurge: timestamp()
 					});
+					$(document).trigger('clear_hidden_threads');
 					drawFilterList();
 				});
 				$('#filter-control').on('click', '#confirm-n', function (e) {
