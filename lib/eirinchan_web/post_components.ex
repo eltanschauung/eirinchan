@@ -438,30 +438,25 @@ defmodule EirinchanWeb.PostComponents do
   attr :show_yous, :boolean, default: false
 
   def body_container(assigns) do
+    assigns =
+      assigns
+      |> assign(
+        :formatted_html,
+        formatted_body_segments_html(%{
+          post: assigns.post,
+          board: assigns.board,
+          thread: assigns.thread,
+          config: assigns.config,
+          own_post_ids: assigns.own_post_ids,
+          show_yous: assigns.show_yous
+        })
+      )
+
     ~H"""
-    <div
-      class="body"
-      {case body_style_attr(@post, @config, @op?) do
-        nil -> []
-        style -> [style: style]
-      end}
-    >
-      <%= for {segment, index} <-
-            Enum.with_index(
-              PostView.body_segments(@post, @board, @thread, @config,
-                own_post_ids: @own_post_ids,
-                show_yous: @show_yous
-              )
-            ) do %><%= if index > 0, do: raw("<br/>") %><%= raw(segment) %><% end %>
-      <span :if={@post.tag} class="tag-line">Tag: <%= if is_map(@config.allowed_tags),
-        do: Map.get(@config.allowed_tags, @post.tag, @post.tag),
-        else: @post.tag %></span>
-      <span
-        :if={@config.fileboard && PostView.show_fileboard_summary?(@post)}
-        class="tag-line"
-        style={if @hide_fileboard, do: "display:none", else: nil}
-      >Fileboard: <%= PostView.fileboard_summary(@post) %></span>
-    </div>
+    <div class="body" {case body_style_attr(@post, @config, @op?) do
+      nil -> []
+      style -> [style: style]
+    end}><%= raw(@formatted_html) %><span :if={@post.tag} class="tag-line">Tag: <%= if is_map(@config.allowed_tags), do: Map.get(@config.allowed_tags, @post.tag, @post.tag), else: @post.tag %></span><span :if={@config.fileboard && PostView.show_fileboard_summary?(@post)} class="tag-line" style={if @hide_fileboard, do: "display:none", else: nil}>Fileboard: <%= PostView.fileboard_summary(@post) %></span></div>
     """
   end
 
@@ -474,17 +469,22 @@ defmodule EirinchanWeb.PostComponents do
   attr :show_yous, :boolean, default: false
 
   def summary_body(assigns) do
+    assigns =
+      assign(
+        assigns,
+        :formatted_html,
+        formatted_body_segments_html(%{
+          post: assigns.post,
+          board: assigns.board,
+          thread: assigns.thread,
+          config: assigns.config,
+          own_post_ids: assigns.own_post_ids,
+          show_yous: assigns.show_yous
+        })
+      )
+
     ~H"""
-    <div class={@class}>
-      <.formatted_body_segments
-        post={@post}
-        board={@board}
-        thread={@thread}
-        config={@config}
-        own_post_ids={@own_post_ids}
-        show_yous={@show_yous}
-      />
-    </div>
+    <div class={@class}><%= raw(@formatted_html) %></div>
     """
   end
 
@@ -497,13 +497,10 @@ defmodule EirinchanWeb.PostComponents do
 
   def formatted_body_segments(assigns) do
     ~H"""
-    <%= for {segment, index} <-
-          Enum.with_index(
-            PostView.body_segments(@post, @board, @thread, @config,
-              own_post_ids: @own_post_ids,
-              show_yous: @show_yous
-            )
-          ) do %><%= if index > 0, do: raw("<br/>") %><%= raw(segment) %><% end %>
+    <%= for {segment, index} <- Enum.with_index(PostView.body_segments(@post, @board, @thread, @config,
+          own_post_ids: @own_post_ids,
+          show_yous: @show_yous
+        )) do %><%= if index > 0, do: raw("<br/>") %><%= raw(segment) %><% end %>
     """
   end
 
@@ -537,20 +534,25 @@ defmodule EirinchanWeb.PostComponents do
   attr :config, :map, required: true
 
   def reply_preview(assigns) do
+    assigns =
+      assign(
+        assigns,
+        :formatted_html,
+        formatted_body_segments_html(%{
+          post: assigns.post,
+          board: assigns.board,
+          thread: assigns.thread,
+          config: assigns.config
+        })
+      )
+
     ~H"""
     <div class="reply-preview" id={"p#{@post.id}"}>
       <%= if PostView.media_entries(@post, @config) != [] do %>
         <.files_block post={@post} config={@config} />
       <% end %>
       <.post_identity post={@post} board={@board} config={@config} />
-      <p>
-        <.formatted_body_segments
-          post={@post}
-          board={@board}
-          thread={@thread}
-          config={@config}
-        />
-      </p>
+      <p><%= raw(@formatted_html) %></p>
     </div>
     """
   end
