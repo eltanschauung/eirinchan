@@ -299,16 +299,7 @@ defmodule EirinchanWeb.PostComponents do
       )
 
     ~H"""
-    <a href={@file.file_path} target="_blank" class={@link_class}>
-      <img
-        class={@image_classes}
-        src={PostView.file_thumb_src(@file, @config)}
-        loading="lazy"
-        decoding="async"
-        style={@thumb_style}
-        alt=""
-      />
-    </a>
+    <a href={@file.file_path} target="_blank" class={@link_class}><img class={@image_classes} src={PostView.file_thumb_src(@file, @config)} loading="lazy" decoding="async" style={@thumb_style} alt="" /></a>
     """
   end
 
