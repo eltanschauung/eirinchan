@@ -318,7 +318,7 @@
               <p :if={PostView.catalog_label(post, @config)} class="intro">
                 <span class="subject"><%= PostView.catalog_label(post, @config) %></span>
               </p>
-              <%= if PostView.catalog_label(post, @config), do: raw(""), else: raw("<br />") %>
+              <%= if !PostView.catalog_label(post, @config) do %><br /><% end %>
               <.summary_body
                 post={post}
                 board={@board}

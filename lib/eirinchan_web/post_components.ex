@@ -225,8 +225,7 @@ defmodule EirinchanWeb.PostComponents do
         File:
         <a href={@file.file_path}><%= PostView.stored_file_name(@file) %></a>
         <span>
-          (<%= PostView.file_size_text(@file) %><%= if PostView.file_dimensions(@file),
-            do: raw(", " <> PostView.file_dimensions(@file)) %>, <span
+          (<%= PostView.file_size_text(@file) %><%= if PostView.file_dimensions(@file) do %>, <%= PostView.file_dimensions(@file) %><% end %>, <span
             class="postfilename"
             title={PostView.original_file_name(@file)}
           ><%= PostView.display_file_name(@file, @config) %></span>)
@@ -301,7 +300,7 @@ defmodule EirinchanWeb.PostComponents do
 
     ~H"""
     <span :if={@controls != []} class={if is_nil(@post.thread_id), do: "controls op", else: "controls"}>
-      <%= for {control, index} <- Enum.with_index(@controls) do %><%= if index > 0, do: raw("&nbsp;") %><.control_link control={control} /><% end %>
+      <%= for {control, index} <- Enum.with_index(@controls) do %><%= if index > 0 do %>&nbsp;<% end %><.control_link control={control} /><% end %>
     </span>
     """
   end
@@ -318,7 +317,7 @@ defmodule EirinchanWeb.PostComponents do
 
     ~H"""
     <span :if={@controls != []} class="controls">
-      <%= for {control, index} <- Enum.with_index(@controls) do %><%= if index > 0, do: raw("&nbsp;") %><.control_link control={control} /><% end %>
+      <%= for {control, index} <- Enum.with_index(@controls) do %><%= if index > 0 do %>&nbsp;<% end %><.control_link control={control} /><% end %>
     </span>
     """
   end
@@ -422,12 +421,13 @@ defmodule EirinchanWeb.PostComponents do
         style -> [style: style]
       end}
     >
-      <%= raw(
-        PostView.body_html(@post, @board, @thread, @config,
-          own_post_ids: @own_post_ids,
-          show_yous: @show_yous
-        )
-      ) %>
+      <%= for {segment, index} <-
+            Enum.with_index(
+              PostView.body_segments(@post, @board, @thread, @config,
+                own_post_ids: @own_post_ids,
+                show_yous: @show_yous
+              )
+            ) do %><%= if index > 0, do: raw("<br/>") %><%= raw(segment) %><% end %>
       <span :if={@post.tag} class="tag-line">Tag: <%= if is_map(@config.allowed_tags),
         do: Map.get(@config.allowed_tags, @post.tag, @post.tag),
         else: @post.tag %></span>
@@ -451,12 +451,13 @@ defmodule EirinchanWeb.PostComponents do
   def summary_body(assigns) do
     ~H"""
     <div class={@class}>
-      <%= raw(
-        PostView.body_html(@post, @board, @thread, @config,
-          own_post_ids: @own_post_ids,
-          show_yous: @show_yous
-        )
-      ) %>
+      <%= for {segment, index} <-
+            Enum.with_index(
+              PostView.body_segments(@post, @board, @thread, @config,
+                own_post_ids: @own_post_ids,
+                show_yous: @show_yous
+              )
+            ) do %><%= if index > 0, do: raw("<br/>") %><%= raw(segment) %><% end %>
     </div>
     """
   end
