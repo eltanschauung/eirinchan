@@ -514,6 +514,14 @@ defmodule EirinchanWeb.PostComponents do
     |> IO.iodata_to_binary()
   end
 
+  def body_container_html(assigns) do
+    assigns
+    |> with_component_assigns()
+    |> body_container()
+    |> to_iodata()
+    |> IO.iodata_to_binary()
+  end
+
   def summary_body_html(assigns) do
     assigns
     |> with_component_assigns()
