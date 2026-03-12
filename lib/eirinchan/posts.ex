@@ -6,22 +6,19 @@ defmodule Eirinchan.Posts do
   import Ecto.Query, only: [from: 2]
 
   alias Eirinchan.Antispam
-  alias Eirinchan.Bans
   alias Eirinchan.Build
   alias Eirinchan.Boards.BoardRecord
-  alias Eirinchan.Captcha
-  alias Eirinchan.DNSBL
-  alias Eirinchan.Moderation
-  alias Eirinchan.Moderation.ModUser
   alias Eirinchan.Posts.Cite
   alias Eirinchan.Posts.Flags, as: PostsFlags
   alias Eirinchan.Posts.Metadata, as: PostsMetadata
+  alias Eirinchan.Posts.RequestGuards, as: PostsRequestGuards
   alias Eirinchan.Posts.ThreadLookup, as: PostsThreadLookup
   alias Eirinchan.Posts.Validation, as: PostsValidation
   alias Eirinchan.Posts.Moderation, as: PostsModeration
   alias Eirinchan.Posts.NntpReference
   alias Eirinchan.Posts.Post
   alias Eirinchan.Posts.PostFile
+  alias Eirinchan.Posts.Persistence, as: PostsPersistence
   alias Eirinchan.Posts.Pruning, as: PostsPruning
   alias Eirinchan.Posts.UploadPreparation, as: PostsUploadPreparation
   alias Eirinchan.Repo
@@ -72,16 +69,23 @@ defmodule Eirinchan.Posts do
       noko = noko?(attrs["email"], config)
       now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
 
-      with :ok <- validate_post_button(op?, attrs, config),
-           :ok <- validate_referer(request, config, board),
-           :ok <- validate_hidden_input(attrs, config, request, board),
-           :ok <- validate_antispam_question(op?, attrs, config, request, board),
-           :ok <- validate_captcha(attrs, config, request, board),
-           :ok <- validate_dnsbl(request, config),
-           :ok <- validate_ban(request, board),
-           :ok <- validate_board_lock(config, request, board),
+      with :ok <- PostsRequestGuards.validate_post_button(op?, attrs, config),
+           :ok <- PostsRequestGuards.validate_referer(request, config, board),
+           :ok <- PostsRequestGuards.validate_hidden_input(attrs, config, request, board),
+           :ok <-
+             PostsRequestGuards.validate_antispam_question(
+               op?,
+               attrs,
+               config,
+               request,
+               board
+             ),
+           :ok <- PostsRequestGuards.validate_captcha(attrs, config, request, board, op?),
+           :ok <- PostsRequestGuards.validate_dnsbl(request, config),
+           :ok <- PostsRequestGuards.validate_ban(request, board),
+           :ok <- PostsRequestGuards.validate_board_lock(config, request, board),
            {:ok, thread} <- PostsThreadLookup.fetch_thread(board, thread_param, repo),
-           :ok <- validate_thread_lock(thread, request, board),
+           :ok <- PostsRequestGuards.validate_thread_lock(thread, request, board),
            {:ok, attrs} <- normalize_post_metadata(attrs, config, request, op?),
            :ok <- Antispam.check_post(board, attrs, request, config, repo: repo),
            :ok <- PostsValidation.validate_body(op?, attrs, config),
@@ -91,7 +95,12 @@ defmodule Eirinchan.Posts do
            :ok <- PostsValidation.validate_reply_limit(board, thread, config, repo),
            :ok <- PostsValidation.validate_image_limit(board, thread, attrs, config, repo),
            :ok <- PostsValidation.validate_duplicate_upload(board, thread, attrs, config, repo),
-           {:ok, post} <- create_post_record(board, thread, attrs, repo, config, now) do
+           {:ok, post} <-
+             PostsPersistence.create_post_record(board, thread, attrs, repo, config, now, fn ->
+               maybe_bump_thread(thread, attrs, config, repo, now)
+               maybe_cycle_thread(board, thread, config, repo)
+               :ok
+             end) do
         _ = maybe_prune_threads(board, config, repo)
         _ = Antispam.log_post(board, attrs, request, repo: repo)
         _ = Build.rebuild_after_post(board, post, config: config, repo: repo)
@@ -164,6 +173,10 @@ defmodule Eirinchan.Posts do
     else
       _ -> {:error, :not_found}
     end
+  end
+
+  def captcha_required?(config, op?) do
+    PostsRequestGuards.captcha_required?(config, op?)
   end
 
   defp maybe_prune_threads(board, config, repo) do
@@ -542,144 +555,6 @@ defmodule Eirinchan.Posts do
     PostsThreadLookup.fetch_thread(board, thread_id, repo)
   end
 
-  @spec captcha_required?(map(), boolean()) :: boolean()
-  def captcha_required?(config, op?) do
-    captcha = Map.get(config, :captcha, %{})
-
-    cond do
-      not Map.get(captcha, :enabled, false) -> false
-      Map.get(captcha, :mode) == "none" -> false
-      Map.get(captcha, :mode) == "op" -> op?
-      Map.get(captcha, :mode) == "reply" -> not op?
-      true -> true
-    end
-  end
-
-  defp create_post_record(board, thread, attrs, repo, config, now) do
-    upload_entries = Map.get(attrs, "__upload_entries__", [])
-
-    case repo.transaction(fn ->
-           with {:ok, post} <- insert_post(board, thread, attrs, repo, config, now),
-                {:ok, post} <- maybe_store_uploads(board, post, upload_entries, repo, config),
-                :ok <- store_citations(board, post, repo) do
-             maybe_bump_thread(thread, attrs, config, repo, now)
-             maybe_cycle_thread(board, thread, config, repo)
-             post
-           else
-             {:error, reason} -> repo.rollback(reason)
-           end
-         end) do
-      {:ok, post} -> {:ok, post}
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  defp maybe_store_uploads(_board, %Post{} = post, [], repo, _config),
-    do: {:ok, repo.preload(post, :extra_files)}
-
-  defp maybe_store_uploads(board, %Post{} = post, [primary | rest], repo, config) do
-    with {:ok, updated_post, stored_files} <-
-           store_primary_upload(board, post, primary, repo, config),
-         {:ok, _extra_files, _stored_files} <-
-           store_extra_uploads(board, updated_post, rest, repo, config, stored_files) do
-      {:ok, repo.preload(updated_post, :extra_files)}
-    else
-      {:error, reason, stored_files} ->
-        cleanup_stored_files(stored_files)
-        {:error, reason}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  defp store_primary_upload(board, post, %{upload: upload, metadata: metadata}, repo, config) do
-    case Uploads.store(board, post, upload, config, metadata) do
-      {:ok, stored_metadata} ->
-        case post |> Post.create_changeset(stored_metadata) |> repo.update() do
-          {:ok, updated_post} ->
-            {:ok, updated_post, [stored_metadata]}
-
-          {:error, %Ecto.Changeset{} = changeset} ->
-            cleanup_stored_files([stored_metadata])
-            {:error, changeset}
-        end
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  defp store_extra_uploads(_board, _post, [], _repo, _config, stored_files),
-    do: {:ok, [], stored_files}
-
-  defp store_extra_uploads(board, post, entries, repo, config, stored_files) do
-    Enum.with_index(entries, 1)
-    |> Enum.reduce_while({:ok, [], stored_files}, fn {entry, position}, {:ok, inserted, stored} ->
-      case Uploads.store(
-             board,
-             post,
-             entry.upload,
-             config,
-             entry.metadata,
-             Integer.to_string(position)
-           ) do
-        {:ok, stored_metadata} ->
-          attrs =
-            stored_metadata
-            |> Map.put(:post_id, post.id)
-            |> Map.put(:position, position)
-
-          case %PostFile{} |> PostFile.create_changeset(attrs) |> repo.insert() do
-            {:ok, post_file} ->
-              {:cont, {:ok, [post_file | inserted], [stored_metadata | stored]}}
-
-            {:error, %Ecto.Changeset{} = changeset} ->
-              {:halt, {:error, changeset, [stored_metadata | stored]}}
-          end
-
-        {:error, reason} ->
-          {:halt, {:error, reason, stored}}
-      end
-    end)
-    |> case do
-      {:ok, files, stored} -> {:ok, Enum.reverse(files), stored}
-      {:error, reason, stored} -> {:error, reason, stored}
-    end
-  end
-
-  defp insert_post(board, nil, attrs, repo, config, now) do
-    attrs =
-      attrs
-      |> Map.put("board_id", board.id)
-      |> Map.put("thread_id", nil)
-      |> Map.update("body", "", &(&1 || ""))
-      |> Map.put("ip_subnet", request_ip_string(attrs))
-      |> Map.put("bump_at", now)
-      |> Map.put("sticky", false)
-      |> Map.put("locked", false)
-      |> Map.put("cycle", false)
-      |> Map.put("sage", false)
-      |> Map.put("slug", maybe_slugify(attrs, config))
-
-    %Post{}
-    |> Post.create_changeset(attrs)
-    |> repo.insert()
-  end
-
-  defp insert_post(board, thread, attrs, repo, _config, _now) do
-    attrs =
-      attrs
-      |> Map.put("board_id", board.id)
-      |> Map.put("thread_id", thread.id)
-      |> Map.update("body", "", &(&1 || ""))
-      |> Map.put("ip_subnet", request_ip_string(attrs))
-
-    %Post{}
-    |> Post.create_changeset(attrs)
-    |> repo.insert()
-  end
-
   defp normalize_attrs(attrs) do
     attrs
     |> Enum.into(%{}, fn
@@ -863,199 +738,10 @@ defmodule Eirinchan.Posts do
     end
   end
 
-  defp validate_post_button(true, attrs, config) do
-    if valid_post_button?(attrs["post"], config.button_newtopic, ["New Topic", "New Thread"]) do
-      :ok
-    else
-      {:error, :invalid_post_mode}
-    end
-  end
-
-  defp validate_post_button(false, attrs, config) do
-    if valid_post_button?(attrs["post"], config.button_reply, ["New Reply", "Reply"]) do
-      :ok
-    else
-      {:error, :invalid_post_mode}
-    end
-  end
-
-  defp valid_post_button?(value, configured, aliases) when is_binary(value) do
-    normalized =
-      value
-      |> String.trim()
-      |> String.downcase()
-
-    accepted =
-      [configured | aliases]
-      |> Enum.filter(&is_binary/1)
-      |> Enum.map(&(String.trim(&1) |> String.downcase()))
-
-    normalized in accepted
-  end
-
-  defp valid_post_button?(_value, _configured, _aliases), do: false
-
-  defp validate_referer(_request, %{referer_match: false}, _board), do: :ok
-
-  defp validate_referer(request, config, board) do
-    if moderator_board_access?(request, board) do
-      :ok
-    else
-      referer = request[:referer] || request["referer"]
-
-      if is_binary(referer) and Regex.match?(config.referer_match, URI.decode(referer)) do
-        :ok
-      else
-        {:error, :invalid_referer}
-      end
-    end
-  end
-
-  defp validate_dnsbl(request, config) do
-    dnsbl_opts =
-      case Map.get(request, :dnsbl_resolver) do
-        resolver when is_function(resolver, 1) -> [resolver: resolver]
-        _ -> []
-      end
-
-    case DNSBL.check(Map.get(request, :remote_ip), config, dnsbl_opts) do
-      :ok -> :ok
-      {:error, _name} -> {:error, :dnsbl}
-    end
-  end
-
-  defp validate_board_lock(config, request, board) do
-    if config.board_locked and not moderator_board_access?(request, board) do
-      {:error, :board_locked}
-    else
-      :ok
-    end
-  end
-
-  defp validate_thread_lock(nil, _request, _board), do: :ok
-
-  defp validate_thread_lock(%Post{locked: true}, request, board) do
-    if moderator_board_access?(request, board), do: :ok, else: {:error, :thread_locked}
-  end
-
-  defp validate_thread_lock(%Post{}, _request, _board), do: :ok
-
-  defp request_moderator(request), do: request[:moderator] || request["moderator"]
-
-  defp moderator_board_access?(request, board) do
-    case request_moderator(request) do
-      %ModUser{} = moderator -> Moderation.board_access?(moderator, board)
-      _ -> false
-    end
-  end
-
-  defp store_citations(board, post, repo) do
-    target_post_ids =
-      post.body
-      |> extract_cited_post_ids()
-      |> existing_cited_post_ids(board.id, repo)
-
-    Enum.reduce_while(target_post_ids, :ok, fn target_post_id, :ok ->
-      with {:ok, _cite} <-
-             %Cite{}
-             |> Cite.changeset(%{post_id: post.id, target_post_id: target_post_id})
-             |> repo.insert(on_conflict: :nothing, conflict_target: [:post_id, :target_post_id]),
-           {:ok, _reference} <-
-             %NntpReference{}
-             |> NntpReference.changeset(%{post_id: post.id, target_post_id: target_post_id})
-             |> repo.insert(on_conflict: :nothing, conflict_target: [:post_id, :target_post_id]) do
-        {:cont, :ok}
-      else
-        {:error, _changeset} -> {:halt, {:error, :cite_insert_failed}}
-      end
-    end)
-  end
-
   def replace_citations(board, post, repo) do
     from(cite in Cite, where: cite.post_id == ^post.id) |> repo.delete_all()
     from(reference in NntpReference, where: reference.post_id == ^post.id) |> repo.delete_all()
-    store_citations(board, post, repo)
-  end
-
-  defp extract_cited_post_ids(nil), do: []
-
-  defp extract_cited_post_ids(body) do
-    Regex.scan(~r/>>(\d+)/u, body)
-    |> Enum.map(fn [_, id] -> String.to_integer(id) end)
-    |> Enum.uniq()
-  end
-
-  defp existing_cited_post_ids([], _board_id, _repo), do: []
-
-  defp existing_cited_post_ids(target_ids, board_id, repo) do
-    repo.all(
-      from post in Post,
-        where: post.board_id == ^board_id and post.id in ^target_ids,
-        select: post.id
-    )
-  end
-
-  defp validate_hidden_input(attrs, config, request, board) do
-    if moderator_board_access?(request, board) do
-      :ok
-    else
-      hidden_name = to_string(config.hidden_input_name || "hash")
-
-      cond do
-        is_nil(config.hidden_input_hash) ->
-          :ok
-
-        Map.get(attrs, hidden_name) == config.hidden_input_hash ->
-          :ok
-
-        true ->
-          {:error, :antispam}
-      end
-    end
-  end
-
-  defp validate_antispam_question(false, _attrs, _config, _request, _board), do: :ok
-
-  defp validate_antispam_question(true, attrs, config, request, board) do
-    if moderator_board_access?(request, board) or not is_binary(config.antispam_question) do
-      :ok
-    else
-      answer =
-        attrs["antispam_answer"]
-        |> to_string()
-        |> String.trim()
-        |> String.downcase()
-
-      expected =
-        config.antispam_question_answer
-        |> to_string()
-        |> String.trim()
-        |> String.downcase()
-
-      if answer != "" and answer == expected, do: :ok, else: {:error, :antispam}
-    end
-  end
-
-  defp validate_captcha(attrs, config, request, board) do
-    op? = is_nil(blank_to_nil(Map.get(attrs, "thread")))
-
-    if moderator_board_access?(request, board) or not captcha_required?(config, op?) do
-      :ok
-    else
-      Captcha.verify(config, attrs, request)
-    end
-  end
-
-  defp validate_ban(request, board) do
-    if moderator_board_access?(request, board) do
-      :ok
-    else
-      if Bans.active_ban_for_request(board, request[:remote_ip] || request["remote_ip"]) do
-        {:error, :banned}
-      else
-        :ok
-      end
-    end
+    PostsPersistence.store_citations(board, post, repo)
   end
 
   defp maybe_bump_thread(nil, _attrs, _config, _repo, _now), do: :ok
@@ -1276,13 +962,6 @@ defmodule Eirinchan.Posts do
   defp extra_files(%{extra_files: files}) when is_list(files), do: files
   defp extra_files(_post), do: []
 
-  defp cleanup_stored_files(metadata_list) do
-    Enum.each(metadata_list, fn metadata ->
-      Uploads.remove(Map.get(metadata, :file_path))
-      Uploads.remove(Map.get(metadata, :thumb_path))
-    end)
-  end
-
   defp build_pages(board, total_pages, config) do
     for num <- 1..total_pages do
       %{
@@ -1346,8 +1025,6 @@ defmodule Eirinchan.Posts do
 
     {:ok, Map.put(attrs, "slug", slug)}
   end
-
-  defp request_ip_string(attrs), do: Map.get(attrs, "ip_subnet")
 
   defp apply_search_filter(query, term) do
     case parse_search_filter(term) do
