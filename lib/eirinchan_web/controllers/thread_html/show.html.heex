@@ -464,12 +464,10 @@
 </form>
 
 <a id="bottom"></a>
-<%= raw(
-  PostView.boardlist_html(
-    @board_chrome.boardlist_groups || PostView.boardlist_groups(@boards),
-    "boardlist bottom"
-  )
-) %>
+<.boardlist
+  groups={@board_chrome.boardlist_groups || PostView.boardlist_groups(@boards)}
+  class_name="boardlist bottom"
+/>
 
 <%= if @board_chrome.footer_html do %>
   <%= raw(@board_chrome.footer_html) %>

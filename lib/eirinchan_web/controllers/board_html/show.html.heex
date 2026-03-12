@@ -456,15 +456,15 @@
 </div>
 
 <a name="bottom"></a>
-<%= raw(
-  PostView.boardlist_html(
+<.boardlist
+  groups={
     EirinchanWeb.BoardChrome.boardlist_groups(
       @boards,
       @board_chrome.boardlist_groups || PostView.boardlist_groups(@boards)
-    ),
-    "boardlist bottom"
-  )
-) %>
+    )
+  }
+  class_name="boardlist bottom"
+/>
 
 <%= if @board_chrome.footer_html do %>
   <%= raw(@board_chrome.footer_html) %>
