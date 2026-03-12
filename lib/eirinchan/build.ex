@@ -392,7 +392,6 @@ defmodule Eirinchan.Build do
     items =
       Enum.map_join(page_data.threads, "\n", fn summary ->
         title = html_escape(PostView.post_title(board, summary.thread, config))
-        body = render_body(summary.thread, board, summary.thread, config)
         media = render_media(summary.thread, config)
         replies = render_preview_replies(summary.replies, board, summary.thread, config)
         omitted = render_omitted(summary)
@@ -400,7 +399,7 @@ defmodule Eirinchan.Build do
         badges = render_thread_badges(summary.thread)
         delete_form = render_delete_form(board, summary.thread.id)
 
-        ~s(<article id="p#{summary.thread.id}"><h2><a href="#{thread_path}">#{title}</a></h2>#{badges}#{media}#{render_post_identity(summary.thread, board, config)}#{render_fileboard_summary(summary.thread, config)}#{render_post_body(summary.thread, body, config)}#{render_post_flags(summary.thread)}#{render_post_tag(summary.thread, config)}#{delete_form}#{omitted}#{replies}</article>)
+        ~s(<article id="p#{summary.thread.id}"><h2><a href="#{thread_path}">#{title}</a></h2>#{badges}#{media}#{render_post_identity(summary.thread, board, config)}#{render_body_container(summary.thread, board, summary.thread, config)}#{render_post_flags(summary.thread)}#{delete_form}#{omitted}#{replies}</article>)
       end)
 
     nav = render_pages(page_data, board, config)
@@ -437,11 +436,10 @@ defmodule Eirinchan.Build do
     replies_html =
       Enum.map_join(summary.replies, "\n", fn reply ->
         subject = html_escape(PostView.post_title(board, reply, config))
-        body = render_body(reply, board, summary.thread, config)
         media = render_media(reply, config)
         delete_form = render_delete_form(board, reply.id)
 
-        ~s(<article id="p#{reply.id}"><h3>#{subject}</h3>#{media}#{render_post_identity(reply, board, config)}#{render_fileboard_summary(reply, config)}#{render_post_body(reply, body, config)}#{render_post_flags(reply)}#{render_post_tag(reply, config)}#{delete_form}</article>)
+        ~s(<article id="p#{reply.id}"><h3>#{subject}</h3>#{media}#{render_post_identity(reply, board, config)}#{render_body_container(reply, board, summary.thread, config)}#{render_post_flags(reply)}#{delete_form}</article>)
       end)
 
     """
@@ -455,10 +453,8 @@ defmodule Eirinchan.Build do
     #{render_thread_badges(summary.thread)}
     #{render_media(summary.thread, config)}
     #{render_post_identity(summary.thread, board, config)}
-    #{render_fileboard_summary(summary.thread, config)}
-    #{render_post_body(summary.thread, render_body(summary.thread, board, summary.thread, config), config)}
+    #{render_body_container(summary.thread, board, summary.thread, config)}
     #{render_post_flags(summary.thread)}
-    #{render_post_tag(summary.thread, config)}
     #{render_delete_form(board, summary.thread.id)}
     </article>
     #{replies_html}
@@ -475,13 +471,12 @@ defmodule Eirinchan.Build do
       page_data.threads
       |> Enum.map_join("\n", fn summary ->
         title = html_escape(PostView.post_title(board, summary.thread, config))
-        body = render_body(summary.thread, board, summary.thread, config)
         media = render_media(summary.thread, config)
         thread_path = ThreadPaths.thread_path(board, summary.thread, config)
         badges = render_thread_badges(summary.thread)
         delete_form = render_delete_form(board, summary.thread.id)
 
-        ~s(<article id="catalog-#{summary.thread.id}"><h2><a href="#{thread_path}">#{title}</a></h2>#{badges}#{media}#{render_post_identity(summary.thread, board, config)}#{render_fileboard_summary(summary.thread, config)}#{render_post_body(summary.thread, body, config)}#{render_post_flags(summary.thread)}#{render_post_tag(summary.thread, config)}#{delete_form}<p>#{summary.reply_count} replies</p></article>)
+        ~s(<article id="catalog-#{summary.thread.id}"><h2><a href="#{thread_path}">#{title}</a></h2>#{badges}#{media}#{render_post_identity(summary.thread, board, config)}#{render_body_container(summary.thread, board, summary.thread, config)}#{render_post_flags(summary.thread)}#{delete_form}<p>#{summary.reply_count} replies</p></article>)
       end)
 
     """
@@ -631,44 +626,14 @@ defmodule Eirinchan.Build do
     })
   end
 
-  defp render_post_tag(%{tag: nil}, _config), do: ""
-  defp render_post_tag(%{tag: ""}, _config), do: ""
-
-  defp render_post_tag(%{tag: tag}, %{allowed_tags: allowed_tags}) when is_map(allowed_tags) do
-    label = Map.get(allowed_tags, tag, tag)
-    ~s(<p class="post-tag">Tag: #{html_escape(label)}</p>)
-  end
-
-  defp render_post_tag(%{tag: tag}, _config) do
-    ~s(<p class="post-tag">Tag: #{html_escape(tag)}</p>)
-  end
-
   defp render_preview_replies(replies, board, thread, config) do
     Enum.map_join(replies, "\n", fn reply ->
       body = render_body(reply, board, thread, config)
       media = render_media(reply, config)
 
-      ~s(<div class="reply-preview" id="p#{reply.id}">#{media}#{render_post_identity(reply, board, config)}<p>#{body}</p>#{render_post_flags(reply)}#{render_post_tag(reply, %{})}</div>)
+      ~s(<div class="reply-preview" id="p#{reply.id}">#{media}#{render_post_identity(reply, board, config)}<p>#{body}</p>#{render_post_flags(reply)}</div>)
     end)
   end
-
-  defp render_post_body(post, body, config) do
-    if PostView.show_body?(post, config) do
-      ~s(<p>#{body}</p>)
-    else
-      ""
-    end
-  end
-
-  defp render_fileboard_summary(post, %{fileboard: true}) do
-    if PostView.show_fileboard_summary?(post) do
-      ~s(<p class="fileboard-summary">Fileboard: #{html_escape(PostView.fileboard_summary(post))}</p>)
-    else
-      ""
-    end
-  end
-
-  defp render_fileboard_summary(_post, _config), do: ""
 
   defp render_media(post, config) do
     PostView.media_entries(post, config)
@@ -721,6 +686,16 @@ defmodule Eirinchan.Build do
         thread: thread,
         config: config
       })
+
+  defp render_body_container(post, board, thread, config) do
+    PostComponents.body_container_html(%{
+      post: post,
+      board: board,
+      thread: thread,
+      config: config,
+      hide_fileboard: false
+    })
+  end
 
   defp html_escape(nil), do: ""
 
