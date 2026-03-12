@@ -5,6 +5,7 @@ defmodule EirinchanWeb.Router do
     plug :accepts, ["html"]
     plug :fetch_session
     plug :fetch_cookies
+    plug EirinchanWeb.Plugs.DetectMobileClient
     plug EirinchanWeb.Plugs.FetchBrowserToken
     plug EirinchanWeb.Plugs.FetchCurrentModerator
     plug EirinchanWeb.Plugs.FetchTheme

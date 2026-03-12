@@ -87,6 +87,7 @@
     data-stylesheet={assigns[:body_data_stylesheet]}
     data-watcher-count={assigns[:watcher_count] || 0}
     data-watcher-you-count={assigns[:watcher_you_count] || 0}
+    data-mobile-client={to_string(assigns[:conn].assigns[:mobile_client?] || false)}
   >
     <%= if assigns[:global_boardlist_html] do %>
       <%= Phoenix.HTML.raw(assigns[:global_boardlist_html]) %>

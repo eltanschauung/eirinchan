@@ -301,6 +301,7 @@
     >
       <p class="intro">
         <input
+          :if={!@mobile_client?}
           type="checkbox"
           class="delete"
           name={"delete_#{post.id}"}
@@ -369,6 +370,7 @@
         <p class="intro">
           <a id={to_string(reply.id)} class="post_anchor"></a>
           <input
+            :if={!@mobile_client?}
             type="checkbox"
             class="delete"
             name={"delete_#{reply.id}"}
