@@ -291,6 +291,59 @@ defmodule EirinchanWeb.PostComponents do
     """
   end
 
+  attr :page_data, :map, required: true
+  attr :board_uri, :string, required: true
+  attr :config, :map, required: true
+
+  def board_pages(assigns) do
+    assigns =
+      assigns
+      |> assign(:previous_page, previous_page(assigns.page_data))
+      |> assign(:next_page, next_page(assigns.page_data))
+      |> assign(:catalog_label, catalog_label(assigns.config))
+      |> assign(:show_catalog, Eirinchan.Themes.page_theme_enabled?("catalog"))
+
+    ~H"""
+    <div class="pages">
+      <%= if @previous_page do %>
+        <a href={@previous_page.link}>Previous</a>
+      <% else %>
+        Previous
+      <% end %>
+      <%= for page <- @page_data.pages do %>
+        <%= if page.num == @page_data.page do %>
+          [<a class="selected"><%= page.num %></a>]
+        <% else %>
+          [<a href={page.link}><%= page.num %></a>]
+        <% end %>
+      <% end %>
+      <%= if @next_page do %>
+        <form action={@next_page.link} method="get"><input type="submit" value="Next" /></form>
+      <% end %>
+      <%= if @show_catalog do %>
+        |
+        <a href={"/#{@board_uri}/catalog.html"}><%= @catalog_label %></a>
+      <% end %>
+    </div>
+    """
+  end
+
+  attr :page_data, :map, required: true
+
+  def catalog_pages(assigns) do
+    ~H"""
+    <div class="pages">
+      <%= for page <- @page_data.pages do %>
+        <%= if page.num == @page_data.page do %>
+          [<a class="selected"><%= page.num %></a>]
+        <% else %>
+          [<a href={page.link}><%= page.num %></a>]
+        <% end %>
+      <% end %>
+    </div>
+    """
+  end
+
   attr :post, :map, required: true
   attr :board, :map, required: true
   attr :thread, :map, required: true
@@ -397,6 +450,25 @@ defmodule EirinchanWeb.PostComponents do
   end
 
   def reply_html(assigns), do: assigns |> reply() |> to_iodata() |> IO.iodata_to_binary()
+
+  defp previous_page(page_data) do
+    if page_data.page > 1, do: Enum.at(page_data.pages, page_data.page - 2), else: nil
+  end
+
+  defp next_page(page_data) do
+    if page_data.page < page_data.total_pages, do: Enum.at(page_data.pages, page_data.page), else: nil
+  end
+
+  defp catalog_label(config) do
+    config
+    |> Map.get(:catalog_name, "Catalog")
+    |> to_string()
+    |> String.trim()
+    |> case do
+      "" -> "Catalog"
+      value -> value
+    end
+  end
 
   defp quote_onclick(post_id, :navigate), do: "citeReply(#{post_id})"
   defp quote_onclick(post_id, _mode), do: "return citeReply(#{post_id}, false)"

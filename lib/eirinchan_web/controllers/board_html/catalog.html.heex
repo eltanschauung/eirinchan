@@ -248,7 +248,7 @@
     </span>
   </div>
   <div :if={@page_data.total_pages > 1} class="catalog-nav-row">
-    <%= raw(PostView.catalog_pages_html(@page_data)) %>
+    <.catalog_pages page_data={@page_data} />
   </div>
 </div>
 
@@ -344,7 +344,7 @@
     </span>
   </div>
   <div :if={@page_data.total_pages > 1} class="catalog-nav-row">
-    <%= raw(PostView.catalog_pages_html(@page_data)) %>
+    <.catalog_pages page_data={@page_data} />
   </div>
 </div>
 
