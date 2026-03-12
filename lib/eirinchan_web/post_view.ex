@@ -316,14 +316,12 @@ defmodule EirinchanWeb.PostView do
   end
 
   def post_controls_html(post, board, moderator, session_token) do
-    case post_controls(post, board, moderator, session_token) do
-      [] ->
-        nil
-
-      entries ->
-        class_name = if thread_op?(post), do: "controls op", else: "controls"
-        ~s(<span class="#{class_name}">#{Enum.map_join(entries, "&nbsp;", &control_entry_html/1)}</span>)
-    end
+    EirinchanWeb.PostComponents.post_controls_html(%{
+      post: post,
+      board: board,
+      moderator: moderator,
+      secure_manage_token: session_token
+    })
   end
 
   def reply_html(
@@ -357,24 +355,11 @@ defmodule EirinchanWeb.PostView do
   def file_class(post), do: if(media_count(post) > 1, do: "file multifile", else: "file")
 
   def file_image_html(file, config, opts \\ []) do
-    thumb_style_attr =
-      case thumb_style(file, config, opts) do
-        nil -> ""
-        style -> ~s( style="#{html_escape_to_string(style)}")
-      end
-
-    class_attr =
-      case file_link_class(file) do
-        nil -> ""
-        value -> ~s( class="#{html_escape_to_string(value)}")
-      end
-
-    image_classes =
-      ["post-image", if(Map.get(file, :spoiler, false), do: "spoiler-image", else: nil)]
-      |> Enum.reject(&is_nil/1)
-      |> Enum.join(" ")
-
-    ~s|<a href="#{html_escape_to_string(file.file_path)}" target="_blank"#{class_attr}><img class="#{image_classes}" src="#{html_escape_to_string(file_thumb_src(file, config))}" loading="lazy" decoding="async"#{thumb_style_attr} alt="" /></a>|
+    EirinchanWeb.PostComponents.file_image_html(%{
+      file: file,
+      config: config,
+      op?: Keyword.get(opts, :op, false)
+    })
   end
 
   def post_container_style(post), do: if(media_count(post) > 1, do: "clear:both", else: nil)
@@ -436,10 +421,16 @@ defmodule EirinchanWeb.PostView do
   end
 
   def file_controls_html(post, file, board, moderator, session_token) do
-    case file_controls(post, file, board, moderator, session_token) do
-      [] -> nil
-      entries -> ~s(<span class="controls">#{Enum.map_join(entries, "&nbsp;", &control_entry_html/1)}</span>)
-    end
+    html =
+      EirinchanWeb.PostComponents.file_controls_html(%{
+        post: post,
+        file: file,
+        board: board,
+        moderator: moderator,
+        secure_manage_token: session_token
+      })
+
+    if blank_fragment?(html), do: nil, else: html
   end
 
   def post_controls(post, board, moderator, session_token) do

@@ -319,12 +319,14 @@
                 <span class="subject"><%= PostView.catalog_label(post, @config) %></span>
               </p>
               <%= if PostView.catalog_label(post, @config), do: raw(""), else: raw("<br />") %>
-              <%= raw(
-                PostView.body_html(post, @board, post, @config,
-                  own_post_ids: @own_post_ids,
-                  show_yous: @show_yous
-                )
-              ) %>
+              <.summary_body
+                post={post}
+                board={@board}
+                thread={post}
+                config={@config}
+                own_post_ids={@own_post_ids}
+                show_yous={@show_yous}
+              />
             </div>
           </div>
         </div>
