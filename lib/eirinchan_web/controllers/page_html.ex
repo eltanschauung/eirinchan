@@ -5,7 +5,6 @@ defmodule EirinchanWeb.PageHTML do
   See the `page_html` directory for all templates available.
   """
   use EirinchanWeb, :html
-  alias EirinchanWeb.PostView
 
   attr :watch_summaries, :list, default: []
 
