@@ -12,7 +12,7 @@ defmodule Eirinchan.Build do
   alias Eirinchan.Repo
   alias Eirinchan.Themes
   alias Eirinchan.ThreadPaths
-  alias EirinchanWeb.PostView
+  alias EirinchanWeb.{PostComponents, PostView}
 
   @spec rebuild_after_post(BoardRecord.t(), Eirinchan.Posts.Post.t(), keyword()) ::
           :ok | {:error, term()}
@@ -400,10 +400,10 @@ defmodule Eirinchan.Build do
         badges = render_thread_badges(summary.thread)
         delete_form = render_delete_form(board, summary.thread.id)
 
-        ~s(<article id="p#{summary.thread.id}"><h2><a href="#{thread_path}">#{title}</a></h2>#{badges}#{media}#{render_post_identity(summary.thread)}#{render_fileboard_summary(summary.thread, config)}#{render_post_body(summary.thread, body, config)}#{render_post_flags(summary.thread)}#{render_post_tag(summary.thread, config)}#{delete_form}#{omitted}#{replies}</article>)
+        ~s(<article id="p#{summary.thread.id}"><h2><a href="#{thread_path}">#{title}</a></h2>#{badges}#{media}#{render_post_identity(summary.thread, board, config)}#{render_fileboard_summary(summary.thread, config)}#{render_post_body(summary.thread, body, config)}#{render_post_flags(summary.thread)}#{render_post_tag(summary.thread, config)}#{delete_form}#{omitted}#{replies}</article>)
       end)
 
-    nav = render_pages(page_data.pages, page_data.page)
+    nav = render_pages(page_data, board, config)
 
     """
     <!doctype html>
@@ -441,7 +441,7 @@ defmodule Eirinchan.Build do
         media = render_media(reply, config)
         delete_form = render_delete_form(board, reply.id)
 
-        ~s(<article id="p#{reply.id}"><h3>#{subject}</h3>#{media}#{render_post_identity(reply)}#{render_fileboard_summary(reply, config)}#{render_post_body(reply, body, config)}#{render_post_flags(reply)}#{render_post_tag(reply, config)}#{delete_form}</article>)
+        ~s(<article id="p#{reply.id}"><h3>#{subject}</h3>#{media}#{render_post_identity(reply, board, config)}#{render_fileboard_summary(reply, config)}#{render_post_body(reply, body, config)}#{render_post_flags(reply)}#{render_post_tag(reply, config)}#{delete_form}</article>)
       end)
 
     """
@@ -454,7 +454,7 @@ defmodule Eirinchan.Build do
     #{boardlist}
     #{render_thread_badges(summary.thread)}
     #{render_media(summary.thread, config)}
-    #{render_post_identity(summary.thread)}
+    #{render_post_identity(summary.thread, board, config)}
     #{render_fileboard_summary(summary.thread, config)}
     #{render_post_body(summary.thread, render_body(summary.thread, board, summary.thread, config), config)}
     #{render_post_flags(summary.thread)}
@@ -469,7 +469,7 @@ defmodule Eirinchan.Build do
 
   defp render_catalog(board, page_data, config) do
     boardlist = render_boardlist(Boards.list_boards())
-    nav = render_catalog_pages(page_data.pages, page_data.page)
+    nav = render_catalog_pages(page_data)
 
     items =
       page_data.threads
@@ -481,7 +481,7 @@ defmodule Eirinchan.Build do
         badges = render_thread_badges(summary.thread)
         delete_form = render_delete_form(board, summary.thread.id)
 
-        ~s(<article id="catalog-#{summary.thread.id}"><h2><a href="#{thread_path}">#{title}</a></h2>#{badges}#{media}#{render_post_identity(summary.thread)}#{render_fileboard_summary(summary.thread, config)}#{render_post_body(summary.thread, body, config)}#{render_post_flags(summary.thread)}#{render_post_tag(summary.thread, config)}#{delete_form}<p>#{summary.reply_count} replies</p></article>)
+        ~s(<article id="catalog-#{summary.thread.id}"><h2><a href="#{thread_path}">#{title}</a></h2>#{badges}#{media}#{render_post_identity(summary.thread, board, config)}#{render_fileboard_summary(summary.thread, config)}#{render_post_body(summary.thread, body, config)}#{render_post_flags(summary.thread)}#{render_post_tag(summary.thread, config)}#{delete_form}<p>#{summary.reply_count} replies</p></article>)
       end)
 
     """
@@ -517,17 +517,8 @@ defmodule Eirinchan.Build do
     end
   end
 
-  defp render_catalog_pages(pages, current_page) do
-    links =
-      Enum.map_join(pages, " ", fn page ->
-        if page.num == current_page do
-          ~s([<a class="selected">#{page.num}</a>])
-        else
-          ~s([<a href="#{page.link}">#{page.num}</a>])
-        end
-      end)
-
-    ~s(<div class="pages">#{links}</div>)
+  defp render_catalog_pages(page_data) do
+    PostComponents.catalog_pages_html(%{page_data: page_data})
   end
 
   defp thread_output_filenames(%{thread: thread}, config) do
@@ -632,16 +623,12 @@ defmodule Eirinchan.Build do
 
   defp render_post_flags(_post), do: ""
 
-  defp render_post_identity(%{name: nil, tripcode: nil}), do: ""
-
-  defp render_post_identity(post) do
-    label =
-      [post.name, post.tripcode]
-      |> Enum.reject(&is_nil/1)
-      |> Enum.map(&html_escape/1)
-      |> Enum.join(" ")
-
-    ~s(<p class="post-identity">#{label}</p>)
+  defp render_post_identity(post, board, config) do
+    PostComponents.post_identity_html(%{
+      post: post,
+      board: board,
+      config: config
+    })
   end
 
   defp render_post_tag(%{tag: nil}, _config), do: ""
@@ -661,7 +648,7 @@ defmodule Eirinchan.Build do
       body = render_body(reply, board, thread, config)
       media = render_media(reply, config)
 
-      ~s(<div class="reply-preview" id="p#{reply.id}">#{media}#{render_post_identity(reply)}<p>#{body}</p>#{render_post_flags(reply)}#{render_post_tag(reply, %{})}</div>)
+      ~s(<div class="reply-preview" id="p#{reply.id}">#{media}#{render_post_identity(reply, board, config)}<p>#{body}</p>#{render_post_flags(reply)}#{render_post_tag(reply, %{})}</div>)
     end)
   end
 
@@ -712,17 +699,12 @@ defmodule Eirinchan.Build do
 
   defp render_omitted(_summary), do: ""
 
-  defp render_pages(pages, current_page) do
-    links =
-      Enum.map_join(pages, " ", fn page ->
-        if page.num == current_page do
-          ~s(<strong>#{page.num}</strong>)
-        else
-          ~s(<a href="#{page.link}">#{page.num}</a>)
-        end
-      end)
-
-    ~s(<nav class="pages">#{links}</nav>)
+  defp render_pages(page_data, board, config) do
+    PostComponents.board_pages_html(%{
+      page_data: page_data,
+      board_uri: board.uri,
+      config: config
+    })
   end
 
   defp render_boardlist(boards) do
