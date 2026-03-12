@@ -82,6 +82,18 @@ $(document).ready(function(){
 
 	$('div.post.op').each(do_hide_threads);
 
+	$(document).on('clear_hidden_threads', function() {
+		hidden_data = {};
+		store_data();
+		$('.thread').each(function() {
+			var thread_container = $(this);
+			thread_container.find(fields_to_hide).show();
+			thread_container.find('.unhide-thread-link').remove();
+			thread_container.find('p.intro.thread-hidden').remove();
+			thread_container.find('.thread-hidden').removeClass('thread-hidden');
+		});
+	});
+
 	$(document).on('new_post', function(e, post) {
 		var op = $(post).is('div.post.op')
 			? post
