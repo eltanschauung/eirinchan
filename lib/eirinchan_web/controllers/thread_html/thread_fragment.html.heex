@@ -29,22 +29,9 @@
         <.backlinks post={reply} backlinks_map={@backlinks_map} />
       </p>
 
-      <.files_block
-        post={reply}
-        config={@config}
-        board={@board}
-        moderator={@current_moderator}
-        secure_manage_token={@secure_manage_token}
-      />
+      <.files_block post={reply} config={@config} board={@board} moderator={@current_moderator} secure_manage_token={@secure_manage_token} />
 
-      <.body_container
-        post={reply}
-        board={@board}
-        thread={@summary.thread}
-        config={@config}
-        own_post_ids={@own_post_ids}
-        show_yous={@show_yous}
-      />
+      <.body_container post={reply} board={@board} thread={@summary.thread} config={@config} own_post_ids={@own_post_ids} show_yous={@show_yous} />
     </div>
     <br class="clear" />
   <% end %>

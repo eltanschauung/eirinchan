@@ -295,15 +295,7 @@
           data-unwatch-url={"/watcher/#{@board.uri}/#{thread.id}"}
           data-watched={to_string(watch.watched)}
         >
-          <.files_block
-            :if={PostView.media_entries(thread, @config) != []}
-            post={thread}
-            config={@config}
-            op?={true}
-            board={@board}
-            moderator={@current_moderator}
-            secure_manage_token={@secure_manage_token}
-          />
+          <.files_block :if={PostView.media_entries(thread, @config) != []} post={thread} config={@config} op?={true} board={@board} moderator={@current_moderator} secure_manage_token={@secure_manage_token} />
 
           <div
             class="post op"
@@ -354,16 +346,7 @@
                 secure_manage_token={@secure_manage_token}
               />
             </p>
-            <.body_container
-              post={thread}
-              board={@board}
-              thread={thread}
-              config={@config}
-              op?={true}
-              hide_fileboard={true}
-              own_post_ids={@own_post_ids}
-              show_yous={@show_yous}
-            />
+            <.body_container post={thread} board={@board} thread={thread} config={@config} op?={true} hide_fileboard={true} own_post_ids={@own_post_ids} show_yous={@show_yous} />
             <span :if={PostView.omitted_text(summary)} class="omitted">
               <%= PostView.omitted_text(summary) %>
             </span>
@@ -398,27 +381,14 @@
                 />
                 <.backlinks post={reply} backlinks_map={@backlinks_map} />
               </p>
-              <.files_block
-                post={reply}
-                config={@config}
-                board={@board}
-                moderator={@current_moderator}
-                secure_manage_token={@secure_manage_token}
-              />
+              <.files_block post={reply} config={@config} board={@board} moderator={@current_moderator} secure_manage_token={@secure_manage_token} />
               <.post_controls
                 post={reply}
                 board={@board}
                 moderator={@current_moderator}
                 secure_manage_token={@secure_manage_token}
               />
-              <.body_container
-                post={reply}
-                board={@board}
-                thread={thread}
-                config={@config}
-                own_post_ids={@own_post_ids}
-                show_yous={@show_yous}
-              />
+              <.body_container post={reply} board={@board} thread={thread} config={@config} own_post_ids={@own_post_ids} show_yous={@show_yous} />
             </div>
             <br />
           <% end %>

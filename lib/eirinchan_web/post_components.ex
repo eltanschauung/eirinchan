@@ -208,24 +208,30 @@ defmodule EirinchanWeb.PostComponents do
   attr :secure_manage_token, :string, default: nil
 
   def files_block(assigns) do
+    media_html =
+      assigns.post
+      |> PostView.media_entries(assigns.config)
+      |> Enum.map(fn media ->
+        if PostView.embed_entry?(media) do
+          media.embed_html
+        else
+          file_block_html(%{
+            post: assigns.post,
+            file: media,
+            config: assigns.config,
+            op?: assigns.op?,
+            board: assigns.board,
+            moderator: assigns.moderator,
+            secure_manage_token: assigns.secure_manage_token
+          })
+        end
+      end)
+      |> IO.iodata_to_binary()
+
+    assigns = assign(assigns, :media_html, media_html)
+
     ~H"""
-    <div class="files">
-      <%= for media <- PostView.media_entries(@post, @config) do %>
-        <%= if PostView.embed_entry?(media) do %>
-          <%= raw(media.embed_html) %>
-        <% else %>
-          <.file_block
-            post={@post}
-            file={media}
-            config={@config}
-            op?={@op?}
-            board={@board}
-            moderator={@moderator}
-            secure_manage_token={@secure_manage_token}
-          />
-        <% end %>
-      <% end %>
-    </div>
+    <div class="files"><%= raw(@media_html) %></div>
     """
   end
 
