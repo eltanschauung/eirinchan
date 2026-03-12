@@ -240,6 +240,10 @@ if (active_page === 'thread' || active_page === 'index' || active_page === 'cata
 					postName = (typeof $ele.find('.name').contents()[0] == 'undefined') ? '' : nameSpanToString($ele.find('.name')[0]);
 					postTrip = $ele.find('.trip').text();
 				}
+				var postFlag = '';
+				if ($ele.find('.flag').length) {
+					postFlag = $ele.find('.flag').first().attr('title') || '';
+				}
 
 				/*  display logic and bind click handlers
 				 */
@@ -345,9 +349,9 @@ if (active_page === 'thread' || active_page === 'index' || active_page === 'cata
 				}
 
 				//  flag
-				if (hasFlag && !$ele.data('hiddenByFlag') && typeof flag !== 'undefined' && flag !== '') {
+				if (postFlag !== '' && !$ele.data('hiddenByFlag')) {
 					$buffer.find('#filter-add-flag').click(function () {
-						addFilter('flag', flag, false);
+						addFilter('flag', postFlag, false);
 					});
 				} else {
 					$buffer.find('#filter-add-flag').addClass('hidden');
