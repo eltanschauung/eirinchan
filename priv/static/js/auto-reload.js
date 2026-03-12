@@ -198,6 +198,18 @@ $(document).ready(function(){
 		return url.toString();
 	};
 
+	var has_active_inline_video = function() {
+		return Array.prototype.some.call(document.querySelectorAll('video'), function(video) {
+			if (!video.offsetParent) return false;
+			if (video.closest('#alert_handler')) return false;
+			return !!video.controls || !video.paused;
+		});
+	};
+
+	var should_defer_for_media = function() {
+		return has_active_inline_video();
+	};
+
 	var fragment_md5_url = function() {
 		var url = new URL(document.location.href);
 		url.searchParams.set('fragment', 'md5');
@@ -225,6 +237,14 @@ $(document).ready(function(){
 
 	var refresh_if_changed = function(pollFn) {
 		if (!can_start_poll()) {
+			return false;
+		}
+
+		if (should_defer_for_media()) {
+			if ($('#auto_update_status').is(':checked')) {
+				poll_interval_delay = poll_interval_mindelay;
+				auto_update(poll_interval_delay);
+			}
 			return false;
 		}
 
