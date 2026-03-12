@@ -284,19 +284,8 @@ defmodule EirinchanWeb.BoardController do
   defp fragment_md5_request?(%{"fragment" => "md5"}), do: true
   defp fragment_md5_request?(_params), do: false
 
-  defp render_fragment_md5(view, template, assigns) do
-    html =
-      Phoenix.Template.render_to_string(
-        view,
-        Atom.to_string(template),
-        "html",
-        Keyword.put(assigns, :fragment_md5, nil)
-      )
-
-    :md5
-    |> :crypto.hash(html)
-    |> Base.encode16(case: :lower)
-  end
+  defp render_fragment_md5(view, template, assigns),
+    do: EirinchanWeb.FragmentHash.md5(view, template, assigns)
 
   defp require_catalog_theme(conn, _opts) do
     EirinchanWeb.Plugs.RequirePageTheme.call(conn, theme: "catalog")
