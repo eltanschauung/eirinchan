@@ -1,6 +1,7 @@
 defmodule EirinchanWeb.PostComponents do
   use Phoenix.Component
   import Phoenix.HTML, only: [raw: 1]
+  import Phoenix.HTML.Safe, only: [to_iodata: 1]
 
   alias EirinchanWeb.{IpPresentation, PostView}
 
@@ -295,6 +296,77 @@ defmodule EirinchanWeb.PostComponents do
     </div>
     """
   end
+
+  attr :post, :map, required: true
+  attr :board, :map, required: true
+  attr :thread, :map, required: true
+  attr :config, :map, required: true
+  attr :moderator, :map, default: nil
+  attr :secure_manage_token, :string, default: nil
+  attr :backlinks_map, :map, default: %{}
+  attr :own_post_ids, :any, default: MapSet.new()
+  attr :show_yous, :boolean, default: false
+  attr :mobile_client?, :boolean, default: false
+
+  def reply(assigns) do
+    ~H"""
+    <div class="post reply" id={"reply_#{@post.id}"}>
+      <p class="intro">
+        <a id={to_string(@post.id)} class="post_anchor"></a>
+        <input
+          :if={!@mobile_client?}
+          type="checkbox"
+          class="delete"
+          name={"delete_#{@post.id}"}
+          id={"delete_#{@post.id}"}
+          value={@post.id}
+          data-post-select=""
+        />
+        <.reply_post_button post_target={"reply_#{@post.id}"} />
+        <label for={"delete_#{@post.id}"}>
+          <.post_identity
+            post={@post}
+            config={@config}
+            board={@board}
+            moderator={@moderator}
+            own={@show_yous and MapSet.member?(@own_post_ids, @post.id)}
+          />
+        </label>
+        <.post_number_links
+          post_id={@post.id}
+          post_href={PostView.thread_path(@board, @thread, @config) <> "##{@post.id}"}
+          quote_href={PostView.reply_path(@board, @thread, @post, @config, :quote)}
+          quote_to={@post.id}
+        />
+        <.backlinks post={@post} backlinks_map={@backlinks_map} />
+      </p>
+      <.files_block
+        post={@post}
+        config={@config}
+        board={@board}
+        moderator={@moderator}
+        secure_manage_token={@secure_manage_token}
+      />
+      <.post_controls
+        post={@post}
+        board={@board}
+        moderator={@moderator}
+        secure_manage_token={@secure_manage_token}
+      />
+      <.body_container
+        post={@post}
+        board={@board}
+        thread={@thread}
+        config={@config}
+        own_post_ids={@own_post_ids}
+        show_yous={@show_yous}
+      />
+    </div>
+    <br class="clear" />
+    """
+  end
+
+  def reply_html(assigns), do: assigns |> reply() |> to_iodata() |> IO.iodata_to_binary()
 
   defp quote_onclick(post_id, :navigate), do: "citeReply(#{post_id})"
   defp quote_onclick(post_id, _mode), do: "return citeReply(#{post_id}, false)"

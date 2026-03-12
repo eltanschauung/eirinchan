@@ -338,53 +338,18 @@ defmodule EirinchanWeb.PostView do
         show_yous \\ false,
         mobile_client? \\ false
       ) do
-    identity =
-      [
-        if(present?(post.subject),
-          do: ~s(<span class="subject">#{html_escape_to_string(post.subject)}</span>),
-          else: nil
-        ),
-        name_html(post, config),
-        if(present?(post.tripcode),
-          do: ~s(<span class="trip">#{html_escape_to_string(post.tripcode)}</span>),
-          else: nil
-        ),
-        if(show_yous and MapSet.member?(own_post_ids, post.id),
-          do: ~s|<span class="own_post">(You)</span>|,
-          else: nil
-        ),
-        ip_link_html(post, board, moderator),
-        post_flags_html(post, config),
-        time_html(post)
-      ]
-      |> Enum.reject(&blank_fragment?/1)
-      |> Enum.join(" ")
-
-    intro =
-      [
-        ~s(<a id="#{post.id}" class="post_anchor"></a>),
-        if(
-          mobile_client?,
-          do: nil,
-          else:
-            ~s(<input type="checkbox" class="delete" name="delete_#{post.id}" id="delete_#{post.id}" value="#{post.id}" data-post-select />)
-        ),
-        ~s(<a href="#" class="post-btn" title="Post menu" data-post-target="reply_#{post.id}">▶</a>),
-        ~s(<label for="delete_#{post.id}">),
-        identity,
-        "</label>",
-        post_number_links_html(
-          post.id,
-          thread_path(board, thread, config) <> "##{post.id}",
-          reply_path(board, thread, post, config, :quote),
-          "data-quote-to": post.id
-        ),
-        backlinks_html(post, backlinks_map)
-      ]
-      |> Enum.reject(&blank_fragment?/1)
-      |> Enum.join("")
-
-    ~s(<div class="post reply" id="reply_#{post.id}"><p class="intro">#{intro}</p><div class="files">#{files_html(post, config, moderator, board, session_token)}</div>#{post_controls_html(post, board, moderator, session_token) || ""}#{reply_body_container_html(post, board, thread, config, own_post_ids: own_post_ids, show_yous: show_yous)}</div><br class="clear" />)
+    EirinchanWeb.PostComponents.reply_html(%{
+      post: post,
+      board: board,
+      thread: thread,
+      config: config,
+      moderator: moderator,
+      secure_manage_token: session_token,
+      backlinks_map: backlinks_map,
+      own_post_ids: own_post_ids,
+      show_yous: show_yous,
+      mobile_client?: mobile_client?
+    })
   end
 
   def file_size_text(file), do: human_file_size(Map.get(file, :file_size))
