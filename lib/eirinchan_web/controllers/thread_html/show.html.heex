@@ -253,15 +253,7 @@
     data-watched={to_string(@thread_watch.watched)}
   >
     <a id={to_string(post.id)} class="post_anchor"></a>
-    <.files_block
-      :if={PostView.media_entries(post, @config) != []}
-      post={post}
-      config={@config}
-      op?={true}
-      board={@board}
-      moderator={@current_moderator}
-      secure_manage_token={@secure_manage_token}
-    />
+      <.files_block :if={PostView.media_entries(post, @config) != []} post={post} config={@config} op?={true} board={@board} moderator={@current_moderator} secure_manage_token={@secure_manage_token} />
 
     <div
       class="post op"
@@ -331,15 +323,7 @@
         />
       </p>
 
-      <.body_container
-        post={post}
-        board={@board}
-        thread={post}
-        config={@config}
-        op?={true}
-        own_post_ids={@own_post_ids}
-        show_yous={@show_yous}
-      />
+      <.body_container post={post} board={@board} thread={post} config={@config} op?={true} own_post_ids={@own_post_ids} show_yous={@show_yous} />
     </div>
 
     <div id="thread-refresh-target" data-fragment-md5={@fragment_md5}>
@@ -373,13 +357,7 @@
           <.backlinks post={reply} backlinks_map={@backlinks_map} />
         </p>
 
-        <.files_block
-          post={reply}
-          config={@config}
-          board={@board}
-          moderator={@current_moderator}
-          secure_manage_token={@secure_manage_token}
-        />
+        <.files_block post={reply} config={@config} board={@board} moderator={@current_moderator} secure_manage_token={@secure_manage_token} />
 
         <.post_controls
           post={reply}
@@ -387,14 +365,7 @@
           moderator={@current_moderator}
           secure_manage_token={@secure_manage_token}
         />
-        <.body_container
-          post={reply}
-          board={@board}
-          thread={post}
-          config={@config}
-          own_post_ids={@own_post_ids}
-          show_yous={@show_yous}
-        />
+        <.body_container post={reply} board={@board} thread={post} config={@config} own_post_ids={@own_post_ids} show_yous={@show_yous} />
         </div>
         <br />
       <% end %>
