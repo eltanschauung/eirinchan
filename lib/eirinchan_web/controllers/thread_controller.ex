@@ -64,6 +64,7 @@ defmodule EirinchanWeb.ThreadController do
             thread_watch: thread_watch,
             watcher_count: watcher_count,
             watcher_you_count: watcher_you_count,
+            mobile_client?: conn.assigns[:mobile_client?] || false,
             current_moderator: conn.assigns[:current_moderator],
             secure_manage_token: conn.assigns[:secure_manage_token],
             config: config,

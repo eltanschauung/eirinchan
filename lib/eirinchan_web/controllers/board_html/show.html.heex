@@ -402,6 +402,7 @@
             <div class="post reply" id={"reply_#{reply.id}"}>
               <p class="intro">
                 <input
+                  :if={!@mobile_client?}
                   type="checkbox"
                   class="delete"
                   name={"delete_#{reply.id}"}

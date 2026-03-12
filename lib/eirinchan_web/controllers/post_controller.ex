@@ -159,7 +159,8 @@ defmodule EirinchanWeb.PostController do
                   conn.assigns[:secure_manage_token],
                   %{},
                   MapSet.new([post.id]),
-                  ShowYous.enabled?(conn)
+                  ShowYous.enabled?(conn),
+                  conn.assigns[:mobile_client?] || false
                 )
               )
 

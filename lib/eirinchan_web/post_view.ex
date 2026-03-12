@@ -386,7 +386,8 @@ defmodule EirinchanWeb.PostView do
         session_token \\ nil,
         backlinks_map \\ %{},
         own_post_ids \\ MapSet.new(),
-        show_yous \\ false
+        show_yous \\ false,
+        mobile_client? \\ false
       ) do
     identity =
       [
@@ -413,7 +414,12 @@ defmodule EirinchanWeb.PostView do
     intro =
       [
         ~s(<a id="#{post.id}" class="post_anchor"></a>),
-        ~s(<input type="checkbox" class="delete" name="delete_#{post.id}" id="delete_#{post.id}" value="#{post.id}" data-post-select />),
+        if(
+          mobile_client?,
+          do: nil,
+          else:
+            ~s(<input type="checkbox" class="delete" name="delete_#{post.id}" id="delete_#{post.id}" value="#{post.id}" data-post-select />)
+        ),
         ~s(<a href="#" class="post-btn" title="Post menu" data-post-target="reply_#{post.id}">▶</a>),
         ~s(<label for="delete_#{post.id}">),
         identity,
@@ -426,6 +432,7 @@ defmodule EirinchanWeb.PostView do
         ),
         backlinks_html(post, backlinks_map)
       ]
+      |> Enum.reject(&blank_fragment?/1)
       |> Enum.join("")
 
     ~s(<div class="post reply" id="reply_#{post.id}"><p class="intro">#{intro}</p><div class="files">#{files_html(post, config, moderator, board, session_token)}</div>#{post_controls_html(post, board, moderator, session_token) || ""}#{reply_body_container_html(post, board, thread, config, own_post_ids: own_post_ids, show_yous: show_yous)}</div><br class="clear" />)

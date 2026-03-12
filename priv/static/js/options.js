@@ -103,6 +103,7 @@ options_tablist = $("<div id='options_tablist'></div>").appendTo(options_div);
 
 
 $(function(){
+  var mobileClient = document.body && document.body.dataset && document.body.dataset.mobileClient === 'true';
   options_links = $("<span id='admin_options_links'></span>").css({"float": "right"});
   options_button = $("<a href='javascript:void(0)' title='"+_("Options")+"'>["+_("Options")+"]</a>");
   admin_button = $("<a href='/manage' title='"+_("Admin")+"'>["+_("Admin")+"]</a>");
@@ -110,22 +111,28 @@ $(function(){
   if (isNaN(watcherCount)) watcherCount = 0;
   var watcherYouCount = parseInt(document.body && document.body.dataset ? document.body.dataset.watcherYouCount : '0', 10);
   if (isNaN(watcherYouCount)) watcherYouCount = 0;
-  watcher_button = $("<a id='watcher-link' href='javascript:void(0)' title='"+_("Watcher")+"' aria-label='"+_("Watcher")+"'>👁</a>");
-  watcher_button.toggleClass('replies-quoting-you', watcherYouCount > 0);
+  if (!mobileClient) {
+    watcher_button = $("<a id='watcher-link' href='javascript:void(0)' title='"+_("Watcher")+"' aria-label='"+_("Watcher")+"'>👁</a>");
+    watcher_button.toggleClass('replies-quoting-you', watcherYouCount > 0);
+  }
 
   if ($(".boardlist.compact-boardlist").length) {
     options_button.addClass("cb-item cb-fa").html("<i class='fa fa-gear'></i>");
     admin_button.addClass("cb-item").text(_("Admin"));
-    watcher_button.addClass("cb-item");
-    watcher_button.appendTo(options_links);
-    $("<span>&nbsp;</span>").appendTo(options_links);
+    if (watcher_button) {
+      watcher_button.addClass("cb-item");
+      watcher_button.appendTo(options_links);
+      $("<span>&nbsp;</span>").appendTo(options_links);
+    }
     admin_button.appendTo(options_links);
     $("<span>&nbsp;</span>").appendTo(options_links);
     options_button.appendTo(options_links);
   }
   else {
-    watcher_button.appendTo(options_links);
-    $("<span>&nbsp;</span>").appendTo(options_links);
+    if (watcher_button) {
+      watcher_button.appendTo(options_links);
+      $("<span>&nbsp;</span>").appendTo(options_links);
+    }
     admin_button.appendTo(options_links);
     $("<span>&nbsp;</span>").appendTo(options_links);
     options_button.appendTo(options_links);
