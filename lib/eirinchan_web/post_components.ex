@@ -202,18 +202,61 @@ defmodule EirinchanWeb.PostComponents do
             title={PostView.original_file_name(@file)}
           ><%= PostView.display_file_name(@file, @config) %></span>)
         </span>
-        <%= raw(
-          PostView.file_controls_html(
-            @post,
-            @file,
-            @board,
-            @moderator,
-            @secure_manage_token
-          ) || ""
-        ) %>
+        <.file_controls
+          post={@post}
+          file={@file}
+          board={@board}
+          moderator={@moderator}
+          secure_manage_token={@secure_manage_token}
+        />
       </p>
       <%= raw(PostView.file_image_html(@file, @config, op?: @op?)) %>
     </div>
+    """
+  end
+
+  attr :post, :map, required: true
+  attr :board, :map, default: nil
+  attr :moderator, :map, default: nil
+  attr :secure_manage_token, :string, default: nil
+
+  def post_controls(assigns) do
+    assigns =
+      assign(assigns, :controls, PostView.post_controls(assigns.post, assigns.board, assigns.moderator, assigns.secure_manage_token))
+
+    ~H"""
+    <span :if={@controls != []} class={if is_nil(@post.thread_id), do: "controls op", else: "controls"}>
+      <%= for {control, index} <- Enum.with_index(@controls) do %><%= if index > 0, do: raw("&nbsp;") %><.control_link control={control} /><% end %>
+    </span>
+    """
+  end
+
+  attr :post, :map, required: true
+  attr :file, :map, required: true
+  attr :board, :map, default: nil
+  attr :moderator, :map, default: nil
+  attr :secure_manage_token, :string, default: nil
+
+  def file_controls(assigns) do
+    assigns =
+      assign(assigns, :controls, PostView.file_controls(assigns.post, assigns.file, assigns.board, assigns.moderator, assigns.secure_manage_token))
+
+    ~H"""
+    <span :if={@controls != []} class="controls">
+      <%= for {control, index} <- Enum.with_index(@controls) do %><%= if index > 0, do: raw("&nbsp;") %><.control_link control={control} /><% end %>
+    </span>
+    """
+  end
+
+  attr :control, :map, required: true
+
+  def control_link(assigns) do
+    ~H"""
+    <a
+      title={@control.title}
+      href={@control.href}
+      onclick={control_onclick(@control)}
+    ><%= @control.label %></a>
     """
   end
 
@@ -265,4 +308,16 @@ defmodule EirinchanWeb.PostComponents do
   defp body_style_attr(post, config, _op?) do
     if length(PostView.media_entries(post, config)) > 1, do: "clear:both", else: nil
   end
+
+  defp control_onclick(%{kind: :confirm, confirm: message, secure: secure_href}) do
+    escaped_message =
+      message
+      |> to_string()
+      |> String.replace("\\", "\\\\")
+      |> String.replace("'", "\\'")
+
+    "if (event.which==2) return true;if (confirm('#{escaped_message}')) document.location='#{secure_href}';return false;"
+  end
+
+  defp control_onclick(_control), do: nil
 end

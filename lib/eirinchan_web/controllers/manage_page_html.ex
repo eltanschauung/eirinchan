@@ -63,7 +63,12 @@ defmodule EirinchanWeb.ManagePageHTML do
               <img class="icon" title={icon.title} src={icon.path} alt={icon.title} />
             <% end %>
             <a href={PostView.thread_path(@board, @post, @config)}>[Reply]</a>
-            <%= raw(PostView.post_controls_html(@post, @board, @moderator, @secure_manage_token)) %>
+            <.post_controls
+              post={@post}
+              board={@board}
+              moderator={@moderator}
+              secure_manage_token={@secure_manage_token}
+            />
           </p>
           <.body_container
             post={@post}
@@ -111,7 +116,12 @@ defmodule EirinchanWeb.ManagePageHTML do
           secure_manage_token={@secure_manage_token}
         />
 
-        <%= raw(PostView.post_controls_html(@post, @board, @moderator, @secure_manage_token)) %>
+        <.post_controls
+          post={@post}
+          board={@board}
+          moderator={@moderator}
+          secure_manage_token={@secure_manage_token}
+        />
         <.body_container
           post={@post}
           board={@board}
