@@ -267,7 +267,7 @@ defmodule EirinchanWeb.PageController do
       board_chrome: chrome,
       global_message: current_global_message(),
       custom_pages: CustomPages.list_pages(),
-      global_boardlist_html: PostView.boardlist_html(PostView.boardlist_groups(boards)),
+      global_boardlist_groups: PostView.boardlist_groups(boards),
       public_shell: true,
       viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",
       base_stylesheet: "/stylesheets/style.css",
@@ -406,7 +406,7 @@ defmodule EirinchanWeb.PageController do
 
     [
       boards: boards,
-      global_boardlist_html: PostView.boardlist_html(PostView.boardlist_groups(boards)),
+      global_boardlist_groups: PostView.boardlist_groups(boards),
       footer_html: EirinchanWeb.BoardChrome.footer_html(),
       public_shell: true,
       viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",

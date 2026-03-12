@@ -5,6 +5,26 @@ defmodule EirinchanWeb.PostComponents do
 
   alias EirinchanWeb.{IpPresentation, PostView}
 
+  attr :groups, :list, required: true
+  attr :class_name, :string, default: "boardlist"
+
+  def boardlist(assigns) do
+    ~H"""
+    <div class={@class_name}>
+      <%= for group <- @groups do %>
+        <% links = group[:links] || group %>
+        <span class="sub" data-description={group[:description]}>
+          [
+          <%= for {link, index} <- Enum.with_index(links) do %>
+            <%= if index > 0, do: " / " %><a href={link.href} title={link.title}><%= link.label %></a>
+          <% end %>
+          ]
+        </span><%= if group != List.last(@groups), do: "  " %>
+      <% end %>
+    </div>
+    """
+  end
+
   attr :post, :map, required: true
   attr :config, :map, required: true
   attr :board, :map, required: true
