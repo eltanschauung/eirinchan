@@ -71,12 +71,10 @@ defmodule EirinchanWeb.ThreadController do
             page_num: page_num,
             boards: boards,
             board_chrome: chrome,
-            global_boardlist_html:
-              PostView.boardlist_html(
-                BoardChrome.boardlist_groups(
-                  boards,
-                  chrome.boardlist_groups || PostView.boardlist_groups(boards)
-                )
+            global_boardlist_groups:
+              BoardChrome.boardlist_groups(
+                boards,
+                chrome.boardlist_groups || PostView.boardlist_groups(boards)
               ),
             public_shell: true,
             viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",

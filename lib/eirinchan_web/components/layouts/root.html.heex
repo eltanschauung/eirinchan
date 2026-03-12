@@ -89,8 +89,11 @@
     data-watcher-you-count={assigns[:watcher_you_count] || 0}
     data-mobile-client={to_string(assigns[:conn].assigns[:mobile_client?] || false)}
   >
-    <%= if assigns[:global_boardlist_html] do %>
-      <%= Phoenix.HTML.raw(assigns[:global_boardlist_html]) %>
+    <%= if assigns[:global_boardlist_groups] do %>
+      <EirinchanWeb.PostComponents.boardlist
+        groups={assigns[:global_boardlist_groups]}
+        class_name={assigns[:global_boardlist_class_name] || "boardlist"}
+      />
       <%= if assigns[:javascript_urls] && assigns[:javascript_urls] != [] do %>
         <script type="text/javascript">
           document.addEventListener('DOMContentLoaded', function () {

@@ -79,8 +79,7 @@ defmodule EirinchanWeb.SearchController do
       global_message: current_global_message(),
       board_chrome: BoardChrome.for_board(%{uri: "bant"}),
       custom_pages: CustomPages.list_pages(),
-      global_boardlist_html:
-        EirinchanWeb.PostView.boardlist_html(EirinchanWeb.PostView.boardlist_groups(boards)),
+      global_boardlist_groups: EirinchanWeb.PostView.boardlist_groups(boards),
       current_moderator: conn.assigns[:current_moderator],
       secure_manage_token: conn.assigns[:secure_manage_token],
       own_post_ids: own_post_ids,
