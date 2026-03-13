@@ -757,6 +757,116 @@ defmodule Eirinchan.PostsTest do
     assert {:ok, _thread} = Posts.get_post(board, old_thread.id)
   end
 
+  test "create_post prunes overflow threads when max pages are exceeded" do
+    board =
+      board_fixture(%{
+        config_overrides: %{
+          early_404: false,
+          threads_per_page: 1,
+          max_pages: 1,
+          flood_time: 0,
+          flood_time_ip: 0,
+          flood_time_same: 0
+        }
+      })
+
+    config = post_config(board.config_overrides)
+    request = Map.put(post_request(board.uri), :remote_ip, {203, 0, 113, 40})
+
+    {:ok, old_thread, _meta} =
+      Posts.create_post(
+        board,
+        %{"body" => "old", "post" => "New Topic"},
+        config: config,
+        request: request,
+        repo: Repo
+      )
+
+    Process.sleep(1000)
+
+    {:ok, new_thread, _meta} =
+      Posts.create_post(
+        board,
+        %{"body" => "new", "post" => "New Topic"},
+        config: config,
+        request: request,
+        repo: Repo
+      )
+
+    assert {:error, :not_found} = Posts.get_post(board, old_thread.id, repo: Repo)
+    assert {:ok, _thread} = Posts.get_post(board, new_thread.id, repo: Repo)
+  end
+
+  test "create_post staged early-404 raises thresholds by page" do
+    board =
+      board_fixture(%{
+        config_overrides: %{
+          early_404: true,
+          early_404_page: 1,
+          early_404_replies: 2,
+          early_404_staged: true,
+          threads_per_page: 1,
+          max_pages: 5,
+          flood_time: 0,
+          flood_time_ip: 0,
+          flood_time_same: 0
+        }
+      })
+
+    config = post_config(board.config_overrides)
+    request = Map.put(post_request(board.uri), :remote_ip, {203, 0, 113, 41})
+
+    {:ok, staged_thread, _meta} =
+      Posts.create_post(
+        board,
+        %{"body" => "staged survivor", "post" => "New Topic"},
+        config: config,
+        request: request,
+        repo: Repo
+      )
+
+    for _ <- 1..4 do
+      assert {:ok, _reply, _meta} =
+               Posts.create_post(
+                 board,
+                 %{
+                   "body" => "sage",
+                   "email" => "sage",
+                   "thread" => Integer.to_string(staged_thread.id),
+                   "post" => "Reply"
+                 },
+                 config: config,
+                 request: request,
+                 repo: Repo
+               )
+    end
+
+    Process.sleep(1000)
+
+    {:ok, doomed_thread, _meta} =
+      Posts.create_post(
+        board,
+        %{"body" => "doomed", "post" => "New Topic"},
+        config: config,
+        request: request,
+        repo: Repo
+      )
+
+    Process.sleep(1000)
+
+    {:ok, _newest_thread, _meta} =
+      Posts.create_post(
+        board,
+        %{"body" => "newest", "post" => "New Topic"},
+        config: config,
+        request: request,
+        repo: Repo
+      )
+
+    assert {:error, :not_found} = Posts.get_post(board, doomed_thread.id, repo: Repo)
+    assert {:ok, _thread} = Posts.get_post(board, staged_thread.id, repo: Repo)
+  end
+
   test "create_post fetches remote uploads when url uploads are enabled" do
     board =
       board_fixture(%{
