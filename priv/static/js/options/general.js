@@ -47,7 +47,6 @@ $(function(){
   });
 
   $("#style-select").detach().css({display:"block",float:"none","margin-bottom":0}).appendTo(prefBox);
-  $("#file-drag-drop").detach().appendTo(prefBox);
   $(document).trigger("general_preferences_ready");
 });
 

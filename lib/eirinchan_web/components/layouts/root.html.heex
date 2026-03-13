@@ -105,8 +105,7 @@
     <.nav_arrows :if={
       assigns[:public_shell] &&
         assigns[:show_nav_arrows_page] &&
-        Map.get(assigns[:conn].cookies || %{}, "navarrows") != "false" &&
-        !(assigns[:conn].assigns[:mobile_client?] || false)
+        Map.get(assigns[:conn].cookies || %{}, "navarrows") != "false"
     } />
     <%= @inner_content %>
     <div
