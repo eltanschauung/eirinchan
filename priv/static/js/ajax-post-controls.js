@@ -47,7 +47,7 @@ $(window).ready(function() {
 								$(form).find('input[name="reason"]').val('');
 							}
 						} else {
-							setTimeout(function() { window.location.reload(); }, 5000);
+							window.location.reload();
 						}
 					} else {
 						alert(_('An unknown error occured!'));
