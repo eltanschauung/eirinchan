@@ -1,5 +1,6 @@
 defmodule EirinchanWeb.ManageSessionControllerTest do
   use EirinchanWeb.ConnCase, async: true
+  import Ecto.Query, only: [from: 2]
 
   test "login creates a moderator session and logout clears it", %{conn: conn} do
     moderator = moderator_fixture(%{username: "admin", password: "secret123"})
@@ -13,12 +14,9 @@ defmodule EirinchanWeb.ManageSessionControllerTest do
              "data" => %{
                "id" => id,
                "username" => "admin",
-               "role" => "admin",
-               "secure_token" => secure_token
+               "role" => "admin"
              }
            } = json_response(login_conn, 200)
-
-    assert is_binary(secure_token)
 
     session_conn =
       login_conn
@@ -26,16 +24,8 @@ defmodule EirinchanWeb.ManageSessionControllerTest do
       |> put_req_header("accept", "application/json")
       |> get("/manage/session")
 
-    assert %{"data" => %{"id" => ^id, "username" => "admin", "secure_token" => ^secure_token}} =
+    assert %{"data" => %{"id" => ^id, "username" => "admin", "role" => "admin"}} =
              json_response(session_conn, 200)
-
-    token_conn =
-      login_conn
-      |> recycle()
-      |> put_req_header("accept", "application/json")
-      |> get("/manage/secure-token")
-
-    assert %{"data" => %{"secure_token" => ^secure_token}} = json_response(token_conn, 200)
 
     logout_conn =
       login_conn
@@ -52,6 +42,57 @@ defmodule EirinchanWeb.ManageSessionControllerTest do
       |> get("/manage/session")
 
     assert %{"error" => "unauthorized"} = json_response(unauthorized_conn, 401)
+  end
+
+  test "sessions are invalidated after password hash changes", %{conn: conn} do
+    moderator = moderator_fixture(%{username: "admin", password: "secret123"})
+
+    login_conn =
+      conn
+      |> put_req_header("accept", "application/json")
+      |> post("/manage/login", %{"username" => moderator.username, "password" => "secret123"})
+
+    updated =
+      moderator
+      |> Eirinchan.Moderation.ModUser.create_changeset(%{
+        "username" => moderator.username,
+        "password" => "newsecret456",
+        "role" => moderator.role
+      })
+      |> Ecto.Changeset.apply_changes()
+
+    Eirinchan.Repo.update_all(
+      from(user in Eirinchan.Moderation.ModUser, where: user.id == ^moderator.id),
+      set: [
+        password_hash: updated.password_hash,
+        password_salt: updated.password_salt,
+        updated_at: DateTime.utc_now() |> DateTime.truncate(:microsecond)
+      ]
+    )
+
+    assert %{"error" => "unauthorized"} =
+             login_conn
+             |> recycle()
+             |> put_req_header("accept", "application/json")
+             |> get("/manage/session")
+             |> json_response(401)
+  end
+
+  test "sessions are invalidated when the client IP changes", %{conn: conn} do
+    moderator = moderator_fixture(%{username: "admin", password: "secret123"})
+
+    login_conn =
+      conn
+      |> put_req_header("accept", "application/json")
+      |> post("/manage/login", %{"username" => moderator.username, "password" => "secret123"})
+
+    assert %{"error" => "unauthorized"} =
+             login_conn
+             |> recycle()
+             |> Map.put(:remote_ip, {8, 8, 8, 8})
+             |> put_req_header("accept", "application/json")
+             |> get("/manage/session")
+             |> json_response(401)
   end
 
   test "manage routes reject anonymous requests", %{conn: conn} do

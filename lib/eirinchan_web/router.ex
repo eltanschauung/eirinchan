@@ -168,7 +168,6 @@ defmodule EirinchanWeb.Router do
 
     post "/login", ManageSessionController, :create
     get "/session", ManageSessionController, :show
-    get "/secure-token", ManageSessionController, :secure_token
     delete "/logout", ManageSessionController, :delete
   end
 

@@ -69,6 +69,7 @@ defmodule Eirinchan.Runtime.Config do
     ipcrypt_key: "",
     ipcrypt_prefix: "Cloak",
     ipcrypt_immune_ip: "0.0.0.0",
+    mod_lock_ip: true,
     ip_nulling: false,
     ip_nulling_flags: 0,
     auto_maintenance: false,
