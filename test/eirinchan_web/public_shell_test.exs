@@ -141,6 +141,7 @@ defmodule EirinchanWeb.PublicShellTest do
       url_javascript: "/main.js",
       additional_javascript: [
         "js/jquery.min.js",
+        "js/show-op.js",
         "js/show-backlinks.js",
         "js/show-own-posts.js",
         "js/catalog-link.js",
