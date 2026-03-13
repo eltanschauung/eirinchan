@@ -15,14 +15,8 @@ defmodule EirinchanWeb.PublicShell do
 
     board_name =
       case Keyword.get(opts, :board_name) do
-        nil -> "null"
-        value -> ~s("#{value}")
-      end
-
-    thread_fragment =
-      case Keyword.get(opts, :thread_id) do
         nil -> ""
-        value -> ~s(, thread_id = "#{value}")
+        value -> to_string(value)
       end
 
     selected_style = Keyword.get(opts, :theme_label, "Yotsuba")
@@ -50,11 +44,20 @@ defmodule EirinchanWeb.PublicShell do
       |> Jason.encode!()
 
     """
-    <script type="text/javascript">var active_page = "#{active_page}", board_name = #{board_name}#{thread_fragment};</script><script type="text/javascript">var configRoot="/";var inMod = false;var modRoot="/"+(inMod ? "mod.php?/" : "");var resourceVersion=#{Jason.encode!(resource_version)};</script>
-    <script type="text/javascript">var selectedstyle = #{Jason.encode!(selected_style)}; var styles = #{styles_json};</script>
-    <script type="text/javascript">var stylesheets_board = #{if stylesheets_board, do: "true", else: "false"};</script>
-    <script type="text/javascript">var genpassword_chars = #{Jason.encode!(Map.get(config, :genpassword_chars))}; var post_success_cookie_name = "eirinchan_posted"; var watcher_count = #{watcher_count}; var watcher_you_count = #{watcher_you_count};</script>
-    <script type="text/javascript">(function(){try{var tz=Intl.DateTimeFormat().resolvedOptions().timeZone;var offset=-new Date().getTimezoneOffset();var current=#{Jason.encode!(browser_timezone)};var currentOffset=#{browser_timezone_offset_minutes};if(!tz&&isNaN(offset)){return;}if(tz===current&&offset===currentOffset){return;}if(tz){document.cookie="timezone="+encodeURIComponent(tz)+"; path=/; max-age=31536000; samesite=lax";}if(!isNaN(offset)){document.cookie="timezone_offset="+offset+"; path=/; max-age=31536000; samesite=lax";}}catch(_e){}})();</script>
+    <meta name="eirinchan:active-page" content="#{escape(active_page)}" />
+    <meta name="eirinchan:board-name" content="#{escape(board_name)}" />
+    <meta name="eirinchan:thread-id" content="#{escape(to_string(Keyword.get(opts, :thread_id) || ""))}" />
+    <meta name="eirinchan:config-root" content="/" />
+    <meta name="eirinchan:resource-version" content="#{escape(resource_version)}" />
+    <meta name="eirinchan:selected-style" content="#{escape(selected_style)}" />
+    <meta name="eirinchan:styles" content="#{escape(styles_json)}" />
+    <meta name="eirinchan:stylesheets-board" content="#{if stylesheets_board, do: "true", else: "false"}" />
+    <meta name="eirinchan:genpassword-chars" content="#{escape(Map.get(config, :genpassword_chars))}" />
+    <meta name="eirinchan:post-success-cookie-name" content="eirinchan_posted" />
+    <meta name="eirinchan:watcher-count" content="#{watcher_count}" />
+    <meta name="eirinchan:watcher-you-count" content="#{watcher_you_count}" />
+    <meta name="eirinchan:browser-timezone" content="#{escape(browser_timezone)}" />
+    <meta name="eirinchan:browser-timezone-offset" content="#{browser_timezone_offset_minutes}" />
     """
     |> String.trim()
   end
@@ -67,7 +70,8 @@ defmodule EirinchanWeb.PublicShell do
       when active_page in [:index, :thread, :catalog] do
     javascript_urls(active_page, config)
     |> Enum.filter(
-      &(&1 in [
+        &(&1 in [
+          "/js/runtime-config.js",
           config.url_javascript,
           "/js/jquery.min.js",
           "/js/ajax.js",
@@ -81,7 +85,12 @@ defmodule EirinchanWeb.PublicShell do
   def eager_javascript_urls(_active_page, _config), do: []
 
   def javascript_urls(active_page, config) do
-    main = [config.url_javascript]
+    main =
+      [
+        additional_javascript_url(config, "js/runtime-config.js"),
+        config.url_javascript
+      ]
+      |> Enum.reject(&is_nil/1)
 
     if Map.get(config, :additional_javascript_compile, false) do
       main
@@ -135,12 +144,9 @@ defmodule EirinchanWeb.PublicShell do
         label = option.label || option.name || "Style"
         selected_class = if label == selected_label, do: " class=\"selected\"", else: ""
         escaped_label = Phoenix.HTML.html_escape(label) |> Phoenix.HTML.safe_to_string()
-        escaped_js_label =
-          label
-          |> Jason.encode!()
-          |> String.replace("\"", "&quot;")
+        escaped_value = Phoenix.HTML.html_escape(label) |> Phoenix.HTML.safe_to_string()
 
-        "<a href=\"javascript:void(0)\"#{selected_class} onclick=\"return changeStyle(#{escaped_js_label}, this)\">[#{escaped_label}]</a>"
+        "<a href=\"#\"#{selected_class} data-style-name=\"#{escaped_value}\">[#{escaped_label}]</a>"
       end)
       |> Enum.join("")
 
@@ -161,7 +167,7 @@ defmodule EirinchanWeb.PublicShell do
       |> Enum.join("")
 
     """
-    <div id="style-select" style="display:none;float:right;margin-bottom:10px">Style: <select onchange="return changeStyle(this.value)">${options}</select></div>
+    <div id="style-select" style="display:none;float:right;margin-bottom:10px">Style: <select data-style-select>${options}</select></div>
     """
     |> String.replace("${options}", options)
   end

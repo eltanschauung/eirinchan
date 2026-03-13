@@ -74,7 +74,7 @@ defmodule EirinchanWeb.PostComponents do
           <div id="general-preferences">
             <div :if={@theme_options != []} id="style-select" style="float:none;margin-bottom:0px">
               Style:
-              <select onchange="return changeStyle(this.value)">
+              <select data-style-select>
                 <%= for option <- @theme_options do %>
                   <% label = option.label || option.name || "Style" %>
                   <option value={label} selected={label == @theme_label}><%= label %></option>
@@ -183,12 +183,13 @@ defmodule EirinchanWeb.PostComponents do
     &nbsp;<a
       class="post_no"
       id={"post_no_#{@post_id}"}
-      onclick={"highlightReply(#{@post_id})"}
+      data-highlight-reply={@post_id}
       href={@post_href}
     >No.</a>
     <a
       class="post_no"
-      onclick={quote_onclick(@post_id, @quote_mode)}
+      data-cite-reply={@post_id}
+      data-cite-mode={quote_mode_value(@quote_mode)}
       href={@quote_href}
       data-quote-to={@quote_to}
       data-quick-reply-thread={@quick_reply_thread}
@@ -223,7 +224,7 @@ defmodule EirinchanWeb.PostComponents do
       <%= for backlink_id <- @backlinks do %>
         <a
           class={"mentioned-#{backlink_id}"}
-          onclick={"highlightReply('#{backlink_id}');"}
+          data-highlight-reply={backlink_id}
           href={"##{backlink_id}"}
         >
           &gt;&gt;<%= backlink_id %>
@@ -290,7 +291,7 @@ defmodule EirinchanWeb.PostComponents do
       |
       <a
         href="/manage/logout/browser"
-        onclick="document.getElementById('admin-shortcuts-logout-form').submit(); return false;"
+        data-submit-form="admin-shortcuts-logout-form"
       >
         Logout
       </a>
@@ -550,7 +551,12 @@ defmodule EirinchanWeb.PostComponents do
 
   def control_link(assigns) do
     ~H"""
-    <a title={@control.title} href={@control.href} onclick={control_onclick(@control)}><%= @control.label %></a>
+    <a
+      title={@control.title}
+      href={@control.href}
+      data-confirm-message={confirm_message(@control)}
+      data-secure-href={secure_href(@control)}
+    ><%= @control.label %></a>
     """
   end
 
@@ -966,8 +972,8 @@ defmodule EirinchanWeb.PostComponents do
     end
   end
 
-  defp quote_onclick(post_id, :navigate), do: "citeReply(#{post_id})"
-  defp quote_onclick(post_id, _mode), do: "return citeReply(#{post_id}, false)"
+  defp quote_mode_value(:navigate), do: "navigate"
+  defp quote_mode_value(_mode), do: "inline"
 
   defp visible_ip(post, board, moderator) do
     if PostView.can_view_ip?(moderator, board) and post.ip_subnet do
@@ -979,17 +985,11 @@ defmodule EirinchanWeb.PostComponents do
     if length(PostView.media_entries(post, config)) > 1, do: "clear:both", else: nil
   end
 
-  defp control_onclick(%{kind: :confirm, confirm: message, secure: secure_href}) do
-    escaped_message =
-      message
-      |> to_string()
-      |> String.replace("\\", "\\\\")
-      |> String.replace("'", "\\'")
+  defp confirm_message(%{kind: :confirm, confirm: message}), do: message
+  defp confirm_message(_control), do: nil
 
-    "if (event.which==2) return true;if (confirm('#{escaped_message}')) document.location='#{secure_href}';return false;"
-  end
-
-  defp control_onclick(_control), do: nil
+  defp secure_href(%{kind: :confirm, secure: href}), do: href
+  defp secure_href(_control), do: nil
 
   defp with_component_assigns(assigns) when is_map(assigns) do
     assigns

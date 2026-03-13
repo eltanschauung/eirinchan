@@ -1068,7 +1068,7 @@ defmodule EirinchanWeb.PostView do
           do: " <small>(You)</small>",
           else: ""
 
-      "<a onclick=\"highlightReply('#{id}', event);\" href=\"#{href}\">&gt;&gt;#{id}</a>#{op}#{you}"
+      "<a data-highlight-reply=\"#{id}\" href=\"#{href}\">&gt;&gt;#{id}</a>#{op}#{you}"
     end)
   end
 
