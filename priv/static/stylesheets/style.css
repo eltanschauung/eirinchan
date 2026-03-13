@@ -1236,6 +1236,63 @@ div.boardlist a {
   margin-right: 10px;
 }
 
+.post-menu {
+  position: absolute;
+  font-size: 12px;
+  line-height: 1.3em;
+}
+
+.post-menu ul {
+  background-color: #d9bfb7;
+  border: 1px solid #666;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.post-menu .post-submenu {
+  white-space: normal;
+  width: 90px;
+}
+
+.post-menu .post-submenu > ul {
+  white-space: nowrap;
+  width: auto;
+}
+
+.post-menu li {
+  cursor: pointer;
+  position: relative;
+  padding: 4px 4px;
+  vertical-align: middle;
+}
+
+.post-menu li:hover {
+  background-color: #ffe;
+}
+
+.post-menu ul ul {
+  display: none;
+  position: absolute;
+}
+
+.post-menu li:hover > ul {
+  display: block;
+  left: 100%;
+  margin-top: -3px;
+}
+
+.post-menu-arrow {
+  float: right;
+  margin-left: 10px;
+}
+
+.post-menu.hidden,
+.post-menu .hidden {
+  display: none;
+}
+
 .posts_by_id {
   display: none;
 }

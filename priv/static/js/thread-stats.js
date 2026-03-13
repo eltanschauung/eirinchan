@@ -14,13 +14,8 @@ $(document).ready(function(){
 		return;
 	}
 
-	var IDsupport = ($('.poster_id').length > 0);
 	var thread_id = (document.location.pathname + document.location.search).split('/');
 	thread_id = thread_id[thread_id.length -1].split('+')[0].split('-')[0].split('.')[0];
-
-	if (IDsupport && !$('#thread_stats_uids').length) {
-		$('#thread_stats_images').parent().prepend('<span id="thread_stats_uids">0</span> UIDs |&nbsp;');
-	}
 
 	function refreshThreadPage() {
 		var board_name = $('input[name="board"]').val();
@@ -44,52 +39,12 @@ $(document).ready(function(){
 	}
 
 	function update_thread_stats(){
-		var op = $('#thread_'+ thread_id +' > div.post.op:not(.post-hover):not(.inline)').first();
 		var replies = $('#thread_'+ thread_id +' > div.post.reply:not(.post-hover):not(.inline)');
 
 		$('#thread_stats_posts').text(replies.length);
 		$('#thread_stats_images').text(replies.filter(function(){
 			return $(this).find('> .files').text().trim() != false;
 		}).length);
-
-		if (IDsupport) {
-			var opID = op.find('> .intro > .poster_id').text();
-			var ids = {};
-
-			replies.each(function(){
-				var cur = $(this).find('> .intro > .poster_id');
-				var curID = cur.text();
-				if (ids[curID] === undefined) {
-					ids[curID] = 0;
-				}
-				ids[curID]++;
-			});
-
-			if (ids[opID] === undefined) {
-				ids[opID] = 0;
-			}
-			ids[opID]++;
-
-			var cur = op.find('>.intro >.poster_id');
-			cur.find('+.posts_by_id').remove();
-			cur.after('<span class="posts_by_id"> ('+ ids[cur.text()] +')</span>');
-
-			replies.each(function(){
-				cur = $(this).find('>.intro >.poster_id');
-				cur.find('+.posts_by_id').remove();
-				cur.after('<span class="posts_by_id"> ('+ ids[cur.text()] +')</span>');
-			});
-
-			var size = function(obj) {
-				var count = 0, key;
-				for (key in obj) {
-					if (obj.hasOwnProperty(key)) count++;
-				}
-				return count;
-			};
-
-			$('#thread_stats_uids').text(size(ids));
-		}
 
 		refreshThreadPage();
 	}

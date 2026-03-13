@@ -173,6 +173,8 @@ defmodule EirinchanWeb.PublicShell do
           "/js/unspoiler3.js",
           "js/style-select.js",
           "/js/style-select.js",
+          "js/show-op.js",
+          "/js/show-op.js",
           "js/show-backlinks.js",
           "/js/show-backlinks.js",
           "js/show-own-posts.js",
