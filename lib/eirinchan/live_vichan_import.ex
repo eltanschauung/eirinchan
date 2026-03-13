@@ -333,7 +333,7 @@ defmodule Eirinchan.LiveVichanImport do
           Path.basename(stored_name)
         else
           legacy_file["thumb"] ||
-          Path.basename(stored_name)
+            Path.basename(stored_name)
         end
 
       file_rel = "/#{board.uri}/src/#{stored_name}"
