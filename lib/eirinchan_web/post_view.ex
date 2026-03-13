@@ -653,12 +653,14 @@ defmodule EirinchanWeb.PostView do
     |> Enum.map(&format_body_line(&1, board, thread, config, opts))
   end
 
+  # Compatibility wrapper for builder/test paths that still consume binary HTML.
   def body_container_html(post, board, thread, config, opts \\ []) do
     EirinchanWeb.PostComponents.body_container_html(%{
       post: post,
       board: board,
       thread: thread,
       config: config,
+      op?: Keyword.get(opts, :op?, false),
       hide_fileboard: Keyword.get(opts, :hide_fileboard, false),
       own_post_ids: Keyword.get(opts, :own_post_ids, MapSet.new()),
       show_yous: Keyword.get(opts, :show_yous, false)

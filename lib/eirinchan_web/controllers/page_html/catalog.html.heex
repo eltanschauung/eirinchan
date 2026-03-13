@@ -15,15 +15,13 @@
             /<%= board.uri %>/ <%= summary.thread.subject || "Untitled" %>
           </a>
         </h2>
-        <%= raw(
-          EirinchanWeb.PostComponents.summary_body_html(%{
-            class: "body",
-            post: summary.thread,
-            board: board,
-            thread: summary.thread,
-            config: %{fileboard: false}
-          })
-        ) %>
+        <.summary_body
+          class="body"
+          post={summary.thread}
+          board={board}
+          thread={summary.thread}
+          config={%{fileboard: false}}
+        />
         <p><%= summary.reply_count %> replies</p>
       </article>
       <hr />

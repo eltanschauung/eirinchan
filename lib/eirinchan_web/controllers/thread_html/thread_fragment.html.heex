@@ -37,12 +37,14 @@
         secure_manage_token={@secure_manage_token}
       />
 
-      <%= raw(
-        PostView.body_container_html(reply, @board, @summary.thread, @config,
-          own_post_ids: @own_post_ids,
-          show_yous: @show_yous
-        )
-      ) %>
+      <.body_container
+        post={reply}
+        board={@board}
+        thread={@summary.thread}
+        config={@config}
+        own_post_ids={@own_post_ids}
+        show_yous={@show_yous}
+      />
     </div>
     <br class="clear" />
   <% end %>
