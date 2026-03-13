@@ -347,4 +347,29 @@ defmodule Eirinchan.Runtime.ConfigTest do
     refute default_config.ip_nulling
     assert enabled_config.ip_nulling
   end
+
+  test "defaults ip_nulling_flags to zero and accepts instance override" do
+    default_config =
+      Config.compose(
+        %{
+          root: "/",
+          dir: %{img: "img/", thumb: "thumb/", res: "res/"}
+        },
+        %{},
+        %{}
+      )
+
+    enabled_config =
+      Config.compose(
+        %{
+          root: "/",
+          dir: %{img: "img/", thumb: "thumb/", res: "res/"}
+        },
+        %{"ipNullingFlags" => 8},
+        %{}
+      )
+
+    assert default_config.ip_nulling_flags == 0
+    assert enabled_config.ip_nulling_flags == 8
+  end
 end
