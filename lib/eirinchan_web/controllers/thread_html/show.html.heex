@@ -26,10 +26,11 @@
 <form
   name="post"
   id="reply-form"
-  onsubmit="return dopost(this);"
   enctype="multipart/form-data"
   action="/post.php"
   method="post"
+  data-post-form
+  data-max-images={@config.max_images}
   data-thread-reply-form
   data-remember-stuff
   data-board-uri={@board.uri}
@@ -186,9 +187,6 @@
       <td>
         <input :if={@config.max_images > 1} type="file" name="files[]" id="upload_file" multiple />
         <input :if={@config.max_images <= 1} type="file" name="file" id="upload_file" />
-        <script type="text/javascript">
-          if (typeof init_file_selector !== 'undefined') init_file_selector(<%= @config.max_images %>);
-        </script>
       </td>
     </tr>
     <tr
@@ -219,10 +217,6 @@
     </tr>
   </table>
 </form>
-
-<script type="text/javascript">
-  rememberStuff();
-</script>
 
 <template id="quick-reply-template"><%= raw(@quick_reply_html) %></template>
 

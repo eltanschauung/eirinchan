@@ -21,11 +21,12 @@
 
 <form
   name="post"
-  onsubmit="return dopost(this);"
   enctype="multipart/form-data"
   action="/post.php"
   method="post"
   id="new-thread-form"
+  data-post-form
+  data-max-images={@config.max_images}
   data-remember-stuff
   data-board-uri={@board.uri}
   data-draft-key="new"
@@ -171,9 +172,6 @@
       <td>
         <input :if={@config.max_images > 1} type="file" name="files[]" id="upload_file" multiple />
         <input :if={@config.max_images <= 1} type="file" name="file" id="upload_file" />
-        <script type="text/javascript">
-          if (typeof init_file_selector !== 'undefined') init_file_selector(<%= @config.max_images %>);
-        </script>
         <div
           :if={@config.upload_by_url_enabled}
           style="float:none;text-align:left"

@@ -42,7 +42,8 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ ~s(href="/recent.css)
     assert page =~ ~s(id="stylesheet" href="/stylesheets/yotsuba.css)
     assert page =~ ~s(data-stylesheet="yotsuba.css")
-    assert page =~ ~s(var active_page = "index", board_name = null;)
+    assert page =~ ~s(name="eirinchan:active-page" content="index")
+    assert page =~ ~s(name="eirinchan:board-name" content="")
     assert page =~ ~s(src="/main.js)
     assert page =~ ~s(id="options_handler")
     assert page =~ ~s(id="style-select")
@@ -77,7 +78,8 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ "Board online"
     assert page =~ "editor"
     assert page =~ ~s(class="boardlist")
-    assert page =~ ~s(var active_page = "news", board_name = null;)
+    assert page =~ ~s(name="eirinchan:active-page" content="news")
+    assert page =~ ~s(name="eirinchan:board-name" content="")
     assert page =~ "Tinyboard + vichan 5.2.2 +"
     assert page =~ ~s(href="https://github.com/username/eirinchan-v1")
   end
@@ -475,7 +477,7 @@ defmodule EirinchanWeb.PageControllerTest do
       |> html_response(200)
 
     assert page =~ ~s(data-watcher-count="1")
-    assert page =~ ~s(var watcher_count = 1;)
+    assert page =~ ~s(name="eirinchan:watcher-count" content="1")
   end
 
   test "public pages expose watcher you count for top bar", %{conn: conn} do
@@ -500,6 +502,6 @@ defmodule EirinchanWeb.PageControllerTest do
       |> html_response(200)
 
     assert page =~ ~s(data-watcher-you-count="1")
-    assert page =~ ~s(var watcher_you_count = 1;)
+    assert page =~ ~s(name="eirinchan:watcher-you-count" content="1")
   end
 end
