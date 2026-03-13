@@ -230,15 +230,22 @@ defmodule EirinchanWeb.PostView do
     |> maybe_add_icon(post.cycle, config.image_cyclical, "Cyclical")
   end
 
-  def formatted_timestamp(%{inserted_at: %NaiveDateTime{} = inserted_at}) do
-    Calendar.strftime(inserted_at, "%m/%d/%y (%a) %H:%M:%S")
+  def formatted_timestamp(post, config \\ %{})
+
+  def formatted_timestamp(%{inserted_at: %NaiveDateTime{} = inserted_at}, config) do
+    inserted_at
+    |> DateTime.from_naive!("Etc/UTC")
+    |> display_datetime(config)
+    |> Calendar.strftime("%m/%d/%y (%a) %H:%M:%S")
   end
 
-  def formatted_timestamp(%{inserted_at: %DateTime{} = inserted_at}) do
-    Calendar.strftime(DateTime.to_naive(inserted_at), "%m/%d/%y (%a) %H:%M:%S")
+  def formatted_timestamp(%{inserted_at: %DateTime{} = inserted_at}, config) do
+    inserted_at
+    |> display_datetime(config)
+    |> Calendar.strftime("%m/%d/%y (%a) %H:%M:%S")
   end
 
-  def formatted_timestamp(_post), do: ""
+  def formatted_timestamp(_post, _config), do: ""
 
   def iso_timestamp(%{inserted_at: %DateTime{} = inserted_at}),
     do: DateTime.to_iso8601(inserted_at)
@@ -247,6 +254,18 @@ defmodule EirinchanWeb.PostView do
     do: NaiveDateTime.to_iso8601(inserted_at)
 
   def iso_timestamp(_post), do: nil
+
+  def relative_timestamp(%{inserted_at: %NaiveDateTime{} = inserted_at}) do
+    inserted_at
+    |> DateTime.from_naive!("Etc/UTC")
+    |> relative_timestamp_string()
+  end
+
+  def relative_timestamp(%{inserted_at: %DateTime{} = inserted_at}) do
+    relative_timestamp_string(inserted_at)
+  end
+
+  def relative_timestamp(_post), do: ""
 
   def unix_timestamp(%DateTime{} = value), do: DateTime.to_unix(value)
 
@@ -1003,14 +1022,67 @@ defmodule EirinchanWeb.PostView do
     Regex.replace(~r/&gt;&gt;(\d+)/, line, fn _match, id ->
       post_id = String.to_integer(id)
       href = ThreadPaths.thread_path(board, thread, config) <> "##{id}"
+      op =
+        if thread && Map.get(thread, :id) == post_id,
+          do: " <small>(OP)</small>",
+          else: ""
 
       you =
         if show_yous and MapSet.member?(own_post_ids, post_id),
           do: " <small>(You)</small>",
           else: ""
 
-      "<a onclick=\"highlightReply('#{id}', event);\" href=\"#{href}\">&gt;&gt;#{id}</a>#{you}"
+      "<a onclick=\"highlightReply('#{id}', event);\" href=\"#{href}\">&gt;&gt;#{id}</a>#{op}#{you}"
     end)
+  end
+
+  defp relative_timestamp_string(%DateTime{} = inserted_at) do
+    current_time = DateTime.utc_now() |> DateTime.to_unix(:millisecond)
+    post_time = DateTime.to_unix(inserted_at, :millisecond)
+    elapsed = max(current_time - post_time, 0)
+
+    ms_per_minute = 60 * 1000
+    ms_per_hour = ms_per_minute * 60
+    ms_per_day = ms_per_hour * 24
+    ms_per_month = ms_per_day * 30
+    ms_per_year = ms_per_day * 365
+
+    cond do
+      elapsed < ms_per_minute ->
+        "Just now"
+
+      elapsed < ms_per_hour ->
+        amount = round(elapsed / ms_per_minute)
+        "#{amount} #{pluralize(amount, "minute")} ago"
+
+      elapsed < ms_per_day ->
+        amount = round(elapsed / ms_per_hour)
+        "#{amount} #{pluralize(amount, "hour")} ago"
+
+      elapsed < ms_per_month ->
+        amount = round(elapsed / ms_per_day)
+        "#{amount} #{pluralize(amount, "day")} ago"
+
+      elapsed < ms_per_year ->
+        amount = round(elapsed / ms_per_month)
+        "#{amount} #{pluralize(amount, "month")} ago"
+
+      true ->
+        amount = round(elapsed / ms_per_year)
+        "#{amount} #{pluralize(amount, "year")} ago"
+    end
+  end
+
+  defp pluralize(1, unit), do: unit
+  defp pluralize(_count, unit), do: unit <> "s"
+
+  defp display_datetime(%DateTime{} = inserted_at, config) do
+    timezone = Map.get(config, :timezone, "UTC")
+
+    case DateTime.shift_zone(inserted_at, timezone) do
+      {:ok, shifted} -> shifted
+      _ -> inserted_at
+    end
   end
 
   defp normalize_embedding_rule([pattern, html]) when is_binary(html),

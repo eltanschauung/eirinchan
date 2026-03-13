@@ -37,11 +37,27 @@
           </a>
           <div class="replies">
             <strong>R: <%= summary.reply_count %> / I: <%= summary.image_count %></strong>
+            <.post_controls
+              post={post}
+              board={@board}
+              moderator={@current_moderator}
+              secure_manage_token={@secure_manage_token}
+            />
             <p :if={PostView.catalog_label(post, @config)} class="intro">
               <span class="subject"><%= PostView.catalog_label(post, @config) %></span>
             </p>
-            <%= if !PostView.catalog_label(post, @config) do %><br /><% end %>
-            <.summary_body post={post} board={@board} thread={post} config={@config} />
+            <%= if !PostView.catalog_label(post, @config) do %>
+              <br />
+            <% end %>
+            <%= raw(
+              EirinchanWeb.PostComponents.summary_body_html(%{
+                class: nil,
+                post: post,
+                board: @board,
+                thread: post,
+                config: @config
+              })
+            ) %>
           </div>
         </div>
       </div>

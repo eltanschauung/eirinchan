@@ -686,12 +686,17 @@ defmodule Eirinchan.Posts do
         nil ->
           acc
 
-        {pattern, replacement} ->
-          Enum.reduce(["name", "email", "subject", "body"], acc, fn field, field_acc ->
-            Map.update(field_acc, field, nil, fn
-              nil -> nil
-              value -> Regex.replace(pattern, value, replacement)
-            end)
+        {:literal, pattern, replacement} ->
+          Map.update(acc, "body", nil, fn
+            nil -> nil
+            value ->
+              Regex.replace(Regex.compile!(Regex.escape(pattern), "iu"), value, replacement)
+          end)
+
+        {:regex, pattern, replacement} ->
+          Map.update(acc, "body", nil, fn
+            nil -> nil
+            value -> Regex.replace(pattern, value, replacement)
           end)
       end
     end)
@@ -701,20 +706,54 @@ defmodule Eirinchan.Posts do
 
   defp normalize_wordfilter({pattern, replacement})
        when is_binary(pattern) and is_binary(replacement) do
-    {Regex.compile!(pattern, "u"), replacement}
+    {:literal, pattern, replacement}
   end
 
-  defp normalize_wordfilter(%{"pattern" => pattern, "replacement" => replacement})
+  defp normalize_wordfilter({pattern, replacement, regex?})
        when is_binary(pattern) and is_binary(replacement) do
-    normalize_wordfilter({pattern, replacement})
+    if truthy?(regex?) do
+      {:regex, Regex.compile!(pattern, "u"), replacement}
+    else
+      {:literal, pattern, replacement}
+    end
   end
 
-  defp normalize_wordfilter(%{pattern: pattern, replacement: replacement})
+  defp normalize_wordfilter([pattern, replacement])
        when is_binary(pattern) and is_binary(replacement) do
-    normalize_wordfilter({pattern, replacement})
+    {:literal, pattern, replacement}
+  end
+
+  defp normalize_wordfilter([pattern, replacement, regex?])
+       when is_binary(pattern) and is_binary(replacement) do
+    if truthy?(regex?) do
+      {:regex, Regex.compile!(pattern, "u"), replacement}
+    else
+      {:literal, pattern, replacement}
+    end
+  end
+
+  defp normalize_wordfilter(%{"pattern" => pattern, "replacement" => replacement} = entry)
+       when is_binary(pattern) and is_binary(replacement) do
+    if truthy?(Map.get(entry, "regex")) do
+      {:regex, Regex.compile!(pattern, "u"), replacement}
+    else
+      {:literal, pattern, replacement}
+    end
+  end
+
+  defp normalize_wordfilter(%{pattern: pattern, replacement: replacement} = entry)
+       when is_binary(pattern) and is_binary(replacement) do
+    if truthy?(Map.get(entry, :regex)) do
+      {:regex, Regex.compile!(pattern, "u"), replacement}
+    else
+      {:literal, pattern, replacement}
+    end
   end
 
   defp normalize_wordfilter(_filter), do: nil
+
+  defp truthy?(value) when value in [true, "true", "1", 1, "yes", "on"], do: true
+  defp truthy?(_value), do: false
 
   defp escape_markup_modifiers(attrs) do
     Enum.reduce(["body"], attrs, fn field, acc ->

@@ -127,6 +127,7 @@ defmodule EirinchanWeb.SearchController do
     end
   end
 
+
   defp board_from_param(nil), do: nil
   defp board_from_param(""), do: nil
   defp board_from_param(uri), do: Boards.get_board_by_uri(uri)

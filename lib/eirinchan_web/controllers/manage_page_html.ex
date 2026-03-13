@@ -70,15 +70,13 @@ defmodule EirinchanWeb.ManagePageHTML do
               secure_manage_token={@secure_manage_token}
             />
           </p>
-          <.body_container
-            post={@post}
-            board={@board}
-            thread={@post}
-            config={@config}
-            op?={true}
-            own_post_ids={@own_post_ids}
-            show_yous={@show_yous}
-          />
+          <%= raw(
+            PostView.body_container_html(@post, @board, @post, @config,
+              op?: true,
+              own_post_ids: @own_post_ids,
+              show_yous: @show_yous
+            )
+          ) %>
         </div>
 
         <br class="clear" />
@@ -122,14 +120,12 @@ defmodule EirinchanWeb.ManagePageHTML do
           moderator={@moderator}
           secure_manage_token={@secure_manage_token}
         />
-        <.body_container
-          post={@post}
-          board={@board}
-          thread={@thread}
-          config={@config}
-          own_post_ids={@own_post_ids}
-          show_yous={@show_yous}
-        />
+        <%= raw(
+          PostView.body_container_html(@post, @board, @thread, @config,
+            own_post_ids: @own_post_ids,
+            show_yous: @show_yous
+          )
+        ) %>
       </div>
     <% end %>
     """

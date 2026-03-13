@@ -496,8 +496,26 @@ defmodule EirinchanWeb.ThreadControllerTest do
       |> html_response(200)
 
     assert page =~ ~s(href="/#{board.uri}/res/#{thread.id}.html##{thread.id}")
+    assert page =~ "&gt;&gt;#{thread.id}</a> <small>(OP)</small>"
     assert page =~ ~s(class="quote")
     assert page =~ Integer.to_string(reply.id)
+  end
+
+  test "thread pages pre-render local time attributes", %{conn: conn} do
+    board = board_fixture()
+    thread = thread_fixture(board, %{body: "Opening body"})
+
+    page =
+      conn
+      |> get("/#{board.uri}/res/#{thread.id}.html")
+      |> html_response(200)
+
+    document = Floki.parse_document!(page)
+    times = Floki.find(document, "time")
+
+    assert times != []
+    assert Enum.any?(times, &(Floki.attribute(&1, "data-local") == ["true"]))
+    assert Enum.any?(times, fn time -> Floki.attribute(time, "title") != [] end)
   end
 
   test "thread pages trigger build-on-load thread generation when configured", %{conn: conn} do

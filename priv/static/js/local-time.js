@@ -68,6 +68,10 @@ $(document).ready(function(){
 		var currentTime = Date.now();
 
 		for(var i = 0; i < times.length; i++) {
+			if (times[i].getAttribute('data-local') === 'true' && times[i].getAttribute('title')) {
+				continue;
+			}
+
 			var t = times[i].getAttribute('datetime');
 			var postTime = new Date(t);
 
@@ -85,7 +89,6 @@ $(document).ready(function(){
 	};
 
 	window.do_localtime = do_localtime;
-	do_localtime(document);
 
 	$(document).on('new_post', function(e, post) {
 		do_localtime(post);
