@@ -24,4 +24,18 @@ defmodule EirinchanWeb.ThemeControllerTest do
     assert redirected_to(conn) == "/"
     assert conn.resp_cookies["theme"].value == "default"
   end
+
+  test "theme update stores board-scoped theme selections when board is provided", %{conn: conn} do
+    conn =
+      post(conn, "/theme", %{
+        "_csrf_token" => Plug.CSRFProtection.get_csrf_token(),
+        "theme" => "vichan",
+        "board" => "qa",
+        "return_to" => "/qa"
+      })
+
+    assert redirected_to(conn) == "/qa"
+    assert conn.resp_cookies["board_themes"].value == ~s({"qa":"vichan"})
+    refute Map.has_key?(conn.resp_cookies, "theme")
+  end
 end

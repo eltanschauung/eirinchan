@@ -28,6 +28,8 @@ defmodule Eirinchan.Runtime.Config do
     archive_url: false,
     url_favicon: "favicon.ico",
     show_styles_block: true,
+    stylesheets_board: true,
+    default_theme: nil,
     file_mod: "mod.php",
     file_script: "main.js",
     additional_javascript: [
@@ -284,6 +286,8 @@ defmodule Eirinchan.Runtime.Config do
     "fieldDisablePassword" => :field_disable_password,
     "postFormFlags" => :post_form_flags,
     "postFormEmbed" => :post_form_embed,
+    "stylesheetsBoard" => :stylesheets_board,
+    "defaultTheme" => :default_theme,
     "antiBumpFlood" => :anti_bump_flood,
     "floodTime" => :flood_time,
     "floodTimeIp" => :flood_time_ip,

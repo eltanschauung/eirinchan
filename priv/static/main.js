@@ -59,6 +59,31 @@
     return match ? decodeURIComponent(match[1]) : null;
   }
 
+  function getBoardStyleSelections() {
+    var parsed = {};
+
+    try {
+      parsed = JSON.parse(localStorage.getItem('board_stylesheets') || '{}') || {};
+    } catch (_error) {
+      parsed = {};
+    }
+
+    return parsed;
+  }
+
+  function setBoardStyleSelections(choices) {
+    try {
+      localStorage.setItem('board_stylesheets', JSON.stringify(choices));
+    } catch (_error) {
+    }
+
+    document.cookie =
+      'board_themes=' +
+      encodeURIComponent(JSON.stringify(choices)) +
+      '; path=/; max-age=' +
+      60 * 60 * 24 * 365;
+  }
+
   function basename(path) {
     return (path || '').split('/').pop();
   }
@@ -83,18 +108,24 @@
   function restoreSavedStyle() {
     var cookieTheme = cookieThemeName();
     var storedLabel = null;
+    var boardLabel = null;
 
     try {
       storedLabel = localStorage.getItem('stylesheet');
     } catch (_error) {
     }
 
+    if (window.stylesheets_board && window.board_name) {
+      boardLabel = getBoardStyleSelections()[window.board_name] || null;
+    }
+
     var selected =
+      (window.styles && window.styles[boardLabel] ? boardLabel : null) ||
       (window.styles && window.styles[cookieTheme] ? cookieTheme : null) ||
       findStyleNameByThemeName(cookieTheme) ||
       (window.styles && window.styles[storedLabel] ? storedLabel : null);
 
-    if (selected) {
+    if (selected && selected !== window.selectedstyle) {
       window.changeStyle(selected);
     }
   }
@@ -584,6 +615,8 @@
   window.selectedstyle = window.selectedstyle || 'Yotsuba';
   window.styles = window.styles || {};
   window.styleThemeNames = window.styleThemeNames || {};
+  window.stylesheets_board =
+    typeof window.stylesheets_board === 'undefined' ? true : window.stylesheets_board;
 
   window.changeStyle =
     window.changeStyle ||
@@ -604,14 +637,20 @@
       node.href = stylePath + (window.resourceVersion ? '?v=' + window.resourceVersion : '');
       window.selectedstyle = styleName;
       document.body.setAttribute('data-stylesheet', basename(stylePath));
-      try {
-        localStorage.setItem('stylesheet', styleName);
-      } catch (_error) {
-      }
+      if (window.stylesheets_board && window.board_name) {
+        var boardChoices = getBoardStyleSelections();
+        boardChoices[window.board_name] = styleName;
+        setBoardStyleSelections(boardChoices);
+      } else {
+        try {
+          localStorage.setItem('stylesheet', styleName);
+        } catch (_error) {
+        }
 
-      if (styleName) {
-        document.cookie =
-          'theme=' + encodeURIComponent(styleName) + '; path=/; max-age=' + 60 * 60 * 24 * 365;
+        if (styleName) {
+          document.cookie =
+            'theme=' + encodeURIComponent(styleName) + '; path=/; max-age=' + 60 * 60 * 24 * 365;
+        }
       }
 
       document.querySelectorAll('div.styles a').forEach(function (styleLink) {

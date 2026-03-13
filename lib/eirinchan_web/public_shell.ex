@@ -29,6 +29,7 @@ defmodule EirinchanWeb.PublicShell do
     resource_version = Keyword.get(opts, :resource_version, "")
     watcher_count = Keyword.get(opts, :watcher_count, 0)
     watcher_you_count = Keyword.get(opts, :watcher_you_count, 0)
+    stylesheets_board = Keyword.get(opts, :stylesheets_board, Map.get(config, :stylesheets_board, true))
     browser_timezone = Keyword.get(opts, :browser_timezone) || Map.get(config, :viewer_timezone) || Map.get(config, :timezone, "UTC")
     browser_timezone_offset_minutes =
       Keyword.get(opts, :browser_timezone_offset_minutes) || Map.get(config, :viewer_timezone_offset_minutes) || 0
@@ -51,6 +52,7 @@ defmodule EirinchanWeb.PublicShell do
     """
     <script type="text/javascript">var active_page = "#{active_page}", board_name = #{board_name}#{thread_fragment};</script><script type="text/javascript">var configRoot="/";var inMod = false;var modRoot="/"+(inMod ? "mod.php?/" : "");var resourceVersion=#{Jason.encode!(resource_version)};</script>
     <script type="text/javascript">var selectedstyle = #{Jason.encode!(selected_style)}; var styles = #{styles_json};</script>
+    <script type="text/javascript">var stylesheets_board = #{if stylesheets_board, do: "true", else: "false"};</script>
     <script type="text/javascript">var genpassword_chars = #{Jason.encode!(Map.get(config, :genpassword_chars))}; var post_success_cookie_name = "eirinchan_posted"; var watcher_count = #{watcher_count}; var watcher_you_count = #{watcher_you_count};</script>
     <script type="text/javascript">(function(){try{var tz=Intl.DateTimeFormat().resolvedOptions().timeZone;var offset=-new Date().getTimezoneOffset();var current=#{Jason.encode!(browser_timezone)};var currentOffset=#{browser_timezone_offset_minutes};if(!tz&&isNaN(offset)){return;}if(tz===current&&offset===currentOffset){return;}if(tz){document.cookie="timezone="+encodeURIComponent(tz)+"; path=/; max-age=31536000; samesite=lax";}if(!isNaN(offset)){document.cookie="timezone_offset="+offset+"; path=/; max-age=31536000; samesite=lax";}}catch(_e){}})();</script>
     """
