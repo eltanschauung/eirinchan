@@ -459,6 +459,7 @@ defmodule EirinchanWeb.PostComponents do
       :if={!@deleted_file?}
       href={@file.file_path}
       target="_blank"
+      rel="noopener noreferrer"
       class={@link_class}
       data-video-file={if @video_file?, do: "true", else: nil}
       data-video-url={if @video_file?, do: @file.file_path, else: nil}

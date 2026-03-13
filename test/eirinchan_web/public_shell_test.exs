@@ -64,6 +64,51 @@ defmodule EirinchanWeb.PublicShellTest do
            ]
   end
 
+  test "filters remote and user-code javascript unless explicitly enabled" do
+    config = %{
+      root: "/",
+      url_javascript: "/main.js",
+      additional_javascript: [
+        "js/jquery.min.js",
+        "https://cdn.example.test/remote.js",
+        "js/options/user-js.js",
+        "js/options/user-css.js"
+      ],
+      additional_javascript_url: "/",
+      additional_javascript_compile: false,
+      allow_remote_script_urls: false,
+      allow_user_custom_code: false
+    }
+
+    assert PublicShell.javascript_urls(:thread, config) == [
+             "/main.js",
+             "/js/jquery.min.js"
+           ]
+  end
+
+  test "allows remote and user-code javascript when explicitly enabled" do
+    config = %{
+      root: "/",
+      url_javascript: "/main.js",
+      additional_javascript: [
+        "js/jquery.min.js",
+        "https://cdn.example.test/remote.js",
+        "js/options/user-js.js"
+      ],
+      additional_javascript_url: "/",
+      additional_javascript_compile: false,
+      allow_remote_script_urls: true,
+      allow_user_custom_code: true
+    }
+
+    assert PublicShell.javascript_urls(:thread, config) == [
+             "/main.js",
+             "/js/jquery.min.js",
+             "https://cdn.example.test/remote.js",
+             "/js/options/user-js.js"
+           ]
+  end
+
   test "deduplicates repeated additional javascript entries" do
     config = %{
       root: "/",

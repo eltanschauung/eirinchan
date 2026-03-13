@@ -92,9 +92,21 @@
       if (isNaN(index)) index = 0;
 
       var row = document.createElement('tr');
-      row.innerHTML =
-        '<td><input type=\"text\" name=\"entries[' + index + '][date]\" value=\"\" /></td>' +
-        '<td><textarea name=\"entries[' + index + '][message]\" rows=\"3\"></textarea></td>';
+      var dateCell = document.createElement('td');
+      var dateInput = document.createElement('input');
+      dateInput.type = 'text';
+      dateInput.name = 'entries[' + index + '][date]';
+      dateInput.value = '';
+      dateCell.appendChild(dateInput);
+
+      var messageCell = document.createElement('td');
+      var messageInput = document.createElement('textarea');
+      messageInput.name = 'entries[' + index + '][message]';
+      messageInput.rows = 3;
+      messageCell.appendChild(messageInput);
+
+      row.appendChild(dateCell);
+      row.appendChild(messageCell);
       rows.appendChild(row);
       rows.setAttribute('data-next-index', String(index + 1));
     });

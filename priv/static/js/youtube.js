@@ -26,10 +26,15 @@ onReady(function() {
 	let do_embed_yt = function(tag) {
 		$('div.video-container a', tag).click(function() {
 			let videoID = $(this.parentNode).data('video');
-
-			$(this.parentNode).html('<iframe style="float:left;margin: 10px 20px" type="text/html" ' +
-				'width="360" height="270" src="//www.youtube.com/embed/' + videoID +
-				'?autoplay=1&html5=1" allowfullscreen frameborder="0"/>');
+			let iframe = document.createElement('iframe');
+			iframe.style.cssText = 'float:left;margin: 10px 20px';
+			iframe.type = 'text/html';
+			iframe.width = '360';
+			iframe.height = '270';
+			iframe.src = '//www.youtube.com/embed/' + encodeURIComponent(videoID) + '?autoplay=1&html5=1';
+			iframe.allowFullscreen = true;
+			iframe.setAttribute('frameborder', '0');
+			this.parentNode.replaceChildren(iframe);
 
 			return false;
 		});

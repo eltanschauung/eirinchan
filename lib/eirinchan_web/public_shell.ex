@@ -167,6 +167,9 @@ defmodule EirinchanWeb.PublicShell do
   end
 
   defp additional_javascript(config) do
+    allow_remote_script_urls = Map.get(config, :allow_remote_script_urls, false)
+    allow_user_custom_code = Map.get(config, :allow_user_custom_code, false)
+
     config
     |> Map.get(:additional_javascript, [])
     |> List.wrap()
@@ -191,7 +194,8 @@ defmodule EirinchanWeb.PublicShell do
           "/js/download-original.js"
         ])
     )
-    |> Enum.filter(&safe_script_url?/1)
+    |> Enum.reject(&(custom_code_script?(&1) and not allow_user_custom_code))
+    |> Enum.filter(&safe_script_url?(&1, allow_remote_script_urls))
     |> ensure_hide_threads()
     |> ensure_menu_framework()
     |> Enum.uniq()
@@ -249,8 +253,10 @@ defmodule EirinchanWeb.PublicShell do
   defp maybe_add_catalog_scripts(scripts, _active_page), do: scripts
 
   defp additional_javascript_url(config, script) do
+    allow_remote_script_urls = Map.get(config, :allow_remote_script_urls, false)
+
     cond do
-      not safe_script_url?(script) ->
+      not safe_script_url?(script, allow_remote_script_urls) ->
         nil
 
       String.starts_with?(script, "http://") or String.starts_with?(script, "https://") ->
@@ -266,7 +272,7 @@ defmodule EirinchanWeb.PublicShell do
         base =
           config
           |> Map.get(:additional_javascript_url, config.root || "/")
-          |> safe_script_base()
+          |> safe_script_base(allow_remote_script_urls)
 
         cond do
           String.ends_with?(base, "/") -> base <> script
@@ -275,29 +281,44 @@ defmodule EirinchanWeb.PublicShell do
     end
   end
 
-  defp safe_script_url?(value) when is_binary(value) do
+  defp safe_script_url?(value, allow_remote_script_urls) when is_binary(value) do
     trimmed = String.trim(value)
 
     cond do
       trimmed == "" -> false
       String.contains?(trimmed, ["\u0000", "\r", "\n", "\t"]) -> false
       String.starts_with?(trimmed, ["javascript:", "data:"]) -> false
-      String.starts_with?(trimmed, ["http://", "https://", "//", "/"]) -> true
+      String.starts_with?(trimmed, ["http://", "https://", "//"]) -> allow_remote_script_urls
+      String.starts_with?(trimmed, "/") -> true
       String.contains?(trimmed, "..") -> false
       true -> true
     end
   end
 
-  defp safe_script_base(value) when is_binary(value) do
+  defp safe_script_base(value, allow_remote_script_urls) when is_binary(value) do
     trimmed = String.trim(value)
 
     cond do
       trimmed == "" -> "/"
       String.contains?(trimmed, ["\u0000", "\r", "\n", "\t"]) -> "/"
       String.starts_with?(trimmed, ["javascript:", "data:"]) -> "/"
-      String.starts_with?(trimmed, ["http://", "https://", "//", "/"]) -> trimmed
+      String.starts_with?(trimmed, ["http://", "https://", "//"]) and allow_remote_script_urls ->
+        trimmed
+
+      String.starts_with?(trimmed, "/") ->
+        trimmed
+
       true -> "/"
     end
+  end
+
+  defp custom_code_script?(script) do
+    script in [
+      "js/options/user-js.js",
+      "/js/options/user-js.js",
+      "js/options/user-css.js",
+      "/js/options/user-css.js"
+    ]
   end
 
   defp board_heading(board), do: "/#{board.uri}/ - #{board.title}"
