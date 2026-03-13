@@ -303,8 +303,10 @@ defmodule Eirinchan.Themes do
     body =
       case Map.get(params, "html") || Map.get(params, :html) do
         value when is_binary(value) and value != "" -> value
-        _ -> FaqPage.default_html()
+        _ -> FaqPage.default_body()
       end
+
+    body = FaqPage.normalize_body(body)
 
     attrs = %{slug: "faq", title: "FAQ", body: body, mod_user_id: mod_user_id}
 
@@ -325,7 +327,7 @@ defmodule Eirinchan.Themes do
 
   defp rebuild_faq_page do
     settings = faq_theme_settings(theme("faq"))
-    html = Map.get(settings, "html", FaqPage.default_html())
+    html = settings |> Map.get("html", FaqPage.default_body()) |> FaqPage.normalize_body()
 
     case CustomPages.get_page_by_slug("faq") do
       nil ->
@@ -461,8 +463,8 @@ defmodule Eirinchan.Themes do
 
     html =
       case CustomPages.get_page_by_slug("faq") do
-        %{body: body} when is_binary(body) and body != "" -> body
-        _ -> Map.get(base, "html", FaqPage.default_html())
+        %{body: body} when is_binary(body) and body != "" -> FaqPage.normalize_body(body)
+        _ -> Map.get(base, "html", FaqPage.default_body()) |> FaqPage.normalize_body()
       end
 
     Map.put(base, "html", html)

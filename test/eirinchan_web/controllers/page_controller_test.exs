@@ -114,7 +114,7 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ ~s(href="/faq/recent.css)
   end
 
-  test "GET /faq serves stored full html overrides", %{conn: conn} do
+  test "GET /faq normalizes stored full html overrides into the shared shell", %{conn: conn} do
     author = moderator_fixture(%{username: "faqeditor"})
 
     {:ok, _page} =
@@ -128,7 +128,8 @@ defmodule EirinchanWeb.PageControllerTest do
     faq_conn = get(conn, "/faq")
 
     assert response(faq_conn, 200) =~ "<h1>Stored FAQ</h1>"
-    assert get_resp_header(faq_conn, "content-type") == ["text/html; charset=utf-8"]
+    assert response(faq_conn, 200) =~ ~s(class="boardlist")
+    assert response(faq_conn, 200) =~ ~s(id="options-link")
   end
 
   test "GET /watcher/fragment returns fragment without layout chrome", %{conn: conn} do
@@ -179,14 +180,15 @@ defmodule EirinchanWeb.PageControllerTest do
     assert get_resp_header(formatting_conn, "content-type") == ["text/html; charset=utf-8"]
   end
 
-  test "GET /pages/faq uses the FAQ template when the page exists", %{conn: conn} do
+  test "GET /pages/faq uses the FAQ template and stored body when the page exists", %{conn: conn} do
     author = moderator_fixture(%{username: "faqwriter"})
 
     {:ok, _page} =
       Eirinchan.CustomPages.create_page(%{
         slug: "faq",
         title: "FAQ",
-        body: "Copied FAQ",
+        body:
+          ~s(<div class="box-wrap faq-page-shell"><div class="box middle"><div class="content">Copied FAQ</div></div></div>),
         mod_user_id: author.id
       })
 
@@ -195,8 +197,8 @@ defmodule EirinchanWeb.PageControllerTest do
       |> get("/pages/faq")
       |> html_response(200)
 
-    assert page =~ "What is bnat?"
-    assert page =~ "/faq/output_canvas.png"
+    assert page =~ "Copied FAQ"
+    assert page =~ "Ask questions, get answers."
   end
 
   test "GET /catalog renders a global catalog across boards", %{conn: conn} do

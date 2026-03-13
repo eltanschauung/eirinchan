@@ -180,16 +180,14 @@ defmodule EirinchanWeb.PageController do
       redirect(conn, to: ~p"/setup")
     else
       case CustomPages.get_page_by_slug("faq") do
-        %CustomPages.Page{body: body} when is_binary(body) and body != "" ->
-          conn
-          |> put_resp_content_type("text/html")
-          |> send_resp(200, FaqPage.refresh_boardlists(body))
+        %CustomPages.Page{} = page ->
+          render_custom_page(conn, %{page | body: FaqPage.normalize_body(page.body)})
 
         _ ->
           render_custom_page(conn, %{
             slug: "faq",
             title: "FAQ",
-            body: "",
+            body: FaqPage.default_body(),
             mod_user: nil
           })
       end
@@ -337,6 +335,9 @@ defmodule EirinchanWeb.PageController do
 
   defp render_custom_page(conn, page, opts \\ []) do
     board = Keyword.get(opts, :board)
+
+    page =
+      if page.slug == "faq", do: %{page | body: FaqPage.normalize_body(page.body)}, else: page
 
     extra_stylesheets =
       public_page_assigns(conn, "active-page", "page")
