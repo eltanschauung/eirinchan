@@ -1,13 +1,3 @@
-<%
-  {left_stickers, right_stickers} =
-    @sticker_entries
-    |> Enum.with_index()
-    |> Enum.split_with(fn {_entry, index} -> rem(index, 2) == 0 end)
-
-  left_stickers = Enum.map(left_stickers, &elem(&1, 0))
-  right_stickers = Enum.map(right_stickers, &elem(&1, 0))
-%>
-
 <div class="box-wrap faq-page-shell formatting-page-shell">
   <div class="box middle">
     <h2>Formatting</h2>
@@ -34,12 +24,12 @@
       <p1>Let's bring /bnat/ to life with tranimals and babies!<br />Whalestickers also need to be at the start of a line, once per line.</p1><br /><br />
       <hr style="margin:6px;opacity:0;" />
       <div class="column" style="margin-left:5%;float:left;">
-        <%= for sticker <- left_stickers do %>
+        <%= for sticker <- @left_stickers do %>
           <p1><img src={sticker.path} alt={sticker.token} title={sticker.token} />:<%= sticker.token %>:</p1><br />
         <% end %>
       </div>
       <div class="column" style="margin-right:5%;float:right;">
-        <%= for sticker <- right_stickers do %>
+        <%= for sticker <- @right_stickers do %>
           <p1><img src={sticker.path} alt={sticker.token} title={sticker.token} />:<%= sticker.token %>:</p1><br />
         <% end %>
       </div>

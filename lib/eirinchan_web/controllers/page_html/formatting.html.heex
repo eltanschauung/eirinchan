@@ -1,5 +1,5 @@
 <header>
-  <h1><%= @page.title %></h1>
+  <h1><img class="site_logo2" src="/site_logo2.png" alt={@page.title} /></h1>
   <div class="subtitle">
     <h2>Ask questions, get answers.</h2>
   </div>
@@ -8,6 +8,12 @@
 
 <%= raw(@page.body || "") %>
 
-<%= if @board_chrome.footer_html do %>
-  <%= raw(@board_chrome.footer_html) %>
-<% end %>
+<hr />
+<footer>
+  <p class="unimportant" style="margin-top:20px;text-align:center;">
+    We witches are not whale lol. I will never call 'whale' a Sukusuku though.
+  </p>
+  <p class="unimportant" style="text-align:center;">
+    All trademarks, copyrights, comments, and images on this page are owned by no one because Touhou is doujin culture bruh
+  </p>
+</footer>
