@@ -161,10 +161,10 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ "**do this to spoiler text**"
     assert page =~ "Whalestickers"
     assert page =~ ":gojo:"
-    assert page =~ ~s(href="/flags")
+    assert page =~ "Let's bring /bnat/ to life with tranimals and babies!"
   end
 
-  test "GET /formatting serves stored full html overrides", %{conn: conn} do
+  test "GET /formatting normalizes stored full html overrides into the shared shell", %{conn: conn} do
     author = moderator_fixture(%{username: "formattingeditor"})
 
     {:ok, _page} =
@@ -178,6 +178,8 @@ defmodule EirinchanWeb.PageControllerTest do
     formatting_conn = get(conn, "/formatting")
 
     assert response(formatting_conn, 200) =~ "<h1>Stored Formatting</h1>"
+    assert response(formatting_conn, 200) =~ ~s(class="boardlist")
+    assert response(formatting_conn, 200) =~ ~s(id="options-link")
     assert get_resp_header(formatting_conn, "content-type") == ["text/html; charset=utf-8"]
   end
 
