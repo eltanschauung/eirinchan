@@ -704,17 +704,15 @@ defmodule EirinchanWeb.PostComponents do
       assigns
       |> assign(:formatted_html, formatted_html)
       |> assign(:body_attrs, body_attrs(assigns.post, assigns.config, assigns.op?))
+      |> assign(:tag_line_text, tag_line_text(assigns.post, assigns.config))
+      |> assign(:fileboard_line_text, fileboard_line(assigns.post, assigns.config, assigns.hide_fileboard))
 
     ~H"""
-    <div {@body_attrs}>
-      <%= raw(@formatted_html) %>
-      <span :if={tag_line_text(@post, @config)} class="tag-line"><%= tag_line_text(@post, @config) %></span>
-      <span
-        :if={fileboard_line(@post, @config, @hide_fileboard)}
+    <div {@body_attrs}><%= raw(@formatted_html) %><span :if={@tag_line_text} class="tag-line"><%= @tag_line_text %></span><span
+        :if={@fileboard_line_text}
         class="tag-line"
         style={if @hide_fileboard, do: "display:none", else: nil}
-      ><%= fileboard_line(@post, @config, @hide_fileboard) %></span>
-    </div>
+      ><%= @fileboard_line_text %></span></div>
     """
   end
 
