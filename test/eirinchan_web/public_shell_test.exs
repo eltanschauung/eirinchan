@@ -135,6 +135,29 @@ defmodule EirinchanWeb.PublicShellTest do
            ]
   end
 
+  test "filters redundant legacy scripts now handled lower in the stack" do
+    config = %{
+      root: "/",
+      url_javascript: "/main.js",
+      additional_javascript: [
+        "js/jquery.min.js",
+        "js/show-backlinks.js",
+        "js/show-own-posts.js",
+        "js/catalog-link.js",
+        "js/download-original.js",
+        "js/thread-stats.js"
+      ],
+      additional_javascript_url: "/",
+      additional_javascript_compile: false
+    }
+
+    assert PublicShell.javascript_urls(:thread, config) == [
+             "/main.js",
+             "/js/jquery.min.js",
+             "/js/thread-stats.js"
+           ]
+  end
+
   test "falls back to root for dangerous additional javascript base urls" do
     config = %{
       root: "/",

@@ -167,7 +167,22 @@ defmodule EirinchanWeb.PublicShell do
     |> Enum.map(&to_string/1)
     |> Enum.map(&String.trim/1)
     |> Enum.reject(&(&1 == ""))
-    |> Enum.reject(&(&1 in ["js/unspoiler3.js", "/js/unspoiler3.js", "js/style-select.js", "/js/style-select.js"]))
+    |> Enum.reject(
+      &(&1 in [
+          "js/unspoiler3.js",
+          "/js/unspoiler3.js",
+          "js/style-select.js",
+          "/js/style-select.js",
+          "js/show-backlinks.js",
+          "/js/show-backlinks.js",
+          "js/show-own-posts.js",
+          "/js/show-own-posts.js",
+          "js/catalog-link.js",
+          "/js/catalog-link.js",
+          "js/download-original.js",
+          "/js/download-original.js"
+        ])
+    )
     |> Enum.filter(&safe_script_url?/1)
     |> ensure_hide_threads()
     |> ensure_menu_framework()

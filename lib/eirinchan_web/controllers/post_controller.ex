@@ -147,6 +147,8 @@ defmodule EirinchanWeb.PostController do
         if post.thread_id do
           case Posts.get_thread(board, thread_id) do
             {:ok, [thread | _]} ->
+              owned_post_ids = ajax_reply_owned_post_ids(conn, post)
+
               Map.put(
                 payload,
                 :html,
@@ -158,7 +160,7 @@ defmodule EirinchanWeb.PostController do
                   conn.assigns[:current_moderator],
                   conn.assigns[:secure_manage_token],
                   %{},
-                  MapSet.new([post.id]),
+                  owned_post_ids,
                   ShowYous.enabled?(conn),
                   conn.assigns[:mobile_client?] || false
                 )
@@ -183,6 +185,27 @@ defmodule EirinchanWeb.PostController do
       _ -> :ok
     end
   end
+
+  defp ajax_reply_owned_post_ids(conn, post) do
+    if ShowYous.enabled?(conn) do
+      post_ids =
+        post.body
+        |> quoted_post_ids()
+        |> Kernel.++([post.id])
+
+      ShowYous.owned_post_ids(conn, Enum.map(post_ids, &%{id: &1}))
+    else
+      MapSet.new()
+    end
+  end
+
+  defp quoted_post_ids(body) when is_binary(body) do
+    Regex.scan(~r/>>(\d+)/u, body)
+    |> Enum.map(fn [_, id] -> String.to_integer(id) end)
+    |> Enum.uniq()
+  end
+
+  defp quoted_post_ids(_body), do: []
 
   defp maybe_watch_thread_on_reply(conn, board, post) do
     case {conn.assigns[:browser_token], post.thread_id} do

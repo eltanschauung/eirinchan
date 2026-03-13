@@ -88,6 +88,46 @@ defmodule EirinchanWeb.PostControllerTest do
            )
   end
 
+  test "json reply html renders server-side (You) markers without client ownership storage", %{
+    conn: conn
+  } do
+    board = board_fixture(%{title: "Technology"})
+    thread = thread_fixture(board, %{body: "thread body", subject: "thread subject"})
+    referer = "http://www.example.com/#{board.uri}/index.html"
+    token = "show-yous-ajax-token-123456"
+
+    first_reply_conn =
+      conn
+      |> put_req_cookie("browser_token", token)
+      |> put_req_cookie("show_yous", "true")
+      |> put_req_header("referer", referer)
+      |> post(~p"/#{board.uri}/post", %{
+        "thread" => Integer.to_string(thread.id),
+        "body" => "first owned reply",
+        "json_response" => "1",
+        "post" => "New Reply"
+      })
+
+    assert %{"id" => first_reply_id} = json_response(first_reply_conn, 200)
+
+    second_reply_conn =
+      conn
+      |> recycle()
+      |> put_req_cookie("browser_token", token)
+      |> put_req_cookie("show_yous", "true")
+      |> put_req_header("referer", referer)
+      |> post(~p"/#{board.uri}/post", %{
+        "thread" => Integer.to_string(thread.id),
+        "body" => ">>#{first_reply_id}",
+        "json_response" => "1",
+        "post" => "New Reply"
+      })
+
+    assert %{"html" => html} = json_response(second_reply_conn, 200)
+    assert html =~ ~s|<span class="own_post">(You)</span>|
+    assert html =~ ~s|&gt;&gt;#{first_reply_id}</a> <small>(You)</small>|
+  end
+
   test "posting accepts legacy regist payloads and old field aliases", %{conn: conn} do
     board = board_fixture(%{title: "Technology", config_overrides: %{force_image_op: false}})
 

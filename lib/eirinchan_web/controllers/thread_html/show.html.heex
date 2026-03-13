@@ -231,9 +231,8 @@
   <%= raw(@board_chrome.post_form_blotter_html) %>
   <hr />
 <% end %>
-<%= if is_binary(@config.global_message) and @config.global_message != "" do %>
-  <div class="blotter"><%= raw(@config.global_message) %></div>
-  <hr />
+<%= if @global_message_html && @global_message_html != "" do %>
+  <%= raw(@global_message_html) %>
 <% end %>
 
 <form name="postcontrols" id="thread-post-controls" action="/post.php" method="post">
@@ -253,7 +252,15 @@
     data-watched={to_string(@thread_watch.watched)}
   >
     <a id={to_string(post.id)} class="post_anchor"></a>
-      <.files_block :if={PostView.media_entries(post, @config) != []} post={post} config={@config} op?={true} board={@board} moderator={@current_moderator} secure_manage_token={@secure_manage_token} />
+    <.files_block
+      :if={PostView.media_entries(post, @config) != []}
+      post={post}
+      config={@config}
+      op?={true}
+      board={@board}
+      moderator={@current_moderator}
+      secure_manage_token={@secure_manage_token}
+    />
 
     <div
       class="post op"
@@ -323,49 +330,66 @@
         />
       </p>
 
-      <.body_container post={post} board={@board} thread={post} config={@config} op?={true} own_post_ids={@own_post_ids} show_yous={@show_yous} />
+      <%= raw(
+        PostView.body_container_html(post, @board, post, @config,
+          op?: true,
+          own_post_ids: @own_post_ids,
+          show_yous: @show_yous
+        )
+      ) %>
     </div>
 
     <div id="thread-refresh-target" data-fragment-md5={@fragment_md5}>
       <%= for reply <- @summary.replies do %>
         <div class="post reply" id={"reply_#{reply.id}"}>
-        <p class="intro">
-          <a id={to_string(reply.id)} class="post_anchor"></a>
-          <input
-            :if={!@mobile_client?}
-            type="checkbox"
-            class="delete"
-            name={"delete_#{reply.id}"}
-            id={"delete_#{reply.id}"}
-          />
-          <.reply_post_button post_target={"reply_#{reply.id}"} />
-          <label for={"delete_#{reply.id}"}>
-            <.post_identity
-              post={reply}
-              config={@config}
-              board={@board}
-              moderator={@current_moderator}
-              own={@show_yous and MapSet.member?(@own_post_ids, reply.id)}
+          <p class="intro">
+            <a id={to_string(reply.id)} class="post_anchor"></a>
+            <input
+              :if={!@mobile_client?}
+              type="checkbox"
+              class="delete"
+              name={"delete_#{reply.id}"}
+              id={"delete_#{reply.id}"}
             />
-          </label>
-          <.post_number_links
-            post_id={reply.id}
-            post_href={Eirinchan.ThreadPaths.thread_path(@board, post, @config) <> "##{reply.id}"}
-            quote_href={PostView.reply_path(@board, post, reply, @config, :quote)}
-            quote_to={reply.id}
+            <.reply_post_button post_target={"reply_#{reply.id}"} />
+            <label for={"delete_#{reply.id}"}>
+              <.post_identity
+                post={reply}
+                config={@config}
+                board={@board}
+                moderator={@current_moderator}
+                own={@show_yous and MapSet.member?(@own_post_ids, reply.id)}
+              />
+            </label>
+            <.post_number_links
+              post_id={reply.id}
+              post_href={Eirinchan.ThreadPaths.thread_path(@board, post, @config) <> "##{reply.id}"}
+              quote_href={PostView.reply_path(@board, post, reply, @config, :quote)}
+              quote_to={reply.id}
+            />
+            <.backlinks post={reply} backlinks_map={@backlinks_map} />
+          </p>
+
+          <.files_block
+            post={reply}
+            config={@config}
+            board={@board}
+            moderator={@current_moderator}
+            secure_manage_token={@secure_manage_token}
           />
-          <.backlinks post={reply} backlinks_map={@backlinks_map} />
-        </p>
 
-        <.files_block post={reply} config={@config} board={@board} moderator={@current_moderator} secure_manage_token={@secure_manage_token} />
-
-        <.post_controls
-          post={reply}
-          board={@board}
-          moderator={@current_moderator}
-          secure_manage_token={@secure_manage_token}
-        />
-        <.body_container post={reply} board={@board} thread={post} config={@config} own_post_ids={@own_post_ids} show_yous={@show_yous} />
+          <.post_controls
+            post={reply}
+            board={@board}
+            moderator={@current_moderator}
+            secure_manage_token={@secure_manage_token}
+          />
+          <%= raw(
+            PostView.body_container_html(reply, @board, post, @config,
+              own_post_ids: @own_post_ids,
+              show_yous: @show_yous
+            )
+          ) %>
         </div>
         <br />
       <% end %>
@@ -397,10 +421,7 @@
           id="update_thread"
           title="This thread is updated automatically to display new posts."
         >
-          [Live Page&nbsp;<span
-            class="live-page-indicator"
-            aria-hidden="true"
-          >⬤</span>]
+          [Live Page&nbsp;<span class="live-page-indicator" aria-hidden="true">⬤</span>]
         </a>
         <input type="checkbox" id="auto_update_status" checked hidden />
         <span id="update_secs" hidden>5</span>
@@ -431,6 +452,12 @@
         <input type="submit" name="report" value="Report" data-post-action="report" />
       </div>
     </div>
+  </div>
+
+  <div id="thread_stats">
+    <span id="thread_stats_posts"><%= length(@summary.replies) %></span> replies |&nbsp;
+    <span id="thread_stats_images"><%= Enum.count(@summary.replies, &(PostView.media_entries(&1, @config) != [])) %></span>
+    images |&nbsp;Page <span id="thread_stats_page"><%= @page_num %></span>
   </div>
 
   <div class="clearfix"></div>
