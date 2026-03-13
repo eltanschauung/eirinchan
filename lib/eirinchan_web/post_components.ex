@@ -252,7 +252,7 @@ defmodule EirinchanWeb.PostComponents do
     ~H"""
     <div class="navarrows-shell" aria-hidden="true">
       <a class="navarrow navarrow-top" href="#top" title="Scroll to top" aria-label="Scroll to top">
-        <img src="/reisen_up.png" alt="Scroll to top" width="80%" height="auto" />
+        <img src="/reisen_up.png" alt="Scroll to top" style="width:30px;height:80px;" />
       </a>
       <a
         class="navarrow navarrow-bottom"
@@ -260,7 +260,7 @@ defmodule EirinchanWeb.PostComponents do
         title="Scroll to bottom"
         aria-label="Scroll to bottom"
       >
-        <img src="/tewi_down.png" alt="Scroll to bottom" width="80%" height="auto" />
+        <img src="/tewi_down.png" alt="Scroll to bottom" style="width:30px;height:80px;" />
       </a>
     </div>
     """
