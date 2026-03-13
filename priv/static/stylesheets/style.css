@@ -105,6 +105,16 @@ header div.subtitle {
   font-size: 8pt;
 }
 
+.admin-shortcuts {
+  margin-top: 0.35em;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.admin-shortcuts-form {
+  display: inline;
+}
+
 form {
   margin-bottom: 4em;
 }
@@ -1030,6 +1040,28 @@ div.boardlist.bottom {
   clear: both;
 }
 
+.navarrows-shell {
+  position: fixed;
+  right: 20px;
+  bottom: 30px;
+  z-index: 50;
+}
+
+.navarrow {
+  display: block;
+  cursor: pointer;
+}
+
+.navarrow img {
+  display: block;
+  width: auto;
+  height: auto;
+}
+
+.navarrow-top {
+  margin-bottom: 10px;
+}
+
 div.boardlist a {
   text-decoration: none;
 }
@@ -1189,6 +1221,14 @@ div.boardlist a {
   display: inline;
   margin-left: 10px;
   margin-right: 10px;
+}
+
+.posts_by_id {
+  display: none;
+}
+
+.poster_id:hover + .posts_by_id {
+  display: initial;
 }
 
 /* Fileboard */
