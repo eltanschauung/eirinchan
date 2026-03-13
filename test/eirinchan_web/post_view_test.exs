@@ -161,4 +161,22 @@ defmodule EirinchanWeb.PostViewTest do
     assert html =~ ~s(class="post-image spoiler-image")
     assert html =~ ~s(src="/bant/thumb/example.jpg")
   end
+
+  test "embed_html rejects raw html payloads" do
+    config = Config.compose()
+
+    assert PostView.embed_html("<script>alert(1)</script>", config) == nil
+  end
+
+  test "embed_html escapes capture replacements before applying template" do
+    config = %{
+      Config.compose()
+      | embedding: [[~r/^x:(.+)$/i, "<iframe src=\"https://example.test/embed/$1\"></iframe>"]]
+    }
+
+    html = PostView.embed_html(~s|x:\"><script>alert(1)</script>|, config)
+
+    assert html =~ "&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;"
+    refute html =~ ~s|""><script>|
+  end
 end

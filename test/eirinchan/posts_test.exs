@@ -323,6 +323,22 @@ defmodule Eirinchan.PostsTest do
              )
   end
 
+  test "create_post rejects ie mime type detection xss payloads on image uploads" do
+    board = board_fixture()
+
+    assert {:error, :mime_exploit} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "first post",
+                 "file" => raw_upload_fixture("exploit.png", "<html><script>alert(1)</script></html>"),
+                 "post" => "New Topic"
+               },
+               config: post_config(board.config_overrides),
+               request: post_request(board.uri)
+             )
+  end
+
   test "create_post allows embed-only OPs when force_image_op is enabled" do
     board = board_fixture(%{config_overrides: %{force_image_op: true, force_body_op: false}})
     config = post_config(board.config_overrides)

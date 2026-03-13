@@ -52,6 +52,7 @@ defmodule Eirinchan.Posts do
              | :duplicate_file
              | :file_required
              | :invalid_file_type
+             | :mime_exploit
              | :file_too_large
              | :access_list
              | :upload_failed}

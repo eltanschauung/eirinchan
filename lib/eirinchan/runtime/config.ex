@@ -139,6 +139,8 @@ defmodule Eirinchan.Runtime.Config do
     enable_embedding: true,
     embed_width: 300,
     embed_height: 246,
+    ie_mime_type_detection:
+      "/<(?:body|head|html|img|plaintext|pre|script|table|title|a href|channel|scriptlet)/i",
     youtube_js_html:
       "<div class=\"video-container\" data-video=\"$2\">" <>
         "<a href=\"https://youtu.be/$2\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"file\">" <>
@@ -256,6 +258,7 @@ defmodule Eirinchan.Runtime.Config do
       duplicate_file: "Duplicate file.",
       file_required: "File required.",
       filetype: "File type not allowed.",
+      mime_exploit: "MIME type detection XSS exploit (IE) detected; post discarded.",
       invalid_image: "Invalid image.",
       image_too_large: "Image dimensions too large.",
       file_too_large: "File too large.",
