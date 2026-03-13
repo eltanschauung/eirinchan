@@ -511,6 +511,25 @@ defmodule EirinchanWeb.PostView do
     if expandable_image?(file), do: nil, else: "file"
   end
 
+  def video_file?(file) do
+    ext =
+      file
+      |> file_display_name()
+      |> String.downcase()
+      |> Path.extname()
+
+    cond do
+      ext in [".webm", ".mp4"] ->
+        true
+
+      is_binary(Map.get(file, :file_type)) ->
+        String.starts_with?(Map.get(file, :file_type), "video/")
+
+      true ->
+        false
+    end
+  end
+
   def original_file_name(file) do
     file_display_name(file)
   end
@@ -1022,6 +1041,7 @@ defmodule EirinchanWeb.PostView do
     Regex.replace(~r/&gt;&gt;(\d+)/, line, fn _match, id ->
       post_id = String.to_integer(id)
       href = ThreadPaths.thread_path(board, thread, config) <> "##{id}"
+
       op =
         if thread && Map.get(thread, :id) == post_id,
           do: " <small>(OP)</small>",

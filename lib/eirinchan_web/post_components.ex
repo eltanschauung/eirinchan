@@ -310,6 +310,8 @@ defmodule EirinchanWeb.PostComponents do
   attr :secure_manage_token, :string, default: nil
 
   def file_block(assigns) do
+    assigns = assign(assigns, :video_file?, PostView.video_file?(assigns.file))
+
     ~H"""
     <div
       class={PostView.file_class(@post)}
@@ -325,6 +327,10 @@ defmodule EirinchanWeb.PostComponents do
           <%= if PostView.file_dimensions(@file) do %>
             , <%= PostView.file_dimensions(@file) %>
           <% end %>, <span class="postfilename" title={PostView.original_file_name(@file)}><%= PostView.display_file_name(@file, @config) %></span>)
+        </span>
+        <span :if={@video_file?} class="video-loop-controls" data-video-loop-controls>
+          <span class="video-loop-control" data-video-loop-mode="once">[play once]</span>
+          <span class="video-loop-control active" data-video-loop-mode="loop">[loop]</span>
         </span>
         <.file_controls
           post={@post}
@@ -365,9 +371,17 @@ defmodule EirinchanWeb.PostComponents do
         |> Enum.reject(&is_nil/1)
         |> Enum.join(" ")
       )
+      |> assign(:video_file?, PostView.video_file?(assigns.file))
 
     ~H"""
-    <a href={@file.file_path} target="_blank" class={@link_class}>
+    <a
+      href={@file.file_path}
+      target="_blank"
+      class={@link_class}
+      data-video-file={if @video_file?, do: "true", else: nil}
+      data-video-url={if @video_file?, do: @file.file_path, else: nil}
+      data-default-loop={if @video_file?, do: "loop", else: nil}
+    >
       <img
         class={@image_classes}
         src={PostView.file_thumb_src(@file, @config)}
