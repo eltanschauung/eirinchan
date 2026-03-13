@@ -6,23 +6,32 @@ defmodule Eirinchan.Settings do
   alias Eirinchan.Runtime.Config
 
   @default_page_enabled_themes ["ukko", "recent", "sitemap"]
+  @settings_cache_key {__MODULE__, :instance_config}
+  @raw_json_cache_key {__MODULE__, :raw_instance_config_json}
 
   @spec current_instance_config() :: map()
   def current_instance_config do
-    persisted_instance_config() || %{}
+    case :persistent_term.get(cache_key(@settings_cache_key), :missing) do
+      :missing ->
+        config = persisted_instance_config_uncached() || %{}
+        :persistent_term.put(cache_key(@settings_cache_key), config)
+        config
+
+      config ->
+        config
+    end
   end
 
   @spec raw_instance_config_json() :: binary() | nil
   def raw_instance_config_json do
-    path = config_path()
+    case :persistent_term.get(cache_key(@raw_json_cache_key), :missing) do
+      :missing ->
+        raw_json = raw_instance_config_json_uncached()
+        :persistent_term.put(cache_key(@raw_json_cache_key), raw_json)
+        raw_json
 
-    with true <- is_binary(path) and File.exists?(path),
-         {:ok, body} <- File.read(path),
-         {:ok, decoded} <- Jason.decode(body),
-         true <- is_map(decoded) do
-      body
-    else
-      _ -> nil
+      raw_json ->
+        raw_json
     end
   end
 
@@ -83,6 +92,17 @@ defmodule Eirinchan.Settings do
 
   @spec persisted_instance_config() :: map() | nil
   def persisted_instance_config do
+    current_instance_config()
+  end
+
+  def refresh_instance_config_cache do
+    clear_cache_entry(@settings_cache_key)
+    clear_cache_entry(@raw_json_cache_key)
+    EirinchanWeb.FragmentCache.clear()
+    :ok
+  end
+
+  defp persisted_instance_config_uncached do
     path = config_path()
 
     with true <- is_binary(path) and File.exists?(path),
@@ -90,6 +110,19 @@ defmodule Eirinchan.Settings do
          {:ok, decoded} <- Jason.decode(body),
          true <- is_map(decoded) do
       Config.normalize_override_keys(decoded)
+    else
+      _ -> nil
+    end
+  end
+
+  defp raw_instance_config_json_uncached do
+    path = config_path()
+
+    with true <- is_binary(path) and File.exists?(path),
+         {:ok, body} <- File.read(path),
+         {:ok, decoded} <- Jason.decode(body),
+         true <- is_map(decoded) do
+      body
     else
       _ -> nil
     end
@@ -121,6 +154,10 @@ defmodule Eirinchan.Settings do
     |> stringify_keys()
     |> Jason.encode_to_iodata!(pretty: true)
     |> then(&File.write(path, &1))
+    |> tap(fn
+      :ok -> refresh_instance_config_cache()
+      _ -> :ok
+    end)
   end
 
   @spec persist_instance_config_raw_json(binary()) :: :ok | {:error, term()}
@@ -132,6 +169,10 @@ defmodule Eirinchan.Settings do
     |> File.mkdir_p!()
 
     File.write(path, raw_json)
+    |> tap(fn
+      :ok -> refresh_instance_config_cache()
+      _ -> :ok
+    end)
   end
 
   @spec config_path() :: binary() | nil
@@ -273,5 +314,14 @@ defmodule Eirinchan.Settings do
 
   defp bump_asset_version(config) do
     Map.put(config, :asset_version, Integer.to_string(System.system_time(:millisecond)))
+  end
+
+  defp cache_key(base_key), do: {base_key, config_path()}
+
+  defp clear_cache_entry(base_key) do
+    :persistent_term.erase(cache_key(base_key))
+    :ok
+  rescue
+    ArgumentError -> :ok
   end
 end

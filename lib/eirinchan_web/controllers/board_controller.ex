@@ -151,7 +151,12 @@ defmodule EirinchanWeb.BoardController do
         ]
 
         fragment_md5 =
-          render_fragment_md5(EirinchanWeb.BoardHTML, :catalog_fragment, render_assigns)
+          render_fragment_md5(
+            EirinchanWeb.BoardHTML,
+            :catalog_fragment,
+            render_assigns,
+            fragment_cache_key(:catalog, board, page_data, render_assigns)
+          )
 
         if fragment_md5? do
           text(conn, fragment_md5)
@@ -243,7 +248,12 @@ defmodule EirinchanWeb.BoardController do
         ]
 
         fragment_md5 =
-          render_fragment_md5(EirinchanWeb.BoardHTML, :index_fragment, render_assigns)
+          render_fragment_md5(
+            EirinchanWeb.BoardHTML,
+            :index_fragment,
+            render_assigns,
+            fragment_cache_key(:index, board, page_data, render_assigns)
+          )
 
         if fragment_md5? do
           text(conn, fragment_md5)
@@ -301,8 +311,45 @@ defmodule EirinchanWeb.BoardController do
   defp fragment_md5_request?(%{"fragment" => "md5"}), do: true
   defp fragment_md5_request?(_params), do: false
 
-  defp render_fragment_md5(view, template, assigns),
-    do: EirinchanWeb.FragmentHash.md5(view, template, assigns)
+  defp render_fragment_md5(view, template, assigns, cache_key),
+    do: EirinchanWeb.FragmentHash.md5(view, template, assigns, cache_key: cache_key)
+
+  defp fragment_cache_key(kind, board, page_data, assigns) do
+    {
+      :board_fragment_md5,
+      kind,
+      board.id,
+      Map.get(page_data, :page),
+      page_data_stamp(page_data),
+      dynamic_fragment_stamp(assigns)
+    }
+  end
+
+  defp page_data_stamp(%{threads: threads}) do
+    threads
+    |> Enum.map(fn summary ->
+      {summary.thread.id, summary.last_modified, length(summary.replies)}
+    end)
+    |> :erlang.phash2()
+  end
+
+  defp dynamic_fragment_stamp(assigns) do
+    {
+      own_post_ids_stamp(Keyword.get(assigns, :own_post_ids, MapSet.new())),
+      Keyword.get(assigns, :show_yous, false),
+      :erlang.phash2(Keyword.get(assigns, :thread_watch_state, %{})),
+      moderator_stamp(Keyword.get(assigns, :current_moderator)),
+      Keyword.get(assigns, :secure_manage_token),
+      Keyword.get(assigns, :mobile_client?, false)
+    }
+  end
+
+  defp own_post_ids_stamp(%MapSet{} = ids), do: ids |> MapSet.to_list() |> Enum.sort() |> :erlang.phash2()
+  defp own_post_ids_stamp(ids) when is_list(ids), do: ids |> Enum.sort() |> :erlang.phash2()
+  defp own_post_ids_stamp(_ids), do: 0
+
+  defp moderator_stamp(nil), do: nil
+  defp moderator_stamp(moderator), do: {moderator.id, moderator.role}
 
   defp require_catalog_theme(conn, _opts) do
     EirinchanWeb.Plugs.RequirePageTheme.call(conn, theme: "catalog")
@@ -313,10 +360,6 @@ defmodule EirinchanWeb.BoardController do
       token when is_binary(token) -> ThreadWatcher.watch_state_for_board(token, board.uri)
       _ -> %{}
     end
-  end
-
-  defp watcher_count(conn) do
-    watcher_metrics(conn).watcher_count
   end
 
   defp watcher_metrics(conn) do
