@@ -250,16 +250,21 @@ defmodule EirinchanWeb.PostComponents do
 
   def nav_arrows(assigns) do
     ~H"""
-    <div class="navarrows-shell" aria-hidden="true">
-      <a class="navarrow navarrow-top" href="#top" title="Scroll to top" aria-label="Scroll to top">
+    <div
+      class="navarrow navarrow-top"
+      aria-hidden="true"
+      style="position:fixed;bottom:100px;right:20px;cursor:pointer;z-index:50;"
+    >
+      <a href="#top" title="Scroll to top" aria-label="Scroll to top">
         <img src="/reisen_up.png" alt="Scroll to top" style="width:30px;height:80px;" />
       </a>
-      <a
-        class="navarrow navarrow-bottom"
-        href="#bottom"
-        title="Scroll to bottom"
-        aria-label="Scroll to bottom"
-      >
+    </div>
+    <div
+      class="navarrow navarrow-bottom"
+      aria-hidden="true"
+      style="position:fixed;bottom:30px;right:20px;cursor:pointer;z-index:50;"
+    >
+      <a href="#bottom" title="Scroll to bottom" aria-label="Scroll to bottom">
         <img src="/tewi_down.png" alt="Scroll to bottom" style="width:30px;height:80px;" />
       </a>
     </div>
