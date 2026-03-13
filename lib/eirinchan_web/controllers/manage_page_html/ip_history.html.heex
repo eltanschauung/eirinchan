@@ -1,6 +1,6 @@
 <.flash_group flash={@flash} />
 <section>
-  <h1>IP History: <%= EirinchanWeb.IpPresentation.display_ip(@ip, @moderator) %></h1>
+  <h1>IP History: <%= @displayed_ip %></h1>
   <p><a href={~p"/manage"}>Back to Manage</a></p>
   <p :if={@board}>Board: /<%= @board.uri %>/</p>
 </section>

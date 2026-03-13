@@ -56,7 +56,7 @@ defmodule EirinchanWeb.LegacyModController do
     with {:ok, moderator} <- authorized_moderator(conn),
          true <- PostView.can_view_ip?(moderator),
          decoded when not is_nil(decoded) <- IpCrypt.uncloak_ip(ip) do
-      redirect(conn, to: "/manage/ip/#{decoded}/browser")
+      redirect(conn, to: "/manage/ip/#{IpCrypt.cloak_ip(decoded)}/browser")
     else
       {:error, :unauthorized} -> redirect(conn, to: "/manage/login")
       false -> send_resp(conn, :forbidden, "Insufficient permissions.")

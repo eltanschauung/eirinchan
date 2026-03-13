@@ -947,8 +947,12 @@ defmodule EirinchanWeb.ManagePageControllerTest do
         |> get("/manage/boards/#{board.uri}/ip/198.51.100.7/browser")
         |> html_response(200)
 
+      cloaked = Eirinchan.IpCrypt.cloak_ip("198.51.100.7")
+
       assert history_page =~ "IP History: Cloak:"
       refute history_page =~ "IP History: 198.51.100.7"
+      assert history_page =~ "/manage/boards/#{board.uri}/ip/#{cloaked}/browser/posts"
+      refute history_page =~ "/manage/boards/#{board.uri}/ip/198.51.100.7/browser/posts"
     end)
   end
 

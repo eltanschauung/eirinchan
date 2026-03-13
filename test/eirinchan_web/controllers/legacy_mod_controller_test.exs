@@ -30,7 +30,7 @@ defmodule EirinchanWeb.LegacyModControllerTest do
         |> login_moderator(moderator)
         |> get("/mod.php?/IP/#{cloaked}")
 
-      assert redirected_to(conn) == "/manage/ip/198.51.100.7/browser"
+      assert redirected_to(conn) == "/manage/ip/#{cloaked}/browser"
     end)
   end
 
@@ -74,7 +74,9 @@ defmodule EirinchanWeb.LegacyModControllerTest do
     board = board_fixture()
     thread = thread_fixture(board)
 
-    Repo.update_all(from(p in Eirinchan.Posts.Post, where: p.id == ^thread.id), set: [ip_subnet: nil])
+    Repo.update_all(from(p in Eirinchan.Posts.Post, where: p.id == ^thread.id),
+      set: [ip_subnet: nil]
+    )
 
     conn = login_moderator(conn, moderator)
 
@@ -121,7 +123,7 @@ defmodule EirinchanWeb.LegacyModControllerTest do
 
     assert {:ok, updated_thread} = Posts.get_post(board, thread.id)
     assert updated_thread.file_path
-    assert updated_thread.extra_files == []
+    assert [%{file_path: "deleted"}] = updated_thread.extra_files
   end
 
   test "legacy spoiler route spoilerizes a single file for janitors", %{conn: conn} do
@@ -224,7 +226,9 @@ defmodule EirinchanWeb.LegacyModControllerTest do
 
   defp with_instance_config(config, fun) do
     original_path = Application.get_env(:eirinchan, :instance_config_path)
-    path = Path.join(System.tmp_dir!(), "eirinchan-ipcrypt-#{System.unique_integer([:positive])}.json")
+
+    path =
+      Path.join(System.tmp_dir!(), "eirinchan-ipcrypt-#{System.unique_integer([:positive])}.json")
 
     File.write!(path, Jason.encode!(config))
 

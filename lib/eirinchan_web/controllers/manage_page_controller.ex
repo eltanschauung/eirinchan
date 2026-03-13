@@ -806,7 +806,8 @@ defmodule EirinchanWeb.ManagePageController do
       render(conn, :ip_history,
         moderator: moderator,
         boards: boards,
-        ip: decoded_ip,
+        ip: IpCrypt.cloak_ip(decoded_ip),
+        displayed_ip: EirinchanWeb.IpPresentation.display_ip(decoded_ip, moderator),
         board: nil,
         posts: Moderation.list_ip_posts(decoded_ip, board_ids: board_ids),
         notes: Moderation.list_ip_notes(decoded_ip, board_ids: board_ids)
@@ -831,7 +832,8 @@ defmodule EirinchanWeb.ManagePageController do
       render(conn, :ip_history,
         moderator: moderator,
         boards: Moderation.list_accessible_boards(moderator),
-        ip: decoded_ip,
+        ip: IpCrypt.cloak_ip(decoded_ip),
+        displayed_ip: EirinchanWeb.IpPresentation.display_ip(decoded_ip, moderator),
         board: board,
         posts: Moderation.list_ip_posts(decoded_ip, board_ids: [board.id]),
         notes: Moderation.list_ip_notes(decoded_ip, board_id: board.id)
