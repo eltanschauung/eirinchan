@@ -11,7 +11,7 @@
 +function(){
 
 var options_button, admin_button, watcher_button, options_links, options_handler, options_background, options_div
-  , options_close, options_tablist, options_tabs, options_current_tab;
+  , options_close, options_tablist, options_tabs, options_current_tab, options_exit;
 
 var Options = {};
 window.Options = Options;
@@ -52,6 +52,10 @@ Options.add_tab = function(id, icon, name, content) {
   tab.icon.on("click", function() {
     Options.select_tab(id);
   }).appendTo(options_tablist);
+
+  if (options_exit) {
+    options_exit.detach().appendTo(options_tablist);
+  }
 
   $("<h2>"+name+"</h2>").appendTo(tab.content);
 
@@ -100,6 +104,9 @@ options_div = $("<div id='options_div'></div>").appendTo(options_handler);
 options_close = $("<a id='options_close' href='javascript:void(0)'><i class='fa fa-times'></i></div>")
   .on("click", Options.hide).appendTo(options_div);
 options_tablist = $("<div id='options_tablist'></div>").appendTo(options_div);
+options_exit = $("<div class='options_tab_icon options_exit_tab'><div>"+_("Exit")+"</div></div>")
+  .on("click", Options.hide)
+  .appendTo(options_tablist);
 
 
 $(function(){
