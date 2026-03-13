@@ -392,30 +392,32 @@ defmodule EirinchanWeb.PostComponents do
   attr :secure_manage_token, :string, default: nil
 
   def files_block(assigns) do
-    media_html =
-      assigns.post
-      |> PostView.media_entries(assigns.config)
-      |> Enum.map(fn media ->
-        if PostView.embed_entry?(media) do
-          media.embed_html
-        else
-          file_block_html(%{
-            post: assigns.post,
-            file: media,
-            config: assigns.config,
-            op?: assigns.op?,
-            board: assigns.board,
-            moderator: assigns.moderator,
-            secure_manage_token: assigns.secure_manage_token
-          })
-        end
-      end)
-      |> IO.iodata_to_binary()
-
-    assigns = assign(assigns, :media_html, media_html)
+    assigns = assign(assigns, :media_entries, PostView.media_entries(assigns.post, assigns.config))
 
     ~H"""
-    <div class="files"><%= raw(@media_html) %></div>
+    <div class="files">
+      <%= for media <- @media_entries do %>
+        <.embed_media :if={PostView.embed_entry?(media)} html={media.embed_html} />
+        <.file_block
+          :if={!PostView.embed_entry?(media)}
+          post={@post}
+          file={media}
+          config={@config}
+          op?={@op?}
+          board={@board}
+          moderator={@moderator}
+          secure_manage_token={@secure_manage_token}
+        />
+      <% end %>
+    </div>
+    """
+  end
+
+  attr :html, :string, default: nil
+
+  def embed_media(assigns) do
+    ~H"""
+    <%= raw(@html || "") %>
     """
   end
 
@@ -555,13 +557,12 @@ defmodule EirinchanWeb.PostComponents do
     assigns =
       assigns
       |> assign(:controls, controls)
-      |> assign(:controls_html, joined_controls_html(controls))
 
     ~H"""
     <span
       :if={@controls != []}
       class={if is_nil(@post.thread_id), do: "controls op", else: "controls"}
-    ><%= raw(@controls_html) %></span>
+    ><%= for {control, index} <- Enum.with_index(@controls) do %><%= if index > 0, do: raw("&nbsp;") %><.control_link control={control} /><% end %></span>
     """
   end
 
@@ -584,10 +585,9 @@ defmodule EirinchanWeb.PostComponents do
     assigns =
       assigns
       |> assign(:controls, controls)
-      |> assign(:controls_html, joined_controls_html(controls))
 
     ~H"""
-    <span :if={@controls != []} class="controls"><%= raw(@controls_html) %></span>
+    <span :if={@controls != []} class="controls"><%= for {control, index} <- Enum.with_index(@controls) do %><%= if index > 0, do: raw("&nbsp;") %><.control_link control={control} /><% end %></span>
     """
   end
 
@@ -626,12 +626,6 @@ defmodule EirinchanWeb.PostComponents do
     |> post_controls()
     |> to_iodata()
     |> IO.iodata_to_binary()
-  end
-
-  defp joined_controls_html(controls) do
-    controls
-    |> Enum.map(&control_link_html(%{control: &1}))
-    |> Enum.join("&nbsp;")
   end
 
   attr :page_data, :map, required: true
@@ -710,21 +704,17 @@ defmodule EirinchanWeb.PostComponents do
       assigns
       |> assign(:formatted_html, formatted_html)
       |> assign(:body_attrs, body_attrs(assigns.post, assigns.config, assigns.op?))
-      |> assign(
-        :body_html,
-        div_html(
-          body_attrs(assigns.post, assigns.config, assigns.op?),
-          body_inner_html(
-            assigns.post,
-            assigns.config,
-            assigns.hide_fileboard,
-            assigns.formatted_html
-          )
-        )
-      )
 
     ~H"""
-    <%= raw(@body_html) %>
+    <div {@body_attrs}>
+      <%= raw(@formatted_html) %>
+      <span :if={tag_line_text(@post, @config)} class="tag-line"><%= tag_line_text(@post, @config) %></span>
+      <span
+        :if={fileboard_line(@post, @config, @hide_fileboard)}
+        class="tag-line"
+        style={if @hide_fileboard, do: "display:none", else: nil}
+      ><%= fileboard_line(@post, @config, @hide_fileboard) %></span>
+    </div>
     """
   end
 
@@ -750,10 +740,9 @@ defmodule EirinchanWeb.PostComponents do
     assigns =
       assigns
       |> assign(:formatted_html, formatted_html)
-      |> assign(:body_html, div_html([class: assigns.class], formatted_html))
 
     ~H"""
-    <%= raw(@body_html) %>
+    <div class={@class}><%= raw(@formatted_html) %></div>
     """
   end
 
@@ -800,17 +789,13 @@ defmodule EirinchanWeb.PostComponents do
     end)
   end
 
-  def body_container_html(assigns),
-    do:
-      div_html(
-        body_attrs(assigns.post, assigns.config, Map.get(assigns, :op?, false)),
-        body_inner_html(
-          assigns.post,
-          assigns.config,
-          Map.get(assigns, :hide_fileboard, false),
-          formatted_body_segments_html(assigns)
-        )
-      )
+  def body_container_html(assigns) do
+    assigns
+    |> with_component_assigns()
+    |> body_container()
+    |> to_iodata()
+    |> IO.iodata_to_binary()
+  end
 
   defp body_attrs(post, config, op?) do
     case body_style_attr(post, config, op?) do
@@ -819,18 +804,9 @@ defmodule EirinchanWeb.PostComponents do
     end
   end
 
-  defp body_inner_html(post, config, hide_fileboard, formatted_html) do
-    [
-      formatted_html,
-      tag_line_html(post, config),
-      fileboard_line_html(post, config, hide_fileboard)
-    ]
-    |> IO.iodata_to_binary()
-  end
+  defp tag_line_text(%{tag: nil}, _config), do: nil
 
-  defp tag_line_html(%{tag: nil}, _config), do: ""
-
-  defp tag_line_html(post, config) do
+  defp tag_line_text(post, config) do
     tag_name =
       if is_map(config.allowed_tags) do
         Map.get(config.allowed_tags, post.tag, post.tag)
@@ -838,48 +814,24 @@ defmodule EirinchanWeb.PostComponents do
         post.tag
       end
 
-    span_html([class: "tag-line"], "Tag: #{tag_name}")
+    "Tag: #{tag_name}"
   end
 
-  defp fileboard_line_html(post, config, hide_fileboard) do
+  defp fileboard_line(post, config, _hide_fileboard) do
     if config.fileboard && PostView.show_fileboard_summary?(post) do
-      attrs =
-        if hide_fileboard do
-          [class: "tag-line", style: "display:none"]
-        else
-          [class: "tag-line"]
-        end
-
-      span_html(attrs, "Fileboard: #{PostView.fileboard_summary(post)}")
+      "Fileboard: #{PostView.fileboard_summary(post)}"
     else
-      ""
+      nil
     end
-  end
-
-  defp div_html(attrs, inner_html) do
-    "<div#{attrs_html(attrs)}>#{inner_html}</div>"
-  end
-
-  defp span_html(attrs, inner_text) do
-    escaped = inner_text |> Plug.HTML.html_escape_to_iodata() |> IO.iodata_to_binary()
-    "<span#{attrs_html(attrs)}>#{escaped}</span>"
-  end
-
-  defp attrs_html(attrs) do
-    attrs
-    |> Enum.reject(fn {_key, value} -> is_nil(value) or value == false end)
-    |> Enum.map_join(fn {key, value} ->
-      escaped = value |> to_string() |> Plug.HTML.html_escape_to_iodata() |> IO.iodata_to_binary()
-      " #{key}=\"#{escaped}\""
-    end)
   end
 
   def summary_body_html(assigns),
     do:
-      div_html(
-        [class: assigns.class],
-        formatted_body_segments_html(assigns)
-      )
+      assigns
+      |> with_component_assigns()
+      |> summary_body()
+      |> to_iodata()
+      |> IO.iodata_to_binary()
 
   attr :post, :map, required: true
   attr :board, :map, required: true
@@ -905,7 +857,7 @@ defmodule EirinchanWeb.PostComponents do
         <.files_block post={@post} config={@config} />
       <% end %>
       <.post_identity post={@post} board={@board} config={@config} />
-      <p><%= raw(@formatted_html) %></p>
+      <p><.formatted_body_segments post={@post} board={@board} thread={@thread} config={@config} /></p>
     </div>
     """
   end
@@ -974,12 +926,14 @@ defmodule EirinchanWeb.PostComponents do
         moderator={@moderator}
         secure_manage_token={@secure_manage_token}
       />
-      <%= raw(
-        EirinchanWeb.PostView.body_container_html(@post, @board, @thread, @config,
-          own_post_ids: @own_post_ids,
-          show_yous: @show_yous
-        )
-      ) %>
+      <.body_container
+        post={@post}
+        board={@board}
+        thread={@thread}
+        config={@config}
+        own_post_ids={@own_post_ids}
+        show_yous={@show_yous}
+      />
     </div>
     <br class="clear" />
     """
