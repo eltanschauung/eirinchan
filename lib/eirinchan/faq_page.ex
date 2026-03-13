@@ -3,97 +3,61 @@ defmodule Eirinchan.FaqPage do
 
   import Phoenix.Template, only: [render_to_string: 4]
 
-  alias Eirinchan.Boards
-  alias EirinchanWeb.{BoardChrome, PostView, PublicShell, ThemeRegistry}
-
-  def default_html do
-    page = %{slug: "faq", title: "FAQ", body: "", mod_user: nil}
-    boards = Boards.list_boards()
-    primary_board = Enum.find(boards, &(&1.uri == "bant")) || %{uri: "bant"}
-
-    assigns = [
-      boards: boards,
-      primary_board: primary_board,
-      board_chrome: BoardChrome.for_board(primary_board),
-      global_boardlist_html:
-        EirinchanWeb.PostComponents.boardlist_html(%{
-          groups: PostView.boardlist_groups(boards)
-        }),
-      public_shell: true,
-      viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",
-      base_stylesheet: "/stylesheets/style.css",
-      body_class: "8chan vichan is-not-moderator active-page",
-      body_data_stylesheet: "yotsuba.css",
-      head_html:
-        PublicShell.head_html("page",
-          resource_version: nil,
-          theme_label: "Yotsuba",
-          theme_options: ThemeRegistry.public_all()
-        ),
-      javascript_urls: PublicShell.javascript_urls("page"),
-      custom_javascript_urls: [],
-      analytics_html: nil,
-      body_end_html: PublicShell.body_end_html(),
-      primary_stylesheet: "/stylesheets/yotsuba.css",
-      primary_stylesheet_id: "stylesheet",
-      extra_stylesheets: [
-        "/stylesheets/eirinchan-public.css",
-        "/stylesheets/eirinchan-bant.css",
-        "/faq/recent.css"
-      ],
-      hide_theme_switcher: true,
-      skip_app_stylesheet: true,
-      page: page,
-      flag_board: nil,
-      flag_assets: [],
-      flag_storage_key: "flag_bant",
-      page_title: "FAQ",
-      layout: false,
-      inner_content: nil
-    ]
-
-    inner_content = render_to_string(EirinchanWeb.PageHTML, "faq", "html", assigns)
-
-    render_to_string(
-      EirinchanWeb.Layouts,
-      "root",
-      "html",
-      Keyword.put(assigns, :inner_content, Phoenix.HTML.raw(inner_content))
-    )
+  def default_body do
+    render_to_string(EirinchanWeb.PageHTML, "faq_body", "html", [])
   end
 
-  def refresh_boardlists(html) when is_binary(html) do
-    boards = Boards.list_boards()
+  def normalize_body(html) when is_binary(html) do
+    trimmed = String.trim(html)
 
-    html
-    |> replace_boardlist("boardlist", boards)
-    |> replace_boardlist("boardlist bottom", boards)
-    |> remove_boardlist_scripts()
+    cond do
+      trimmed == "" ->
+        default_body()
+
+      String.contains?(trimmed, "<!doctype html") or String.contains?(trimmed, "<html") ->
+        extract_fragment(trimmed)
+
+      true ->
+        trimmed
+    end
   end
 
-  def refresh_boardlists(other), do: other
+  def normalize_body(other), do: other
 
-  defp replace_boardlist(html, class_name, boards) do
-    replacement =
-      EirinchanWeb.PostComponents.boardlist_html(%{
-        groups: PostView.boardlist_groups(boards),
-        class_name: class_name
-      })
+  defp extract_fragment(html) do
+    cond do
+      capture =
+          capture_regex(html, ~r|(<div class="box-wrap faq-page-shell">.*?</div>\s*)<footer|s) ->
+        String.trim(capture)
 
-    Regex.replace(
-      ~r/<div class="#{Regex.escape(class_name)}">.*?<\/div>/s,
-      html,
-      replacement,
-      global: false
-    )
+      capture = capture_regex(html, ~r|<body\b[^>]*>(.*)</body>|s) ->
+        capture
+        |> strip_shell_wrappers()
+        |> String.trim()
+        |> case do
+          "" -> default_body()
+          value -> value
+        end
+
+      true ->
+        default_body()
+    end
   end
 
-  defp remove_boardlist_scripts(html) do
-    Regex.replace(
-      ~r/<script\b[^>]*>(?:(?!<\/script>).)*do_boardlist(?:(?!<\/script>).)*<\/script>/s,
-      html,
-      "",
-      global: true
-    )
+  defp capture_regex(html, regex) do
+    case Regex.run(regex, html, capture: :all_but_first) do
+      [capture | _rest] -> capture
+      _ -> nil
+    end
+  end
+
+  defp strip_shell_wrappers(body) do
+    body
+    |> then(&Regex.replace(~r|<div class="boardlist(?: bottom)?">.*?</div>|s, &1, ""))
+    |> then(&Regex.replace(~r|<a id="top"></a>|, &1, ""))
+    |> then(&Regex.replace(~r|<a id="bottom"></a>|, &1, ""))
+    |> then(&Regex.replace(~r|<div class="styles">.*?</div>|s, &1, ""))
+    |> then(&Regex.replace(~r|<footer>.*?</footer>|s, &1, ""))
+    |> then(&Regex.replace(~r|<script\b[^>]*>.*?</script>|s, &1, ""))
   end
 end

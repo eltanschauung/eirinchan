@@ -140,7 +140,7 @@ defmodule EirinchanWeb.ThemeManagementControllerTest do
 
     assert redirected_to(install_conn) == "/manage/themes/browser/faq"
     assert faq_page = Eirinchan.CustomPages.get_page_by_slug("faq")
-    assert faq_page.body =~ "<!doctype html>"
+    refute faq_page.body =~ "<!doctype html>"
     assert faq_page.body =~ "What is bnat?"
 
     faq_page_response =
@@ -172,7 +172,7 @@ defmodule EirinchanWeb.ThemeManagementControllerTest do
 
     assert theme_page =~ "Configuring theme: FAQ"
     assert theme_page =~ ~s(name="html")
-    assert theme_page =~ "<!doctype html>"
+    assert theme_page =~ ~s(rows="30")
 
     save_conn =
       conn
@@ -183,6 +183,7 @@ defmodule EirinchanWeb.ThemeManagementControllerTest do
       })
 
     assert redirected_to(save_conn) == "/manage/themes/browser/faq"
+    refute Eirinchan.CustomPages.get_page_by_slug("faq").body =~ "<!doctype html>"
     assert Eirinchan.CustomPages.get_page_by_slug("faq").body =~ "Theme FAQ"
   end
 end
