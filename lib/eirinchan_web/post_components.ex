@@ -375,7 +375,10 @@ defmodule EirinchanWeb.PostComponents do
   attr :secure_manage_token, :string, default: nil
 
   def file_block(assigns) do
-    assigns = assign(assigns, :video_file?, PostView.video_file?(assigns.file))
+    assigns =
+      assigns
+      |> assign(:video_file?, PostView.video_file?(assigns.file))
+      |> assign(:deleted_file?, PostView.deleted_file?(assigns.file))
 
     ~H"""
     <div
@@ -385,7 +388,7 @@ defmodule EirinchanWeb.PostComponents do
         style -> [style: style]
       end}
     >
-      <p class="fileinfo">
+      <p :if={!@deleted_file?} class="fileinfo">
         File: <a href={@file.file_path}><%= PostView.stored_file_name(@file) %></a>
         <span>
           (<%= PostView.file_size_text(@file) %>
@@ -430,16 +433,30 @@ defmodule EirinchanWeb.PostComponents do
         PostView.thumb_style(assigns.file, assigns.config, op?: assigns.op?)
       )
       |> assign(:link_class, PostView.file_link_class(assigns.file))
+      |> assign(:deleted_file?, PostView.deleted_file?(assigns.file))
       |> assign(
         :image_classes,
-        ["post-image", if(Map.get(assigns.file, :spoiler, false), do: "spoiler-image", else: nil)]
+        [
+          "post-image",
+          if(Map.get(assigns.file, :spoiler, false), do: "spoiler-image", else: nil),
+          if(PostView.deleted_file?(assigns.file), do: "deleted", else: nil)
+        ]
         |> Enum.reject(&is_nil/1)
         |> Enum.join(" ")
       )
       |> assign(:video_file?, PostView.video_file?(assigns.file))
 
     ~H"""
+    <img
+      :if={@deleted_file?}
+      class={@image_classes}
+      src={PostView.file_thumb_src(@file, @config)}
+      loading="lazy"
+      decoding="async"
+      alt=""
+    />
     <a
+      :if={!@deleted_file?}
       href={@file.file_path}
       target="_blank"
       class={@link_class}

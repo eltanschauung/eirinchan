@@ -117,7 +117,7 @@ defmodule EirinchanWeb.PostManagementControllerTest do
              "data" => %{
                "id" => ^thread_id,
                "file_path" => primary_file_path,
-               "extra_files" => []
+               "extra_files" => [%{"file_path" => "deleted"}]
              }
            } = json_response(delete_single_file_conn, 200)
 
@@ -131,7 +131,13 @@ defmodule EirinchanWeb.PostManagementControllerTest do
       |> put_req_header("accept", "application/json")
       |> delete("/manage/boards/#{board.uri}/posts/#{thread_id}/file")
 
-    assert %{"data" => %{"id" => ^thread_id, "file_path" => nil, "extra_files" => []}} =
+    assert %{
+             "data" => %{
+               "id" => ^thread_id,
+               "file_path" => "deleted",
+               "extra_files" => [%{"file_path" => "deleted"}]
+             }
+           } =
              json_response(delete_file_conn, 200)
 
     delete_post_conn =
