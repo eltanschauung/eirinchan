@@ -144,6 +144,9 @@
     $postForm.appendTo($('body')).hide();
 
     init_drag($postForm);
+    if (typeof init_file_selector !== 'undefined') {
+      init_file_selector(window.max_images || 1, $postForm);
+    }
 
     $postForm.show();
     $postForm.width($postForm.find('table').width());
