@@ -67,11 +67,13 @@ defmodule EirinchanWeb.SiteAssetsLayoutTest do
 
   test "root layout emits hardened browser security headers", %{conn: conn} do
     conn = get(conn, "/search", %{"q" => ""})
+    [csp] = get_resp_header(conn, "content-security-policy")
 
     assert get_resp_header(conn, "x-content-type-options") == ["nosniff"]
     assert get_resp_header(conn, "x-frame-options") == ["SAMEORIGIN"]
     assert get_resp_header(conn, "referrer-policy") == ["strict-origin-when-cross-origin"]
     assert get_resp_header(conn, "permissions-policy") != []
     assert get_resp_header(conn, "content-security-policy") != []
+    refute csp =~ "script-src 'self' 'unsafe-inline'"
   end
 end

@@ -49,7 +49,7 @@ defmodule EirinchanWeb.Plugs.SecureHeaders do
 
   defp content_security_policy(config) do
     script_src =
-      ["'self'", "'unsafe-inline'"] ++
+      ["'self'"] ++
         if(Map.get(config, :allow_remote_script_urls, false), do: ["https:", "http:"], else: [])
 
     [

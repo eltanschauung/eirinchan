@@ -2,6 +2,7 @@ defmodule EirinchanWeb.Announcements do
   @moduledoc false
 
   alias Eirinchan.NewsBlotter
+  alias EirinchanWeb.HtmlSanitizer
 
   def news_blotter_html(config) when is_map(config) do
     NewsBlotter.render_html(config)
@@ -20,15 +21,17 @@ defmodule EirinchanWeb.Announcements do
         ""
 
       message ->
+        sanitized_message = HtmlSanitizer.sanitize_fragment(message)
+
         if Keyword.get(opts, :surround_hr, false) do
           """
           <hr />
-          <div class="blotter">#{message}</div>
+          <div class="blotter">#{sanitized_message}</div>
           <hr />
           """
           |> String.trim()
         else
-          ~s(<div class="blotter">#{message}</div>)
+          ~s(<div class="blotter">#{sanitized_message}</div>)
         end
     end
   end

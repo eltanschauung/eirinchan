@@ -882,6 +882,12 @@
       processQuotedHash();
     };
 
+  onReady(function () {
+    if (typeof window.ready === 'function') {
+      window.ready();
+    }
+  });
+
   window.addEventListener('load', function () {
     processQuotedHash();
   });

@@ -93,8 +93,8 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     assert response =~ "/#{board.uri}/ - Technology"
     assert response =~ "Wired"
 
-    assert response =~
-             ~s(<script type="text/javascript">var active_page = "index", board_name = "#{board.uri}";</script>)
+    assert response =~ ~s(name="eirinchan:active-page" content="index")
+    assert response =~ ~s(name="eirinchan:board-name" content="#{board.uri}")
 
     assert response =~ ~s(href="/stylesheets/style.css)
     assert response =~ ~s(id="stylesheet" href="/stylesheets/yotsuba.css)
@@ -123,7 +123,7 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
 
     assert response =~ ~s(id="stylesheet" href="/stylesheets/style.css)
     assert response =~ ~s(data-stylesheet="style.css")
-    assert response =~ ~s(var selectedstyle = "Yotsuba B")
+    assert response =~ ~s(name="eirinchan:selected-style" content="Yotsuba B")
   end
 
   test "board-scoped saved styles override board defaults on board pages", %{conn: conn} do
@@ -142,7 +142,7 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
 
     assert response =~ ~s(id="stylesheet" href="/stylesheets/tomorrow.css)
     assert response =~ ~s(data-stylesheet="tomorrow.css")
-    assert response =~ ~s(var selectedstyle = "Tomorrow")
+    assert response =~ ~s(name="eirinchan:selected-style" content="Tomorrow")
   end
 
   test "board pages send no-store cache headers", %{conn: conn} do

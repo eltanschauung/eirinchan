@@ -5,6 +5,7 @@ defmodule EirinchanWeb.FeedbackController do
   alias Eirinchan.CustomPages
   alias Eirinchan.Feedback
   alias EirinchanWeb.BoardChrome
+  alias EirinchanWeb.HtmlSanitizer
   alias EirinchanWeb.PublicShell
   alias EirinchanWeb.RequestMeta
 
@@ -82,7 +83,7 @@ defmodule EirinchanWeb.FeedbackController do
 
   defp current_global_message do
     case Eirinchan.Settings.current_instance_config() |> Map.get(:global_message) do
-      value when is_binary(value) -> value
+      value when is_binary(value) -> HtmlSanitizer.sanitize_fragment(value)
       _ -> ""
     end
   end

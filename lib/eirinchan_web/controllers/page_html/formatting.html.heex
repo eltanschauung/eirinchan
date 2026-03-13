@@ -6,7 +6,7 @@
   <.admin_shortcuts moderator={@current_moderator} />
 </header>
 
-<%= raw(@page.body || "") %>
+<%= raw(@sanitized_body || "") %>
 
 <hr />
 <footer>
