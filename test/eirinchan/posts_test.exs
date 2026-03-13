@@ -127,6 +127,54 @@ defmodule Eirinchan.PostsTest do
     assert thread.ip_subnet == nil
   end
 
+  test "create_post keeps ip_subnet when ip_nulling_flags threshold is not met" do
+    board = board_fixture()
+
+    assert {:ok, thread, %{noko: false}} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "first post",
+                 "user_flag" => "country",
+                 "post" => "New Topic"
+               },
+               config:
+                 post_config(
+                   board.config_overrides
+                   |> Kernel.||(%{})
+                   |> Map.put(:ip_nulling, true)
+                   |> Map.put(:ip_nulling_flags, 8)
+                 ),
+               request: Map.put(post_request(board.uri), :remote_ip, {203, 0, 113, 41})
+             )
+
+    assert thread.ip_subnet == "203.0.113.41"
+  end
+
+  test "create_post nulls ip_subnet when ip_nulling_flags threshold is met" do
+    board = board_fixture()
+
+    assert {:ok, thread, %{noko: false}} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "first post",
+                 "user_flag" => "country,mokou",
+                 "post" => "New Topic"
+               },
+               config:
+                 post_config(
+                   board.config_overrides
+                   |> Kernel.||(%{})
+                   |> Map.put(:ip_nulling, true)
+                   |> Map.put(:ip_nulling_flags, 8)
+                 ),
+               request: Map.put(post_request(board.uri), :remote_ip, {203, 0, 113, 42})
+             )
+
+    assert thread.ip_subnet == nil
+  end
+
   test "create_post accepts legacy post parameter aliases and mode=regist" do
     board = board_fixture()
 

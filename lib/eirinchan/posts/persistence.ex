@@ -191,8 +191,30 @@ defmodule Eirinchan.Posts.Persistence do
     end)
   end
 
-  defp request_ip_string(_attrs, %{ip_nulling: true}), do: nil
+  defp request_ip_string(attrs, %{ip_nulling: true} = config) do
+    case Map.get(config, :ip_nulling_flags, 0) do
+      threshold when is_integer(threshold) and threshold > 0 ->
+        if submitted_flag_length(attrs) >= threshold, do: nil, else: Map.get(attrs, "ip_subnet")
+
+      _ ->
+        nil
+    end
+  end
+
   defp request_ip_string(attrs, _config), do: Map.get(attrs, "ip_subnet")
+
+  defp submitted_flag_length(attrs) do
+    attrs
+    |> submitted_flag_value()
+    |> case do
+      value when is_binary(value) -> value |> String.trim() |> String.length()
+      _ -> 0
+    end
+  end
+
+  defp submitted_flag_value(attrs) do
+    Map.get(attrs, "user_flag") || Map.get(attrs, "flags")
+  end
 
   defp maybe_slugify(attrs, config) do
     if config.slugify do
