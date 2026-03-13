@@ -415,7 +415,8 @@ defmodule EirinchanWeb.ThreadControllerTest do
 
     assert page =~ ~s(title="Meta">meta</a>)
     assert page =~ ~s(title="#{board.title}">#{board.uri}</a>)
-    assert page =~ ~s(var active_page = "thread", board_name = "#{board.uri}")
+    assert page =~ ~s(name="eirinchan:active-page" content="thread")
+    assert page =~ ~s(name="eirinchan:board-name" content="#{board.uri}")
     assert page =~ ~s(src="/main.js)
   end
 

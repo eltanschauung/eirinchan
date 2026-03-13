@@ -1,10 +1,11 @@
 <form
   name="post"
   id="quick-reply"
-  onsubmit="return dopost(this);"
   enctype="multipart/form-data"
   action="/post.php"
   method="post"
+  data-post-form
+  data-max-images={@config.max_images}
   data-quick-reply-form
 >
   <input type="hidden" name="_csrf_token" value={get_csrf_token()} />

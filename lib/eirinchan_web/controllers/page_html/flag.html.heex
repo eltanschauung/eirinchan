@@ -13,7 +13,12 @@
 </header>
 
 <div class="ban flag-page-shell">
-  <div id="content" style="text-align:center;margin-top:2em;margin-bottom:2em;">
+  <div
+    id="content"
+    style="text-align:center;margin-top:2em;margin-bottom:2em;"
+    data-flag-page
+    data-flag-storage-key={@flag_storage_key}
+  >
     <p><i>Pick custom flags for your posts.</i></p>
 
     <div class="center-container">
@@ -62,38 +67,3 @@
 <%= if @board_chrome.footer_html do %>
   <%= raw(@board_chrome.footer_html) %>
 <% end %>
-
-<script type="text/javascript">
-  (function() {
-    var userFlagInput = document.getElementById('user_flag');
-    if (!userFlagInput) return;
-
-    var storageKey = <%= raw(Jason.encode!(@flag_storage_key)) %>;
-    var saved = window.localStorage.getItem(storageKey);
-    userFlagInput.value = saved || 'country';
-
-    document.querySelectorAll('.image-canvas img').forEach(function(img) {
-      img.addEventListener('click', function() {
-        if (userFlagInput.value) {
-          userFlagInput.value += ',' + img.alt;
-        } else {
-          userFlagInput.value = 'country,' + img.alt;
-        }
-      });
-    });
-
-    var clearButton = document.getElementById('clearButton');
-    if (clearButton) {
-      clearButton.addEventListener('click', function() {
-        userFlagInput.value = 'country';
-      });
-    }
-
-    var applyButton = document.getElementById('applyButton');
-    if (applyButton) {
-      applyButton.addEventListener('click', function() {
-        window.localStorage.setItem(storageKey, userFlagInput.value);
-      });
-    }
-  })();
-</script>

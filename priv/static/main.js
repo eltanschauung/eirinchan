@@ -135,9 +135,92 @@
       window.changeStyle(styleSelect.value);
     });
 
+    document.addEventListener(
+      'submit',
+      function (event) {
+        var postForm = event.target.closest('form[data-post-form]');
+        if (postForm && typeof window.dopost === 'function' && window.dopost(postForm) === false) {
+          event.preventDefault();
+          return;
+        }
+      },
+      true
+    );
+
     if (document.body) {
       document.body.dataset.inlineActionsBound = 'true';
     }
+  }
+
+  function initPostForms() {
+    document.querySelectorAll('form[data-post-form]').forEach(function (form) {
+      if (form.dataset.postFormInitialized === 'true') return;
+
+      if (
+        form.hasAttribute('data-remember-stuff') &&
+        typeof window.rememberStuff === 'function' &&
+        form === currentPostForm()
+      ) {
+        window.rememberStuff();
+      }
+
+      var maxImages = parseInteger(form.getAttribute('data-max-images'), 1);
+      if (typeof window.init_file_selector === 'function') {
+        window.init_file_selector(maxImages, form);
+      }
+
+      form.dataset.postFormInitialized = 'true';
+    });
+  }
+
+  function initFlagPage() {
+    var container = document.querySelector('[data-flag-page]');
+    if (!container || container.dataset.flagPageInitialized === 'true') return;
+
+    var userFlagInput = container.querySelector('#user_flag');
+    if (!userFlagInput) return;
+
+    var storageKey = container.getAttribute('data-flag-storage-key') || '';
+    var saved = null;
+
+    try {
+      saved = storageKey ? window.localStorage.getItem(storageKey) : null;
+    } catch (_error) {
+      saved = null;
+    }
+
+    userFlagInput.value = saved || 'country';
+
+    container.querySelectorAll('.image-canvas img').forEach(function (img) {
+      img.addEventListener('click', function () {
+        if (userFlagInput.value) {
+          userFlagInput.value += ',' + img.alt;
+        } else {
+          userFlagInput.value = 'country,' + img.alt;
+        }
+      });
+    });
+
+    var clearButton = container.querySelector('#clearButton');
+    if (clearButton) {
+      clearButton.addEventListener('click', function () {
+        userFlagInput.value = 'country';
+      });
+    }
+
+    var applyButton = container.querySelector('#applyButton');
+    if (applyButton) {
+      applyButton.addEventListener('click', function () {
+        try {
+          if (storageKey) {
+            window.localStorage.setItem(storageKey, userFlagInput.value);
+          }
+        } catch (_error) {
+        }
+      });
+    }
+
+    container.dataset.flagPageInitialized = 'true';
   }
 
   function cookieThemeName() {
@@ -784,6 +867,8 @@
       window.initStyleChooser();
       restoreSavedStyle();
       bindRandomBanners();
+      initPostForms();
+      initFlagPage();
       seedPostControlsPassword();
 
       if (
