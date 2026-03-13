@@ -160,6 +160,17 @@ defmodule Eirinchan.Uploads do
     generate_spoiler_thumbnail(destination, config)
   end
 
+  @spec regenerate_thumbnail(String.t(), String.t(), map(), map(), boolean()) ::
+          :ok | {:error, atom()}
+  def regenerate_thumbnail(source_path, destination_path, config, metadata, op?)
+      when is_binary(source_path) and is_binary(destination_path) do
+    destination_path
+    |> Path.dirname()
+    |> File.mkdir_p!()
+
+    generate_thumbnail(source_path, destination_path, config, metadata, op?)
+  end
+
   @spec board_root() :: String.t()
   def board_root do
     Application.fetch_env!(:eirinchan, :build_output_root)
@@ -286,6 +297,7 @@ defmodule Eirinchan.Uploads do
       |> then(fn value -> if is_binary(suffix), do: "#{value}-#{suffix}", else: value end)
 
     img_path = Path.join([board_root(), board.uri, config.dir.img, "#{base}#{ext}"])
+
     thumb_ext =
       thumbnail_extension(
         %{
@@ -450,8 +462,12 @@ defmodule Eirinchan.Uploads do
     normalized = String.downcase(host)
 
     cond do
-      normalized in ["localhost", "localhost.localdomain"] -> false
-      String.ends_with?(normalized, ".localhost") -> false
+      normalized in ["localhost", "localhost.localdomain"] ->
+        false
+
+      String.ends_with?(normalized, ".localhost") ->
+        false
+
       true ->
         [resolve_addresses(host, :inet), resolve_addresses(host, :inet6)]
         |> List.flatten()
@@ -487,10 +503,13 @@ defmodule Eirinchan.Uploads do
   defp private_or_local_address?({0, 0, 0, 0, 0, 0, 0, 1}), do: true
   defp private_or_local_address?({0, 0, 0, 0, 0, 65_535, _, _}), do: true
   defp private_or_local_address?({0, 0, 0, 0, 0, 16_383, _, _}), do: true
+
   defp private_or_local_address?({first, _, _, _, _, _, _, _}) when first in 64_512..65_023,
     do: true
+
   defp private_or_local_address?({first, _, _, _, _, _, _, _}) when first in 65_024..65_535,
     do: true
+
   defp private_or_local_address?({_a, _b, _c, _d, _e, _f, _g, _h}), do: false
 
   defp header_filename(headers) do
@@ -564,7 +583,9 @@ defmodule Eirinchan.Uploads do
   end
 
   defp image_metadata(path) do
-    case System.cmd("identify", ["-format", "%w %h", first_frame_path(path)], stderr_to_stdout: true) do
+    case System.cmd("identify", ["-format", "%w %h", first_frame_path(path)],
+           stderr_to_stdout: true
+         ) do
       {output, 0} ->
         case Regex.scan(~r/\d+/, output) |> Enum.map(&hd/1) do
           [width, height | _rest] ->
@@ -583,12 +604,16 @@ defmodule Eirinchan.Uploads do
     cond do
       image?(metadata) ->
         with :ok <- generate_image_thumbnail(source, destination, config, op?) do
-          if Map.get(metadata, :spoiler), do: generate_spoiler_thumbnail(destination, config), else: :ok
+          if Map.get(metadata, :spoiler),
+            do: generate_spoiler_thumbnail(destination, config),
+            else: :ok
         end
 
       video_extension?(metadata.ext) and get_in(config, [:webm, :use_ffmpeg]) ->
         with :ok <- generate_video_thumbnail(source, destination, config, metadata, op?) do
-          if Map.get(metadata, :spoiler), do: generate_spoiler_thumbnail(destination, config), else: :ok
+          if Map.get(metadata, :spoiler),
+            do: generate_spoiler_thumbnail(destination, config),
+            else: :ok
         end
 
       true ->
@@ -602,10 +627,10 @@ defmodule Eirinchan.Uploads do
         generate_animated_gif_thumbnail(source, destination, config, op?)
 
       minimum_copy_resize?(source, config) ->
-      case File.cp(source, destination) do
-        :ok -> :ok
-        {:error, _reason} -> {:error, :upload_failed}
-      end
+        case File.cp(source, destination) do
+          :ok -> :ok
+          {:error, _reason} -> {:error, :upload_failed}
+        end
 
       true ->
         geometry = image_thumbnail_geometry(config, op?)
@@ -628,7 +653,15 @@ defmodule Eirinchan.Uploads do
 
     case System.cmd(
            "convert",
-           [source_frames, "-coalesce", "-thumbnail", geometry, "-layers", "Optimize", destination],
+           [
+             source_frames,
+             "-coalesce",
+             "-thumbnail",
+             geometry,
+             "-layers",
+             "Optimize",
+             destination
+           ],
            stderr_to_stdout: true
          ) do
       {_output, 0} -> :ok
@@ -765,7 +798,9 @@ defmodule Eirinchan.Uploads do
          ) do
       {_output, 0} ->
         case File.rename(temp_destination, destination) do
-          :ok -> :ok
+          :ok ->
+            :ok
+
           {:error, _reason} ->
             _ = File.rm(temp_destination)
             {:error, :upload_failed}
@@ -927,7 +962,9 @@ defmodule Eirinchan.Uploads do
 
     case System.cmd(ffmpeg, args, stderr_to_stdout: true) do
       {_output, 0} ->
-        if File.exists?(destination), do: :ok, else: generate_video_thumbnail_from_start(source, destination, config, metadata, op?)
+        if File.exists?(destination),
+          do: :ok,
+          else: generate_video_thumbnail_from_start(source, destination, config, metadata, op?)
 
       _ ->
         generate_video_thumbnail_from_start(source, destination, config, metadata, op?)
@@ -940,13 +977,32 @@ defmodule Eirinchan.Uploads do
 
     case System.cmd(
            ffmpeg,
-           ["-y", "-strict", "-2", "-ss", "0", "-i", source, "-v", "quiet", "-an", "-vframes", "1", "-f", "mjpeg", "-vf", "scale=#{width}:#{height}", destination],
+           [
+             "-y",
+             "-strict",
+             "-2",
+             "-ss",
+             "0",
+             "-i",
+             source,
+             "-v",
+             "quiet",
+             "-an",
+             "-vframes",
+             "1",
+             "-f",
+             "mjpeg",
+             "-vf",
+             "scale=#{width}:#{height}",
+             destination
+           ],
            stderr_to_stdout: true
          ) do
       {_output, 0} ->
         if File.exists?(destination), do: :ok, else: {:error, :upload_failed}
 
-      _ -> {:error, :upload_failed}
+      _ ->
+        {:error, :upload_failed}
     end
   end
 
@@ -954,7 +1010,12 @@ defmodule Eirinchan.Uploads do
     max_width = if op?, do: config.thumb_op_width, else: config.thumb_width
     max_height = if op?, do: config.thumb_op_height, else: config.thumb_height
 
-    case fit_dimensions(Map.get(metadata, :image_width), Map.get(metadata, :image_height), max_width, max_height) do
+    case fit_dimensions(
+           Map.get(metadata, :image_width),
+           Map.get(metadata, :image_height),
+           max_width,
+           max_height
+         ) do
       {width, height} -> {width, height}
       nil -> {max_width, max_height}
     end
