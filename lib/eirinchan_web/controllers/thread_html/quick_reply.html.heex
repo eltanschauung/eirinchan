@@ -107,18 +107,28 @@
         </span>
       </td>
     </tr>
-    <tr :if={!@config.user_flag}>
+    <tr :if={!@config.user_flag} data-upload-row>
       <td colspan="1">
-        <input type="file" name={if @config.max_images > 1, do: "files[]", else: "file"} multiple={@config.max_images > 1} />
+        <input
+          type="file"
+          data-upload-file
+          name={if @config.max_images > 1, do: "files[]", else: "file"}
+          multiple={@config.max_images > 1}
+        />
       </td>
       <td class="spoiler">
         <input id="q-spoiler-image-fallback" name="spoiler" type="checkbox" value="1" />
         <label for="q-spoiler-image-fallback">Spoiler</label>
       </td>
     </tr>
-    <tr :if={@config.user_flag}>
+    <tr :if={@config.user_flag} data-upload-row>
       <td colspan="2">
-        <input type="file" name={if @config.max_images > 1, do: "files[]", else: "file"} multiple={@config.max_images > 1} />
+        <input
+          type="file"
+          data-upload-file
+          name={if @config.max_images > 1, do: "files[]", else: "file"}
+          multiple={@config.max_images > 1}
+        />
       </td>
     </tr>
     <tr

@@ -326,9 +326,15 @@ defmodule Eirinchan.LiveVichanImport do
             legacy_file["file_path"] || legacy_file["full_path"] || legacy_file["filename"]
           )
 
+      spoiler? = truthy?(legacy_file["spoiler"]) or spoiler_thumb?(legacy_file)
+
       thumb_name =
-        legacy_file["thumb"] ||
+        if spoiler_thumb?(legacy_file) do
           Path.basename(stored_name)
+        else
+          legacy_file["thumb"] ||
+          Path.basename(stored_name)
+        end
 
       file_rel = "/#{board.uri}/src/#{stored_name}"
       thumb_rel = "/#{board.uri}/thumb/#{thumb_name}"
@@ -344,7 +350,7 @@ defmodule Eirinchan.LiveVichanImport do
         |> Map.put(:file_name, legacy_file["filename"] || legacy_file["name"] || stored_name)
         |> Map.put(:file_path, file_rel)
         |> Map.put(:thumb_path, thumb_rel)
-        |> Map.put(:spoiler, truthy?(legacy_file["spoiler"]))
+        |> Map.put(:spoiler, spoiler?)
 
       :ok = Uploads.regenerate_thumbnail(file_abs, thumb_abs, config, metadata, op?)
 
@@ -499,6 +505,11 @@ defmodule Eirinchan.LiveVichanImport do
 
   defp deleted_legacy_file?(file) when is_map(file), do: file["file"] == "deleted"
   defp deleted_legacy_file?(_), do: false
+
+  defp spoiler_thumb?(file) when is_map(file),
+    do: file["thumb"] == "spoiler" or file["thumb_path"] == "spoiler"
+
+  defp spoiler_thumb?(_), do: false
 
   defp blank?(nil), do: true
   defp blank?(""), do: true

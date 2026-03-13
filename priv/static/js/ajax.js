@@ -61,9 +61,9 @@ $(window).ready(function() {
 			var triggerAjaxAfterPost = function(post_response) {
 				try {
 					if (window.EirinchanFrontend && typeof window.EirinchanFrontend.afterPostSuccess === 'function') {
-						window.EirinchanFrontend.afterPostSuccess(post_response);
+						window.EirinchanFrontend.afterPostSuccess(post_response, form);
 					} else {
-						$(document).trigger('ajax_after_post', post_response);
+						$(document).trigger('ajax_after_post', [post_response, form]);
 					}
 				} catch (e) {
 					console.error(e);
@@ -96,7 +96,7 @@ $(window).ready(function() {
 			formData.append('json_response', '1');
 			formData.append('post', submit_txt);
 
-			$(document).trigger("ajax_before_post", formData);
+			$(document).trigger("ajax_before_post", [formData, form]);
 
 			var updateProgress = function(e) {
 				var percentage;
