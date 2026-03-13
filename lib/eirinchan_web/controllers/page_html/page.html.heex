@@ -8,16 +8,9 @@
   <div class="blotter"><%= raw(@global_message) %></div>
 <% end %>
 
-<div class="pages top">
-  [<a href={~p"/"}>Home</a>]
-  <%= for page <- @custom_pages do %>
-    [<a href={if page.slug == "flags", do: "/flags", else: "/pages/#{page.slug}"}><%= page.title %></a>]
-  <% end %>
-</div>
-
 <section class="public-panel static-page-panel">
   <article>
-    <p><%= @page.body %></p>
+    <%= raw(@page.body || "") %>
     <p :if={@page.mod_user} class="unimportant">Updated by <%= @page.mod_user.username %></p>
   </article>
 </section>

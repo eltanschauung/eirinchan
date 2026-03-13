@@ -8,19 +8,6 @@
   <div class="blotter"><%= raw(@global_message) %></div>
 <% end %>
 
-<div class="pages top">
-  [<a href={~p"/"}>Home</a>]
-  <span :if={Eirinchan.Themes.page_theme_enabled?("catalog")}>
-    [<a href={~p"/catalog"}>Catalog</a>]
-  </span>
-  <span :if={Eirinchan.Themes.page_theme_enabled?("recent")}>
-    [<a href={~p"/recent"}>Recent</a>]
-  </span>
-  <%= for page <- @custom_pages do %>
-    [<a href={if page.slug == "flags", do: "/flags", else: "/pages/#{page.slug}"}><%= page.title %></a>]
-  <% end %>
-</div>
-
 <section class="public-panel">
   <%= if @news_entries == [] do %>
     <p>No news entries yet.</p>

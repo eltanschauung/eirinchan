@@ -4,16 +4,6 @@
   <.admin_shortcuts moderator={@current_moderator} />
 </header>
 
-<div class="pages top">
-  [<a href={~p"/"}>Home</a>]
-  <span :if={Eirinchan.Themes.page_theme_enabled?("catalog")}>
-    [<a href={~p"/catalog"}>Catalog</a>]
-  </span>
-  <span :if={Eirinchan.Themes.page_theme_enabled?("recent")}>
-    [<a href={~p"/recent"}>Recent</a>]
-  </span>
-</div>
-
 <section class="public-panel">
   <%= if @threads == [] do %>
     <p>No board threads yet.</p>
@@ -26,13 +16,15 @@
             <%= summary.thread.subject || "Untitled" %>
           </a>
         </h3>
-        <.summary_body
-          class="body"
-          post={summary.thread}
-          board={board}
-          thread={summary.thread}
-          config={%{fileboard: false}}
-        />
+        <%= raw(
+          EirinchanWeb.PostComponents.summary_body_html(%{
+            class: "body",
+            post: summary.thread,
+            board: board,
+            thread: summary.thread,
+            config: %{fileboard: false}
+          })
+        ) %>
       </article>
       <hr />
     <% end %>

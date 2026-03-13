@@ -5,11 +5,6 @@
   <p :if={@error}><%= @error %></p>
 </section>
 
-<nav>
-  <a href={~p"/manage"}>Manage</a>
-  <a href={~p"/"}>Home</a>
-</nav>
-
 <section>
   <form action={~p"/manage/config/browser"} method="post">
     <input type="hidden" name="_csrf_token" value={get_csrf_token()} />

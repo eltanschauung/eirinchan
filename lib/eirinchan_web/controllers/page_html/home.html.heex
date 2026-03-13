@@ -21,22 +21,6 @@
   <div class="blotter"><%= raw(@global_message) %></div>
 <% end %>
 
-<div class="pages top">
-  [<a href={~p"/news"}>News</a>]
-  <span :if={Eirinchan.Themes.page_theme_enabled?("catalog")}>
-    [<a href={~p"/catalog"}>Catalog</a>]
-  </span>
-  <span :if={Eirinchan.Themes.page_theme_enabled?("ukko")}>[<a href={~p"/ukko"}>Ukko</a>]</span>
-  <span :if={Eirinchan.Themes.page_theme_enabled?("recent")}>
-    [<a href={~p"/recent"}>Recent</a>]
-  </span>
-  [<a href={~p"/manage/login"}>Manage</a>]
-  [<a href={~p"/feedback"}>Feedback</a>]
-  <%= for page <- @custom_pages do %>
-    [<a href={if page.slug == "flags", do: "/flags", else: "/pages/#{page.slug}"}><%= page.title %></a>]
-  <% end %>
-</div>
-
 <form class="search-form compact-search" action={~p"/search"} method="get">
   <p>
     <input type="text" name="q" placeholder="Search posts" />
@@ -45,12 +29,6 @@
 </form>
 
 <hr />
-
-<div class="pages site-index-links">
-  <%= for board <- @boards do %>
-    [<a href={"/#{board.uri}"}>/<%= board.uri %>/ - <%= board.title %></a>]
-  <% end %>
-</div>
 
 <section class="public-panel news-panel">
   <h2>News</h2>

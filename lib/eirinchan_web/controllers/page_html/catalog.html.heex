@@ -4,14 +4,6 @@
   <.admin_shortcuts moderator={@current_moderator} />
 </header>
 
-<div class="pages top">
-  [<a href={~p"/"}>Home</a>]
-  <span :if={Eirinchan.Themes.page_theme_enabled?("ukko")}>[<a href={~p"/ukko"}>Ukko</a>]</span>
-  <span :if={Eirinchan.Themes.page_theme_enabled?("recent")}>
-    [<a href={~p"/recent"}>Recent</a>]
-  </span>
-</div>
-
 <section>
   <%= if @threads == [] do %>
     <p>No threads yet.</p>
@@ -23,13 +15,15 @@
             /<%= board.uri %>/ <%= summary.thread.subject || "Untitled" %>
           </a>
         </h2>
-        <.summary_body
-          class="body"
-          post={summary.thread}
-          board={board}
-          thread={summary.thread}
-          config={%{fileboard: false}}
-        />
+        <%= raw(
+          EirinchanWeb.PostComponents.summary_body_html(%{
+            class: "body",
+            post: summary.thread,
+            board: board,
+            thread: summary.thread,
+            config: %{fileboard: false}
+          })
+        ) %>
         <p><%= summary.reply_count %> replies</p>
       </article>
       <hr />
