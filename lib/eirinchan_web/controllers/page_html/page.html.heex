@@ -10,7 +10,7 @@
 
 <section class="public-panel static-page-panel">
   <article>
-    <%= raw(@page.body || "") %>
+    <%= raw(@sanitized_body || "") %>
     <p :if={@page.mod_user} class="unimportant">Updated by <%= @page.mod_user.username %></p>
   </article>
 </section>

@@ -10,7 +10,7 @@
   <div class="blotter"><%= raw(@global_message) %></div>
 <% end %>
 
-<%= raw(@page.body || "") %>
+<%= raw(@sanitized_body || "") %>
 
 <%= if @board_chrome.footer_html do %>
   <%= raw(@board_chrome.footer_html) %>

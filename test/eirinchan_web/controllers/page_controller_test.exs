@@ -102,6 +102,28 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ "pagewriter"
   end
 
+  test "GET /pages/:slug sanitizes dangerous custom page html", %{conn: conn} do
+    author = moderator_fixture(%{username: "sanitizer"})
+
+    {:ok, _page} =
+      Eirinchan.CustomPages.create_page(%{
+        slug: "safe-help",
+        title: "Safe Help",
+        body:
+          ~s|<div onclick="alert(1)"><script>alert(1)</script><a href="javascript:alert(1)">Bad</a><img src="/ok.png" onerror="alert(1)"></div>|,
+        mod_user_id: author.id
+      })
+
+    page = conn |> get("/pages/safe-help") |> html_response(200)
+
+    refute page =~ "<script>alert(1)</script>"
+    refute page =~ "onclick="
+    refute page =~ "onerror="
+    refute page =~ "href=\"javascript:alert(1)\""
+    assert page =~ ~s(href="#")
+    assert page =~ ~s(src="/ok.png")
+  end
+
   test "GET /faq renders the copied FAQ page", %{conn: conn} do
     moderator_fixture()
 

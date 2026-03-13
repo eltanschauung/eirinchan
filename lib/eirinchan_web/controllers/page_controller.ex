@@ -18,6 +18,7 @@ defmodule EirinchanWeb.PageController do
   alias Eirinchan.Settings
   alias Eirinchan.Themes
   alias EirinchanWeb.BoardChrome
+  alias EirinchanWeb.HtmlSanitizer
   alias EirinchanWeb.PostView
   alias EirinchanWeb.PublicShell
 
@@ -308,7 +309,7 @@ defmodule EirinchanWeb.PageController do
 
   defp current_global_message do
     case Settings.current_instance_config() |> Map.get(:global_message) do
-      value when is_binary(value) -> value
+      value when is_binary(value) -> HtmlSanitizer.sanitize_fragment(value)
       _ -> ""
     end
   end
@@ -353,6 +354,7 @@ defmodule EirinchanWeb.PageController do
         public_page_assigns(conn, "active-page", "page"),
         layout: false,
         page: page,
+        sanitized_body: HtmlSanitizer.sanitize_fragment(page.body || ""),
         flag_board: board,
         flag_assets: flag_assets(),
         flag_storage_key: "flag_" <> if(board, do: board.uri, else: "bant"),

@@ -79,10 +79,11 @@
     action={"/manage/themes/browser/#{@theme.name}"}
     method="post"
     style="display:inline"
-    onsubmit="return confirm('Are you sure you want to uninstall this theme?');"
+    data-confirm-submit="Are you sure you want to uninstall this theme?"
   >
     <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
     <input type="hidden" name="_method" value="delete" />
     <button type="submit">Uninstall</button>
   </form>
 </p>
+<script defer type="text/javascript" src="/js/manage-forms.js"></script>

@@ -7,9 +7,9 @@
 
 <section>
   <h2>Global Message</h2>
-  <%= if @global_message && @global_message != "" do %>
+  <%= if @global_message_preview_html && @global_message_preview_html != "" do %>
     <article class="blotter">
-      <%= raw(@global_message) %>
+      <%= raw(@global_message_preview_html) %>
     </article>
   <% else %>
     <p>No global message is active.</p>
@@ -79,36 +79,4 @@
     </div>
   </form>
 </section>
-
-<script type="text/javascript">
-  (function() {
-    var addButton = document.getElementById('blotter-add-row');
-    var rows = document.getElementById('blotter-rows');
-    if (!addButton || !rows) return;
-
-    addButton.addEventListener('click', function(event) {
-      event.preventDefault();
-      var index = parseInt(rows.getAttribute('data-next-index') || '0', 10);
-      if (isNaN(index)) index = 0;
-
-      var row = document.createElement('tr');
-      var dateCell = document.createElement('td');
-      var dateInput = document.createElement('input');
-      dateInput.type = 'text';
-      dateInput.name = 'entries[' + index + '][date]';
-      dateInput.value = '';
-      dateCell.appendChild(dateInput);
-
-      var messageCell = document.createElement('td');
-      var messageInput = document.createElement('textarea');
-      messageInput.name = 'entries[' + index + '][message]';
-      messageInput.rows = 3;
-      messageCell.appendChild(messageInput);
-
-      row.appendChild(dateCell);
-      row.appendChild(messageCell);
-      rows.appendChild(row);
-      rows.setAttribute('data-next-index', String(index + 1));
-    });
-  })();
-</script>
+<script defer type="text/javascript" src="/js/manage-forms.js"></script>

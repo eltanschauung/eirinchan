@@ -401,7 +401,8 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       |> html_response(200)
 
     assert board_page =~ "/#{uri}/ - Tea"
-    assert board_page =~ ~s(var active_page = "index", board_name = "#{uri}")
+    assert board_page =~ ~s(name="eirinchan:active-page" content="index")
+    assert board_page =~ ~s(name="eirinchan:board-name" content="#{uri}")
     assert board_page =~ ~s(src="/main.js)
   end
 
@@ -556,6 +557,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       conn
       |> login_moderator(moderator)
       |> post("/manage/announcement/browser", %{
+        "editor" => "global_message",
         "body" => "Important notice"
       })
 
@@ -568,7 +570,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       |> get("/manage/announcement/browser")
       |> html_response(200)
 
-    assert message_page =~ "Manage Global Message"
+    assert message_page =~ "Global Message"
     assert message_page =~ "Important notice"
 
     update_conn =
@@ -576,6 +578,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       |> recycle()
       |> login_moderator(moderator)
       |> post("/manage/announcement/browser", %{
+        "editor" => "global_message",
         "body" => "Important notice updated"
       })
 
@@ -589,7 +592,6 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       |> html_response(200)
 
     assert message_page =~ "Important notice updated"
-    assert message_page =~ "Previous Messages"
     assert message_page =~ "Important notice"
 
     home_page =
@@ -611,6 +613,46 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     persisted = File.read!(path)
     assert persisted =~ "\"global_message_history\""
     refute persisted =~ "\"global_message\":\"Important notice updated\""
+  end
+
+  test "announcement preview sanitizes dangerous global message html", %{conn: conn} do
+    original_path = Application.get_env(:eirinchan, :instance_config_path)
+
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "eirinchan-global-message-sanitize-#{System.unique_integer([:positive])}.json"
+      )
+
+    File.rm(path)
+    Application.put_env(:eirinchan, :instance_config_path, path)
+
+    on_exit(fn ->
+      Application.put_env(:eirinchan, :instance_config_path, original_path)
+      File.rm(path)
+    end)
+
+    moderator = moderator_fixture(%{role: "admin"})
+
+    conn =
+      conn
+      |> login_moderator(moderator)
+      |> post("/manage/announcement/browser", %{
+        "editor" => "global_message",
+        "body" =>
+          ~s|<script>alert(1)</script><a href="javascript:alert(1)" onclick="alert(1)">notice</a>|
+      })
+
+    page =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> get("/manage/announcement/browser")
+      |> html_response(200)
+
+    refute page =~ "<script>alert(1)</script>"
+    refute String.contains?(page, "href=\"javascript:alert(1)\"")
+    assert page =~ ~s(href="#")
   end
 
   test "browser custom page management creates, updates, and deletes pages", %{conn: conn} do

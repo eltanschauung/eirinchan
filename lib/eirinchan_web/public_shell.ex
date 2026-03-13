@@ -133,7 +133,7 @@ defmodule EirinchanWeb.PublicShell do
   end
 
   def body_end_html do
-    "<script type=\"text/javascript\">document.addEventListener('DOMContentLoaded', function () { if (typeof ready !== 'undefined') ready(); }, { once: true });</script>"
+    ""
   end
 
   def styles_html(theme_options, selected_label) do

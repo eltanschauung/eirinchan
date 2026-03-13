@@ -21,7 +21,7 @@ defmodule EirinchanWeb.ManagePageController do
   alias Eirinchan.Settings
   alias Eirinchan.Themes
   alias Eirinchan.WhaleStickers
-  alias EirinchanWeb.{ManageSecurity, PostView}
+  alias EirinchanWeb.{HtmlSanitizer, ManageSecurity, PostView}
 
   plug :assign_manage_shell
 
@@ -604,6 +604,7 @@ defmodule EirinchanWeb.ManagePageController do
       render(conn, :announcement,
         moderator: moderator,
         global_message: current_global_message(),
+        global_message_preview_html: current_global_message_preview_html(),
         history: global_message_history(),
         entries: Eirinchan.NewsBlotter.entries(config),
         limit: Map.get(config, :news_blotter_limit, 15),
@@ -1587,6 +1588,7 @@ defmodule EirinchanWeb.ManagePageController do
     |> render(:announcement,
       moderator: conn.assigns[:current_moderator],
       global_message: current_global_message(),
+      global_message_preview_html: current_global_message_preview_html(),
       history: global_message_history(),
       entries: Eirinchan.NewsBlotter.entries(config),
       limit: Map.get(config, :news_blotter_limit, 15),
@@ -1622,6 +1624,11 @@ defmodule EirinchanWeb.ManagePageController do
       value when is_binary(value) -> value
       _ -> ""
     end
+  end
+
+  defp current_global_message_preview_html do
+    current_global_message()
+    |> HtmlSanitizer.sanitize_fragment()
   end
 
   defp global_message_history do

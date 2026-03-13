@@ -11,6 +11,7 @@ defmodule EirinchanWeb.SearchController do
   alias Eirinchan.Runtime.Config
   alias Eirinchan.Settings
   alias EirinchanWeb.BoardChrome
+  alias EirinchanWeb.HtmlSanitizer
   alias EirinchanWeb.PublicShell
   alias EirinchanWeb.RequestMeta
   alias EirinchanWeb.ShowYous
@@ -124,7 +125,7 @@ defmodule EirinchanWeb.SearchController do
 
   defp current_global_message do
     case Settings.current_instance_config() |> Map.get(:global_message) do
-      value when is_binary(value) -> value
+      value when is_binary(value) -> HtmlSanitizer.sanitize_fragment(value)
       _ -> ""
     end
   end

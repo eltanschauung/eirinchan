@@ -39,6 +39,7 @@
             name="public_message"
             value="1"
             checked={@params["public_message"] in ["1", "true", "on"]}
+            data-toggle-disabled-target="#message"
           />
           <input
             type="text"
@@ -50,12 +51,6 @@
             disabled={@params["public_message"] not in ["1", "true", "on"]}
           />
           <span class="unimportant">(public; attached to post)</span>
-          <script type="text/javascript">
-            document.getElementById('message').disabled = !document.getElementById('public_message').checked;
-            document.getElementById('public_message').onchange = function() {
-              document.getElementById('message').disabled = !this.checked;
-            }
-          </script>
         </td>
       </tr>
       <tr>
@@ -110,3 +105,4 @@
     </table>
   </form>
 </section>
+<script defer type="text/javascript" src="/js/manage-forms.js"></script>
