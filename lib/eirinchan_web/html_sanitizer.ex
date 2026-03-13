@@ -1,7 +1,7 @@
 defmodule EirinchanWeb.HtmlSanitizer do
   @moduledoc false
 
-  @strip_tags ~w(script iframe object embed base meta)
+  @strip_tags ~w(script iframe object embed base meta style link)
   @tag_pattern Enum.join(@strip_tags, "|")
 
   def sanitize_fragment(nil), do: ""
@@ -11,6 +11,8 @@ defmodule EirinchanWeb.HtmlSanitizer do
     |> strip_dangerous_tags()
     |> strip_event_attributes()
     |> strip_srcdoc_attributes()
+    |> strip_srcset_attributes()
+    |> strip_dangerous_style_attributes()
     |> neutralize_script_urls()
   end
 
@@ -38,9 +40,41 @@ defmodule EirinchanWeb.HtmlSanitizer do
     |> then(&Regex.replace(~r/\s+srcdoc\s*=\s*[^\s>]+/i, &1, ""))
   end
 
+  defp strip_srcset_attributes(html) do
+    html
+    |> then(&Regex.replace(~r/\s+srcset\s*=\s*"[^"]*"/i, &1, ""))
+    |> then(&Regex.replace(~r/\s+srcset\s*=\s*'[^']*'/i, &1, ""))
+    |> then(&Regex.replace(~r/\s+srcset\s*=\s*[^\s>]+/i, &1, ""))
+  end
+
+  defp strip_dangerous_style_attributes(html) do
+    html
+    |> then(
+      &Regex.replace(
+        ~r/\s+style\s*=\s*"[^"]*(?:expression\s*\(|behavior\s*:|-moz-binding|javascript\s*:|vbscript\s*:|@import)[^"]*"/i,
+        &1,
+        ""
+      )
+    )
+    |> then(
+      &Regex.replace(
+        ~r/\s+style\s*=\s*'[^']*(?:expression\s*\(|behavior\s*:|-moz-binding|javascript\s*:|vbscript\s*:|@import)[^']*'/i,
+        &1,
+        ""
+      )
+    )
+    |> then(
+      &Regex.replace(
+        ~r/\s+style\s*=\s*[^\s>]*(?:expression\s*\(|behavior\s*:|-moz-binding|javascript\s*:|vbscript\s*:|@import)[^\s>]*/i,
+        &1,
+        ""
+      )
+    )
+  end
+
   defp neutralize_script_urls(html) do
     Regex.replace(
-      ~r/\b(href|src|action|formaction|xlink:href)\s*=\s*(['"])\s*(?:javascript|vbscript)\s*:[^'"]*\2/i,
+      ~r/\b(href|src|action|formaction|xlink:href)\s*=\s*(['"])\s*(?:javascript|vbscript|data)\s*:[^'"]*\2/i,
       html,
       "\\1=\\2#\\2"
     )

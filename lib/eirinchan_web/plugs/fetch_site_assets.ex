@@ -4,6 +4,7 @@ defmodule EirinchanWeb.Plugs.FetchSiteAssets do
   import Plug.Conn
 
   alias Eirinchan.Settings
+  alias EirinchanWeb.HtmlSanitizer
 
   @default_config %{
     version: nil,
@@ -36,7 +37,10 @@ defmodule EirinchanWeb.Plugs.FetchSiteAssets do
     )
     |> assign(
       :analytics_html,
-      if(config.allow_analytics_html, do: blank_to_nil(config.analytics_html), else: nil)
+      if(config.allow_analytics_html,
+        do: config.analytics_html |> blank_to_nil() |> sanitize_html_fragment(),
+        else: nil
+      )
     )
     |> assign(:favicon_url, normalize_favicon_url(config.url_favicon))
     |> assign(:show_styles_block, config.show_styles_block != false)
@@ -105,6 +109,10 @@ defmodule EirinchanWeb.Plugs.FetchSiteAssets do
   defp blank_to_nil(nil), do: nil
   defp blank_to_nil(""), do: nil
   defp blank_to_nil(value), do: value
+
+  defp sanitize_html_fragment(nil), do: nil
+  defp sanitize_html_fragment(value) when is_binary(value), do: HtmlSanitizer.sanitize_fragment(value)
+  defp sanitize_html_fragment(value), do: value |> to_string() |> sanitize_html_fragment()
 
   defp normalize_favicon_url(nil), do: nil
   defp normalize_favicon_url(""), do: nil

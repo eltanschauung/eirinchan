@@ -3,6 +3,8 @@ defmodule Eirinchan.NewsBlotter do
   Renders the PSA/news blotter configured from instance settings.
   """
 
+  alias EirinchanWeb.HtmlSanitizer
+
   def entries(config) when is_map(config) do
     config
     |> Map.get(:news_blotter_entries, Map.get(config, "news_blotter_entries", []))
@@ -28,7 +30,7 @@ defmodule Eirinchan.NewsBlotter do
         rows =
           entries
           |> Enum.map(fn %{date: date, message: message} ->
-            "<tr><td>#{escape(date)}</td><td>#{message}</td></tr>"
+            "<tr><td>#{escape(date)}</td><td>#{HtmlSanitizer.sanitize_fragment(message)}</td></tr>"
           end)
           |> Enum.join("")
 
