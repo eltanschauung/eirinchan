@@ -48,13 +48,6 @@ defmodule EirinchanWeb.FeedbackController do
     end
   end
 
-  defp current_global_message do
-    case Eirinchan.Settings.current_instance_config() |> Map.get(:global_message) do
-      value when is_binary(value) -> value
-      _ -> ""
-    end
-  end
-
   defp assign_feedback_shell(conn, _opts) do
     stylesheet = conn.assigns[:theme_stylesheet] || "/stylesheets/yotsuba.css"
 
@@ -83,6 +76,13 @@ defmodule EirinchanWeb.FeedbackController do
     ])
     |> assign(:skip_app_stylesheet, true)
     |> assign(:skip_flash_group, true)
+  end
+
+  defp current_global_message do
+    case Eirinchan.Settings.current_instance_config() |> Map.get(:global_message) do
+      value when is_binary(value) -> value
+      _ -> ""
+    end
   end
 
   defp translate_errors(changeset) do

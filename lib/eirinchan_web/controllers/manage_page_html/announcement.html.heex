@@ -1,12 +1,12 @@
 <.flash_group flash={@flash} />
 <section>
-  <h1>Manage Global Message</h1>
+  <h1>Announcements</h1>
   <p><a href={~p"/manage"}>Back to dashboard</a></p>
   <p :if={@error}><%= @error %></p>
 </section>
 
 <section>
-  <h2>Current</h2>
+  <h2>Global Message</h2>
   <%= if @global_message && @global_message != "" do %>
     <article class="blotter">
       <%= raw(@global_message) %>
@@ -14,15 +14,13 @@
   <% else %>
     <p>No global message is active.</p>
   <% end %>
-</section>
 
-<section>
-  <h2>Edit</h2>
   <form action={~p"/manage/announcement/browser"} method="post">
     <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+    <input type="hidden" name="editor" value="global_message" />
     <label>
       <span>Body</span>
-      <textarea name="body" rows="8"><%= @global_message %></textarea>
+      <textarea name="body" rows="6"><%= @global_message %></textarea>
     </label>
     <button type="submit">Save Global Message</button>
   </form>
@@ -39,14 +37,66 @@
 </section>
 
 <section>
-  <h2>Previous Messages</h2>
-  <%= if @history == [] do %>
-    <p>No previous messages.</p>
+  <h2>News Blotter</h2>
+  <%= if @blotter_preview_html && @blotter_preview_html != "" do %>
+    <%= raw(@blotter_preview_html) %>
   <% else %>
-    <ul>
-      <%= for message <- @history do %>
-        <li><code><%= message %></code></li>
-      <% end %>
-    </ul>
+    <p>No news blotter entries are active.</p>
   <% end %>
+
+  <form action={~p"/manage/announcement/browser"} method="post">
+    <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+    <input type="hidden" name="editor" value="news_blotter" />
+    <label>
+      <span>Entry limit</span>
+      <input type="number" name="limit" min="1" value={@limit} />
+    </label>
+
+    <table class="mod-form-table compact" style="margin-top: 1em;">
+      <tr>
+        <th>Date</th>
+        <th>Message</th>
+      </tr>
+      <tbody id="blotter-rows" data-next-index={length(@entries)}>
+        <%= for {entry, index} <- Enum.with_index(@entries) do %>
+          <tr>
+            <td>
+              <input type="text" name={"entries[#{index}][date]"} value={entry.date} />
+            </td>
+            <td>
+              <textarea name={"entries[#{index}][message]"} rows="3"><%= entry.message %></textarea>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+
+    <p class="unimportant">Entries are rendered in the order listed (most recent first).</p>
+
+    <div class="mod-form-actions">
+      <button type="submit">Save news blotter</button>
+      <button type="button" id="blotter-add-row">Add row</button>
+    </div>
+  </form>
 </section>
+
+<script type="text/javascript">
+  (function() {
+    var addButton = document.getElementById('blotter-add-row');
+    var rows = document.getElementById('blotter-rows');
+    if (!addButton || !rows) return;
+
+    addButton.addEventListener('click', function(event) {
+      event.preventDefault();
+      var index = parseInt(rows.getAttribute('data-next-index') || '0', 10);
+      if (isNaN(index)) index = 0;
+
+      var row = document.createElement('tr');
+      row.innerHTML =
+        '<td><input type=\"text\" name=\"entries[' + index + '][date]\" value=\"\" /></td>' +
+        '<td><textarea name=\"entries[' + index + '][message]\" rows=\"3\"></textarea></td>';
+      rows.appendChild(row);
+      rows.setAttribute('data-next-index', String(index + 1));
+    });
+  })();
+</script>

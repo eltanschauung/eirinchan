@@ -68,7 +68,7 @@ defmodule Eirinchan.FaqPage do
     html
     |> replace_boardlist("boardlist", boards)
     |> replace_boardlist("boardlist bottom", boards)
-    |> replace_bottom_boardlist_script()
+    |> remove_boardlist_scripts()
   end
 
   def refresh_boardlists(other), do: other
@@ -88,12 +88,12 @@ defmodule Eirinchan.FaqPage do
     )
   end
 
-  defp replace_bottom_boardlist_script(html) do
+  defp remove_boardlist_scripts(html) do
     Regex.replace(
-      ~r/<script>\s*if \(typeof do_boardlist !== 'undefined'\) do_boardlist\('bottom'\);\s*<\/script>/,
+      ~r/<script\b[^>]*>(?:(?!<\/script>).)*do_boardlist(?:(?!<\/script>).)*<\/script>/s,
       html,
-      ~s|<script>if (typeof do_boardlist !== 'undefined') do_boardlist('bottom');</script>|,
-      global: false
+      "",
+      global: true
     )
   end
 end

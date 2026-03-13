@@ -14,6 +14,11 @@
   </div>
   <.admin_shortcuts moderator={@current_moderator} />
 </header>
+
+<%= if @news_blotter_html && @news_blotter_html != "" do %>
+  <%= raw(@news_blotter_html) %>
+<% end %>
+
 <form
   name="post"
   onsubmit="return dopost(this);"
@@ -214,11 +219,8 @@
 <%= if @board_chrome.top_news_html do %>
   <%= raw(@board_chrome.top_news_html) %>
 <% end %>
-
-<%= if is_binary(@config.global_message) and @config.global_message != "" do %>
-  <hr />
-  <div class="blotter"><%= raw(@config.global_message) %></div>
-  <hr />
+<%= if @global_message_html && @global_message_html != "" do %>
+  <%= raw(@global_message_html) %>
 <% else %>
   <hr />
 <% end %>
@@ -315,18 +317,29 @@
             </a>
             <div class="replies">
               <strong>R: <%= summary.reply_count %> / I: <%= summary.image_count %></strong>
+              <.post_controls
+                post={post}
+                board={@board}
+                moderator={@current_moderator}
+                secure_manage_token={@secure_manage_token}
+              />
               <p :if={PostView.catalog_label(post, @config)} class="intro">
                 <span class="subject"><%= PostView.catalog_label(post, @config) %></span>
               </p>
-              <%= if !PostView.catalog_label(post, @config) do %><br /><% end %>
-              <.summary_body
-                post={post}
-                board={@board}
-                thread={post}
-                config={@config}
-                own_post_ids={@own_post_ids}
-                show_yous={@show_yous}
-              />
+              <%= if !PostView.catalog_label(post, @config) do %>
+                <br />
+              <% end %>
+              <%= raw(
+                EirinchanWeb.PostComponents.summary_body_html(%{
+                  class: nil,
+                  post: post,
+                  board: @board,
+                  thread: post,
+                  config: @config,
+                  own_post_ids: @own_post_ids,
+                  show_yous: @show_yous
+                })
+              ) %>
             </div>
           </div>
         </div>

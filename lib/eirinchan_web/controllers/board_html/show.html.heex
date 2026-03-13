@@ -16,6 +16,10 @@
   <%= raw(@board_chrome.top_news_html) %>
 <% end %>
 
+<%= if @news_blotter_html && @news_blotter_html != "" do %>
+  <%= raw(@news_blotter_html) %>
+<% end %>
+
 <form
   name="post"
   onsubmit="return dopost(this);"
@@ -229,11 +233,8 @@
   <hr />
   <%= raw(@board_chrome.post_form_blotter_html) %>
 <% end %>
-
-<%= if is_binary(@config.global_message) and @config.global_message != "" do %>
-  <hr />
-  <div class="blotter"><%= raw(@config.global_message) %></div>
-  <hr />
+<%= if @global_message_html && @global_message_html != "" do %>
+  <%= raw(@global_message_html) %>
 <% else %>
   <hr />
 <% end %>
@@ -262,10 +263,7 @@
           id="update_thread"
           title="This index page is updated automatically to display new posts."
         >
-          [Live Page&nbsp;<span
-            class="live-page-indicator"
-            aria-hidden="true"
-          >⬤</span>]
+          [Live Page&nbsp;<span class="live-page-indicator" aria-hidden="true">⬤</span>]
         </a>
         <input type="checkbox" id="auto_update_status" checked hidden />
         <span id="update_secs" hidden>5</span>
@@ -295,7 +293,15 @@
           data-unwatch-url={"/watcher/#{@board.uri}/#{thread.id}"}
           data-watched={to_string(watch.watched)}
         >
-          <.files_block :if={PostView.media_entries(thread, @config) != []} post={thread} config={@config} op?={true} board={@board} moderator={@current_moderator} secure_manage_token={@secure_manage_token} />
+          <.files_block
+            :if={PostView.media_entries(thread, @config) != []}
+            post={thread}
+            config={@config}
+            op?={true}
+            board={@board}
+            moderator={@current_moderator}
+            secure_manage_token={@secure_manage_token}
+          />
 
           <div
             class="post op"
@@ -346,7 +352,14 @@
                 secure_manage_token={@secure_manage_token}
               />
             </p>
-            <.body_container post={thread} board={@board} thread={thread} config={@config} op?={true} hide_fileboard={true} own_post_ids={@own_post_ids} show_yous={@show_yous} />
+            <%= raw(
+              PostView.body_container_html(thread, @board, thread, @config,
+                op?: true,
+                hide_fileboard: true,
+                own_post_ids: @own_post_ids,
+                show_yous: @show_yous
+              )
+            ) %>
             <span :if={PostView.omitted_text(summary)} class="omitted">
               <%= PostView.omitted_text(summary) %>
             </span>
@@ -381,14 +394,25 @@
                 />
                 <.backlinks post={reply} backlinks_map={@backlinks_map} />
               </p>
-              <.files_block post={reply} config={@config} board={@board} moderator={@current_moderator} secure_manage_token={@secure_manage_token} />
+              <.files_block
+                post={reply}
+                config={@config}
+                board={@board}
+                moderator={@current_moderator}
+                secure_manage_token={@secure_manage_token}
+              />
               <.post_controls
                 post={reply}
                 board={@board}
                 moderator={@current_moderator}
                 secure_manage_token={@secure_manage_token}
               />
-              <.body_container post={reply} board={@board} thread={thread} config={@config} own_post_ids={@own_post_ids} show_yous={@show_yous} />
+              <%= raw(
+                PostView.body_container_html(reply, @board, thread, @config,
+                  own_post_ids: @own_post_ids,
+                  show_yous: @show_yous
+                )
+              ) %>
             </div>
             <br />
           <% end %>

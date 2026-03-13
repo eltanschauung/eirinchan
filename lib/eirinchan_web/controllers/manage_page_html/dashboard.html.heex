@@ -43,7 +43,7 @@
     <li :if={@moderator.role == "admin"}>
       <a href={~p"/manage/themes/browser"}>Manage themes</a>
     </li>
-    <li><a href={~p"/manage/announcement/browser"}>Announcement</a></li>
+    <li><a href={~p"/manage/announcement/browser"}>Announcements</a></li>
     <li><a href={~p"/manage/pages/browser"}>Global static pages</a></li>
     <li><a href={~p"/manage/news/browser"}>Manage news</a></li>
   </ul>
@@ -120,10 +120,10 @@
 <fieldset>
   <legend>Messages</legend>
   <ul>
-    <li :if={@global_message && @global_message != ""}>
-      <%= raw(@global_message) %>
+    <li :if={(@news_blotter_entry_count || 0) > 0}>
+      News blotter active with <%= @news_blotter_entry_count %> entr<%= if @news_blotter_entry_count == 1, do: "y", else: "ies" %>.
     </li>
-    <li :if={!(@global_message && @global_message != "")}>No global message is active.</li>
+    <li :if={(@news_blotter_entry_count || 0) == 0}>No news blotter entries are active.</li>
     <%= for entry <- @news_entries do %>
       <li><strong><%= entry.title %></strong>: <%= entry.body %></li>
     <% end %>
