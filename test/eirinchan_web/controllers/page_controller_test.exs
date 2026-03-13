@@ -75,7 +75,6 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ "Launch"
     assert page =~ "Board online"
     assert page =~ "editor"
-    assert page =~ "FAQ"
     assert page =~ ~s(class="boardlist")
     assert page =~ ~s(var active_page = "news", board_name = null;)
     assert page =~ "Tinyboard + vichan 5.2.2 +"

@@ -1,5 +1,8 @@
 <!doctype html>
-<html lang={if assigns[:public_shell], do: nil, else: "en"}>
+<html
+  lang={if assigns[:public_shell], do: nil, else: "en"}
+  class={if(assigns[:conn].assigns[:mobile_client?] || false, do: "mobile-style", else: "desktop-style")}
+>
   <head>
     <meta charset="utf-8" />
     <%= if assigns[:head_html] do %>
@@ -93,15 +96,18 @@
       <EirinchanWeb.PostComponents.boardlist
         groups={assigns[:global_boardlist_groups]}
         class_name={assigns[:global_boardlist_class_name] || "boardlist"}
+        watcher_count={assigns[:watcher_count] || 0}
+        watcher_you_count={assigns[:watcher_you_count] || 0}
+        mobile_client?={assigns[:conn].assigns[:mobile_client?] || false}
       />
-      <%= if assigns[:javascript_urls] && assigns[:javascript_urls] != [] do %>
-        <script type="text/javascript">
-          document.addEventListener('DOMContentLoaded', function () {
-            if (typeof do_boardlist !== 'undefined') do_boardlist();
-          }, { once: true });
-        </script>
-      <% end %>
     <% end %>
+    <a id="top"></a>
+    <.nav_arrows :if={
+      assigns[:public_shell] &&
+        assigns[:show_nav_arrows_page] &&
+        Map.get(assigns[:conn].cookies || %{}, "navarrows") != "false" &&
+        !(assigns[:conn].assigns[:mobile_client?] || false)
+    } />
     <%= @inner_content %>
     <div
       :if={
@@ -140,5 +146,6 @@
     <%= if assigns[:body_end_html] do %>
       <%= Phoenix.HTML.raw(assigns[:body_end_html]) %>
     <% end %>
+    <a id="bottom"></a>
   </body>
 </html>

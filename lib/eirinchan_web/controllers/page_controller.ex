@@ -258,8 +258,7 @@ defmodule EirinchanWeb.PageController do
     primary_board = Enum.find(boards, &(&1.uri == "bant")) || %{uri: "bant"}
     chrome = BoardChrome.for_board(primary_board)
 
-    %{watcher_count: watcher_count, watcher_you_count: watcher_you_count} =
-      watcher_metrics(conn)
+    %{watcher_count: watcher_count, watcher_you_count: watcher_you_count} = watcher_metrics(conn)
 
     [
       boards: boards,
@@ -269,6 +268,7 @@ defmodule EirinchanWeb.PageController do
       custom_pages: CustomPages.list_pages(),
       global_boardlist_groups: PostView.boardlist_groups(boards),
       public_shell: true,
+      show_nav_arrows_page: active_page in ["index", "catalog", "ukko", :index, :catalog, :ukko],
       viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",
       base_stylesheet: "/stylesheets/style.css",
       body_class: public_body_class(page_kind),
@@ -401,8 +401,7 @@ defmodule EirinchanWeb.PageController do
   defp recent_theme_assigns(conn, active_page, _settings) do
     boards = Boards.list_boards()
 
-    %{watcher_count: watcher_count, watcher_you_count: watcher_you_count} =
-      watcher_metrics(conn)
+    %{watcher_count: watcher_count, watcher_you_count: watcher_you_count} = watcher_metrics(conn)
 
     [
       boards: boards,
