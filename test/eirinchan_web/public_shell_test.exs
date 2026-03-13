@@ -13,6 +13,7 @@ defmodule EirinchanWeb.PublicShellTest do
     }
 
     assert PublicShell.javascript_urls(:thread, config) == [
+             "/js/runtime-config.js",
              "/main.js",
              "/js/jquery.min.js",
              "/js/inline-expanding.js"
@@ -29,6 +30,7 @@ defmodule EirinchanWeb.PublicShellTest do
     }
 
     assert PublicShell.javascript_urls(:catalog, config) == [
+             "/js/runtime-config.js",
              "/main.js",
              "/js/jquery.min.js",
              "/js/inline-expanding.js",
@@ -46,7 +48,7 @@ defmodule EirinchanWeb.PublicShellTest do
       additional_javascript_compile: true
     }
 
-    assert PublicShell.javascript_urls(:thread, config) == ["/main.js"]
+    assert PublicShell.javascript_urls(:thread, config) == ["/js/runtime-config.js", "/main.js"]
   end
 
   test "filters dangerous additional javascript entries" do
@@ -59,6 +61,7 @@ defmodule EirinchanWeb.PublicShellTest do
     }
 
     assert PublicShell.javascript_urls(:thread, config) == [
+             "/js/runtime-config.js",
              "/main.js",
              "/js/jquery.min.js"
            ]
@@ -81,6 +84,7 @@ defmodule EirinchanWeb.PublicShellTest do
     }
 
     assert PublicShell.javascript_urls(:thread, config) == [
+             "/js/runtime-config.js",
              "/main.js",
              "/js/jquery.min.js"
            ]
@@ -102,6 +106,7 @@ defmodule EirinchanWeb.PublicShellTest do
     }
 
     assert PublicShell.javascript_urls(:thread, config) == [
+             "/js/runtime-config.js",
              "/main.js",
              "/js/jquery.min.js",
              "https://cdn.example.test/remote.js",
@@ -123,6 +128,7 @@ defmodule EirinchanWeb.PublicShellTest do
     }
 
     assert PublicShell.javascript_urls(:thread, config) == [
+             "/js/runtime-config.js",
              "/main.js",
              "/js/jquery.min.js",
              "/js/inline-expanding.js"
@@ -139,6 +145,7 @@ defmodule EirinchanWeb.PublicShellTest do
     }
 
     assert PublicShell.javascript_urls(:thread, config) == [
+             "/js/runtime-config.js",
              "/main.js",
              "/js/jquery.min.js",
              "/js/hide-threads.js",
@@ -158,6 +165,7 @@ defmodule EirinchanWeb.PublicShellTest do
     }
 
     assert PublicShell.javascript_urls(:thread, config) == [
+             "/js/runtime-config.js",
              "/main.js",
              "/js/jquery.min.js",
            "/js/ajax.js"
@@ -174,6 +182,7 @@ defmodule EirinchanWeb.PublicShellTest do
     }
 
     assert PublicShell.javascript_urls(:thread, config) == [
+             "/js/runtime-config.js",
              "/main.js",
              "/js/jquery.min.js",
              "/js/options/general.js"
@@ -198,6 +207,7 @@ defmodule EirinchanWeb.PublicShellTest do
     }
 
     assert PublicShell.javascript_urls(:thread, config) == [
+             "/js/runtime-config.js",
              "/main.js",
              "/js/jquery.min.js",
              "/js/thread-stats.js"
@@ -214,6 +224,7 @@ defmodule EirinchanWeb.PublicShellTest do
     }
 
     assert PublicShell.javascript_urls(:thread, config) == [
+             "/js/runtime-config.js",
              "/main.js",
              "/js/jquery.min.js"
            ]
@@ -233,16 +244,16 @@ defmodule EirinchanWeb.PublicShellTest do
     assert html =~ ~s([Yotsuba])
     assert html =~ ~s([Tomorrow])
     assert html =~ ~s(class="selected")
-    assert html =~ "onclick=\"return changeStyle(&quot;Yotsuba&quot;, this)\""
-    assert html =~ "onclick=\"return changeStyle(&quot;Tomorrow&quot;, this)\""
+    assert html =~ ~s(data-style-name="Yotsuba")
+    assert html =~ ~s(data-style-name="Tomorrow")
   end
 
-  test "renders password generation variables into head html" do
+  test "renders runtime configuration metadata into head html" do
     html = PublicShell.head_html("index")
 
-    assert html =~ "genpassword_chars"
-    assert html =~ "post_success_cookie_name"
-    assert html =~ "eirinchan_posted"
+    assert html =~ ~s(name="eirinchan:active-page" content="index")
+    assert html =~ ~s(name="eirinchan:genpassword-chars")
+    assert html =~ ~s(name="eirinchan:post-success-cookie-name" content="eirinchan_posted")
   end
 
   test "renders a hidden style select for the options menu" do
@@ -260,6 +271,6 @@ defmodule EirinchanWeb.PublicShellTest do
     assert html =~ ~s(Style: <select)
     assert html =~ ~s(<option value="Yotsuba">Yotsuba</option>)
     assert html =~ ~s(<option value="Tomorrow" selected="selected">Tomorrow</option>)
-    assert html =~ ~s|onchange="return changeStyle(this.value)"|
+    assert html =~ ~s(data-style-select)
   end
 end

@@ -34,7 +34,7 @@ defmodule Eirinchan.NewsBlotter do
 
         """
         <div id=\"blotterContainer\" style=\"text-align: center;\">
-          <div class=\"news-button\" onclick=\"toggleNews()\">[View News - #{escape(latest_date)}]</div>
+          <div class=\"news-button\" data-toggle-news role=\"button\" tabindex=\"0\">[View News - #{escape(latest_date)}]</div>
           <hr style=\"width: 100%; max-width: 500px;\">
           <div class=\"news-blotter\" style=\"width: 100%; max-width: 400px; margin: 0 auto;\">
             <h1 style=\"font-size: 16pt; letter-spacing: -1px;\">PSA Blotter</h1>

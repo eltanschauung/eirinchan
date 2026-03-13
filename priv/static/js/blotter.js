@@ -3,3 +3,5 @@ function toggleNews() {
   if (!newsBlotter) return;
   newsBlotter.style.display = newsBlotter.style.display === 'block' ? 'none' : 'block';
 }
+
+window.toggleNews = window.toggleNews || toggleNews;
