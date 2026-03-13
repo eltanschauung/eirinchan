@@ -34,6 +34,7 @@ defmodule EirinchanWeb.SiteAssetsLayoutTest do
   } do
     Application.put_env(:eirinchan, :site_assets, %{
       version: "build-42",
+      allow_custom_javascript: true,
       custom_javascript: "/js/custom-a.js, /js/custom-b.js\n/js/custom-c.js"
     })
 
@@ -52,6 +53,7 @@ defmodule EirinchanWeb.SiteAssetsLayoutTest do
   test "root layout includes configured analytics hooks from instance config", %{conn: conn} do
     :ok =
       Eirinchan.Settings.persist_instance_config(%{
+        allow_analytics_html: true,
         analytics_html: ~s(<script id="analytics-hook">window.analyticsLoaded = true;</script>)
       })
 
@@ -61,5 +63,15 @@ defmodule EirinchanWeb.SiteAssetsLayoutTest do
       |> html_response(200)
 
     assert page =~ ~s(<script id="analytics-hook">window.analyticsLoaded = true;</script>)
+  end
+
+  test "root layout emits hardened browser security headers", %{conn: conn} do
+    conn = get(conn, "/search", %{"q" => ""})
+
+    assert get_resp_header(conn, "x-content-type-options") == ["nosniff"]
+    assert get_resp_header(conn, "x-frame-options") == ["SAMEORIGIN"]
+    assert get_resp_header(conn, "referrer-policy") == ["strict-origin-when-cross-origin"]
+    assert get_resp_header(conn, "permissions-policy") != []
+    assert get_resp_header(conn, "content-security-policy") != []
   end
 end

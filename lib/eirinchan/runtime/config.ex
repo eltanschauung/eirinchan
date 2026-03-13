@@ -38,6 +38,11 @@ defmodule Eirinchan.Runtime.Config do
       "js/server-thread-watcher.js",
       "js/blotter.js"
     ],
+    allow_custom_javascript: false,
+    allow_remote_script_urls: false,
+    allow_analytics_html: false,
+    allow_user_custom_code: false,
+    security_headers: true,
     additional_javascript_compile: false,
     generation_strategy: "immediate",
     fileboard: false,
@@ -136,14 +141,14 @@ defmodule Eirinchan.Runtime.Config do
     embed_height: 246,
     youtube_js_html:
       "<div class=\"video-container\" data-video=\"$2\">" <>
-        "<a href=\"https://youtu.be/$2\" target=\"_blank\" class=\"file\">" <>
+        "<a href=\"https://youtu.be/$2\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"file\">" <>
         "<img style=\"width:208px;height:auto;\" src=\"//img.youtube.com/vi/$2/0.jpg\" class=\"post-image yt-embed\"/>" <>
         "</a></div>",
     embedding: [
       [
         "/^https?:\\/\\/(\\w+\\.)?(?:youtube\\.com\\/watch\\?v=|youtu\\.be\\/)([a-zA-Z0-9\\-_]{10,11})(&.+)?$/i",
         "<div class=\"video-container\" data-video=\"$2\">" <>
-          "<a href=\"https://youtu.be/$2\" target=\"_blank\" class=\"file\">" <>
+          "<a href=\"https://youtu.be/$2\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"file\">" <>
           "<img style=\"width:208px;height:auto;\" src=\"//img.youtube.com/vi/$2/0.jpg\" class=\"post-image yt-embed\"/>" <>
           "</a></div>"
       ]

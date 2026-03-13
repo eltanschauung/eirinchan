@@ -80,13 +80,13 @@ function init_file_selector(max_images, root) {
       .data('file-ref', file)
       .append(
         $('<div>').addClass('tmb-controls').append(
-          $('<div>').addClass('remove-btn').html('✖'),
-          $('<div>').addClass('move-up-btn').html('⬆'),
-          $('<div>').addClass('move-down-btn').html('⬇'),
+          $('<div>').addClass('remove-btn').text('✖'),
+          $('<div>').addClass('move-up-btn').text('⬆'),
+          $('<div>').addClass('move-down-btn').text('⬇'),
           $('<div>').addClass('strip-fn-btn').text('strip filename')
         ),
         $('<div>').addClass('file-tmb'),
-        $('<div>').addClass('tmb-filename').html(fileName)
+        $('<div>').addClass('tmb-filename').text(fileName)
       )
       .appendTo($root.find('.file-thumbs').first());
 
@@ -95,7 +95,7 @@ function init_file_selector(max_images, root) {
       var objURL = window.URL.createObjectURL(file);
       $fileThumb.css('background-image', 'url(' + objURL + ')');
     } else {
-      $fileThumb.html('<span>' + fileExt + '</span>');
+      $('<span>').text(fileExt).appendTo($fileThumb.empty());
     }
 
     updateArrowVisibility();
