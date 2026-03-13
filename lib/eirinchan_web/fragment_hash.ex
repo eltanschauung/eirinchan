@@ -3,7 +3,19 @@ defmodule EirinchanWeb.FragmentHash do
 
   @csrf_input_pattern ~r/<input[^>]*name="_csrf_token"[^>]*>/i
 
-  def md5(view, template, assigns) do
+  def md5(view, template, assigns, opts \\ []) do
+    cache_key = Keyword.get(opts, :cache_key)
+
+    if is_nil(cache_key) do
+      render_md5(view, template, assigns)
+    else
+      EirinchanWeb.FragmentCache.fetch_or_store(cache_key, fn ->
+        render_md5(view, template, assigns)
+      end)
+    end
+  end
+
+  defp render_md5(view, template, assigns) do
     html =
       Phoenix.Template.render_to_string(
         view,

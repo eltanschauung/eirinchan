@@ -14,6 +14,7 @@ defmodule Eirinchan.Build do
   alias Eirinchan.ThreadPaths
   alias EirinchanWeb.Announcements
   alias EirinchanWeb.{PostComponents, PostView}
+  alias EirinchanWeb.FragmentCache
 
   @spec rebuild_after_post(BoardRecord.t(), Eirinchan.Posts.Post.t(), keyword()) ::
           :ok | {:error, term()}
@@ -127,18 +128,28 @@ defmodule Eirinchan.Build do
 
         with :ok <- maybe_write_files(output_paths, html, summary.last_modified, config),
              :ok <- maybe_write_last_posts_thread(board, summary, config) do
-          if get_in(config, [:api, :enabled]) do
-            json_output =
-              Path.join([board_root(), board.uri, config.dir.res, "#{summary.thread.id}.json"])
+          result =
+            if get_in(config, [:api, :enabled]) do
+              json_output =
+                Path.join([board_root(), board.uri, config.dir.res, "#{summary.thread.id}.json"])
 
-            maybe_write_file(
-              json_output,
-              Jason.encode!(Api.thread_json(summary)),
-              summary.last_modified,
-              config
-            )
-          else
-            :ok
+              maybe_write_file(
+                json_output,
+                Jason.encode!(Api.thread_json(summary)),
+                summary.last_modified,
+                config
+              )
+            else
+              :ok
+            end
+
+          case result do
+            :ok ->
+              FragmentCache.clear()
+              :ok
+
+            error ->
+              error
           end
         end
 
@@ -157,6 +168,7 @@ defmodule Eirinchan.Build do
     with :ok <- write_index_pages(board, page_data_list, config),
          :ok <- write_catalog_pages(board, config, repo),
          :ok <- write_api_pages(board, page_data_list, config) do
+      FragmentCache.clear()
       remove_stale_index_pages(board, first_page.total_pages, config)
     end
   end

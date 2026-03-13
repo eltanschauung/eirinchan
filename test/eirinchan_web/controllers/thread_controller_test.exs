@@ -63,6 +63,37 @@ defmodule EirinchanWeb.ThreadControllerTest do
     assert md5_a == md5_b
   end
 
+  test "thread fragment md5 changes after a new reply is posted", %{conn: conn} do
+    board = board_fixture()
+    thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
+
+    md5_before =
+      conn
+      |> get("/#{board.uri}/res/#{thread.id}.html?fragment=md5")
+      |> response(200)
+      |> String.trim()
+
+    _reply_conn =
+      conn
+      |> recycle()
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post("/#{board.uri}/post", %{
+        "thread" => Integer.to_string(thread.id),
+        "body" => "Reply body",
+        "json_response" => "1",
+        "post" => "New Reply"
+      })
+
+    md5_after =
+      conn
+      |> recycle()
+      |> get("/#{board.uri}/res/#{thread.id}.html?fragment=md5")
+      |> response(200)
+      |> String.trim()
+
+    refute md5_before == md5_after
+  end
+
   test "plain thread urls redirect to the canonical slug path", %{conn: conn} do
     board = board_fixture(%{config_overrides: %{slugify: true}})
     config = Config.compose(nil, %{}, board.config_overrides, request_host: "www.example.com")
