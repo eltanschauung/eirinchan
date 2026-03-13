@@ -222,6 +222,33 @@ defmodule EirinchanWeb.ThreadControllerTest do
     assert page =~ "img.youtube.com/vi/dQw4w9WgXcQ/0.jpg"
   end
 
+  test "thread pages render video loop controls in initial html", %{conn: conn} do
+    board = board_fixture()
+    upload = video_upload_fixture("clip.webm")
+
+    create_conn =
+      conn
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post(~p"/#{board.uri}/post", %{
+        "body" => "video body",
+        "file" => upload,
+        "json_response" => "1",
+        "post" => "New Topic"
+      })
+
+    %{"id" => id} = json_response(create_conn, 200)
+
+    page =
+      conn
+      |> recycle()
+      |> get("/#{board.uri}/res/#{id}.html")
+      |> html_response(200)
+
+    assert page =~ ~s(class="video-loop-controls")
+    assert page =~ ~s(data-video-loop-mode="once")
+    assert page =~ ~s(data-video-loop-mode="loop")
+  end
+
   test "thread pages embed a server rendered quick reply template", %{conn: conn} do
     board = board_fixture()
     thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
@@ -230,8 +257,16 @@ defmodule EirinchanWeb.ThreadControllerTest do
     document = Floki.parse_document!(page)
 
     assert Floki.find(document, ~s(template#quick-reply-template form#quick-reply)) != []
-    assert Floki.find(document, ~s(template#quick-reply-template input[name="thread"][value="#{thread.id}"])) != []
-    assert Floki.find(document, ~s(template#quick-reply-template textarea[name="body"][placeholder="Comment"])) != []
+
+    assert Floki.find(
+             document,
+             ~s(template#quick-reply-template input[name="thread"][value="#{thread.id}"])
+           ) != []
+
+    assert Floki.find(
+             document,
+             ~s(template#quick-reply-template textarea[name="body"][placeholder="Comment"])
+           ) != []
   end
 
   test "thread page uses configured catalog label", %{conn: conn} do

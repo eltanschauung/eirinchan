@@ -18,8 +18,8 @@ function setupVideo(thumb, url) {
 	let expanded = false;
 	let hovering = false;
 	let loop = true;
-	let loopControls = [document.createElement("span"), document.createElement("span")];
 	let fileInfo = thumb.parentNode.querySelector(".fileinfo");
+	let loopControls = [];
 	let mouseDown = false;
 
 	function unexpand() {
@@ -211,29 +211,47 @@ function setupVideo(thumb, url) {
 	}, false);
 
 	// [play once] vs [loop] controls
-	function setupLoopControl(i) {
-		loopControls[i].addEventListener("click", function(e) {
-			loop = (i != 0);
-			thumb.href = thumb.href.replace(/([\?&])loop=\d+/, "$1loop=" + i);
+	function updateLoopHref(modeIndex) {
+		let href = thumb.getAttribute("href") || url;
+		let separator = href.indexOf("?") === -1 ? "?" : "&";
+		if (/([\?&])loop=\d+/.test(href)) {
+			href = href.replace(/([\?&])loop=\d+/, "$1loop=" + modeIndex);
+		} else {
+			href += separator + "loop=" + modeIndex;
+		}
+		thumb.setAttribute("href", href);
+	}
+
+	function updateLoopControlClasses(activeControl) {
+		for (let i = 0; i < loopControls.length; i++) {
+			loopControls[i].classList.toggle("active", loopControls[i] === activeControl);
+		}
+	}
+
+	function setupLoopControl(control, modeIndex) {
+		control.addEventListener("click", function(e) {
+			loop = (modeIndex != 0);
+			updateLoopHref(modeIndex);
 			if (video != null) {
 				video.loop = loop;
 				if (loop && video.currentTime >= video.duration) {
 					video.currentTime = 0;
 				}
 			}
-			loopControls[i].style.fontWeight = "bold";
-			loopControls[1-i].style.fontWeight = "inherit";
+			updateLoopControlClasses(control);
+			e.preventDefault();
+			e.stopPropagation();
 		}, false);
 	}
 
-	loopControls[0].textContent = _("[play once]");
-	loopControls[1].textContent = _("[loop]");
-	loopControls[1].style.fontWeight = "bold";
-	for (var i = 0; i < 2; i++) {
-		setupLoopControl(i);
-		loopControls[i].style.whiteSpace = "nowrap";
-		fileInfo.appendChild(document.createTextNode(" "));
-		fileInfo.appendChild(loopControls[i]);
+	if (fileInfo) {
+		loopControls = Array.prototype.slice.call(fileInfo.querySelectorAll("[data-video-loop-mode]"));
+		if (loopControls.length === 2) {
+			for (let i = 0; i < loopControls.length; i++) {
+				setupLoopControl(loopControls[i], loopControls[i].getAttribute("data-video-loop-mode") === "once" ? 0 : 1);
+			}
+			updateLoopControlClasses(fileInfo.querySelector("[data-video-loop-mode=\"loop\"]") || loopControls[1]);
+		}
 	}
 }
 

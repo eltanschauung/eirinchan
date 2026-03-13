@@ -204,6 +204,19 @@ p.fileinfo {
   margin: 0 0 0 20px;
 }
 
+.video-loop-controls {
+  white-space: nowrap;
+}
+
+.video-loop-control {
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.video-loop-control.active {
+  font-weight: bold;
+}
+
 div.post p.fileinfo {
   padding-left: 5px;
 }
