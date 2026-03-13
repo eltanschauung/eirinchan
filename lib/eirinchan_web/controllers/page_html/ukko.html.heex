@@ -16,15 +16,13 @@
             <%= summary.thread.subject || "Untitled" %>
           </a>
         </h3>
-        <%= raw(
-          EirinchanWeb.PostComponents.summary_body_html(%{
-            class: "body",
-            post: summary.thread,
-            board: board,
-            thread: summary.thread,
-            config: %{fileboard: false}
-          })
-        ) %>
+        <.summary_body
+          class="body"
+          post={summary.thread}
+          board={board}
+          thread={summary.thread}
+          config={%{fileboard: false}}
+        />
       </article>
       <hr />
     <% end %>

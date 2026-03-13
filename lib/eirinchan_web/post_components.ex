@@ -787,6 +787,7 @@ defmodule EirinchanWeb.PostComponents do
     end)
   end
 
+  # Compatibility wrapper for builder/test paths that still consume binary HTML.
   def body_container_html(assigns) do
     assigns
     |> with_component_assigns()
@@ -823,6 +824,7 @@ defmodule EirinchanWeb.PostComponents do
     end
   end
 
+  # Compatibility wrapper for builder/test paths that still consume binary HTML.
   def summary_body_html(assigns),
     do:
       assigns

@@ -327,17 +327,15 @@
               <%= if !PostView.catalog_label(post, @config) do %>
                 <br />
               <% end %>
-              <%= raw(
-                EirinchanWeb.PostComponents.summary_body_html(%{
-                  class: nil,
-                  post: post,
-                  board: @board,
-                  thread: post,
-                  config: @config,
-                  own_post_ids: @own_post_ids,
-                  show_yous: @show_yous
-                })
-              ) %>
+              <.summary_body
+                class=""
+                post={post}
+                board={@board}
+                thread={post}
+                config={@config}
+                own_post_ids={@own_post_ids}
+                show_yous={@show_yous}
+              />
             </div>
           </div>
         </div>
