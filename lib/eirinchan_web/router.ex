@@ -86,8 +86,8 @@ defmodule EirinchanWeb.Router do
     post "/themes/browser/:name", ManagePageController, :install_theme
     post "/themes/browser/:name/rebuild", ManagePageController, :rebuild_theme
     delete "/themes/browser/:name", ManagePageController, :delete_theme
-    get "/announcement/browser", ManagePageController, :announcement
-    post "/announcement/browser", ManagePageController, :upsert_announcement
+    get "/announcement/browser", ManagePageController, :blotter
+    post "/announcement/browser", ManagePageController, :update_blotter
     delete "/announcement/browser", ManagePageController, :delete_announcement
     get "/pages/browser", ManagePageController, :pages
     post "/pages/browser", ManagePageController, :create_page

@@ -12,6 +12,7 @@ defmodule Eirinchan.Build do
   alias Eirinchan.Repo
   alias Eirinchan.Themes
   alias Eirinchan.ThreadPaths
+  alias EirinchanWeb.Announcements
   alias EirinchanWeb.{PostComponents, PostView}
 
   @spec rebuild_after_post(BoardRecord.t(), Eirinchan.Posts.Post.t(), keyword()) ::
@@ -420,15 +421,14 @@ defmodule Eirinchan.Build do
     """
   end
 
-  defp render_index_blotter(%{global_message: message}) when is_binary(message) and message != "" do
-    """
-    <hr />
-    <div class="blotter">#{message}</div>
-    <hr />
-    """
+  defp render_index_blotter(config) do
+    [
+      Announcements.news_blotter_html(config),
+      Announcements.global_message_html(config, surround_hr: true)
+    ]
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.join("\n")
   end
-
-  defp render_index_blotter(_config), do: ""
 
   defp render_thread(board, summary, config) do
     boardlist = render_boardlist(Boards.list_boards())

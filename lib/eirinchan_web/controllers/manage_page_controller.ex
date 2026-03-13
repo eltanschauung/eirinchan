@@ -64,7 +64,10 @@ defmodule EirinchanWeb.ManagePageController do
         appeal_count: accessible_appeal_count(moderator),
         feedback_count: Feedback.unread_count(),
         unread_messages: Moderation.count_unread_messages(moderator),
-        global_message: current_global_message(),
+        news_blotter_entry_count:
+          Settings.current_instance_config()
+          |> Eirinchan.NewsBlotter.entries()
+          |> length(),
         custom_pages: CustomPages.list_pages(),
         news_entries: News.list_entries(limit: 10),
         error: nil,
@@ -594,12 +597,17 @@ defmodule EirinchanWeb.ManagePageController do
     end
   end
 
-  def announcement(conn, _params) do
+  def blotter(conn, _params) do
     with {:ok, moderator} <- ensure_moderator(conn) do
+      config = Settings.current_instance_config()
+
       render(conn, :announcement,
         moderator: moderator,
         global_message: current_global_message(),
         history: global_message_history(),
+        entries: Eirinchan.NewsBlotter.entries(config),
+        limit: Map.get(config, :news_blotter_limit, 15),
+        blotter_preview_html: EirinchanWeb.Announcements.news_blotter_html(config),
         error: nil
       )
     else
@@ -607,21 +615,21 @@ defmodule EirinchanWeb.ManagePageController do
     end
   end
 
-  def upsert_announcement(conn, %{"body" => body}) do
+  def update_blotter(conn, params) do
     with {:ok, _moderator} <- ensure_news_editor(conn),
-         {:ok, _config} <- update_global_message(body) do
+         {:ok, _config} <- persist_announcement_editor(params) do
       conn
-      |> put_flash(:info, "Global message updated.")
+      |> put_flash(:info, "Announcement updated.")
       |> redirect(to: ~p"/manage/announcement/browser")
     else
       {:error, :unauthorized} ->
         redirect(conn, to: ~p"/manage/login")
 
       {:error, :forbidden} ->
-        render_announcement_error(conn, "Moderator access required.")
+        render_blotter_error(conn, "Moderator access required.")
 
       {:error, :invalid_config} ->
-        render_announcement_error(conn, "Failed to update global message.", :unprocessable_entity)
+        render_blotter_error(conn, "Failed to update announcement.", :unprocessable_entity)
     end
   end
 
@@ -636,7 +644,7 @@ defmodule EirinchanWeb.ManagePageController do
         redirect(conn, to: ~p"/manage/login")
 
       {:error, :forbidden} ->
-        render_announcement_error(conn, "Moderator access required.")
+        render_blotter_error(conn, "Moderator access required.")
     end
   end
 
@@ -1414,7 +1422,10 @@ defmodule EirinchanWeb.ManagePageController do
           report_count: accessible_report_count(conn.assigns[:current_moderator]),
           appeal_count: accessible_appeal_count(conn.assigns[:current_moderator]),
           unread_messages: Moderation.count_unread_messages(conn.assigns[:current_moderator]),
-          global_message: current_global_message(),
+          news_blotter_entry_count:
+            Settings.current_instance_config()
+            |> Eirinchan.NewsBlotter.entries()
+            |> length(),
           custom_pages: CustomPages.list_pages(),
           news_entries: News.list_entries(limit: 10),
           error: "Administrator access required.",
@@ -1430,7 +1441,10 @@ defmodule EirinchanWeb.ManagePageController do
           report_count: accessible_report_count(conn.assigns.current_moderator),
           appeal_count: accessible_appeal_count(conn.assigns.current_moderator),
           unread_messages: Moderation.count_unread_messages(conn.assigns.current_moderator),
-          global_message: current_global_message(),
+          news_blotter_entry_count:
+            Settings.current_instance_config()
+            |> Eirinchan.NewsBlotter.entries()
+            |> length(),
           custom_pages: CustomPages.list_pages(),
           news_entries: News.list_entries(limit: 10),
           error: format_changeset(changeset),
@@ -1542,7 +1556,10 @@ defmodule EirinchanWeb.ManagePageController do
       report_count: accessible_report_count(conn.assigns[:current_moderator]),
       appeal_count: accessible_appeal_count(conn.assigns[:current_moderator]),
       unread_messages: Moderation.count_unread_messages(conn.assigns[:current_moderator]),
-      global_message: current_global_message(),
+      news_blotter_entry_count:
+        Settings.current_instance_config()
+        |> Eirinchan.NewsBlotter.entries()
+        |> length(),
       custom_pages: CustomPages.list_pages(),
       news_entries: News.list_entries(limit: 10),
       error: message,
@@ -1560,16 +1577,43 @@ defmodule EirinchanWeb.ManagePageController do
     )
   end
 
-  defp render_announcement_error(conn, message, status \\ :forbidden) do
+  defp render_blotter_error(conn, message, status \\ :forbidden) do
+    config = Settings.current_instance_config()
+
     conn
     |> put_status(status)
     |> render(:announcement,
       moderator: conn.assigns[:current_moderator],
       global_message: current_global_message(),
       history: global_message_history(),
+      entries: Eirinchan.NewsBlotter.entries(config),
+      limit: Map.get(config, :news_blotter_limit, 15),
+      blotter_preview_html: EirinchanWeb.Announcements.news_blotter_html(config),
       error: message
     )
   end
+
+  defp persist_announcement_editor(%{"editor" => "global_message", "body" => body}) do
+    update_global_message(body)
+  end
+
+  defp persist_announcement_editor(%{"editor" => "news_blotter"} = params) do
+    config = Settings.current_instance_config()
+    entries = parse_blotter_entries(params)
+    limit = parse_blotter_limit(params)
+
+    updated =
+      config
+      |> Map.put(:news_blotter_entries, entries)
+      |> Map.put(:news_blotter_limit, limit)
+
+    case Settings.persist_instance_config(updated) do
+      :ok -> {:ok, updated}
+      {:error, _reason} -> {:error, :invalid_config}
+    end
+  end
+
+  defp persist_announcement_editor(_params), do: {:error, :invalid_config}
 
   defp current_global_message do
     case Settings.current_instance_config() |> Map.get(:global_message) do
@@ -1606,6 +1650,43 @@ defmodule EirinchanWeb.ManagePageController do
       {:error, _reason} -> {:error, :invalid_config}
     end
   end
+
+  defp parse_blotter_limit(%{"limit" => limit}) when is_binary(limit) do
+    case Integer.parse(String.trim(limit)) do
+      {value, ""} when value > 0 -> value
+      _ -> 15
+    end
+  end
+
+  defp parse_blotter_limit(_params), do: 15
+
+  defp parse_blotter_entries(%{"entries" => entries}) when is_map(entries) do
+    entries
+    |> Enum.map(fn {index, value} -> {parse_index(index), value} end)
+    |> Enum.sort_by(fn {index, _value} -> index end)
+    |> Enum.map(fn {_index, entry} ->
+      %{
+        date: entry |> Map.get("date", "") |> to_string() |> String.trim(),
+        message: entry |> Map.get("message", "") |> to_string() |> String.trim()
+      }
+    end)
+    |> Enum.filter(fn %{date: date, message: message} ->
+      date != "" and message != ""
+    end)
+  end
+
+  defp parse_blotter_entries(_params), do: []
+
+  defp parse_index(index) when is_integer(index), do: index
+
+  defp parse_index(index) when is_binary(index) do
+    case Integer.parse(index) do
+      {value, _} -> value
+      _ -> 0
+    end
+  end
+
+  defp parse_index(_index), do: 0
 
   defp render_pages_error(conn, message, status \\ :forbidden) do
     conn

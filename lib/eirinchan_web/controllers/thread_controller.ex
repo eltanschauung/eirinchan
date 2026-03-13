@@ -6,6 +6,7 @@ defmodule EirinchanWeb.ThreadController do
   alias Eirinchan.Posts
   alias Eirinchan.ThreadWatcher
   alias Eirinchan.ThreadPaths
+  alias EirinchanWeb.Announcements
   alias EirinchanWeb.BoardChrome
   alias EirinchanWeb.PostView
   alias EirinchanWeb.PublicShell
@@ -43,8 +44,10 @@ defmodule EirinchanWeb.ThreadController do
           backlinks_map = Posts.backlinks_map_for_posts([summary.thread | summary.replies])
           thread_watch = thread_watch(conn, board, summary.thread.id)
           _ = maybe_mark_thread_seen(conn, board, summary)
+
           %{watcher_count: watcher_count, watcher_you_count: watcher_you_count} =
             watcher_metrics(conn)
+
           own_post_ids = ShowYous.owned_post_ids(conn, [summary.thread | summary.replies])
           show_yous = ShowYous.enabled?(conn)
 
@@ -68,6 +71,7 @@ defmodule EirinchanWeb.ThreadController do
             current_moderator: conn.assigns[:current_moderator],
             secure_manage_token: conn.assigns[:secure_manage_token],
             config: config,
+            global_message_html: Announcements.global_message_html(config, surround_hr: true),
             page_num: page_num,
             boards: boards,
             board_chrome: chrome,
@@ -77,6 +81,7 @@ defmodule EirinchanWeb.ThreadController do
                 chrome.boardlist_groups || PostView.boardlist_groups(boards)
               ),
             public_shell: true,
+            show_nav_arrows_page: true,
             viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",
             base_stylesheet: "/stylesheets/style.css",
             body_class: board_body_class(conn),
@@ -120,7 +125,9 @@ defmodule EirinchanWeb.ThreadController do
           else
             conn = if fragment?, do: put_root_layout(conn, false), else: conn
 
-            render(conn, if(fragment?, do: :thread_fragment, else: :show),
+            render(
+              conn,
+              if(fragment?, do: :thread_fragment, else: :show),
               Keyword.put(render_assigns, :fragment_md5, fragment_md5)
             )
           end

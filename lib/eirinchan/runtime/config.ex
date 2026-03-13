@@ -30,7 +30,12 @@ defmodule Eirinchan.Runtime.Config do
     show_styles_block: true,
     file_mod: "mod.php",
     file_script: "main.js",
-    additional_javascript: ["js/jquery.min.js", "js/inline-expanding.js", "js/server-thread-watcher.js"],
+    additional_javascript: [
+      "js/jquery.min.js",
+      "js/inline-expanding.js",
+      "js/server-thread-watcher.js",
+      "js/blotter.js"
+    ],
     additional_javascript_compile: false,
     generation_strategy: "immediate",
     fileboard: false,
@@ -41,6 +46,8 @@ defmodule Eirinchan.Runtime.Config do
     timezone: "UTC",
     anonymous: "Anonymous",
     global_message: false,
+    news_blotter_entries: [],
+    news_blotter_limit: 15,
     whalestickers: WhaleStickerDefaults.entries(),
     banners: [],
     allow_roll: false,
@@ -363,6 +370,8 @@ defmodule Eirinchan.Runtime.Config do
   defp apply_computed_defaults(config, board, request_host) do
     config
     |> Map.put_new(:global_message, false)
+    |> Map.put_new(:news_blotter_entries, [])
+    |> Map.put_new(:news_blotter_limit, 15)
     |> ensure_default_filters()
     |> Map.put_new(:post_url, path_join(config.root, config.file_post))
     |> ensure_geoip_defaults()

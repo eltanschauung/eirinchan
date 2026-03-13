@@ -5,6 +5,7 @@ defmodule EirinchanWeb.BoardController do
   alias Eirinchan.Build
   alias Eirinchan.Posts
   alias Eirinchan.ThreadWatcher
+  alias EirinchanWeb.Announcements
   alias EirinchanWeb.BoardChrome
   alias EirinchanWeb.PostView
   alias EirinchanWeb.PublicShell
@@ -88,8 +89,10 @@ defmodule EirinchanWeb.BoardController do
       {:ok, page_data} ->
         chrome = BoardChrome.for_board(board)
         thread_watch_state = thread_watch_state(conn, board)
+
         %{watcher_count: watcher_count, watcher_you_count: watcher_you_count} =
           watcher_metrics(conn)
+
         own_post_ids = ShowYous.owned_post_ids(conn, Enum.map(page_data.threads, & &1.thread))
         show_yous = ShowYous.enabled?(conn)
         fragment? = Keyword.get(opts, :fragment?, false)
@@ -110,6 +113,8 @@ defmodule EirinchanWeb.BoardController do
           current_moderator: conn.assigns[:current_moderator],
           secure_manage_token: conn.assigns[:secure_manage_token],
           config: config,
+          news_blotter_html: Announcements.news_blotter_html(config),
+          global_message_html: Announcements.global_message_html(config, surround_hr: true),
           boards: boards,
           board_chrome: chrome,
           global_boardlist_groups:
@@ -118,6 +123,7 @@ defmodule EirinchanWeb.BoardController do
               chrome.boardlist_groups || PostView.boardlist_groups(boards)
             ),
           public_shell: true,
+          show_nav_arrows_page: true,
           viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",
           base_stylesheet: "/stylesheets/style.css",
           body_class: catalog_body_class(conn),
@@ -148,10 +154,11 @@ defmodule EirinchanWeb.BoardController do
         if fragment_md5? do
           text(conn, fragment_md5)
         else
-
           conn = if fragment?, do: put_root_layout(conn, false), else: conn
 
-          render(conn, if(fragment?, do: :catalog_fragment, else: :catalog),
+          render(
+            conn,
+            if(fragment?, do: :catalog_fragment, else: :catalog),
             Keyword.put(render_assigns, :fragment_md5, fragment_md5)
           )
         end
@@ -172,8 +179,10 @@ defmodule EirinchanWeb.BoardController do
         chrome = BoardChrome.for_board(board)
         backlinks_map = page_backlinks_map(page_data)
         thread_watch_state = thread_watch_state(conn, board)
+
         %{watcher_count: watcher_count, watcher_you_count: watcher_you_count} =
           watcher_metrics(conn)
+
         own_post_ids = own_post_ids(conn, page_data)
         show_yous = ShowYous.enabled?(conn)
         fragment? = Keyword.get(opts, :fragment?, false)
@@ -195,6 +204,8 @@ defmodule EirinchanWeb.BoardController do
           secure_manage_token: conn.assigns[:secure_manage_token],
           mobile_client?: conn.assigns[:mobile_client?] || false,
           config: config,
+          news_blotter_html: Announcements.news_blotter_html(config),
+          global_message_html: Announcements.global_message_html(config, surround_hr: true),
           boards: boards,
           board_chrome: chrome,
           global_boardlist_groups:
@@ -203,6 +214,7 @@ defmodule EirinchanWeb.BoardController do
               chrome.boardlist_groups || PostView.boardlist_groups(boards)
             ),
           public_shell: true,
+          show_nav_arrows_page: true,
           viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",
           base_stylesheet: "/stylesheets/style.css",
           body_class: board_body_class(conn),
@@ -232,10 +244,11 @@ defmodule EirinchanWeb.BoardController do
         if fragment_md5? do
           text(conn, fragment_md5)
         else
-
           conn = if fragment?, do: put_root_layout(conn, false), else: conn
 
-          render(conn, if(fragment?, do: :index_fragment, else: :show),
+          render(
+            conn,
+            if(fragment?, do: :index_fragment, else: :show),
             Keyword.put(render_assigns, :fragment_md5, fragment_md5)
           )
         end
