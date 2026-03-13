@@ -5,9 +5,7 @@
 >
   <head>
     <meta charset="utf-8" />
-    <%= if assigns[:head_html] do %>
-      <%= Phoenix.HTML.raw(assigns[:head_html]) %>
-    <% end %>
+    <EirinchanWeb.PostComponents.meta_tags :if={assigns[:head_meta]} entries={assigns[:head_meta]} />
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <meta
       name="viewport"
@@ -80,9 +78,10 @@
       src={versioned_asset(script_url, assigns[:asset_version])}
     >
     </script>
-    <%= if assigns[:head_after_assets_html] do %>
-      <%= Phoenix.HTML.raw(assigns[:head_after_assets_html]) %>
-    <% end %>
+    <EirinchanWeb.PostComponents.extra_meta_tags
+      :if={assigns[:head_extra_meta_tags]}
+      entries={assigns[:head_extra_meta_tags]}
+    />
     <title><%= assigns[:page_title] || "Eirinchan" %></title>
   </head>
   <body
@@ -141,12 +140,10 @@
       <%= Phoenix.HTML.raw(@analytics_html) %>
     <% end %>
     <%= if assigns[:public_shell] && !assigns[:hide_theme_switcher] && assigns[:show_styles_block] != false && assigns[:theme_options] && assigns[:theme_options] != [] do %>
-      <%= Phoenix.HTML.raw(
-        EirinchanWeb.PublicShell.styles_html(@theme_options, @theme_label || "Yotsuba")
-      ) %>
-    <% end %>
-    <%= if assigns[:body_end_html] do %>
-      <%= Phoenix.HTML.raw(assigns[:body_end_html]) %>
+      <EirinchanWeb.PostComponents.styles_block
+        theme_options={@theme_options}
+        theme_label={@theme_label || "Yotsuba"}
+      />
     <% end %>
     <a id="bottom"></a>
   </body>

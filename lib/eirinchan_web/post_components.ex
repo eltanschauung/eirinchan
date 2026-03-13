@@ -50,6 +50,58 @@ defmodule EirinchanWeb.PostComponents do
   attr :theme_options, :list, default: []
   attr :theme_label, :string, default: "Yotsuba"
 
+  attr :entries, :map, default: %{}
+
+  def meta_tags(assigns) do
+    ~H"""
+    <meta :for={{name, content} <- @entries} name={name} content={content} />
+    """
+  end
+
+  attr :entries, :list, default: []
+
+  def extra_meta_tags(assigns) do
+    ~H"""
+    <meta
+      :for={entry <- @entries}
+      name={Map.get(entry, :name)}
+      property={Map.get(entry, :property)}
+      content={Map.get(entry, :content)}
+      value={Map.get(entry, :value)}
+    />
+    """
+  end
+
+  def styles_block(assigns) do
+    ~H"""
+    <div class="styles">
+      <%= for option <- List.wrap(@theme_options) do %>
+        <% label = option.label || option.name || "Style" %>
+        <a
+          href="#"
+          class={if label == @theme_label, do: "selected", else: nil}
+          data-style-name={label}
+        >
+          [<%= label %>]
+        </a>
+      <% end %>
+    </div>
+    """
+  end
+
+  def site_footer(assigns) do
+    ~H"""
+    <footer>
+      <p class="unimportant" style="margin-top:20px;text-align:center;">
+        - Tinyboard + vichan 5.2.2 + <a href="https://github.com/eltanschauung/eirinchan-v1">Eirinchan</a> -<br />
+        Tinyboard Copyright &copy; 2010-2014 Tinyboard Development Group<br />
+        vichan Copyright &copy; 2012-2026 vichan-devel<br />
+        All trademarks, copyrights, comments, and images on this page are owned by and are the responsibility of their respective parties.
+      </p>
+    </footer>
+    """
+  end
+
   def options_shell(assigns) do
     ~H"""
     <div id="options_handler" style="display:none">

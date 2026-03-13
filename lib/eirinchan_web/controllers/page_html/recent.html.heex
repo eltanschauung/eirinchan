@@ -58,4 +58,6 @@
 
 <hr />
 
-<%= raw(@footer_html) %>
+<%= if @show_footer do %>
+  <EirinchanWeb.PostComponents.site_footer />
+<% end %>

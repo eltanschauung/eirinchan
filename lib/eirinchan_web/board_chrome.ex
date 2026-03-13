@@ -21,7 +21,7 @@ defmodule EirinchanWeb.BoardChrome do
       boardlist_groups: nil,
       top_news_html: nil,
       post_form_blotter_html: nil,
-      footer_html: footer_html(),
+      show_footer: true,
       search_links:
         if(Themes.page_theme_enabled?("catalog"),
           do: [%{href: "/__BOARD__/catalog.html", label: "[#{catalog_name}]"}],
@@ -41,8 +41,4 @@ defmodule EirinchanWeb.BoardChrome do
 
   def boardlist_groups(boards, nil), do: EirinchanWeb.PostView.boardlist_groups(boards)
   def boardlist_groups(_boards, chrome_groups), do: chrome_groups
-
-  def footer_html do
-    ~s|<footer><p class="unimportant" style="margin-top:20px;text-align:center;">- Tinyboard + vichan 5.2.2 + <a href="https://github.com/eltanschauung/eirinchan-v1">Eirinchan</a> -<br />Tinyboard Copyright &copy; 2010-2014 Tinyboard Development Group<br />vichan Copyright &copy; 2012-2026 vichan-devel<br />All trademarks, copyrights, comments, and images on this page are owned by and are the responsibility of their respective parties.</p></footer>|
-  end
 end

@@ -62,8 +62,8 @@ defmodule EirinchanWeb.FeedbackController do
     |> assign(:body_data_stylesheet, Path.basename(stylesheet))
     |> assign(:global_boardlist_groups, EirinchanWeb.PostView.boardlist_groups(Boards.list_boards()))
     |> assign(
-      :head_html,
-      PublicShell.head_html("feedback",
+      :head_meta,
+      PublicShell.head_meta("feedback",
         resource_version: conn.assigns[:asset_version],
         theme_label: conn.assigns[:theme_label],
         theme_options: conn.assigns[:theme_options],
@@ -72,7 +72,6 @@ defmodule EirinchanWeb.FeedbackController do
       )
     )
     |> assign(:javascript_urls, PublicShell.javascript_urls(:feedback))
-    |> assign(:body_end_html, PublicShell.body_end_html())
     |> assign(:extra_stylesheets, [
       "/stylesheets/eirinchan-public.css",
       "/stylesheets/eirinchan-bant.css"

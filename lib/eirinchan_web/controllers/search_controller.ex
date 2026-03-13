@@ -104,8 +104,8 @@ defmodule EirinchanWeb.SearchController do
     |> assign(:body_class, "8chan vichan is-not-moderator active-search")
     |> assign(:body_data_stylesheet, Path.basename(stylesheet))
     |> assign(
-      :head_html,
-      PublicShell.head_html("search",
+      :head_meta,
+      PublicShell.head_meta("search",
         resource_version: conn.assigns[:asset_version],
         theme_label: conn.assigns[:theme_label],
         theme_options: conn.assigns[:theme_options],
@@ -114,7 +114,6 @@ defmodule EirinchanWeb.SearchController do
       )
     )
     |> assign(:javascript_urls, PublicShell.javascript_urls(:search))
-    |> assign(:body_end_html, PublicShell.body_end_html())
     |> assign(:extra_stylesheets, [
       "/stylesheets/eirinchan-public.css",
       "/stylesheets/eirinchan-bant.css"
