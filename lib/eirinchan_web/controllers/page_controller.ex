@@ -7,6 +7,7 @@ defmodule EirinchanWeb.PageController do
   alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.CustomPages
   alias Eirinchan.FaqPage
+  alias Eirinchan.FormattingPage
   alias Eirinchan.Installation
   alias Eirinchan.News
   alias Eirinchan.Posts
@@ -212,23 +213,19 @@ defmodule EirinchanWeb.PageController do
     if Installation.setup_required?() do
       redirect(conn, to: ~p"/setup")
     else
+      sticker_entries = sticker_entries(current_sticker_config())
+
       case CustomPages.get_page_by_slug("formatting") do
-        %CustomPages.Page{body: body} when is_binary(body) and body != "" ->
-          conn
-          |> put_resp_content_type("text/html")
-          |> send_resp(200, body)
+        %CustomPages.Page{} = page ->
+          render_custom_page(conn, %{page | body: FormattingPage.normalize_body(page.body, sticker_entries)})
 
         _ ->
-          render(
-            conn,
-            :formatting,
-            Keyword.merge(
-              public_page_assigns(conn, "active-page", "page"),
-              layout: false,
-              page: %{slug: "formatting", title: "Formatting", body: "", mod_user: nil},
-              sticker_entries: sticker_entries(current_sticker_config())
-            )
-          )
+          render_custom_page(conn, %{
+            slug: "formatting",
+            title: "Formatting",
+            body: FormattingPage.default_body(sticker_entries),
+            mod_user: nil
+          })
       end
     end
   end
@@ -337,9 +334,14 @@ defmodule EirinchanWeb.PageController do
 
   defp render_custom_page(conn, page, opts \\ []) do
     board = Keyword.get(opts, :board)
+    current_stickers = sticker_entries(current_sticker_config())
 
     page =
-      if page.slug == "faq", do: %{page | body: FaqPage.normalize_body(page.body)}, else: page
+      case page.slug do
+        "faq" -> %{page | body: FaqPage.normalize_body(page.body)}
+        "formatting" -> %{page | body: FormattingPage.normalize_body(page.body, current_stickers)}
+        _ -> page
+      end
 
     extra_stylesheets =
       public_page_assigns(conn, "active-page", "page")
@@ -360,6 +362,7 @@ defmodule EirinchanWeb.PageController do
     case page.slug do
       "flags" -> render(conn, :flag, assigns)
       "faq" -> render(conn, :faq, assigns)
+      "formatting" -> render(conn, :formatting, assigns)
       _ -> render(conn, :page, assigns)
     end
   end
