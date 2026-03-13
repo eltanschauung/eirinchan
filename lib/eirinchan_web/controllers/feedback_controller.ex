@@ -65,7 +65,9 @@ defmodule EirinchanWeb.FeedbackController do
       PublicShell.head_html("feedback",
         resource_version: conn.assigns[:asset_version],
         theme_label: conn.assigns[:theme_label],
-        theme_options: conn.assigns[:theme_options]
+        theme_options: conn.assigns[:theme_options],
+        browser_timezone: conn.assigns[:browser_timezone],
+        browser_timezone_offset_minutes: conn.assigns[:browser_timezone_offset_minutes]
       )
     )
     |> assign(:javascript_urls, PublicShell.javascript_urls(:feedback))

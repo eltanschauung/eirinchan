@@ -47,6 +47,66 @@ defmodule EirinchanWeb.PostComponents do
     """
   end
 
+  attr :theme_options, :list, default: []
+  attr :theme_label, :string, default: "Yotsuba"
+
+  def options_shell(assigns) do
+    ~H"""
+    <div id="options_handler" style="display:none">
+      <div id="options_background"></div>
+      <div id="options_div">
+        <a id="options_close" href="javascript:void(0)"><i class="fa fa-times"></i></a>
+        <div id="options_tablist">
+          <div id="options-tab-icon-general" class="options_tab_icon">
+            <i class="fa fa-home"></i>
+            <div>General</div>
+          </div>
+          <div id="options-tab-icon-watcher" class="options_tab_icon">
+            <i class="fa fa-eye"></i>
+            <div>Watcher</div>
+          </div>
+          <div id="options-exit-tab" class="options_tab_icon options_exit_tab">
+            <div>Exit</div>
+          </div>
+        </div>
+        <div id="options-tab-general" class="options_tab" style="display:none">
+          <h2>General</h2>
+          <div id="general-preferences">
+            <div :if={@theme_options != []} id="style-select" style="float:none;margin-bottom:0px">
+              Style:
+              <select onchange="return changeStyle(this.value)">
+                <%= for option <- @theme_options do %>
+                  <% label = option.label || option.name || "Style" %>
+                  <option value={label} selected={label == @theme_label}><%= label %></option>
+                <% end %>
+              </select>
+            </div>
+          </div>
+          <div id="options-storage-controls">
+            <span>Storage: </span>
+            <button id="options-storage-export" type="button">Export</button>
+            <button id="options-storage-import" type="button">Import</button>
+            <button id="options-storage-erase" type="button">Erase</button>
+            <input id="options-storage-output" type="text" class="output" hidden />
+          </div>
+        </div>
+        <div id="options-tab-watcher" class="options_tab" style="display:none">
+          <h2>Watcher</h2>
+          <div id="watcher-tab-content">
+            <div class="watcher-loading">Loading...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  def post_menu_shell(assigns) do
+    ~H"""
+    <div id="post-menu-root" class="post-menu hidden" hidden></div>
+    """
+  end
+
   def boardlist_html(assigns) do
     assigns
     |> with_component_assigns()

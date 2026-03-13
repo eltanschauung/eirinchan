@@ -103,12 +103,16 @@
   };
 
   var ensureWatcherTab = function() {
-    if (!(window.Options && Options.get_tab)) return null;
+    if (!(window.Options && Options.add_tab)) return null;
     if (watcherTab) return watcherTab;
 
     watcherTab = Options.add_tab('watcher', 'eye', _('Watcher'));
-    watcherContent = $('<div id="watcher-tab-content"><div class="watcher-loading">Loading...</div></div>');
-    watcherContent.appendTo(watcherTab.content);
+    watcherContent = $('#watcher-tab-content');
+
+    if (!watcherContent.length) {
+      watcherContent = $('<div id="watcher-tab-content"><div class="watcher-loading">Loading...</div></div>');
+      watcherContent.appendTo(watcherTab.content);
+    }
 
     var webmTab = Options.get_tab('webm');
     if (webmTab && webmTab.icon && watcherTab.icon) {
