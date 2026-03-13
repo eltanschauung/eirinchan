@@ -9,7 +9,7 @@ defmodule EirinchanWeb.PublicShell do
     "js/catalog.js"
   ]
 
-  def head_html(active_page, opts \\ []) do
+  def head_meta(active_page, opts \\ []) do
     config =
       Keyword.get(opts, :config) || Config.compose(nil, Settings.current_instance_config(), %{})
 
@@ -43,23 +43,22 @@ defmodule EirinchanWeb.PublicShell do
       |> Map.new()
       |> Jason.encode!()
 
-    """
-    <meta name="eirinchan:active-page" content="#{escape(active_page)}" />
-    <meta name="eirinchan:board-name" content="#{escape(board_name)}" />
-    <meta name="eirinchan:thread-id" content="#{escape(to_string(Keyword.get(opts, :thread_id) || ""))}" />
-    <meta name="eirinchan:config-root" content="/" />
-    <meta name="eirinchan:resource-version" content="#{escape(resource_version)}" />
-    <meta name="eirinchan:selected-style" content="#{escape(selected_style)}" />
-    <meta name="eirinchan:styles" content="#{escape(styles_json)}" />
-    <meta name="eirinchan:stylesheets-board" content="#{if stylesheets_board, do: "true", else: "false"}" />
-    <meta name="eirinchan:genpassword-chars" content="#{escape(Map.get(config, :genpassword_chars))}" />
-    <meta name="eirinchan:post-success-cookie-name" content="eirinchan_posted" />
-    <meta name="eirinchan:watcher-count" content="#{watcher_count}" />
-    <meta name="eirinchan:watcher-you-count" content="#{watcher_you_count}" />
-    <meta name="eirinchan:browser-timezone" content="#{escape(browser_timezone)}" />
-    <meta name="eirinchan:browser-timezone-offset" content="#{browser_timezone_offset_minutes}" />
-    """
-    |> String.trim()
+    %{
+      "eirinchan:active-page" => escape(active_page),
+      "eirinchan:board-name" => escape(board_name),
+      "eirinchan:thread-id" => escape(to_string(Keyword.get(opts, :thread_id) || "")),
+      "eirinchan:config-root" => "/",
+      "eirinchan:resource-version" => escape(resource_version),
+      "eirinchan:selected-style" => escape(selected_style),
+      "eirinchan:styles" => escape(styles_json),
+      "eirinchan:stylesheets-board" => if(stylesheets_board, do: "true", else: "false"),
+      "eirinchan:genpassword-chars" => escape(Map.get(config, :genpassword_chars)),
+      "eirinchan:post-success-cookie-name" => "eirinchan_posted",
+      "eirinchan:watcher-count" => to_string(watcher_count),
+      "eirinchan:watcher-you-count" => to_string(watcher_you_count),
+      "eirinchan:browser-timezone" => escape(browser_timezone),
+      "eirinchan:browser-timezone-offset" => to_string(browser_timezone_offset_minutes)
+    }
   end
 
   def javascript_urls(active_page) do
@@ -110,66 +109,23 @@ defmodule EirinchanWeb.PublicShell do
     Config.compose(nil, Settings.current_instance_config(), %{})
   end
 
-  def thread_meta_html(board, thread, config) do
+  def thread_meta(board, thread, config) do
     meta_subject = thread.subject || strip_html(thread.body || "")
     meta_description = strip_html(thread.body || "")
     image_url = thread_thumb_url(board, thread, config)
     thread_url = "/#{board.uri}/res/#{thread.id}.html"
 
     [
-      ~s(<meta name="description" content="#{escape(board_heading(board) <> " - " <> meta_subject)}" />),
-      ~s(<meta name="twitter:card" value="summary">),
-      ~s(<meta property="og:title" content="#{escape(meta_subject)}" />),
-      ~s(<meta property="og:type" content="article" />),
-      ~s(<meta property="og:url" content="#{escape(thread_url)}" />)
+      %{name: "description", content: escape(board_heading(board) <> " - " <> meta_subject)},
+      %{name: "twitter:card", value: "summary"},
+      %{property: "og:title", content: escape(meta_subject)},
+      %{property: "og:type", content: "article"},
+      %{property: "og:url", content: escape(thread_url)}
     ]
     |> maybe_add_meta(image_url, fn url ->
-      [
-        ~s(<meta property="og:image" content="#{escape(url)}" />)
-      ]
+      [%{property: "og:image", content: escape(url)}]
     end)
-    |> Kernel.++([~s(<meta property="og:description" content="#{escape(meta_description)}" />)])
-    |> Enum.join("")
-  end
-
-  def body_end_html do
-    ""
-  end
-
-  def styles_html(theme_options, selected_label) do
-    options =
-      theme_options
-      |> List.wrap()
-      |> Enum.map(fn option ->
-        label = option.label || option.name || "Style"
-        selected_class = if label == selected_label, do: " class=\"selected\"", else: ""
-        escaped_label = Phoenix.HTML.html_escape(label) |> Phoenix.HTML.safe_to_string()
-        escaped_value = Phoenix.HTML.html_escape(label) |> Phoenix.HTML.safe_to_string()
-
-        "<a href=\"#\"#{selected_class} data-style-name=\"#{escaped_value}\">[#{escaped_label}]</a>"
-      end)
-      |> Enum.join("")
-
-    "<div class=\"styles\">#{options}</div>"
-  end
-
-  def style_select_html(theme_options, selected_label) do
-    options =
-      theme_options
-      |> List.wrap()
-      |> Enum.map(fn option ->
-        label = option.label || option.name || "Style"
-        selected_attr = if label == selected_label, do: " selected=\"selected\"", else: ""
-        escaped_label = Phoenix.HTML.html_escape(label) |> Phoenix.HTML.safe_to_string()
-        escaped_value = Phoenix.HTML.html_escape(label) |> Phoenix.HTML.safe_to_string()
-        "<option value=\"#{escaped_value}\"#{selected_attr}>#{escaped_label}</option>"
-      end)
-      |> Enum.join("")
-
-    """
-    <div id="style-select" style="display:none;float:right;margin-bottom:10px">Style: <select data-style-select>${options}</select></div>
-    """
-    |> String.replace("${options}", options)
+    |> Kernel.++([%{property: "og:description", content: escape(meta_description)}])
   end
 
   defp additional_javascript(config) do

@@ -129,8 +129,8 @@ defmodule EirinchanWeb.BoardController do
           body_class: catalog_body_class(conn),
           body_data_stylesheet: board_data_stylesheet(conn),
           page_title: "#{board.uri} - Catalog",
-          head_html:
-            PublicShell.head_html("catalog",
+          head_meta:
+            PublicShell.head_meta("catalog",
               board_name: board.uri,
               resource_version: conn.assigns[:asset_version],
               theme_label: conn.assigns[:theme_label],
@@ -142,7 +142,6 @@ defmodule EirinchanWeb.BoardController do
             ),
           eager_javascript_urls: PublicShell.eager_javascript_urls(:catalog, config),
           javascript_urls: PublicShell.javascript_urls(:catalog, config),
-          body_end_html: PublicShell.body_end_html(),
           primary_stylesheet: board_primary_stylesheet(conn),
           primary_stylesheet_id: "stylesheet",
           extra_stylesheets: board_extra_stylesheets(board),
@@ -226,8 +225,8 @@ defmodule EirinchanWeb.BoardController do
           base_stylesheet: "/stylesheets/style.css",
           body_class: board_body_class(conn),
           body_data_stylesheet: board_data_stylesheet(conn),
-          head_html:
-            PublicShell.head_html("index",
+          head_meta:
+            PublicShell.head_meta("index",
               board_name: board.uri,
               resource_version: conn.assigns[:asset_version],
               theme_label: conn.assigns[:theme_label],
@@ -239,7 +238,6 @@ defmodule EirinchanWeb.BoardController do
             ),
           eager_javascript_urls: PublicShell.eager_javascript_urls(:index, config),
           javascript_urls: PublicShell.javascript_urls(:index, config),
-          body_end_html: PublicShell.body_end_html(),
           primary_stylesheet: board_primary_stylesheet(conn),
           primary_stylesheet_id: "stylesheet",
           extra_stylesheets: board_extra_stylesheets(board),

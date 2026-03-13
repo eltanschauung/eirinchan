@@ -86,8 +86,8 @@ defmodule EirinchanWeb.ThreadController do
             base_stylesheet: "/stylesheets/style.css",
             body_class: board_body_class(conn),
             body_data_stylesheet: board_data_stylesheet(conn),
-            head_html:
-              PublicShell.head_html("thread",
+            head_meta:
+              PublicShell.head_meta("thread",
                 board_name: board.uri,
                 thread_id: summary.thread.id,
                 resource_version: conn.assigns[:asset_version],
@@ -98,10 +98,9 @@ defmodule EirinchanWeb.ThreadController do
                 watcher_count: watcher_count,
                 watcher_you_count: watcher_you_count
               ),
-            head_after_assets_html: PublicShell.thread_meta_html(board, summary.thread, config),
+            head_extra_meta_tags: PublicShell.thread_meta(board, summary.thread, config),
             eager_javascript_urls: PublicShell.eager_javascript_urls(:thread, config),
             javascript_urls: PublicShell.javascript_urls(:thread, config),
-            body_end_html: PublicShell.body_end_html(),
             primary_stylesheet: board_primary_stylesheet(conn),
             primary_stylesheet_id: "stylesheet",
             extra_stylesheets: board_extra_stylesheets(board),

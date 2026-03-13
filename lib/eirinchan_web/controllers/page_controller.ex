@@ -271,8 +271,8 @@ defmodule EirinchanWeb.PageController do
       body_data_stylesheet: public_data_stylesheet(conn),
       watcher_count: watcher_count,
       watcher_you_count: watcher_you_count,
-      head_html:
-        PublicShell.head_html(active_page,
+      head_meta:
+        PublicShell.head_meta(active_page,
           resource_version: conn.assigns[:asset_version],
           theme_label: conn.assigns[:theme_label],
           theme_options: conn.assigns[:theme_options],
@@ -282,7 +282,6 @@ defmodule EirinchanWeb.PageController do
           watcher_you_count: watcher_you_count
         ),
       javascript_urls: PublicShell.javascript_urls(active_page),
-      body_end_html: PublicShell.body_end_html(),
       primary_stylesheet: public_primary_stylesheet(conn),
       primary_stylesheet_id: "stylesheet",
       extra_stylesheets: public_extra_stylesheets(primary_board),
@@ -417,7 +416,7 @@ defmodule EirinchanWeb.PageController do
     [
       boards: boards,
       global_boardlist_groups: PostView.boardlist_groups(boards),
-      footer_html: EirinchanWeb.BoardChrome.footer_html(),
+      show_footer: true,
       public_shell: true,
       viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",
       base_stylesheet: "/stylesheets/style.css",
@@ -425,8 +424,8 @@ defmodule EirinchanWeb.PageController do
       body_data_stylesheet: public_data_stylesheet(conn),
       watcher_count: watcher_count,
       watcher_you_count: watcher_you_count,
-      head_html:
-        PublicShell.head_html(active_page,
+      head_meta:
+        PublicShell.head_meta(active_page,
           resource_version: conn.assigns[:asset_version],
           theme_label: conn.assigns[:theme_label],
           theme_options: conn.assigns[:theme_options],
@@ -436,7 +435,6 @@ defmodule EirinchanWeb.PageController do
           watcher_you_count: watcher_you_count
         ),
       javascript_urls: PublicShell.javascript_urls(active_page),
-      body_end_html: PublicShell.body_end_html(),
       primary_stylesheet: public_primary_stylesheet(conn),
       primary_stylesheet_id: "stylesheet",
       extra_stylesheets: ["/recent.css"],

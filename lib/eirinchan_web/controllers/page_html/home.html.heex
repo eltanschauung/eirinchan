@@ -44,6 +44,6 @@
   <% end %>
 </section>
 
-<%= if @board_chrome.footer_html do %>
-  <%= raw(@board_chrome.footer_html) %>
+<%= if @board_chrome.show_footer do %>
+  <EirinchanWeb.PostComponents.site_footer />
 <% end %>

@@ -1,7 +1,7 @@
 defmodule EirinchanWeb.PublicShellTest do
   use ExUnit.Case, async: true
 
-  alias EirinchanWeb.PublicShell
+  alias EirinchanWeb.{PostComponents, PublicShell}
 
   test "uses vichan default additional javascript by default" do
     config = %{
@@ -232,13 +232,15 @@ defmodule EirinchanWeb.PublicShellTest do
 
   test "renders vichan styles block for style-select" do
     html =
-      PublicShell.styles_html(
-        [
+      PostComponents.styles_block(%{
+        theme_options: [
           %{label: "Yotsuba", name: "default", stylesheet: "/stylesheets/yotsuba.css"},
           %{label: "Tomorrow", name: "tomorrow", stylesheet: "/stylesheets/tomorrow.css"}
         ],
-        "Tomorrow"
-      )
+        theme_label: "Tomorrow"
+      })
+      |> Phoenix.HTML.Safe.to_iodata()
+      |> IO.iodata_to_binary()
 
     assert html =~ ~s(<div class="styles">)
     assert html =~ ~s([Yotsuba])
@@ -248,29 +250,11 @@ defmodule EirinchanWeb.PublicShellTest do
     assert html =~ ~s(data-style-name="Tomorrow")
   end
 
-  test "renders runtime configuration metadata into head html" do
-    html = PublicShell.head_html("index")
+  test "renders runtime configuration metadata into structured head assigns" do
+    head_meta = PublicShell.head_meta("index")
 
-    assert html =~ ~s(name="eirinchan:active-page" content="index")
-    assert html =~ ~s(name="eirinchan:genpassword-chars")
-    assert html =~ ~s(name="eirinchan:post-success-cookie-name" content="eirinchan_posted")
-  end
-
-  test "renders a hidden style select for the options menu" do
-    html =
-      PublicShell.style_select_html(
-        [
-          %{label: "Yotsuba", name: "default", stylesheet: "/stylesheets/yotsuba.css"},
-          %{label: "Tomorrow", name: "tomorrow", stylesheet: "/stylesheets/tomorrow.css"}
-        ],
-        "Tomorrow"
-      )
-
-    assert html =~ ~s(<div id="style-select")
-    assert html =~ ~s(display:none)
-    assert html =~ ~s(Style: <select)
-    assert html =~ ~s(<option value="Yotsuba">Yotsuba</option>)
-    assert html =~ ~s(<option value="Tomorrow" selected="selected">Tomorrow</option>)
-    assert html =~ ~s(data-style-select)
+    assert head_meta["eirinchan:active-page"] == "index"
+    assert Map.has_key?(head_meta, "eirinchan:genpassword-chars")
+    assert head_meta["eirinchan:post-success-cookie-name"] == "eirinchan_posted"
   end
 end
