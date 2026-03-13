@@ -110,6 +110,23 @@ defmodule Eirinchan.PostsTest do
     assert reply.thread_id == thread.id
   end
 
+  test "create_post stores nil ip_subnet when ip_nulling is enabled" do
+    board = board_fixture()
+
+    assert {:ok, thread, %{noko: false}} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "first post",
+                 "post" => "New Topic"
+               },
+               config: post_config(Map.put(board.config_overrides || %{}, :ip_nulling, true)),
+               request: Map.put(post_request(board.uri), :remote_ip, {203, 0, 113, 40})
+             )
+
+    assert thread.ip_subnet == nil
+  end
+
   test "create_post accepts legacy post parameter aliases and mode=regist" do
     board = board_fixture()
 
@@ -872,6 +889,7 @@ defmodule Eirinchan.PostsTest do
       board_fixture(%{
         config_overrides: %{upload_by_url_enabled: true, upload_by_url_allow_private_hosts: true}
       })
+
     source_upload = upload_fixture("remote.png", "remote-image")
     server = serve_upload_fixture(File.read!(source_upload.path), "remote.png")
     on_exit(server.stop)
@@ -922,7 +940,7 @@ defmodule Eirinchan.PostsTest do
         }
       })
 
-    source_upload = upload_fixture("remote.png", [content: String.duplicate("x", 1024)])
+    source_upload = upload_fixture("remote.png", content: String.duplicate("x", 1024))
     server = serve_upload_fixture(File.read!(source_upload.path), "remote.png")
     on_exit(server.stop)
 
@@ -1065,7 +1083,9 @@ defmodule Eirinchan.PostsTest do
       })
 
     assert {:ok, thread, _meta} =
-             Posts.create_post(board, %{"body" => "flag fallback", "user_flag" => "", "post" => "New Thread"},
+             Posts.create_post(
+               board,
+               %{"body" => "flag fallback", "user_flag" => "", "post" => "New Thread"},
                config: post_config(board.config_overrides),
                request: Map.put(post_request(board.uri), :remote_ip, "24.48.0.1")
              )
@@ -2586,7 +2606,9 @@ defmodule Eirinchan.PostsTest do
   end
 
   test "create_post records flood entries and rejects rapid repeated posts from the same ip" do
-    board = board_fixture(%{config_overrides: %{flood_time: 60, flood_time_ip: 0, flood_time_same: 0}})
+    board =
+      board_fixture(%{config_overrides: %{flood_time: 60, flood_time_ip: 0, flood_time_same: 0}})
+
     config = post_config(board.config_overrides)
 
     request = %{
@@ -2617,7 +2639,9 @@ defmodule Eirinchan.PostsTest do
   end
 
   test "create_post rejects repeated bodies within the same-ip repeat window" do
-    board = board_fixture(%{config_overrides: %{flood_time: 0, flood_time_ip: 60, flood_time_same: 0}})
+    board =
+      board_fixture(%{config_overrides: %{flood_time: 0, flood_time_ip: 60, flood_time_same: 0}})
+
     config = post_config(board.config_overrides)
 
     request = %{
@@ -2645,7 +2669,9 @@ defmodule Eirinchan.PostsTest do
   end
 
   test "create_post rejects repeated bodies across different ips within the flood same window" do
-    board = board_fixture(%{config_overrides: %{flood_time: 0, flood_time_ip: 0, flood_time_same: 60}})
+    board =
+      board_fixture(%{config_overrides: %{flood_time: 0, flood_time_ip: 0, flood_time_same: 60}})
+
     config = post_config(board.config_overrides)
 
     assert {:ok, _thread, _meta} =
@@ -2653,7 +2679,10 @@ defmodule Eirinchan.PostsTest do
                board,
                %{"body" => "same body", "post" => "New Topic"},
                config: config,
-               request: %{referer: "http://example.test/#{board.uri}/index.html", remote_ip: {203, 0, 113, 21}},
+               request: %{
+                 referer: "http://example.test/#{board.uri}/index.html",
+                 remote_ip: {203, 0, 113, 21}
+               },
                repo: Repo
              )
 
@@ -2662,7 +2691,10 @@ defmodule Eirinchan.PostsTest do
                board,
                %{"body" => "same body", "post" => "New Topic"},
                config: config,
-               request: %{referer: "http://example.test/#{board.uri}/index.html", remote_ip: {203, 0, 113, 22}},
+               request: %{
+                 referer: "http://example.test/#{board.uri}/index.html",
+                 remote_ip: {203, 0, 113, 22}
+               },
                repo: Repo
              )
   end
@@ -2688,8 +2720,14 @@ defmodule Eirinchan.PostsTest do
   test "create_post enforces max threads per hour" do
     board =
       board_fixture(%{
-        config_overrides: %{max_threads_per_hour: 1, flood_time: 0, flood_time_ip: 0, flood_time_same: 0}
+        config_overrides: %{
+          max_threads_per_hour: 1,
+          flood_time: 0,
+          flood_time_ip: 0,
+          flood_time_same: 0
+        }
       })
+
     config = post_config(board.config_overrides)
     request = post_request(board.uri)
 
@@ -2715,8 +2753,14 @@ defmodule Eirinchan.PostsTest do
   test "anti_bump_flood keeps thread bump time at the latest non-sage reply" do
     board =
       board_fixture(%{
-        config_overrides: %{anti_bump_flood: true, flood_time: 0, flood_time_ip: 0, flood_time_same: 0}
+        config_overrides: %{
+          anti_bump_flood: true,
+          flood_time: 0,
+          flood_time_ip: 0,
+          flood_time_same: 0
+        }
       })
+
     config = post_config(board.config_overrides)
     request = Map.put(post_request(board.uri), :remote_ip, {203, 0, 113, 34})
 
@@ -2761,7 +2805,12 @@ defmodule Eirinchan.PostsTest do
   test "anti_bump_flood restores thread ordering after deleting the latest bumping reply" do
     board =
       board_fixture(%{
-        config_overrides: %{anti_bump_flood: true, flood_time: 0, flood_time_ip: 0, flood_time_same: 0}
+        config_overrides: %{
+          anti_bump_flood: true,
+          flood_time: 0,
+          flood_time_ip: 0,
+          flood_time_same: 0
+        }
       })
 
     config = post_config(board.config_overrides)
@@ -2811,7 +2860,9 @@ defmodule Eirinchan.PostsTest do
 
     assert deleted_post_id == bump_reply.id
 
-    assert {:ok, page_after_delete} = Posts.list_threads_page(board, 1, config: config, repo: Repo)
+    assert {:ok, page_after_delete} =
+             Posts.list_threads_page(board, 1, config: config, repo: Repo)
+
     assert hd(page_after_delete.threads).thread.id == newer_thread.id
   end
 
