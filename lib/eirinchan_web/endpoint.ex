@@ -8,6 +8,9 @@ defmodule EirinchanWeb.Endpoint do
     store: :cookie,
     key: "_eirinchan_key",
     signing_salt: "3xPU2tNX",
+    encryption_salt: "YKr0Mq0s",
+    http_only: true,
+    secure: Mix.env() == :prod,
     same_site: "Lax"
   ]
 

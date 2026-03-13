@@ -21,7 +21,7 @@ defmodule EirinchanWeb.ManagePageController do
   alias Eirinchan.Settings
   alias Eirinchan.Themes
   alias Eirinchan.WhaleStickers
-  alias EirinchanWeb.{HtmlSanitizer, ManageSecurity, PostView}
+  alias EirinchanWeb.{HtmlSanitizer, ManageSecurity, PostView, RequestMeta}
 
   plug :assign_manage_shell
 
@@ -42,10 +42,16 @@ defmodule EirinchanWeb.ManagePageController do
     case Moderation.authenticate(username, password) do
       {:ok, moderator} ->
         secure_token = ManageSecurity.generate_token()
+        session_fingerprint = ManageSecurity.session_fingerprint(moderator)
+        login_ip = ManageSecurity.ip_fingerprint(RequestMeta.effective_remote_ip(conn))
 
         conn
+        |> configure_session(renew: true)
+        |> clear_session()
         |> put_session(:moderator_user_id, moderator.id)
         |> put_session(:secure_manage_token, secure_token)
+        |> put_session(:moderator_session_fingerprint, session_fingerprint)
+        |> put_session(:moderator_login_ip, login_ip)
         |> redirect(to: ~p"/manage")
 
       {:error, :invalid_credentials} ->
@@ -1526,6 +1532,7 @@ defmodule EirinchanWeb.ManagePageController do
 
   def delete_session(conn, _params) do
     conn
+    |> clear_session()
     |> configure_session(drop: true)
     |> redirect(to: ~p"/manage/login")
   end

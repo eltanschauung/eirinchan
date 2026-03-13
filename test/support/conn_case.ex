@@ -41,9 +41,15 @@ defmodule EirinchanWeb.ConnCase do
   end
 
   def login_moderator(conn, moderator) do
+    secure_manage_token = EirinchanWeb.ManageSecurity.generate_token()
+    session_fingerprint = EirinchanWeb.ManageSecurity.session_fingerprint(moderator)
+    login_ip = EirinchanWeb.ManageSecurity.ip_fingerprint(conn.remote_ip)
+
     Phoenix.ConnTest.init_test_session(conn,
       moderator_user_id: moderator.id,
-      secure_manage_token: EirinchanWeb.ManageSecurity.generate_token()
+      secure_manage_token: secure_manage_token,
+      moderator_session_fingerprint: session_fingerprint,
+      moderator_login_ip: login_ip
     )
   end
 
