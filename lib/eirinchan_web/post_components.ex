@@ -490,30 +490,24 @@ defmodule EirinchanWeb.PostComponents do
   attr :secure_manage_token, :string, default: nil
 
   def post_controls(assigns) do
-    assigns =
-      assign(
-        assigns,
-        :controls,
-        PostView.post_controls(
-          assigns.post,
-          assigns.board,
-          assigns.moderator,
-          assigns.secure_manage_token
-        )
+    controls =
+      PostView.post_controls(
+        assigns.post,
+        assigns.board,
+        assigns.moderator,
+        assigns.secure_manage_token
       )
+
+    assigns =
+      assigns
+      |> assign(:controls, controls)
+      |> assign(:controls_html, joined_controls_html(controls))
 
     ~H"""
     <span
       :if={@controls != []}
       class={if is_nil(@post.thread_id), do: "controls op", else: "controls"}
-    >
-      <%= for {control, index} <- Enum.with_index(@controls) do %>
-        <%= if index > 0 do %>
-          &nbsp;
-        <% end %>
-        <.control_link control={control} />
-      <% end %>
-    </span>
+    ><%= raw(@controls_html) %></span>
     """
   end
 
@@ -524,28 +518,22 @@ defmodule EirinchanWeb.PostComponents do
   attr :secure_manage_token, :string, default: nil
 
   def file_controls(assigns) do
-    assigns =
-      assign(
-        assigns,
-        :controls,
-        PostView.file_controls(
-          assigns.post,
-          assigns.file,
-          assigns.board,
-          assigns.moderator,
-          assigns.secure_manage_token
-        )
+    controls =
+      PostView.file_controls(
+        assigns.post,
+        assigns.file,
+        assigns.board,
+        assigns.moderator,
+        assigns.secure_manage_token
       )
 
+    assigns =
+      assigns
+      |> assign(:controls, controls)
+      |> assign(:controls_html, joined_controls_html(controls))
+
     ~H"""
-    <span :if={@controls != []} class="controls">
-      <%= for {control, index} <- Enum.with_index(@controls) do %>
-        <%= if index > 0 do %>
-          &nbsp;
-        <% end %>
-        <.control_link control={control} />
-      <% end %>
-    </span>
+    <span :if={@controls != []} class="controls"><%= raw(@controls_html) %></span>
     """
   end
 
@@ -567,12 +555,26 @@ defmodule EirinchanWeb.PostComponents do
     """
   end
 
+  def control_link_html(assigns) do
+    assigns
+    |> with_component_assigns()
+    |> control_link()
+    |> to_iodata()
+    |> IO.iodata_to_binary()
+  end
+
   def post_controls_html(assigns) do
     assigns
     |> with_component_assigns()
     |> post_controls()
     |> to_iodata()
     |> IO.iodata_to_binary()
+  end
+
+  defp joined_controls_html(controls) do
+    controls
+    |> Enum.map(&control_link_html(%{control: &1}))
+    |> Enum.join("&nbsp;")
   end
 
   attr :page_data, :map, required: true
