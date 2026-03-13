@@ -5,6 +5,7 @@ defmodule EirinchanWeb.Router do
     plug :accepts, ["html"]
     plug :fetch_session
     plug :fetch_cookies
+    plug EirinchanWeb.Plugs.FetchBrowserTimezone
     plug EirinchanWeb.Plugs.DetectMobileClient
     plug EirinchanWeb.Plugs.FetchBrowserToken
     plug EirinchanWeb.Plugs.FetchCurrentModerator
@@ -23,6 +24,7 @@ defmodule EirinchanWeb.Router do
     plug :accepts, ["json"]
     plug :fetch_session
     plug :fetch_cookies
+    plug EirinchanWeb.Plugs.FetchBrowserTimezone
     plug EirinchanWeb.Plugs.FetchBrowserToken
     plug EirinchanWeb.Plugs.FetchCurrentModerator
     plug EirinchanWeb.Plugs.SecureHeaders

@@ -88,8 +88,13 @@ var Item = function (itemId, text, title) {
 function buildMenu(e) {
 	var pos = $(e.target).offset();
 	var i, length;
+	var $menu = $('#post-menu-root');
 
-	var $menu = $('<div class="post-menu"></div>').append(mainMenu.list_items());
+	if (!$menu.length) {
+		$menu = $('<div id="post-menu-root" class="post-menu hidden" hidden></div>').appendTo('body');
+	}
+
+	$menu.empty().append(mainMenu.list_items());
 
 	//  execute registered click handlers
 	length = onclick_callbacks.length;
@@ -98,8 +103,7 @@ function buildMenu(e) {
 	}
 
 	//  set menu position and append to page
-	 $menu.css({top: pos.top, left: pos.left + 20});
-	 $('body').append($menu);
+	$menu.css({top: pos.top, left: pos.left + 20}).removeClass('hidden').prop('hidden', false);
 }
 
 function addButton(post) {
@@ -155,7 +159,7 @@ $(document).on('click', '.post-btn', function (e) {
 	if (!post) {
 		return;
 	}
-	$('.post-menu').remove();
+	$('#post-menu-root').empty().addClass('hidden').prop('hidden', true);
 
 	if ($(e.target).hasClass('post-btn-open')) {
 		$('.post-btn-open').removeClass('post-btn-open');
@@ -172,7 +176,7 @@ $(document).on('click', function (e){
 	if ($(e.target).hasClass('post-btn') || $(e.target).hasClass('post-submenu'))
 		return;
 
-	$('.post-menu').remove();
+	$('#post-menu-root').empty().addClass('hidden').prop('hidden', true);
 	$('.post-btn-open').removeClass('post-btn-open');
 });
 

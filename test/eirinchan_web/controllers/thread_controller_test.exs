@@ -1,7 +1,10 @@
 defmodule EirinchanWeb.ThreadControllerTest do
   use EirinchanWeb.ConnCase, async: false
+  import Ecto.Query
 
   alias Eirinchan.Posts
+  alias Eirinchan.Posts.Post
+  alias Eirinchan.Repo
   alias Eirinchan.Runtime.Config
   alias Eirinchan.ThreadWatcher
   alias Eirinchan.ThreadPaths
@@ -551,6 +554,42 @@ defmodule EirinchanWeb.ThreadControllerTest do
     assert times != []
     assert Enum.any?(times, &(Floki.attribute(&1, "data-local") == ["true"]))
     assert Enum.any?(times, fn time -> Floki.attribute(time, "title") != [] end)
+  end
+
+  test "thread pages render visible timestamps using the browser timezone cookie", %{conn: conn} do
+    board = board_fixture()
+    thread = thread_fixture(board, %{body: "Opening body"})
+
+    inserted_at = ~U[2026-03-13 12:00:00Z]
+
+    from(post in Post, where: post.id == ^thread.id)
+    |> Repo.update_all(set: [inserted_at: inserted_at])
+
+    page =
+      conn
+      |> put_req_cookie("timezone_offset", "-180")
+      |> get("/#{board.uri}/res/#{thread.id}.html")
+      |> html_response(200)
+
+    assert page =~ "03/13/26 (Fri) 09:00:00"
+    refute page =~ "03/13/26 (Fri) 12:00:00"
+  end
+
+  test "thread pages render shared options and post menu shells", %{conn: conn} do
+    board = board_fixture()
+    thread = thread_fixture(board, %{body: "Opening body"})
+
+    page =
+      conn
+      |> get("/#{board.uri}/res/#{thread.id}.html")
+      |> html_response(200)
+
+    assert page =~ ~s(id="options_handler")
+    assert page =~ ~s(id="options-tab-general")
+    assert page =~ ~s(id="options-tab-watcher")
+    assert page =~ ~s(id="general-preferences")
+    assert page =~ ~s(id="watcher-tab-content")
+    assert page =~ ~s(id="post-menu-root")
   end
 
   test "thread pages trigger build-on-load thread generation when configured", %{conn: conn} do

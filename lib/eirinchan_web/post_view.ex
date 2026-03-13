@@ -1097,11 +1097,17 @@ defmodule EirinchanWeb.PostView do
   defp pluralize(_count, unit), do: unit <> "s"
 
   defp display_datetime(%DateTime{} = inserted_at, config) do
-    timezone = Map.get(config, :timezone, "UTC")
+    case Map.get(config, :viewer_timezone_offset_minutes) do
+      offset_minutes when is_integer(offset_minutes) ->
+        DateTime.add(inserted_at, offset_minutes * 60, :second)
 
-    case DateTime.shift_zone(inserted_at, timezone) do
-      {:ok, shifted} -> shifted
-      _ -> inserted_at
+      _ ->
+        timezone = Map.get(config, :viewer_timezone) || Map.get(config, :timezone, "UTC")
+
+        case DateTime.shift_zone(inserted_at, timezone) do
+          {:ok, shifted} -> shifted
+          _ -> inserted_at
+        end
     end
   end
 

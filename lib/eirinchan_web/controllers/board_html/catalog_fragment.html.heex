@@ -32,7 +32,7 @@
                 "thread-image",
                 if(post.spoiler, do: "spoiler-image", else: nil)
               ]}
-              title={PostView.formatted_timestamp(post)}
+              title={PostView.formatted_timestamp(post, @config)}
             />
           </a>
           <div class="replies">

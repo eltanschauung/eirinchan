@@ -91,6 +91,8 @@
     data-watcher-count={assigns[:watcher_count] || 0}
     data-watcher-you-count={assigns[:watcher_you_count] || 0}
     data-mobile-client={to_string(assigns[:conn].assigns[:mobile_client?] || false)}
+    data-timezone={assigns[:conn].assigns[:browser_timezone] || nil}
+    data-timezone-offset={assigns[:conn].assigns[:browser_timezone_offset_minutes] || nil}
   >
     <%= if assigns[:global_boardlist_groups] do %>
       <EirinchanWeb.PostComponents.boardlist
@@ -107,6 +109,12 @@
         assigns[:show_nav_arrows_page] &&
         Map.get(assigns[:conn].cookies || %{}, "navarrows") != "false"
     } />
+    <EirinchanWeb.PostComponents.options_shell
+      :if={assigns[:public_shell]}
+      theme_options={assigns[:theme_options] || []}
+      theme_label={assigns[:theme_label] || "Yotsuba"}
+    />
+    <EirinchanWeb.PostComponents.post_menu_shell :if={assigns[:public_shell]} />
     <%= @inner_content %>
     <div
       :if={
@@ -131,11 +139,6 @@
     </div>
     <%= if @analytics_html do %>
       <%= Phoenix.HTML.raw(@analytics_html) %>
-    <% end %>
-    <%= if assigns[:public_shell] && assigns[:theme_options] && assigns[:theme_options] != [] do %>
-      <%= Phoenix.HTML.raw(
-        EirinchanWeb.PublicShell.style_select_html(@theme_options, @theme_label || "Yotsuba")
-      ) %>
     <% end %>
     <%= if assigns[:public_shell] && !assigns[:hide_theme_switcher] && assigns[:show_styles_block] != false && assigns[:theme_options] && assigns[:theme_options] != [] do %>
       <%= Phoenix.HTML.raw(

@@ -37,6 +37,8 @@ options_tabs = {};
 
 Options.add_tab = function(id, icon, name, content) {
   var tab = {};
+  var iconId = '#options-tab-icon-' + id;
+  var contentId = '#options-tab-' + id;
 
   if (typeof content == "string") {
     content = $("<div>"+content+"</div>");
@@ -44,20 +46,37 @@ Options.add_tab = function(id, icon, name, content) {
 
   tab.id = id;
   tab.name = name;
-  tab.icon = $("<div class='options_tab_icon'><i class='fa fa-"+icon+"'></i><div>"+name+"</div></div>");
-  tab.content = $("<div class='options_tab'></div>").css("display", "none");
+  tab.icon = $(iconId);
+  tab.content = $(contentId);
 
-  tab.content.appendTo(options_div);
+  if (!tab.icon.length) {
+    tab.icon = $("<div class='options_tab_icon' id='options-tab-icon-"+id+"'><i class='fa fa-"+icon+"'></i><div>"+name+"</div></div>");
+    tab.icon.appendTo(options_tablist);
+  }
 
-  tab.icon.on("click", function() {
+  if (!tab.content.length) {
+    tab.content = $("<div class='options_tab' id='options-tab-"+id+"'></div>").css("display", "none");
+    $("<h2>"+name+"</h2>").appendTo(tab.content);
+    tab.content.appendTo(options_div);
+  } else {
+    if (!tab.content.children('h2').length) {
+      $("<h2>"+name+"</h2>").prependTo(tab.content);
+    }
+    if (!tab.icon.find('i').length && icon) {
+      tab.icon.prepend($("<i class='fa fa-"+icon+"'></i>"));
+    }
+    if (!tab.icon.find('div').length) {
+      tab.icon.append($("<div></div>").text(name));
+    }
+  }
+
+  tab.icon.off("click.optionsTab").on("click.optionsTab", function() {
     Options.select_tab(id);
-  }).appendTo(options_tablist);
+  });
 
   if (options_exit) {
     options_exit.detach().appendTo(options_tablist);
   }
-
-  $("<h2>"+name+"</h2>").appendTo(tab.content);
 
   if (content) {
     content.appendTo(tab.content);
@@ -98,15 +117,22 @@ Options.select_tab = function(id, quick) {
   return tab;
 };
 
-options_handler = $("<div id='options_handler'></div>").css("display", "none");
-options_background = $("<div id='options_background'></div>").on("click", Options.hide).appendTo(options_handler);
-options_div = $("<div id='options_div'></div>").appendTo(options_handler);
-options_close = $("<a id='options_close' href='javascript:void(0)'><i class='fa fa-times'></i></div>")
-  .on("click", Options.hide).appendTo(options_div);
-options_tablist = $("<div id='options_tablist'></div>").appendTo(options_div);
-options_exit = $("<div class='options_tab_icon options_exit_tab'><div>"+_("Exit")+"</div></div>")
-  .on("click", Options.hide)
-  .appendTo(options_tablist);
+options_handler = $("#options_handler");
+
+if (!options_handler.length) {
+  options_handler = $("<div id='options_handler'></div>").css("display", "none");
+  $("<div id='options_background'></div>").appendTo(options_handler);
+  options_div = $("<div id='options_div'></div>").appendTo(options_handler);
+  $("<a id='options_close' href='javascript:void(0)'><i class='fa fa-times'></i></a>").appendTo(options_div);
+  $("<div id='options_tablist'></div>").appendTo(options_div);
+  $("<div id='options-exit-tab' class='options_tab_icon options_exit_tab'><div>"+_("Exit")+"</div></div>").appendTo($("#options_tablist", options_handler));
+}
+
+options_background = $("#options_background", options_handler).off("click").on("click", Options.hide);
+options_div = $("#options_div", options_handler);
+options_close = $("#options_close", options_handler).off("click").on("click", Options.hide);
+options_tablist = $("#options_tablist", options_handler);
+options_exit = $("#options-exit-tab", options_handler).off("click").on("click", Options.hide);
 
 
 $(function(){
@@ -139,9 +165,14 @@ $(function(){
     options_links.prependTo($(document.body));
   }
 
-  options_button.on("click", Options.show);
+  options_button.off("click.options").on("click.options", function(e) {
+    e.preventDefault();
+    Options.show();
+  });
 
-  options_handler.appendTo($(document.body));
+  if (!options_handler.parent().length) {
+    options_handler.appendTo($(document.body));
+  }
 });
 
 

@@ -278,6 +278,8 @@ defmodule EirinchanWeb.PageController do
           resource_version: conn.assigns[:asset_version],
           theme_label: conn.assigns[:theme_label],
           theme_options: conn.assigns[:theme_options],
+          browser_timezone: conn.assigns[:browser_timezone],
+          browser_timezone_offset_minutes: conn.assigns[:browser_timezone_offset_minutes],
           watcher_count: watcher_count,
           watcher_you_count: watcher_you_count
         ),
@@ -420,6 +422,8 @@ defmodule EirinchanWeb.PageController do
           resource_version: conn.assigns[:asset_version],
           theme_label: conn.assigns[:theme_label],
           theme_options: conn.assigns[:theme_options],
+          browser_timezone: conn.assigns[:browser_timezone],
+          browser_timezone_offset_minutes: conn.assigns[:browser_timezone_offset_minutes],
           watcher_count: watcher_count,
           watcher_you_count: watcher_you_count
         ),

@@ -16,6 +16,25 @@
 $(document).ready(function(){
 	'use strict';
 
+	var syncTimezoneCookie = function() {
+		try {
+			var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+			var offset = -new Date().getTimezoneOffset();
+
+			var current = (document.body && document.body.dataset && document.body.dataset.timezone) || '';
+			var currentOffset = parseInt((document.body && document.body.dataset && document.body.dataset.timezoneOffset) || '', 10);
+			if (tz === current && offset === currentOffset) return;
+
+			if (tz) {
+				document.cookie = 'timezone=' + encodeURIComponent(tz) + '; path=/; max-age=31536000; samesite=lax';
+			}
+			if (!isNaN(offset)) {
+				document.cookie = 'timezone_offset=' + offset + '; path=/; max-age=31536000; samesite=lax';
+			}
+		} catch (err) {
+		}
+	};
+
 	var iso8601 = function(s) {
 		s = s.replace(/\.\d\d\d+/,""); // remove milliseconds
 		s = s.replace(/-/,"/").replace(/-/,"/");
@@ -68,7 +87,7 @@ $(document).ready(function(){
 		var currentTime = Date.now();
 
 		for(var i = 0; i < times.length; i++) {
-			if (times[i].getAttribute('data-local') === 'true' && times[i].getAttribute('title')) {
+			if (times[i].getAttribute('data-local') === 'true' && times[i].getAttribute('title') && times[i].innerHTML.trim() !== '') {
 				continue;
 			}
 
@@ -89,6 +108,7 @@ $(document).ready(function(){
 	};
 
 	window.do_localtime = do_localtime;
+	syncTimezoneCookie();
 
 	$(document).on('new_post', function(e, post) {
 		do_localtime(post);
