@@ -2381,9 +2381,9 @@ defmodule Eirinchan.PostsTest do
 
     assert {:ok, updated_thread} = Posts.delete_post_files(board, thread.id, config: config)
 
-    assert updated_thread.file_path == nil
+    assert updated_thread.file_path == "deleted"
     assert updated_thread.thumb_path == nil
-    assert updated_thread.extra_files == []
+    assert Enum.map(updated_thread.extra_files, & &1.file_path) == ["deleted"]
     refute File.exists?(Eirinchan.Uploads.filesystem_path(thread.file_path))
     refute File.exists?(Eirinchan.Uploads.filesystem_path(extra.file_path))
   end
@@ -2416,7 +2416,7 @@ defmodule Eirinchan.PostsTest do
 
     assert updated_thread.file_path == thread.file_path
     assert updated_thread.thumb_path == thread.thumb_path
-    assert updated_thread.extra_files == []
+    assert Enum.map(updated_thread.extra_files, & &1.file_path) == ["deleted"]
     assert File.exists?(Eirinchan.Uploads.filesystem_path(thread.file_path))
     refute File.exists?(Eirinchan.Uploads.filesystem_path(extra.file_path))
   end

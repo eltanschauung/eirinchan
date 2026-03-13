@@ -1264,6 +1264,49 @@ defmodule EirinchanWeb.PostControllerTest do
     assert redirect == "/#{board.uri}"
   end
 
+  test "delete file only preserves a deleted-file placeholder in rebuilt thread html", %{conn: conn} do
+    board = board_fixture()
+
+    create_conn =
+      conn
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post("/#{board.uri}/post", %{
+        "body" => "Thread body",
+        "password" => "threadpw",
+        "files" => [upload_fixture("first.png", "first")],
+        "json_response" => "1",
+        "post" => "New Topic"
+      })
+
+    assert %{"id" => thread_id} = json_response(create_conn, 200)
+
+    delete_conn =
+      conn
+      |> recycle()
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post("/#{board.uri}/post", %{
+        "delete_post_id" => Integer.to_string(thread_id),
+        "password" => "threadpw",
+        "file" => "on",
+        "json_response" => "1"
+      })
+
+    assert %{
+             "deleted_post_id" => ^thread_id,
+             "file_deleted_only" => true,
+             "thread_deleted" => false
+           } = json_response(delete_conn, 200)
+
+    thread_html =
+      conn
+      |> recycle()
+      |> get("/#{board.uri}/res/#{thread_id}.html")
+      |> html_response(200)
+
+    assert thread_html =~ ~s(src="/static/deleted.png")
+    refute thread_html =~ ~s(File: <a href="deleted")
+  end
+
   test "delete branch rejects incorrect passwords", %{conn: conn} do
     board = board_fixture()
     thread = thread_fixture(board, %{password: "threadpw"})

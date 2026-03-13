@@ -11,6 +11,8 @@ defmodule EirinchanWeb.PostView do
   alias Eirinchan.WhaleStickers
   alias EirinchanWeb.{IpPresentation, ManageSecurity}
 
+  @deleted_file_sentinel "deleted"
+
   def template_assigns(board, post, config) do
     %{
       board: board,
@@ -440,7 +442,7 @@ defmodule EirinchanWeb.PostView do
   end
 
   def file_controls(post, file, board, moderator, session_token) do
-    if present?(Map.get(file, :file_path)) do
+    if present?(Map.get(file, :file_path)) and not deleted_file?(file) do
       []
       |> maybe_add_control_entry(
         can_moderate?(moderator, board, :deletefile),
@@ -470,7 +472,7 @@ defmodule EirinchanWeb.PostView do
 
   def all_files(post) do
     primary =
-      if present?(post.file_path) do
+      if renderable_file?(post) do
         [
           %{
             file_name: post.file_name,
@@ -503,6 +505,7 @@ defmodule EirinchanWeb.PostView do
     |> Map.get(:file_path)
     |> case do
       nil -> file_display_name(file)
+      @deleted_file_sentinel -> file_display_name(file)
       path -> Path.basename(path)
     end
   end
@@ -580,14 +583,18 @@ defmodule EirinchanWeb.PostView do
     max_width = if op?, do: config.thumb_op_width, else: config.thumb_width
     max_height = if op?, do: config.thumb_op_height, else: config.thumb_height
 
-    case fit_dimensions(
-           Map.get(file, :image_width),
-           Map.get(file, :image_height),
-           max_width,
-           max_height
-         ) do
-      {width, height} -> "width:#{width}px;height:#{height}px"
-      nil -> nil
+    if deleted_file?(file) do
+      nil
+    else
+      case fit_dimensions(
+             Map.get(file, :image_width),
+             Map.get(file, :image_height),
+             max_width,
+             max_height
+           ) do
+        {width, height} -> "width:#{width}px;height:#{height}px"
+        nil -> nil
+      end
     end
   end
 
@@ -704,7 +711,7 @@ defmodule EirinchanWeb.PostView do
       present?(post.thumb_path) ->
         post.thumb_path
 
-      present?(post.file_path) ->
+      present?(post.file_path) and not deleted_file?(post) ->
         post.file_path
 
       true ->
@@ -717,7 +724,7 @@ defmodule EirinchanWeb.PostView do
       has_embed?(post) ->
         youtube_thumbnail(post.embed)
 
-      present?(post.file_path) ->
+      present?(post.file_path) and not deleted_file?(post) ->
         post.file_path
 
       true ->
@@ -725,14 +732,21 @@ defmodule EirinchanWeb.PostView do
     end
   end
 
-  def file_thumb_src(file, _config) do
+  def file_thumb_src(file, config) do
     cond do
+      deleted_file?(file) ->
+        Map.get(config, :image_deleted)
+
       present?(file.thumb_path) ->
         file.thumb_path
 
       true ->
         file.file_path
     end
+  end
+
+  def deleted_file?(file) do
+    Map.get(file, :file_path) == @deleted_file_sentinel
   end
 
   def omitted_text(summary) do
@@ -758,6 +772,8 @@ defmodule EirinchanWeb.PostView do
     do: Enum.sort_by(files, &Map.get(&1, :position, 0))
 
   defp extra_files(_post), do: []
+
+  defp renderable_file?(file), do: present?(Map.get(file, :file_path)) or deleted_file?(file)
 
   defp can_render_controls?(nil, _board), do: false
   defp can_render_controls?(_moderator, nil), do: false

@@ -13,6 +13,8 @@ defmodule Eirinchan.Posts.Moderation do
   alias Eirinchan.Runtime.Config
   alias Eirinchan.Uploads
 
+  @deleted_file_sentinel "deleted"
+
   @spec moderate_delete_post(BoardRecord.t(), String.t() | integer(), keyword()) ::
           {:ok, map()} | {:error, :post_not_found | Ecto.Changeset.t()}
   def moderate_delete_post(%BoardRecord{} = board, post_id, opts \\ []) do
@@ -95,23 +97,13 @@ defmodule Eirinchan.Posts.Moderation do
       file_paths = post_delete_file_paths(post, repo)
 
       case repo.transaction(fn ->
-             from(post_file in PostFile, where: post_file.post_id == ^post.id)
-             |> repo.delete_all()
-
-             attrs = %{
-               file_name: nil,
-               file_path: nil,
-               thumb_path: nil,
-               file_size: nil,
-               file_type: nil,
-               file_md5: nil,
-               image_width: nil,
-               image_height: nil,
-               spoiler: false
-             }
-
-             case post |> Post.create_changeset(attrs) |> repo.update() do
-               {:ok, updated_post} -> repo.preload(updated_post, :extra_files, force: true)
+             with {:ok, updated_post} <-
+                    post
+                    |> Post.create_changeset(deleted_file_attrs(post))
+                    |> repo.update(),
+                  :ok <- mark_extra_files_deleted(post.id, repo) do
+               repo.preload(updated_post, :extra_files, force: true)
+             else
                {:error, reason} -> repo.rollback(reason)
              end
            end) do
@@ -384,20 +376,8 @@ defmodule Eirinchan.Posts.Moderation do
   defp delete_primary_post_file(%Post{} = post, [], repo) do
     file_paths = primary_file_delete_paths(post)
 
-    attrs = %{
-      file_name: nil,
-      file_path: nil,
-      thumb_path: nil,
-      file_size: nil,
-      file_type: nil,
-      file_md5: nil,
-      image_width: nil,
-      image_height: nil,
-      spoiler: false
-    }
-
     case repo.transaction(fn ->
-           case post |> Post.create_changeset(attrs) |> repo.update() do
+           case post |> Post.create_changeset(deleted_file_attrs(post)) |> repo.update() do
              {:ok, updated_post} -> repo.preload(updated_post, :extra_files, force: true)
              {:error, reason} -> repo.rollback(reason)
            end
@@ -407,33 +387,16 @@ defmodule Eirinchan.Posts.Moderation do
     end
   end
 
-  defp delete_primary_post_file(%Post{} = post, [promotion | _rest], repo) do
+  defp delete_primary_post_file(%Post{} = post, [_promotion | _rest], repo) do
     file_paths = primary_file_delete_paths(post)
 
     case repo.transaction(fn ->
-           with {:ok, _deleted} <- repo.delete(promotion),
-                {:ok, promoted_post} <-
-                  post
-                  |> Post.create_changeset(%{
-                    file_name: promotion.file_name,
-                    file_path: promotion.file_path,
-                    thumb_path: promotion.thumb_path,
-                    file_size: promotion.file_size,
-                    file_type: promotion.file_type,
-                    file_md5: promotion.file_md5,
-                    image_width: promotion.image_width,
-                    image_height: promotion.image_height,
-                    spoiler: promotion.spoiler
-                  })
-                  |> repo.update() do
-             from(post_file in PostFile,
-               where: post_file.post_id == ^post.id and post_file.position > 1
-             )
-             |> repo.update_all(inc: [position: -1])
+           case post |> Post.create_changeset(deleted_file_attrs(post)) |> repo.update() do
+             {:ok, updated_post} ->
+               repo.preload(updated_post, :extra_files, force: true)
 
-             repo.preload(promoted_post, :extra_files, force: true)
-           else
-             {:error, reason} -> repo.rollback(reason)
+             {:error, reason} ->
+               repo.rollback(reason)
            end
          end) do
       {:ok, updated_post} -> {:ok, updated_post, file_paths}
@@ -450,20 +413,124 @@ defmodule Eirinchan.Posts.Moderation do
         file_paths = file_delete_paths(target)
 
         case repo.transaction(fn ->
-               {:ok, _deleted} = repo.delete(target)
+               case target |> PostFile.create_changeset(deleted_file_attrs(target)) |> repo.update() do
+                 {:ok, _updated_file} ->
+                   repo.preload(post, :extra_files, force: true)
 
-               from(post_file in PostFile,
-                 where: post_file.post_id == ^post.id and post_file.position > ^file_index
-               )
-               |> repo.update_all(inc: [position: -1])
-
-               repo.preload(post, :extra_files, force: true)
+                 {:error, reason} ->
+                   repo.rollback(reason)
+               end
              end) do
           {:ok, updated_post} -> {:ok, updated_post, file_paths}
           {:error, reason} -> {:error, reason}
         end
     end
   end
+
+  defp deleted_file_attrs(file_like) do
+    %{
+      file_name: Map.get(file_like, :file_name),
+      file_path: @deleted_file_sentinel,
+      thumb_path: nil,
+      file_size: Map.get(file_like, :file_size),
+      file_type: Map.get(file_like, :file_type),
+      file_md5: Map.get(file_like, :file_md5),
+      image_width: Map.get(file_like, :image_width),
+      image_height: Map.get(file_like, :image_height),
+      spoiler: false
+    }
+  end
+
+  defp mark_extra_files_deleted(post_id, repo) do
+    post_files =
+      repo.all(
+        from post_file in PostFile,
+          where: post_file.post_id == ^post_id
+      )
+
+    Enum.reduce_while(post_files, :ok, fn post_file, :ok ->
+      case post_file |> PostFile.create_changeset(deleted_file_attrs(post_file)) |> repo.update() do
+        {:ok, _updated_post_file} -> {:cont, :ok}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
+
+  defp extra_files_for_post(%Post{} = post, repo) do
+    post
+    |> repo.preload(:extra_files, force: true)
+    |> Map.get(:extra_files)
+    |> Enum.sort_by(& &1.position)
+  end
+
+  defp primary_file_delete_paths(%Post{} = post) do
+    [post.file_path, post.thumb_path]
+    |> Enum.filter(&path_present?/1)
+  end
+
+  defp file_delete_paths(file) do
+    [file.file_path, file.thumb_path]
+    |> Enum.filter(&path_present?/1)
+  end
+
+  defp path_present?(value) when is_binary(value) do
+    trimmed = String.trim(value)
+    trimmed != "" and trimmed != @deleted_file_sentinel
+  end
+
+  defp path_present?(value), do: not is_nil(value)
+
+  defp post_delete_file_paths(%Post{thread_id: nil, id: thread_id} = thread, repo) do
+    reply_paths =
+      repo.all(
+        from post in Post,
+          where: post.thread_id == ^thread_id,
+          select: {post.file_path, post.thumb_path}
+      )
+
+    extra_paths =
+      repo.all(
+        from post_file in PostFile,
+          join: post in Post,
+          on: post_file.post_id == post.id,
+          where: post.id == ^thread_id or post.thread_id == ^thread_id,
+          select: {post_file.file_path, post_file.thumb_path}
+      )
+
+    [
+      thread.file_path,
+      thread.thumb_path
+      | Enum.flat_map(reply_paths ++ extra_paths, fn {file_path, thumb_path} ->
+          [file_path, thumb_path]
+        end)
+    ]
+    |> Enum.filter(&path_present?/1)
+  end
+
+  defp post_delete_file_paths(%Post{} = post, repo) do
+    extra_paths =
+      repo.all(
+        from post_file in PostFile,
+          where: post_file.post_id == ^post.id,
+          select: {post_file.file_path, post_file.thumb_path}
+      )
+
+    [
+      post.file_path,
+      post.thumb_path
+      | Enum.flat_map(extra_paths, fn {file_path, thumb_path} -> [file_path, thumb_path] end)
+    ]
+    |> Enum.filter(&path_present?/1)
+  end
+
+  defp has_primary_file?(%Post{file_path: file_path}) when is_binary(file_path),
+    do: file_path != "" and file_path != @deleted_file_sentinel
+
+  defp has_primary_file?(_post), do: false
+
+  defp extra_files(%{extra_files: %Ecto.Association.NotLoaded{}}), do: []
+  defp extra_files(%{extra_files: files}) when is_list(files), do: files
+  defp extra_files(_post), do: []
 
   defp move_extra_files(post, source_board, target_board, repo) do
     Enum.reduce_while(extra_files(post), :ok, fn post_file, :ok ->
@@ -537,73 +604,4 @@ defmodule Eirinchan.Posts.Moderation do
     String.replace_prefix(path, "/#{source_uri}/", "/#{target_uri}/")
   end
 
-  defp extra_files_for_post(%Post{} = post, repo) do
-    post
-    |> repo.preload(:extra_files, force: true)
-    |> Map.get(:extra_files)
-    |> Enum.sort_by(& &1.position)
-  end
-
-  defp primary_file_delete_paths(%Post{} = post) do
-    [post.file_path, post.thumb_path]
-    |> Enum.filter(&path_present?/1)
-  end
-
-  defp file_delete_paths(file) do
-    [file.file_path, file.thumb_path]
-    |> Enum.filter(&path_present?/1)
-  end
-
-  defp path_present?(value) when is_binary(value), do: String.trim(value) != ""
-  defp path_present?(value), do: not is_nil(value)
-
-  defp post_delete_file_paths(%Post{thread_id: nil, id: thread_id} = thread, repo) do
-    reply_paths =
-      repo.all(
-        from post in Post,
-          where: post.thread_id == ^thread_id,
-          select: {post.file_path, post.thumb_path}
-      )
-
-    extra_paths =
-      repo.all(
-        from post_file in PostFile,
-          join: post in Post,
-          on: post_file.post_id == post.id,
-          where: post.id == ^thread_id or post.thread_id == ^thread_id,
-          select: {post_file.file_path, post_file.thumb_path}
-      )
-
-    [
-      thread.file_path,
-      thread.thumb_path
-      | Enum.flat_map(reply_paths ++ extra_paths, fn {file_path, thumb_path} ->
-          [file_path, thumb_path]
-        end)
-    ]
-    |> Enum.reject(&is_nil/1)
-  end
-
-  defp post_delete_file_paths(%Post{} = post, repo) do
-    extra_paths =
-      repo.all(
-        from post_file in PostFile,
-          where: post_file.post_id == ^post.id,
-          select: {post_file.file_path, post_file.thumb_path}
-      )
-
-    [
-      post.file_path,
-      post.thumb_path
-      | Enum.flat_map(extra_paths, fn {file_path, thumb_path} -> [file_path, thumb_path] end)
-    ]
-    |> Enum.reject(&is_nil/1)
-  end
-
-  defp has_primary_file?(%Post{file_path: file_path}) when is_binary(file_path), do: file_path != ""
-  defp has_primary_file?(_post), do: false
-
-  defp extra_files(%{extra_files: %Ecto.Association.NotLoaded{}}), do: []
-  defp extra_files(%{extra_files: files}) when is_list(files), do: files
-  defp extra_files(_post), do: []
 end
