@@ -549,9 +549,7 @@ defmodule EirinchanWeb.PostComponents do
 
   def control_link(assigns) do
     ~H"""
-    <a title={@control.title} href={@control.href} onclick={control_onclick(@control)}>
-      <%= @control.label %>
-    </a>
+    <a title={@control.title} href={@control.href} onclick={control_onclick(@control)}><%= @control.label %></a>
     """
   end
 
