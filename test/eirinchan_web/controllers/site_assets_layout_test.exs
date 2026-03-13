@@ -50,11 +50,12 @@ defmodule EirinchanWeb.SiteAssetsLayoutTest do
     refute page =~ ~s(/assets/app.js?v=build-42)
   end
 
-  test "root layout includes configured analytics hooks from instance config", %{conn: conn} do
+  test "root layout sanitizes configured analytics html from instance config", %{conn: conn} do
     :ok =
       Eirinchan.Settings.persist_instance_config(%{
         allow_analytics_html: true,
-        analytics_html: ~s(<script id="analytics-hook">window.analyticsLoaded = true;</script>)
+        analytics_html:
+          ~s|<script id="analytics-hook">window.analyticsLoaded = true;</script><img id="analytics-pixel" src="/ok.png" onerror="alert(1)">|
       })
 
     page =
@@ -62,7 +63,9 @@ defmodule EirinchanWeb.SiteAssetsLayoutTest do
       |> get("/search", %{"q" => ""})
       |> html_response(200)
 
-    assert page =~ ~s(<script id="analytics-hook">window.analyticsLoaded = true;</script>)
+    refute page =~ ~s(<script id="analytics-hook">)
+    refute page =~ "onerror="
+    assert page =~ ~s(<img id="analytics-pixel" src="/ok.png")
   end
 
   test "root layout emits hardened browser security headers", %{conn: conn} do
