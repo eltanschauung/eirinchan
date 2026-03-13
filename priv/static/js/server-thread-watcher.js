@@ -57,7 +57,7 @@
         var post = e.target.closest && e.target.closest('.post');
         var thread = post && post.closest && post.closest('.thread');
 
-        if (!thread || !thread.dataset || !thread.dataset.threadId) {
+        if (!post || !post.classList || !post.classList.contains('op') || !thread || !thread.dataset || !thread.dataset.threadId) {
           $buf.find('#watch_thread_menu').addClass('hidden');
           return;
         }
@@ -201,6 +201,17 @@
   document.addEventListener('DOMContentLoaded', function() {
     if (window.Options && Options.get_tab) {
       ensureWatcherTab();
+      if (Options.select_tab && !Options.__watcherRefreshPatched) {
+        Options.__watcherRefreshPatched = true;
+        var originalSelectTab = Options.select_tab;
+        Options.select_tab = function(id, quick) {
+          var tab = originalSelectTab.call(Options, id, quick);
+          if (id === 'watcher') {
+            refreshWatcherTab();
+          }
+          return tab;
+        };
+      }
       setWatcherCount(
         parseInt(document.body && document.body.dataset ? document.body.dataset.watcherCount || '0' : '0', 10) || 0,
         parseInt(document.body && document.body.dataset ? document.body.dataset.watcherYouCount || '0' : '0', 10) || 0

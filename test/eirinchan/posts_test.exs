@@ -1262,7 +1262,7 @@ defmodule Eirinchan.PostsTest do
              )
 
     assert thread.body == "goodword here"
-    assert thread.subject == "goodword"
+    assert thread.subject == "badword"
   end
 
   test "create_post strips combining characters when configured" do

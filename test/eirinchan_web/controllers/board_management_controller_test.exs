@@ -417,6 +417,36 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     assert catalog_page =~ ~s(name="delete_post_id")
   end
 
+  test "catalog page only renders moderator controls for logged-in moderators", %{conn: conn} do
+    :ok = Eirinchan.Themes.enable_page_theme("catalog")
+
+    board = board_fixture(%{uri: "catmod", title: "Catalog Moderation"})
+    _thread = thread_fixture(board, %{body: "catalog controls"})
+    moderator = moderator_fixture(%{role: "admin"})
+
+    anonymous_page =
+      conn
+      |> get("/#{board.uri}/catalog.html")
+      |> html_response(200)
+
+    refute anonymous_page =~ ~s(class="controls op")
+    refute anonymous_page =~ "[D]"
+    refute anonymous_page =~ "[D+]"
+
+    moderator_page =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> get("/#{board.uri}/catalog.html")
+      |> html_response(200)
+
+    assert moderator_page =~ ~s(class="controls op")
+    assert moderator_page =~ "[D]"
+    assert moderator_page =~ "[D+]"
+    assert moderator_page =~ ~s(/mod.php?/#{board.uri}/delete/)
+    assert moderator_page =~ ~s(/mod.php?/#{board.uri}/deletebyip/)
+  end
+
   test "catalog page paginates independently when enabled", %{conn: conn} do
     :ok = Eirinchan.Themes.enable_page_theme("catalog")
 

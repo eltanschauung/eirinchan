@@ -7,6 +7,9 @@ defmodule EirinchanWeb.PostComponents do
 
   attr :groups, :list, required: true
   attr :class_name, :string, default: "boardlist"
+  attr :watcher_count, :integer, default: 0
+  attr :watcher_you_count, :integer, default: 0
+  attr :mobile_client?, :boolean, default: false
 
   def boardlist(assigns) do
     ~H"""
@@ -19,8 +22,27 @@ defmodule EirinchanWeb.PostComponents do
             <%= if index > 0, do: " / " %><a href={link.href} title={link.title}><%= link.label %></a>
           <% end %>
           ]
-        </span><%= if group != List.last(@groups), do: "  " %>
+        </span>
+        <%= if group != List.last(@groups), do: "  " %>
       <% end %>
+      <span id="admin_options_links" style="float: right;">
+        <a
+          :if={!@mobile_client?}
+          id="watcher-link"
+          href="javascript:void(0)"
+          title={"Watcher#{if @watcher_count > 0, do: " (#{@watcher_count})", else: ""}"}
+          aria-label={"Watcher#{if @watcher_count > 0, do: " (#{@watcher_count})", else: ""}"}
+          data-count={@watcher_count}
+          class={if @watcher_you_count > 0, do: "replies-quoting-you", else: nil}
+        >
+          👁
+        </a>
+        <span :if={!@mobile_client?}>&nbsp;</span><a id="admin-link" href="/manage" title="Admin">[Admin]</a><span>&nbsp;</span><a
+          id="options-link"
+          href="javascript:void(0)"
+          title="Options"
+        >[Options]</a>
+      </span>
     </div>
     """
   end
@@ -80,7 +102,11 @@ defmodule EirinchanWeb.PostComponents do
         style={PostView.flag_style(@config)}
       />
     <% end %>
-    <%= if @flags != [], do: " " %><time datetime={PostView.iso_timestamp(@post)}><%= PostView.formatted_timestamp(@post) %></time>
+    <%= if @flags != [], do: " " %><time
+      datetime={PostView.iso_timestamp(@post)}
+      data-local="true"
+      title={PostView.relative_timestamp(@post)}
+    ><%= PostView.formatted_timestamp(@post, @config) %></time>
     """
   end
 
@@ -94,7 +120,22 @@ defmodule EirinchanWeb.PostComponents do
 
   def post_number_links(assigns) do
     ~H"""
-    &nbsp;<a class="post_no" id={"post_no_#{@post_id}"} onclick={"highlightReply(#{@post_id})"} href={@post_href}>No.</a><a class="post_no" onclick={quote_onclick(@post_id, @quote_mode)} href={@quote_href} data-quote-to={@quote_to} data-quick-reply-thread={@quick_reply_thread} {@attrs}><%= @post_id %></a>
+    &nbsp;<a
+      class="post_no"
+      id={"post_no_#{@post_id}"}
+      onclick={"highlightReply(#{@post_id})"}
+      href={@post_href}
+    >No.</a>
+    <a
+      class="post_no"
+      onclick={quote_onclick(@post_id, @quote_mode)}
+      href={@quote_href}
+      data-quote-to={@quote_to}
+      data-quick-reply-thread={@quick_reply_thread}
+      {@attrs}
+    >
+      <%= @post_id %>
+    </a>
     """
   end
 
@@ -160,7 +201,9 @@ defmodule EirinchanWeb.PostComponents do
 
     ~H"""
     <span class="thread-top-controls">
-      <a :if={@show_hide} class="hide-thread-link" href="javascript:void(0)" title="Hide thread">[–]</a>
+      <a :if={@show_hide} class="hide-thread-link" href="javascript:void(0)" title="Hide thread">
+        [–]
+      </a>
       <a href="#" class="post-btn" title="Post menu" data-post-target={@post_target}>▶</a>
       <a
         href="javascript:;"
@@ -185,7 +228,12 @@ defmodule EirinchanWeb.PostComponents do
     <div :if={@moderator} class="admin-shortcuts unimportant">
       <a href="/manage">Return to Dashboard</a>
       |
-      <a href="/manage/logout/browser" onclick="document.getElementById('admin-shortcuts-logout-form').submit(); return false;">Logout</a>
+      <a
+        href="/manage/logout/browser"
+        onclick="document.getElementById('admin-shortcuts-logout-form').submit(); return false;"
+      >
+        Logout
+      </a>
       <form
         id="admin-shortcuts-logout-form"
         action="/manage/logout/browser"
@@ -196,6 +244,24 @@ defmodule EirinchanWeb.PostComponents do
         <input type="hidden" name="_csrf_token" value={Phoenix.Controller.get_csrf_token()} />
         <input type="hidden" name="_method" value="delete" />
       </form>
+    </div>
+    """
+  end
+
+  def nav_arrows(assigns) do
+    ~H"""
+    <div class="navarrows-shell" aria-hidden="true">
+      <a class="navarrow navarrow-top" href="#top" title="Scroll to top" aria-label="Scroll to top">
+        <img src="/reisen_up.png" alt="Scroll to top" width="80%" height="auto" />
+      </a>
+      <a
+        class="navarrow navarrow-bottom"
+        href="#bottom"
+        title="Scroll to bottom"
+        aria-label="Scroll to bottom"
+      >
+        <img src="/tewi_down.png" alt="Scroll to bottom" width="80%" height="auto" />
+      </a>
     </div>
     """
   end
@@ -253,13 +319,12 @@ defmodule EirinchanWeb.PostComponents do
       end}
     >
       <p class="fileinfo">
-        File:
-        <a href={@file.file_path}><%= PostView.stored_file_name(@file) %></a>
+        File: <a href={@file.file_path}><%= PostView.stored_file_name(@file) %></a>
         <span>
-          (<%= PostView.file_size_text(@file) %><%= if PostView.file_dimensions(@file) do %>, <%= PostView.file_dimensions(@file) %><% end %>, <span
-            class="postfilename"
-            title={PostView.original_file_name(@file)}
-          ><%= PostView.display_file_name(@file, @config) %></span>)
+          (<%= PostView.file_size_text(@file) %>
+          <%= if PostView.file_dimensions(@file) do %>
+            , <%= PostView.file_dimensions(@file) %>
+          <% end %>, <span class="postfilename" title={PostView.original_file_name(@file)}><%= PostView.display_file_name(@file, @config) %></span>)
         </span>
         <.file_controls
           post={@post}
@@ -289,7 +354,10 @@ defmodule EirinchanWeb.PostComponents do
   def file_image(assigns) do
     assigns =
       assigns
-      |> assign(:thumb_style, PostView.thumb_style(assigns.file, assigns.config, op?: assigns.op?))
+      |> assign(
+        :thumb_style,
+        PostView.thumb_style(assigns.file, assigns.config, op?: assigns.op?)
+      )
       |> assign(:link_class, PostView.file_link_class(assigns.file))
       |> assign(
         :image_classes,
@@ -299,7 +367,16 @@ defmodule EirinchanWeb.PostComponents do
       )
 
     ~H"""
-    <a href={@file.file_path} target="_blank" class={@link_class}><img class={@image_classes} src={PostView.file_thumb_src(@file, @config)} loading="lazy" decoding="async" style={@thumb_style} alt="" /></a>
+    <a href={@file.file_path} target="_blank" class={@link_class}>
+      <img
+        class={@image_classes}
+        src={PostView.file_thumb_src(@file, @config)}
+        loading="lazy"
+        decoding="async"
+        style={@thumb_style}
+        alt=""
+      />
+    </a>
     """
   end
 
@@ -318,11 +395,28 @@ defmodule EirinchanWeb.PostComponents do
 
   def post_controls(assigns) do
     assigns =
-      assign(assigns, :controls, PostView.post_controls(assigns.post, assigns.board, assigns.moderator, assigns.secure_manage_token))
+      assign(
+        assigns,
+        :controls,
+        PostView.post_controls(
+          assigns.post,
+          assigns.board,
+          assigns.moderator,
+          assigns.secure_manage_token
+        )
+      )
 
     ~H"""
-    <span :if={@controls != []} class={if is_nil(@post.thread_id), do: "controls op", else: "controls"}>
-      <%= for {control, index} <- Enum.with_index(@controls) do %><%= if index > 0 do %>&nbsp;<% end %><.control_link control={control} /><% end %>
+    <span
+      :if={@controls != []}
+      class={if is_nil(@post.thread_id), do: "controls op", else: "controls"}
+    >
+      <%= for {control, index} <- Enum.with_index(@controls) do %>
+        <%= if index > 0 do %>
+          &nbsp;
+        <% end %>
+        <.control_link control={control} />
+      <% end %>
     </span>
     """
   end
@@ -335,11 +429,26 @@ defmodule EirinchanWeb.PostComponents do
 
   def file_controls(assigns) do
     assigns =
-      assign(assigns, :controls, PostView.file_controls(assigns.post, assigns.file, assigns.board, assigns.moderator, assigns.secure_manage_token))
+      assign(
+        assigns,
+        :controls,
+        PostView.file_controls(
+          assigns.post,
+          assigns.file,
+          assigns.board,
+          assigns.moderator,
+          assigns.secure_manage_token
+        )
+      )
 
     ~H"""
     <span :if={@controls != []} class="controls">
-      <%= for {control, index} <- Enum.with_index(@controls) do %><%= if index > 0 do %>&nbsp;<% end %><.control_link control={control} /><% end %>
+      <%= for {control, index} <- Enum.with_index(@controls) do %>
+        <%= if index > 0 do %>
+          &nbsp;
+        <% end %>
+        <.control_link control={control} />
+      <% end %>
     </span>
     """
   end
@@ -356,11 +465,9 @@ defmodule EirinchanWeb.PostComponents do
 
   def control_link(assigns) do
     ~H"""
-    <a
-      title={@control.title}
-      href={@control.href}
-      onclick={control_onclick(@control)}
-    ><%= @control.label %></a>
+    <a title={@control.title} href={@control.href} onclick={control_onclick(@control)}>
+      <%= @control.label %>
+    </a>
     """
   end
 
@@ -402,8 +509,7 @@ defmodule EirinchanWeb.PostComponents do
         <form action={@next_page.link} method="get"><input type="submit" value="Next" /></form>
       <% end %>
       <%= if @show_catalog do %>
-        |
-        <a href={"/#{@board_uri}/catalog.html"}><%= @catalog_label %></a>
+        | <a href={"/#{@board_uri}/catalog.html"}><%= @catalog_label %></a>
       <% end %>
     </div>
     """
@@ -435,25 +541,35 @@ defmodule EirinchanWeb.PostComponents do
   attr :show_yous, :boolean, default: false
 
   def body_container(assigns) do
+    formatted_html =
+      formatted_body_segments_html(%{
+        post: assigns.post,
+        board: assigns.board,
+        thread: assigns.thread,
+        config: assigns.config,
+        own_post_ids: assigns.own_post_ids,
+        show_yous: assigns.show_yous
+      })
+
     assigns =
       assigns
+      |> assign(:formatted_html, formatted_html)
+      |> assign(:body_attrs, body_attrs(assigns.post, assigns.config, assigns.op?))
       |> assign(
-        :formatted_html,
-        formatted_body_segments_html(%{
-          post: assigns.post,
-          board: assigns.board,
-          thread: assigns.thread,
-          config: assigns.config,
-          own_post_ids: assigns.own_post_ids,
-          show_yous: assigns.show_yous
-        })
+        :body_html,
+        div_html(
+          body_attrs(assigns.post, assigns.config, assigns.op?),
+          body_inner_html(
+            assigns.post,
+            assigns.config,
+            assigns.hide_fileboard,
+            assigns.formatted_html
+          )
+        )
       )
 
     ~H"""
-    <div class="body" {case body_style_attr(@post, @config, @op?) do
-      nil -> []
-      style -> [style: style]
-    end}><%= raw(@formatted_html) %><span :if={@post.tag} class="tag-line">Tag: <%= if is_map(@config.allowed_tags), do: Map.get(@config.allowed_tags, @post.tag, @post.tag), else: @post.tag %></span><span :if={@config.fileboard && PostView.show_fileboard_summary?(@post)} class="tag-line" style={if @hide_fileboard, do: "display:none", else: nil}>Fileboard: <%= PostView.fileboard_summary(@post) %></span></div>
+    <%= raw(@body_html) %>
     """
   end
 
@@ -466,6 +582,34 @@ defmodule EirinchanWeb.PostComponents do
   attr :show_yous, :boolean, default: false
 
   def summary_body(assigns) do
+    formatted_html =
+      formatted_body_segments_html(%{
+        post: assigns.post,
+        board: assigns.board,
+        thread: assigns.thread,
+        config: assigns.config,
+        own_post_ids: assigns.own_post_ids,
+        show_yous: assigns.show_yous
+      })
+
+    assigns =
+      assigns
+      |> assign(:formatted_html, formatted_html)
+      |> assign(:body_html, div_html([class: assigns.class], formatted_html))
+
+    ~H"""
+    <%= raw(@body_html) %>
+    """
+  end
+
+  attr :post, :map, required: true
+  attr :board, :map, required: true
+  attr :thread, :map, required: true
+  attr :config, :map, required: true
+  attr :own_post_ids, :any, default: MapSet.new()
+  attr :show_yous, :boolean, default: false
+
+  def formatted_body_segments(assigns) do
     assigns =
       assign(
         assigns,
@@ -481,49 +625,106 @@ defmodule EirinchanWeb.PostComponents do
       )
 
     ~H"""
-    <div class={@class}><%= raw(@formatted_html) %></div>
-    """
-  end
-
-  attr :post, :map, required: true
-  attr :board, :map, required: true
-  attr :thread, :map, required: true
-  attr :config, :map, required: true
-  attr :own_post_ids, :any, default: MapSet.new()
-  attr :show_yous, :boolean, default: false
-
-  def formatted_body_segments(assigns) do
-    ~H"""
-    <%= for {segment, index} <- Enum.with_index(PostView.body_segments(@post, @board, @thread, @config,
-          own_post_ids: @own_post_ids,
-          show_yous: @show_yous
-        )) do %><%= if index > 0, do: raw("<br/>") %><%= raw(segment) %><% end %>
+    <%= raw(@formatted_html) %>
     """
   end
 
   def formatted_body_segments_html(assigns) do
-    assigns
-    |> with_component_assigns()
-    |> formatted_body_segments()
-    |> to_iodata()
+    assigns.post
+    |> PostView.body_segments(
+      assigns.board,
+      assigns.thread,
+      assigns.config,
+      own_post_ids: Map.get(assigns, :own_post_ids, MapSet.new()),
+      show_yous: Map.get(assigns, :show_yous, false)
+    )
+    |> Enum.with_index()
+    |> Enum.map_join(fn
+      {segment, 0} -> segment
+      {segment, _index} -> "<br/>" <> segment
+    end)
+  end
+
+  def body_container_html(assigns),
+    do:
+      div_html(
+        body_attrs(assigns.post, assigns.config, Map.get(assigns, :op?, false)),
+        body_inner_html(
+          assigns.post,
+          assigns.config,
+          Map.get(assigns, :hide_fileboard, false),
+          formatted_body_segments_html(assigns)
+        )
+      )
+
+  defp body_attrs(post, config, op?) do
+    case body_style_attr(post, config, op?) do
+      nil -> [class: "body"]
+      style -> [class: "body", style: style]
+    end
+  end
+
+  defp body_inner_html(post, config, hide_fileboard, formatted_html) do
+    [
+      formatted_html,
+      tag_line_html(post, config),
+      fileboard_line_html(post, config, hide_fileboard)
+    ]
     |> IO.iodata_to_binary()
   end
 
-  def body_container_html(assigns) do
-    assigns
-    |> with_component_assigns()
-    |> body_container()
-    |> to_iodata()
-    |> IO.iodata_to_binary()
+  defp tag_line_html(%{tag: nil}, _config), do: ""
+
+  defp tag_line_html(post, config) do
+    tag_name =
+      if is_map(config.allowed_tags) do
+        Map.get(config.allowed_tags, post.tag, post.tag)
+      else
+        post.tag
+      end
+
+    span_html([class: "tag-line"], "Tag: #{tag_name}")
   end
 
-  def summary_body_html(assigns) do
-    assigns
-    |> with_component_assigns()
-    |> summary_body()
-    |> to_iodata()
-    |> IO.iodata_to_binary()
+  defp fileboard_line_html(post, config, hide_fileboard) do
+    if config.fileboard && PostView.show_fileboard_summary?(post) do
+      attrs =
+        if hide_fileboard do
+          [class: "tag-line", style: "display:none"]
+        else
+          [class: "tag-line"]
+        end
+
+      span_html(attrs, "Fileboard: #{PostView.fileboard_summary(post)}")
+    else
+      ""
+    end
   end
+
+  defp div_html(attrs, inner_html) do
+    "<div#{attrs_html(attrs)}>#{inner_html}</div>"
+  end
+
+  defp span_html(attrs, inner_text) do
+    escaped = inner_text |> Plug.HTML.html_escape_to_iodata() |> IO.iodata_to_binary()
+    "<span#{attrs_html(attrs)}>#{escaped}</span>"
+  end
+
+  defp attrs_html(attrs) do
+    attrs
+    |> Enum.reject(fn {_key, value} -> is_nil(value) or value == false end)
+    |> Enum.map_join(fn {key, value} ->
+      escaped = value |> to_string() |> Plug.HTML.html_escape_to_iodata() |> IO.iodata_to_binary()
+      " #{key}=\"#{escaped}\""
+    end)
+  end
+
+  def summary_body_html(assigns),
+    do:
+      div_html(
+        [class: assigns.class],
+        formatted_body_segments_html(assigns)
+      )
 
   attr :post, :map, required: true
   attr :board, :map, required: true
@@ -618,14 +819,12 @@ defmodule EirinchanWeb.PostComponents do
         moderator={@moderator}
         secure_manage_token={@secure_manage_token}
       />
-      <.body_container
-        post={@post}
-        board={@board}
-        thread={@thread}
-        config={@config}
-        own_post_ids={@own_post_ids}
-        show_yous={@show_yous}
-      />
+      <%= raw(
+        EirinchanWeb.PostView.body_container_html(@post, @board, @thread, @config,
+          own_post_ids: @own_post_ids,
+          show_yous: @show_yous
+        )
+      ) %>
     </div>
     <br class="clear" />
     """
@@ -654,7 +853,9 @@ defmodule EirinchanWeb.PostComponents do
   end
 
   defp next_page(page_data) do
-    if page_data.page < page_data.total_pages, do: Enum.at(page_data.pages, page_data.page), else: nil
+    if page_data.page < page_data.total_pages,
+      do: Enum.at(page_data.pages, page_data.page),
+      else: nil
   end
 
   defp catalog_label(config) do
