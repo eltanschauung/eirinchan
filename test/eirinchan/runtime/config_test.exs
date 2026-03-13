@@ -322,4 +322,29 @@ defmodule Eirinchan.Runtime.ConfigTest do
     assert config.captcha.mode == "reply"
     refute config.captcha.refresh_on_error
   end
+
+  test "defaults ip_nulling to false and accepts instance override" do
+    default_config =
+      Config.compose(
+        %{
+          root: "/",
+          dir: %{img: "img/", thumb: "thumb/", res: "res/"}
+        },
+        %{},
+        %{}
+      )
+
+    enabled_config =
+      Config.compose(
+        %{
+          root: "/",
+          dir: %{img: "img/", thumb: "thumb/", res: "res/"}
+        },
+        %{"ipNulling" => true},
+        %{}
+      )
+
+    refute default_config.ip_nulling
+    assert enabled_config.ip_nulling
+  end
 end

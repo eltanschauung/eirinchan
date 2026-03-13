@@ -44,7 +44,7 @@ defmodule Eirinchan.Posts.Persistence do
       |> Map.put("board_id", board.id)
       |> Map.put("thread_id", nil)
       |> Map.update("body", "", &(&1 || ""))
-      |> Map.put("ip_subnet", request_ip_string(attrs))
+      |> Map.put("ip_subnet", request_ip_string(attrs, config))
       |> Map.put("bump_at", now)
       |> Map.put("sticky", false)
       |> Map.put("locked", false)
@@ -57,13 +57,13 @@ defmodule Eirinchan.Posts.Persistence do
     |> repo.insert()
   end
 
-  defp insert_post(board, thread, attrs, repo, _config, _now) do
+  defp insert_post(board, thread, attrs, repo, config, _now) do
     attrs =
       attrs
       |> Map.put("board_id", board.id)
       |> Map.put("thread_id", thread.id)
       |> Map.update("body", "", &(&1 || ""))
-      |> Map.put("ip_subnet", request_ip_string(attrs))
+      |> Map.put("ip_subnet", request_ip_string(attrs, config))
 
     %Post{}
     |> Post.create_changeset(attrs)
@@ -191,7 +191,8 @@ defmodule Eirinchan.Posts.Persistence do
     end)
   end
 
-  defp request_ip_string(attrs), do: Map.get(attrs, "ip_subnet")
+  defp request_ip_string(_attrs, %{ip_nulling: true}), do: nil
+  defp request_ip_string(attrs, _config), do: Map.get(attrs, "ip_subnet")
 
   defp maybe_slugify(attrs, config) do
     if config.slugify do
