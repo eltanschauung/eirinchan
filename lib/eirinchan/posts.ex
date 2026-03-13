@@ -140,6 +140,7 @@ defmodule Eirinchan.Posts do
          :ok <- validate_delete_password(post, password),
          file_paths <- post_delete_file_paths(post, repo),
          {:ok, _deleted_post} <- repo.delete(post) do
+      _ = maybe_recalculate_thread_bump_after_delete(post, config, repo)
       Enum.each(file_paths, &Uploads.remove/1)
 
       result =
@@ -177,6 +178,45 @@ defmodule Eirinchan.Posts do
 
   def captcha_required?(config, op?) do
     PostsRequestGuards.captcha_required?(config, op?)
+  end
+
+  def recalculate_thread_bump(board, thread_id, opts \\ []) do
+    if is_nil(thread_id) do
+      :ok
+    else
+      repo = Keyword.get(opts, :repo, Repo)
+      config = Keyword.get(opts, :config, Config.compose())
+
+      with %Post{} = thread <-
+             repo.one(
+               from post in Post,
+                 where:
+                   post.id == ^thread_id and post.board_id == ^board.id and is_nil(post.thread_id)
+             ) do
+        if config.anti_bump_flood and not thread.sage do
+          bump_at =
+            from(post in Post,
+              where:
+                post.id == ^thread.id or
+                  (post.thread_id == ^thread.id and
+                     fragment("COALESCE(lower(?), '') != 'sage'", post.email)),
+              select: max(post.inserted_at)
+            )
+            |> repo.one()
+
+          repo.update_all(
+            from(post in Post, where: post.id == ^thread.id),
+            set: [bump_at: bump_at || thread.inserted_at]
+          )
+        else
+          {0, nil}
+        end
+
+        :ok
+      else
+        _ -> :ok
+      end
+    end
   end
 
   defp maybe_prune_threads(board, config, repo) do
@@ -826,6 +866,17 @@ defmodule Eirinchan.Posts do
         repo.aggregate(from(post in Post, where: post.thread_id == ^thread.id), :count, :id)
 
       replies + 1 < config.reply_limit
+    end
+  end
+
+  defp maybe_recalculate_thread_bump_after_delete(%Post{thread_id: nil}, _config, _repo), do: :ok
+
+  defp maybe_recalculate_thread_bump_after_delete(%Post{board_id: board_id, thread_id: thread_id}, config, repo) do
+    if config.anti_bump_flood do
+      board = %BoardRecord{id: board_id}
+      recalculate_thread_bump(board, thread_id, config: config, repo: repo)
+    else
+      :ok
     end
   end
 

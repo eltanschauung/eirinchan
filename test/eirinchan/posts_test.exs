@@ -2648,6 +2648,63 @@ defmodule Eirinchan.PostsTest do
     assert Repo.get!(Post, thread.id).bump_at == first_bump_at
   end
 
+  test "anti_bump_flood restores thread ordering after deleting the latest bumping reply" do
+    board =
+      board_fixture(%{
+        config_overrides: %{anti_bump_flood: true, flood_time: 0, flood_time_ip: 0, flood_time_same: 0}
+      })
+
+    config = post_config(board.config_overrides)
+    request = Map.put(post_request(board.uri), :remote_ip, {203, 0, 113, 35})
+
+    assert {:ok, older_thread, _meta} =
+             Posts.create_post(
+               board,
+               %{"body" => "Older", "subject" => "Older", "post" => "New Topic"},
+               config: config,
+               request: request,
+               repo: Repo
+             )
+
+    Process.sleep(1000)
+
+    assert {:ok, newer_thread, _meta} =
+             Posts.create_post(
+               board,
+               %{"body" => "Newer", "subject" => "Newer", "post" => "New Topic"},
+               config: config,
+               request: request,
+               repo: Repo
+             )
+
+    Process.sleep(1000)
+
+    assert {:ok, bump_reply, _meta} =
+             Posts.create_post(
+               board,
+               %{
+                 "thread" => Integer.to_string(older_thread.id),
+                 "body" => "Bumping reply",
+                 "password" => "replypw",
+                 "post" => "New Reply"
+               },
+               config: config,
+               request: request,
+               repo: Repo
+             )
+
+    assert {:ok, page_after_bump} = Posts.list_threads_page(board, 1, config: config, repo: Repo)
+    assert hd(page_after_bump.threads).thread.id == older_thread.id
+
+    assert {:ok, %{deleted_post_id: deleted_post_id, thread_deleted: false}} =
+             Posts.delete_post(board, bump_reply.id, "replypw", config: config, repo: Repo)
+
+    assert deleted_post_id == bump_reply.id
+
+    assert {:ok, page_after_delete} = Posts.list_threads_page(board, 1, config: config, repo: Repo)
+    assert hd(page_after_delete.threads).thread.id == newer_thread.id
+  end
+
   test "move_thread moves posts, files, and rebuilds both boards" do
     source_board = board_fixture()
     target_board = board_fixture()
