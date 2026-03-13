@@ -108,6 +108,43 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     assert response =~ ~s(name="embed")
   end
 
+  test "board pages honor board default themes before any saved board stylesheet", %{conn: conn} do
+    board =
+      board_fixture(%{
+        uri: "qa",
+        title: "Question & Answer",
+        config_overrides: %{default_theme: "vichan"}
+      })
+
+    response =
+      conn
+      |> get(~p"/#{board.uri}")
+      |> html_response(200)
+
+    assert response =~ ~s(id="stylesheet" href="/stylesheets/style.css)
+    assert response =~ ~s(data-stylesheet="style.css")
+    assert response =~ ~s(var selectedstyle = "Yotsuba B")
+  end
+
+  test "board-scoped saved styles override board defaults on board pages", %{conn: conn} do
+    board =
+      board_fixture(%{
+        uri: "qa",
+        title: "Question & Answer",
+        config_overrides: %{default_theme: "vichan"}
+      })
+
+    response =
+      conn
+      |> put_req_cookie("board_themes", ~s({"qa":"tomorrow"}))
+      |> get(~p"/#{board.uri}")
+      |> html_response(200)
+
+    assert response =~ ~s(id="stylesheet" href="/stylesheets/tomorrow.css)
+    assert response =~ ~s(data-stylesheet="tomorrow.css")
+    assert response =~ ~s(var selectedstyle = "Tomorrow")
+  end
+
   test "board pages send no-store cache headers", %{conn: conn} do
     board = board_fixture(%{uri: "cachetest", title: "Cache Test"})
 
