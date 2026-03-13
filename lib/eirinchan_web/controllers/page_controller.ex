@@ -370,6 +370,9 @@ defmodule EirinchanWeb.PageController do
   defp maybe_add_page_stylesheet(stylesheets, %{slug: "faq"}),
     do: stylesheets ++ ["/faq/recent.css"]
 
+  defp maybe_add_page_stylesheet(stylesheets, %{slug: "formatting"}),
+    do: stylesheets ++ ["/faq/recent.css"]
+
   defp maybe_add_page_stylesheet(stylesheets, _page), do: stylesheets
 
   defp flag_assets do
