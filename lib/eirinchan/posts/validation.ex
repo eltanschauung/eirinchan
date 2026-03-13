@@ -215,7 +215,7 @@ defmodule Eirinchan.Posts.Validation do
 
   defp validate_upload_entry(upload, metadata, config, op?) do
     with :ok <- validate_upload_type(upload, metadata, config, op?),
-         :ok <- validate_upload_content(metadata),
+         :ok <- validate_upload_content(metadata, config),
          :ok <- validate_upload_size(metadata, config) do
       :ok
     end
@@ -282,17 +282,21 @@ defmodule Eirinchan.Posts.Validation do
     end
   end
 
-  defp validate_upload_content(nil), do: {:error, :upload_failed}
+  defp validate_upload_content(nil, _config), do: {:error, :upload_failed}
 
-  defp validate_upload_content(metadata) do
-    if Uploads.compatible_with_extension?(metadata) do
-      :ok
-    else
-      if Uploads.image_extension?(metadata.ext) do
+  defp validate_upload_content(metadata, config) when is_map(metadata) do
+    cond do
+      Uploads.ie_mime_type_exploit?(metadata, config) ->
+        {:error, :mime_exploit}
+
+      Uploads.compatible_with_extension?(metadata) ->
+        :ok
+
+      Uploads.image_extension?(metadata.ext) ->
         {:error, :invalid_image}
-      else
+
+      true ->
         {:error, :invalid_file_type}
-      end
     end
   end
 

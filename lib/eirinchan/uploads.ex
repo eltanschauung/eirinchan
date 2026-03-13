@@ -199,6 +199,31 @@ defmodule Eirinchan.Uploads do
 
   def compatible_with_extension?(_ext, _file_type), do: false
 
+  def ie_mime_type_exploit?(metadata, config) when is_map(metadata) do
+    regex = Map.get(config, :ie_mime_type_detection)
+
+    cond do
+      regex in [false, nil, ""] ->
+        false
+
+      not image_extension?(Map.get(metadata, :ext)) ->
+        false
+
+      true ->
+        metadata
+        |> Map.get(:binary, "")
+        |> binary_prefix(255)
+        |> then(fn prefix ->
+          case compile_config_regex(regex) do
+            {:ok, compiled} -> Regex.match?(compiled, prefix)
+            :error -> false
+          end
+        end)
+    end
+  end
+
+  def ie_mime_type_exploit?(_metadata, _config), do: false
+
   def image_extension?(ext) when is_binary(ext), do: ext in @image_extensions
   def image_extension?(_ext), do: false
 
@@ -239,6 +264,39 @@ defmodule Eirinchan.Uploads do
       true ->
         %{width: nil, height: nil}
     end
+  end
+
+  defp binary_prefix(value, count) when is_binary(value) and is_integer(count) and count >= 0 do
+    max = min(byte_size(value), count)
+    binary_part(value, 0, max)
+  end
+
+  defp binary_prefix(_value, _count), do: ""
+
+  defp compile_config_regex(%Regex{} = regex), do: {:ok, regex}
+
+  defp compile_config_regex(pattern) when is_binary(pattern) do
+    case Regex.run(~r{\A/(.*)/([a-z]*)\z}s, pattern, capture: :all_but_first) do
+      [source, modifiers] ->
+        Regex.compile(source, regex_options(modifiers))
+
+      _ ->
+        :error
+    end
+  end
+
+  defp compile_config_regex(_pattern), do: :error
+
+  defp regex_options(modifiers) do
+    modifiers
+    |> String.graphemes()
+    |> Enum.reduce("", fn
+      "i", acc -> acc <> "i"
+      "m", acc -> acc <> "m"
+      "s", acc -> acc <> "s"
+      "u", acc -> acc <> "u"
+      _, acc -> acc
+    end)
   end
 
   defp detect_mime_type(path, normalized_name) do

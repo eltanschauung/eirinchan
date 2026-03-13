@@ -372,4 +372,22 @@ defmodule Eirinchan.Runtime.ConfigTest do
     assert default_config.ip_nulling_flags == 0
     assert enabled_config.ip_nulling_flags == 8
   end
+
+  test "provides vichan xss mitigation defaults" do
+    config =
+      Config.compose(
+        %{
+          root: "/",
+          dir: %{img: "img/", thumb: "thumb/", res: "res/"}
+        },
+        %{},
+        %{}
+      )
+
+    assert config.ie_mime_type_detection ==
+             "/<(?:body|head|html|img|plaintext|pre|script|table|title|a href|channel|scriptlet)/i"
+
+    assert config.error.mime_exploit ==
+             "MIME type detection XSS exploit (IE) detected; post discarded."
+  end
 end

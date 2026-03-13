@@ -515,6 +515,7 @@ defmodule EirinchanWeb.PostController do
   defp error_status(:body_required), do: :unprocessable_entity
   defp error_status(:file_required), do: :unprocessable_entity
   defp error_status(:invalid_file_type), do: :unprocessable_entity
+  defp error_status(:mime_exploit), do: :unprocessable_entity
   defp error_status(:file_too_large), do: :unprocessable_entity
   defp error_status(:access_list), do: :forbidden
   defp error_status(:upload_failed), do: :internal_server_error
@@ -545,6 +546,7 @@ defmodule EirinchanWeb.PostController do
   defp error_message(:body_required, config), do: config.error.tooshort_body
   defp error_message(:file_required, config), do: config.error.file_required
   defp error_message(:invalid_file_type, config), do: config.error.filetype
+  defp error_message(:mime_exploit, config), do: config.error.mime_exploit
   defp error_message(:file_too_large, config), do: config.error.file_too_large
   defp error_message(:access_list, _config), do: "IP not permitted for multi-file OP posting."
   defp error_message(:upload_failed, config), do: config.error.upload_failed

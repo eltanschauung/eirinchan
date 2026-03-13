@@ -679,9 +679,6 @@ defmodule EirinchanWeb.PostView do
       embed == "" ->
         nil
 
-      String.starts_with?(embed, "<") ->
-        embed
-
       true ->
         config
         |> Map.get(:embedding, [])
@@ -697,7 +694,6 @@ defmodule EirinchanWeb.PostView do
               nil
           end
         end)
-        |> Kernel.||("Embedding error.")
     end
   end
 
@@ -1172,7 +1168,13 @@ defmodule EirinchanWeb.PostView do
       captures
       |> Enum.with_index()
       |> Enum.reduce(template, fn {value, index}, acc ->
-        String.replace(acc, "$#{index}", value || "")
+        escaped =
+          value
+          |> Kernel.||("")
+          |> html_escape()
+          |> safe_to_string()
+
+        String.replace(acc, "$#{index}", escaped)
       end)
 
     rendered
