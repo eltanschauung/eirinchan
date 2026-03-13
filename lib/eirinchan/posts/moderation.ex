@@ -25,6 +25,7 @@ defmodule Eirinchan.Posts.Moderation do
          %Post{} = post <- repo.get_by(Post, id: normalized_post_id, board_id: board.id),
          file_paths <- post_delete_file_paths(post, repo),
          {:ok, _deleted_post} <- repo.delete(post) do
+      _ = Posts.recalculate_thread_bump(board, post.thread_id, config: config, repo: repo)
       Enum.each(file_paths, &Uploads.remove/1)
 
       result =
