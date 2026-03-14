@@ -167,8 +167,8 @@ function init_file_selector(max_images, root) {
     var $container = $(this).closest('.tmb-container');
     var file = $container.data('file-ref');
     var extension = file.name.split('.').pop();
-    var newName = Math.floor(Date.now() / 1000) + '.' + extension;
-    var newFile = new File([file], newName, { type: file.type });
+    var newName = Date.now() + '.' + extension;
+    var newFile = new File([file.slice(0, file.size, file.type)], newName, { type: file.type });
     var index = files.indexOf(file);
 
     if (index !== -1) {
