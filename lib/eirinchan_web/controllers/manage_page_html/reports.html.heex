@@ -49,10 +49,10 @@
       <div class="post-wrapper" data-board={entry.board.uri}>
         <a
           class="eita-link"
-          id={"eita-report-#{entry.board.uri}-#{entry.thread.id}-#{entry.post.id}"}
-          href={EirinchanWeb.PostView.thread_path(entry.board, entry.thread, entry.config) <> "##{entry.post.id}"}
+          id={"eita-report-#{entry.board.uri}-#{EirinchanWeb.PostView.public_post_id(entry.thread)}-#{EirinchanWeb.PostView.public_post_id(entry.post)}"}
+          href={EirinchanWeb.PostView.thread_path(entry.board, entry.thread, entry.config) <> "##{EirinchanWeb.PostView.public_post_id(entry.post)}"}
         >
-          / <%= entry.board.uri %> /<%= entry.post.id %>
+          / <%= entry.board.uri %> /<%= EirinchanWeb.PostView.public_post_id(entry.post) %>
         </a>
         <br />
         <.moderation_post

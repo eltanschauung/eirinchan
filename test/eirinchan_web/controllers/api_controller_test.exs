@@ -2,6 +2,7 @@ defmodule EirinchanWeb.ApiControllerTest do
   use EirinchanWeb.ConnCase, async: false
 
   alias Eirinchan.Posts
+  alias Eirinchan.Posts.PublicIds
 
   setup do
     original_path = Application.get_env(:eirinchan, :instance_config_path)
@@ -38,7 +39,7 @@ defmodule EirinchanWeb.ApiControllerTest do
     conn
     |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
     |> post(~p"/#{board.uri}/post", %{
-      "thread" => Integer.to_string(thread.id),
+      "thread" => Integer.to_string(PublicIds.public_id(thread)),
       "body" => "Reply one",
       "post" => "New Reply"
     })

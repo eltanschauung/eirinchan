@@ -12,7 +12,7 @@ defmodule EirinchanWeb.PageController do
   alias Eirinchan.News
   alias Eirinchan.Posts
   alias Eirinchan.ThreadWatcher
-  alias Eirinchan.Posts.{Post, PostFile}
+  alias Eirinchan.Posts.{Post, PostFile, PublicIds}
   alias Eirinchan.Repo
   alias Eirinchan.Runtime.Config
   alias Eirinchan.Settings
@@ -539,7 +539,8 @@ defmodule EirinchanWeb.PageController do
     {thumb_src, thumbwidth, thumbheight} = recent_thumb(post)
 
     %{
-      link: "/#{post.board.uri}/res/#{post.thread_id || post.id}.html##{post.id}",
+      link:
+        "/#{post.board.uri}/res/#{PublicIds.thread_public_id(post)}.html##{PublicIds.public_id(post)}",
       src: thumb_src,
       thumbwidth: thumbwidth,
       thumbheight: thumbheight,
@@ -550,7 +551,8 @@ defmodule EirinchanWeb.PageController do
   defp recent_post_summary(post) do
     %{
       board_name: post.board.title,
-      link: "/#{post.board.uri}/res/#{post.thread_id || post.id}.html##{post.id}",
+      link:
+        "/#{post.board.uri}/res/#{PublicIds.thread_public_id(post)}.html##{PublicIds.public_id(post)}",
       snippet: recent_snippet(post.body)
     }
   end
@@ -722,7 +724,7 @@ defmodule EirinchanWeb.PageController do
       |> Enum.flat_map(fn board ->
         thread_paths =
           Posts.list_recent_posts(limit: 100, board_ids: [board.id])
-          |> Enum.map(&(&1.thread_id || &1.id))
+          |> Enum.map(&PublicIds.thread_public_id/1)
           |> Enum.uniq()
           |> Enum.map(&"/#{board.uri}/res/#{&1}.html")
 

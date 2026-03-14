@@ -1,4 +1,5 @@
 defmodule EirinchanWeb.IpManagementJSON do
+  alias Eirinchan.Posts.PublicIds
   alias EirinchanWeb.IpPresentation
 
   def show(%{ip: ip, posts: posts, notes: notes, moderator: moderator}) do
@@ -17,9 +18,9 @@ defmodule EirinchanWeb.IpManagementJSON do
 
   defp post_data(post, moderator) do
     %{
-      id: post.id,
+      id: PublicIds.public_id(post),
       board_id: post.board_id,
-      thread_id: post.thread_id,
+      thread_id: PublicIds.thread_public_id(post),
       ip_subnet: IpPresentation.display_ip(post.ip_subnet, moderator),
       subject: post.subject,
       body: post.body,

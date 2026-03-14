@@ -1,11 +1,13 @@
 defmodule EirinchanWeb.ThreadManagementControllerTest do
   use EirinchanWeb.ConnCase, async: true
 
+  alias Eirinchan.Posts.PublicIds
+
   test "shows and updates board-scoped thread state", %{conn: conn} do
     board = board_fixture(%{config_overrides: %{threads_per_page: 1}})
     older_thread = thread_fixture(board, %{body: "Older body", subject: "Older"})
     _newer_thread = thread_fixture(board, %{body: "Newer body", subject: "Newer"})
-    older_thread_id = older_thread.id
+    older_thread_id = PublicIds.public_id(older_thread)
     moderator = moderator_fixture()
 
     conn =
@@ -15,7 +17,7 @@ defmodule EirinchanWeb.ThreadManagementControllerTest do
 
     assert %{"data" => %{"id" => ^older_thread_id, "sticky" => false, "locked" => false}} =
              conn
-             |> get("/manage/boards/#{board.uri}/threads/#{older_thread.id}")
+             |> get("/manage/boards/#{board.uri}/threads/#{older_thread_id}")
              |> json_response(200)
 
     assert %{
@@ -31,7 +33,7 @@ defmodule EirinchanWeb.ThreadManagementControllerTest do
              |> recycle()
              |> login_moderator(moderator)
              |> put_secure_manage_token()
-             |> patch("/manage/boards/#{board.uri}/threads/#{older_thread.id}", %{
+             |> patch("/manage/boards/#{board.uri}/threads/#{older_thread_id}", %{
                "sticky" => "true",
                "locked" => "true",
                "cycle" => "true",
@@ -64,7 +66,7 @@ defmodule EirinchanWeb.ThreadManagementControllerTest do
       |> login_moderator(moderator)
       |> put_secure_manage_token()
       |> put_req_header("accept", "application/json")
-      |> patch("/manage/boards/#{board.uri}/threads/#{thread.id}", %{"locked" => "true"})
+      |> patch("/manage/boards/#{board.uri}/threads/#{PublicIds.public_id(thread)}", %{"locked" => "true"})
 
     assert %{"data" => %{"locked" => true}} = json_response(conn, 200)
 
@@ -73,7 +75,7 @@ defmodule EirinchanWeb.ThreadManagementControllerTest do
       |> put_req_header("accept", "text/html")
       |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
       |> post("/#{board.uri}/post", %{
-        "thread" => Integer.to_string(thread.id),
+        "thread" => Integer.to_string(PublicIds.public_id(thread)),
         "body" => "reply body",
         "json_response" => "1",
         "post" => "New Reply"
@@ -99,28 +101,28 @@ defmodule EirinchanWeb.ThreadManagementControllerTest do
       |> login_moderator(moderator)
       |> put_secure_manage_token()
       |> put_req_header("accept", "application/json")
-      |> patch("/manage/boards/#{source_board.uri}/threads/#{thread.id}/move", %{
+      |> patch("/manage/boards/#{source_board.uri}/threads/#{PublicIds.public_id(thread)}/move", %{
         "target_board_uri" => target_board.uri
       })
 
     assert %{"data" => %{"id" => thread_id, "board_id" => target_board_id}} =
              json_response(conn, 200)
 
-    assert thread_id == thread.id
+    assert thread_id == 1
     assert target_board_id == target_board.id
 
     assert %{"error" => "not_found"} =
              Phoenix.ConnTest.build_conn()
              |> login_moderator(moderator)
              |> put_req_header("accept", "application/json")
-             |> get("/manage/boards/#{source_board.uri}/threads/#{thread.id}")
+             |> get("/manage/boards/#{source_board.uri}/threads/#{PublicIds.public_id(thread)}")
              |> json_response(404)
 
     assert %{"data" => %{"id" => ^thread_id, "board_id" => ^target_board_id}} =
              Phoenix.ConnTest.build_conn()
              |> login_moderator(moderator)
              |> put_req_header("accept", "application/json")
-             |> get("/manage/boards/#{target_board.uri}/threads/#{thread.id}")
+             |> get("/manage/boards/#{target_board.uri}/threads/#{thread_id}")
              |> json_response(200)
   end
 end

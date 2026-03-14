@@ -1,6 +1,7 @@
 defmodule Eirinchan.PostsFixtures do
   alias Eirinchan.BoardsFixtures
   alias Eirinchan.Posts
+  alias Eirinchan.Posts.PublicIds
 
   def thread_fixture(board \\ nil, attrs \\ %{}) do
     board = board || BoardsFixtures.board_fixture()
@@ -23,7 +24,7 @@ defmodule Eirinchan.PostsFixtures do
         board,
         attrs
         |> Enum.into(%{
-          thread: Integer.to_string(thread.id),
+          thread: Integer.to_string(PublicIds.public_id(thread)),
           body: "Reply body",
           post: "New Reply"
         }),

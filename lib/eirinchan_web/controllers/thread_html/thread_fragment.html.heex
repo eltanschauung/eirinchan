@@ -1,30 +1,31 @@
 <div id="thread-refresh-target" data-fragment-md5={@fragment_md5}>
   <%= for reply <- @summary.replies do %>
-    <div class="post reply" id={"reply_#{reply.id}"}>
+    <% reply_public_id = PostView.public_post_id(reply) %>
+    <div class="post reply" id={"reply_#{reply_public_id}"}>
       <p class="intro">
-        <a id={to_string(reply.id)} class="post_anchor"></a>
+        <a id={to_string(reply_public_id)} class="post_anchor"></a>
         <input
           :if={!@mobile_client?}
           type="checkbox"
           class="delete"
-          name={"delete_#{reply.id}"}
-          id={"delete_#{reply.id}"}
+          name={"delete_#{reply_public_id}"}
+          id={"delete_#{reply_public_id}"}
         />
-        <.reply_post_button post_target={"reply_#{reply.id}"} />
-        <label for={"delete_#{reply.id}"}>
+        <.reply_post_button post_target={"reply_#{reply_public_id}"} />
+        <label for={"delete_#{reply_public_id}"}>
           <.post_identity
             post={reply}
             config={@config}
             board={@board}
             moderator={@current_moderator}
-            own={@show_yous and MapSet.member?(@own_post_ids, reply.id)}
+            own={@show_yous and MapSet.member?(@own_post_ids, reply_public_id)}
           />
         </label>
         <.post_number_links
-          post_id={reply.id}
-          post_href={Eirinchan.ThreadPaths.thread_path(@board, @summary.thread, @config) <> "##{reply.id}"}
+          post_id={reply_public_id}
+          post_href={Eirinchan.ThreadPaths.thread_path(@board, @summary.thread, @config) <> "##{reply_public_id}"}
           quote_href={PostView.reply_path(@board, @summary.thread, reply, @config, :quote)}
-          quote_to={reply.id}
+          quote_to={reply_public_id}
         />
         <.backlinks post={reply} backlinks_map={@backlinks_map} />
       </p>

@@ -136,7 +136,12 @@ defmodule Eirinchan.Reports do
   end
 
   defp fetch_target_post(board, attrs, repo) do
-    case repo.get_by(Post, id: normalize_id(Map.get(attrs, "post_id")), board_id: board.id) do
+    post_id = normalize_id(Map.get(attrs, "post_id"))
+
+    case (
+           repo.get_by(Post, public_id: post_id, board_id: board.id) ||
+             repo.get_by(Post, id: post_id, board_id: board.id)
+         ) do
       nil ->
         {:error, :post_not_found}
 

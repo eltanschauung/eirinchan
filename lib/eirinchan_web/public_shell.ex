@@ -2,6 +2,7 @@ defmodule EirinchanWeb.PublicShell do
   @moduledoc false
 
   alias Eirinchan.Runtime.Config
+  alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Settings
 
   @catalog_required_scripts [
@@ -113,7 +114,7 @@ defmodule EirinchanWeb.PublicShell do
     meta_subject = thread.subject || strip_html(thread.body || "")
     meta_description = strip_html(thread.body || "")
     image_url = thread_thumb_url(board, thread, config)
-    thread_url = "/#{board.uri}/res/#{thread.id}.html"
+    thread_url = "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html"
 
     [
       %{name: "description", content: escape(board_heading(board) <> " - " <> meta_subject)},

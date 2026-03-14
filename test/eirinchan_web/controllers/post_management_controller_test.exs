@@ -1,6 +1,8 @@
 defmodule EirinchanWeb.PostManagementControllerTest do
   use EirinchanWeb.ConnCase, async: true
 
+  alias Eirinchan.Posts.PublicIds
+
   test "shows, edits, deletes files, spoilerizes, and deletes board posts", %{conn: conn} do
     board = board_fixture()
     moderator = moderator_fixture(%{role: "mod"}) |> grant_board_access_fixture(board)
@@ -137,8 +139,7 @@ defmodule EirinchanWeb.PostManagementControllerTest do
                "file_path" => "deleted",
                "extra_files" => [%{"file_path" => "deleted"}]
              }
-           } =
-             json_response(delete_file_conn, 200)
+           } = json_response(delete_file_conn, 200)
 
     delete_post_conn =
       conn
@@ -185,7 +186,7 @@ defmodule EirinchanWeb.PostManagementControllerTest do
       |> put_req_header("accept", "application/json")
       |> patch("/manage/boards/#{source_board.uri}/posts/#{reply.id}/move", %{
         "target_board_uri" => target_board.uri,
-        "target_thread_id" => Integer.to_string(target_thread.id)
+        "target_thread_id" => Integer.to_string(PublicIds.public_id(target_thread))
       })
 
     assert %{
@@ -197,8 +198,10 @@ defmodule EirinchanWeb.PostManagementControllerTest do
              }
            } = json_response(conn, 200)
 
-    assert reply_id == reply.id
+    {:ok, moved_reply} = Eirinchan.Posts.get_post_by_internal_id(target_board, reply.id)
+
+    assert reply_id == PublicIds.public_id(moved_reply)
     assert target_board_id == target_board.id
-    assert target_thread_id == target_thread.id
+    assert target_thread_id == PublicIds.public_id(target_thread)
   end
 end

@@ -3,10 +3,12 @@ defmodule Eirinchan.Api do
   Minimal 4chan-style JSON translation for thread/page/catalog artifacts.
   """
 
+  alias Eirinchan.Posts.PublicIds
+
   def thread_json(summary) do
     %{
       posts: [
-        thread_post(summary) | Enum.map(summary.replies, &reply_post(&1, summary.thread.id))
+        thread_post(summary) | Enum.map(summary.replies, &reply_post(&1, PublicIds.public_id(summary.thread)))
       ]
     }
   end
@@ -43,10 +45,10 @@ defmodule Eirinchan.Api do
   end
 
   defp catalog_thread(summary, true) do
-    %{
-      no: summary.thread.id,
-      last_modified: unix(summary.last_modified)
-    }
+      %{
+        no: PublicIds.public_id(summary.thread),
+        last_modified: unix(summary.last_modified)
+      }
   end
 
   defp catalog_thread(summary, false) do
@@ -93,7 +95,7 @@ defmodule Eirinchan.Api do
 
   defp base_post(post, resto) do
     %{
-      no: post.id,
+      no: PublicIds.public_id(post),
       resto: resto
     }
   end
@@ -193,3 +195,4 @@ defmodule Eirinchan.Api do
   defp positive_or_nil(value) when is_integer(value) and value > 0, do: value
   defp positive_or_nil(_value), do: nil
 end
+  alias Eirinchan.Posts.PublicIds

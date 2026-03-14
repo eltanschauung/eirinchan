@@ -9,9 +9,9 @@
     <p>No threads yet.</p>
   <% else %>
     <%= for %{board: board, summary: summary} <- @threads do %>
-      <article id={"catalog-#{summary.thread.id}"}>
+      <article id={"catalog-#{EirinchanWeb.PostView.public_post_id(summary.thread)}"}>
         <h2>
-          <a href={"/#{board.uri}/res/#{summary.thread.id}.html"}>
+          <a href={"/#{board.uri}/res/#{EirinchanWeb.PostView.public_post_id(summary.thread)}.html"}>
             /<%= board.uri %>/ <%= summary.thread.subject || "Untitled" %>
           </a>
         </h2>

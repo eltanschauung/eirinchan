@@ -3,6 +3,7 @@ defmodule EirinchanWeb.PostComponents do
   import Phoenix.HTML, only: [raw: 1]
   import Phoenix.HTML.Safe, only: [to_iodata: 1]
 
+  alias Eirinchan.Posts.PublicIds
   alias EirinchanWeb.{IpPresentation, PostView}
 
   attr :groups, :list, required: true
@@ -266,7 +267,7 @@ defmodule EirinchanWeb.PostComponents do
   def backlinks(assigns) do
     backlinks =
       assigns.post
-      |> Map.get(:id)
+      |> PublicIds.public_id()
       |> then(&Map.get(assigns.backlinks_map || %{}, &1, []))
 
     assigns = assign(assigns, :backlinks, backlinks)
@@ -852,9 +853,10 @@ defmodule EirinchanWeb.PostComponents do
           config: assigns.config
         })
       )
+      |> assign(:public_post_id, PublicIds.public_id(assigns.post))
 
     ~H"""
-    <div class="reply-preview" id={"p#{@post.id}"}>
+    <div class="reply-preview" id={"p#{@public_post_id}"}>
       <%= if PostView.media_entries(@post, @config) != [] do %>
         <.files_block post={@post} config={@config} />
       <% end %>
@@ -884,34 +886,37 @@ defmodule EirinchanWeb.PostComponents do
   attr :mobile_client?, :boolean, default: false
 
   def reply(assigns) do
+    public_post_id = PublicIds.public_id(assigns.post)
+    assigns = assign(assigns, :public_post_id, public_post_id)
+
     ~H"""
-    <div class="post reply" id={"reply_#{@post.id}"}>
+    <div class="post reply" id={"reply_#{@public_post_id}"}>
       <p class="intro">
-        <a id={to_string(@post.id)} class="post_anchor"></a>
+        <a id={to_string(@public_post_id)} class="post_anchor"></a>
         <input
           :if={!@mobile_client?}
           type="checkbox"
           class="delete"
-          name={"delete_#{@post.id}"}
-          id={"delete_#{@post.id}"}
-          value={@post.id}
+          name={"delete_#{@public_post_id}"}
+          id={"delete_#{@public_post_id}"}
+          value={@public_post_id}
           data-post-select=""
         />
-        <.reply_post_button post_target={"reply_#{@post.id}"} />
-        <label for={"delete_#{@post.id}"}>
+        <.reply_post_button post_target={"reply_#{@public_post_id}"} />
+        <label for={"delete_#{@public_post_id}"}>
           <.post_identity
             post={@post}
             config={@config}
             board={@board}
             moderator={@moderator}
-            own={@show_yous and MapSet.member?(@own_post_ids, @post.id)}
+            own={@show_yous and MapSet.member?(@own_post_ids, @public_post_id)}
           />
         </label>
         <.post_number_links
-          post_id={@post.id}
-          post_href={PostView.thread_path(@board, @thread, @config) <> "##{@post.id}"}
+          post_id={@public_post_id}
+          post_href={PostView.thread_path(@board, @thread, @config) <> "##{@public_post_id}"}
           quote_href={PostView.reply_path(@board, @thread, @post, @config, :quote)}
-          quote_to={@post.id}
+          quote_to={@public_post_id}
         />
         <.backlinks post={@post} backlinks_map={@backlinks_map} />
       </p>
@@ -941,7 +946,13 @@ defmodule EirinchanWeb.PostComponents do
     """
   end
 
-  def reply_html(assigns), do: assigns |> reply() |> to_iodata() |> IO.iodata_to_binary()
+  def reply_html(assigns) do
+    assigns
+    |> with_component_assigns()
+    |> reply()
+    |> to_iodata()
+    |> IO.iodata_to_binary()
+  end
 
   def board_pages_html(assigns) do
     assigns

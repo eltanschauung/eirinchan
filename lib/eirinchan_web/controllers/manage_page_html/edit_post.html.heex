@@ -1,7 +1,7 @@
 <h1>Edit post</h1>
 <h2 :if={@error} class="error"><%= @error %></h2>
 
-<form action={"/manage/boards/#{@board.uri}/posts/#{@post.id}/edit/browser"} method="post">
+<form action={"/manage/boards/#{@board.uri}/posts/#{EirinchanWeb.PostView.public_post_id(@post)}/edit/browser"} method="post">
   <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
   <input type="hidden" name="_method" value="patch" />
 

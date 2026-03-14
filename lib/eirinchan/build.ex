@@ -8,6 +8,7 @@ defmodule Eirinchan.Build do
   alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.BuildQueue
   alias Eirinchan.Posts
+  alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Purge
   alias Eirinchan.Repo
   alias Eirinchan.Themes
@@ -118,7 +119,7 @@ defmodule Eirinchan.Build do
     config = Keyword.fetch!(opts, :config)
     repo = Keyword.get(opts, :repo, Repo)
 
-    case Posts.get_thread_view(board, thread_id, repo: repo, config: config) do
+    case Posts.get_thread_view_by_internal_id(board, thread_id, repo: repo, config: config) do
       {:ok, summary} ->
         html = render_thread(board, summary, config)
 
@@ -131,7 +132,7 @@ defmodule Eirinchan.Build do
           result =
             if get_in(config, [:api, :enabled]) do
               json_output =
-                Path.join([board_root(), board.uri, config.dir.res, "#{summary.thread.id}.json"])
+                Path.join([board_root(), board.uri, config.dir.res, "#{PublicIds.public_id(summary.thread)}.json"])
 
               maybe_write_file(
                 json_output,
@@ -410,9 +411,9 @@ defmodule Eirinchan.Build do
         omitted = render_omitted(summary)
         thread_path = ThreadPaths.thread_path(board, summary.thread, config)
         badges = render_thread_badges(summary.thread)
-        delete_form = render_delete_form(board, summary.thread.id)
+        delete_form = render_delete_form(board, PublicIds.public_id(summary.thread))
 
-        ~s(<article id="p#{summary.thread.id}"><h2><a href="#{thread_path}">#{title}</a></h2>#{badges}#{media}#{render_post_identity(summary.thread, board, config)}#{render_body_container(summary.thread, board, summary.thread, config)}#{render_post_flags(summary.thread)}#{delete_form}#{omitted}#{replies}</article>)
+        ~s(<article id="p#{PublicIds.public_id(summary.thread)}"><h2><a href="#{thread_path}">#{title}</a></h2>#{badges}#{media}#{render_post_identity(summary.thread, board, config)}#{render_body_container(summary.thread, board, summary.thread, config)}#{render_post_flags(summary.thread)}#{delete_form}#{omitted}#{replies}</article>)
       end)
 
     nav = render_pages(page_data, board, config)
@@ -449,9 +450,9 @@ defmodule Eirinchan.Build do
       Enum.map_join(summary.replies, "\n", fn reply ->
         subject = html_escape(PostView.post_title(board, reply, config))
         media = render_media(reply, config)
-        delete_form = render_delete_form(board, reply.id)
+        delete_form = render_delete_form(board, PublicIds.public_id(reply))
 
-        ~s(<article id="p#{reply.id}"><h3>#{subject}</h3>#{media}#{render_post_identity(reply, board, config)}#{render_body_container(reply, board, summary.thread, config)}#{render_post_flags(reply)}#{delete_form}</article>)
+        ~s(<article id="p#{PublicIds.public_id(reply)}"><h3>#{subject}</h3>#{media}#{render_post_identity(reply, board, config)}#{render_body_container(reply, board, summary.thread, config)}#{render_post_flags(reply)}#{delete_form}</article>)
       end)
 
     """
@@ -459,7 +460,7 @@ defmodule Eirinchan.Build do
     <html>
     <head><meta charset="utf-8"><title>/#{html_escape(board.uri)}/ - #{html_escape(PostView.post_title(board, summary.thread, config))}</title></head>
     <body>
-    <article id="p#{summary.thread.id}">
+    <article id="p#{PublicIds.public_id(summary.thread)}">
     <h1>/#{html_escape(board.uri)}/ - #{html_escape(PostView.post_title(board, summary.thread, config))}</h1>
     #{boardlist}
     #{render_thread_badges(summary.thread)}
@@ -467,7 +468,7 @@ defmodule Eirinchan.Build do
     #{render_post_identity(summary.thread, board, config)}
     #{render_body_container(summary.thread, board, summary.thread, config)}
     #{render_post_flags(summary.thread)}
-    #{render_delete_form(board, summary.thread.id)}
+    #{render_delete_form(board, PublicIds.public_id(summary.thread))}
     </article>
     #{replies_html}
     </body>
@@ -486,9 +487,9 @@ defmodule Eirinchan.Build do
         media = render_media(summary.thread, config)
         thread_path = ThreadPaths.thread_path(board, summary.thread, config)
         badges = render_thread_badges(summary.thread)
-        delete_form = render_delete_form(board, summary.thread.id)
+        delete_form = render_delete_form(board, PublicIds.public_id(summary.thread))
 
-        ~s(<article id="catalog-#{summary.thread.id}"><h2><a href="#{thread_path}">#{title}</a></h2>#{badges}#{media}#{render_post_identity(summary.thread, board, config)}#{render_body_container(summary.thread, board, summary.thread, config)}#{render_post_flags(summary.thread)}#{delete_form}<p>#{summary.reply_count} replies</p></article>)
+        ~s(<article id="catalog-#{PublicIds.public_id(summary.thread)}"><h2><a href="#{thread_path}">#{title}</a></h2>#{badges}#{media}#{render_post_identity(summary.thread, board, config)}#{render_body_container(summary.thread, board, summary.thread, config)}#{render_post_flags(summary.thread)}#{delete_form}<p>#{summary.reply_count} replies</p></article>)
       end)
 
     """
@@ -547,7 +548,7 @@ defmodule Eirinchan.Build do
     [config.file_page50, config.file_page50_slug]
     |> Enum.map(fn pattern ->
       pattern
-      |> String.replace("%d", Integer.to_string(thread.id))
+      |> String.replace("%d", Integer.to_string(PublicIds.public_id(thread)))
       |> String.replace("%s", thread.slug || "")
     end)
     |> Enum.uniq()
@@ -557,7 +558,7 @@ defmodule Eirinchan.Build do
       _ = Purge.purge_output_path(path, config, board_root: board_root())
     end)
 
-    json_path = Path.join([board_root(), board.uri, config.dir.res, "#{thread.id}.json"])
+    json_path = Path.join([board_root(), board.uri, config.dir.res, "#{PublicIds.public_id(thread)}.json"])
     _ = File.rm(json_path)
     _ = Purge.purge_output_path(json_path, config, board_root: board_root())
     :ok
@@ -567,7 +568,7 @@ defmodule Eirinchan.Build do
     [config.file_page50, config.file_page50_slug]
     |> Enum.map(fn pattern ->
       pattern
-      |> String.replace("%d", Integer.to_string(thread.id))
+      |> String.replace("%d", Integer.to_string(PublicIds.public_id(thread)))
       |> String.replace("%s", thread.slug || "")
     end)
     |> Enum.uniq()
@@ -583,7 +584,7 @@ defmodule Eirinchan.Build do
   defp maybe_write_last_posts_thread(board, %{has_noko50: true, thread: thread} = summary, config) do
     html =
       board
-      |> Posts.get_thread_view(thread.id, config: config, last_posts: true)
+      |> Posts.get_thread_view_by_internal_id(thread.id, config: config, last_posts: true)
       |> case do
         {:ok, last_summary} -> render_thread(board, last_summary, config)
         _ -> nil

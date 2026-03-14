@@ -5,6 +5,7 @@ defmodule Eirinchan.ThreadWatcher do
   alias Eirinchan.PostOwnership.Ownership
   alias Eirinchan.Posts.Cite
   alias Eirinchan.Posts.Post
+  alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Repo
   alias Eirinchan.ThreadWatcher.Watch
 
@@ -30,6 +31,7 @@ defmodule Eirinchan.ThreadWatcher do
           where: is_nil(thread.thread_id) and thread.id in ^thread_ids,
           select: %{
             thread_id: thread.id,
+            thread_public_id: thread.public_id,
             board_uri: board.uri,
             board_title: board.title,
             subject: thread.subject,
@@ -58,15 +60,15 @@ defmodule Eirinchan.ThreadWatcher do
             %{
               board_uri: watch.board_uri,
               board_title: thread.board_title,
-              thread_id: watch.thread_id,
+              thread_id: thread.thread_public_id,
               subject: thread.subject,
               excerpt: excerpt(thread.body),
               slug: thread.slug,
               inserted_at: thread.inserted_at,
               updated_at: watch.updated_at,
               post_count: stat.post_count,
-              last_post_id: stat.last_post_id,
-              last_seen_post_id: watch.last_seen_post_id || watch.thread_id,
+              last_post_id: stat.last_post_public_id,
+              last_seen_post_id: public_post_id(watch.last_seen_post_id || watch.thread_id),
               unread_count: Map.get(unread, {watch.board_uri, watch.thread_id}, 0),
               you_unread_count: Map.get(you_unread, {watch.board_uri, watch.thread_id}, 0)
             }
@@ -121,13 +123,15 @@ defmodule Eirinchan.ThreadWatcher do
       |> Enum.map(fn watch ->
         unread_count = Map.get(unread, {watch.board_uri, watch.thread_id}, 0)
         you_unread_count = Map.get(you_unread, {watch.board_uri, watch.thread_id}, 0)
+        public_thread_id = public_post_id(watch.thread_id)
+        public_last_seen_post_id = public_post_id(watch.last_seen_post_id || watch.thread_id)
 
-        {watch.thread_id,
+        {public_thread_id,
          %{
            watched: true,
            unread_count: unread_count,
            you_unread_count: you_unread_count,
-           last_seen_post_id: watch.last_seen_post_id || watch.thread_id
+           last_seen_post_id: public_last_seen_post_id
          }}
       end)
       |> Map.new()
@@ -225,11 +229,18 @@ defmodule Eirinchan.ThreadWatcher do
       group_by: fragment("COALESCE(?, ?)", post.thread_id, post.id),
       select: {
         fragment("COALESCE(?, ?)", post.thread_id, post.id),
-        %{last_post_id: max(post.id), post_count: count(post.id)}
+        %{last_post_id: max(post.id), last_post_public_id: max(post.public_id), post_count: count(post.id)}
       }
     )
     |> Repo.all()
     |> Map.new()
+  end
+
+  defp public_post_id(id) when is_integer(id) do
+    case Repo.get(Post, id) do
+      %Post{} = post -> PublicIds.public_id(post)
+      _ -> id
+    end
   end
 
   defp unread_counts(watches, thread_ids) do

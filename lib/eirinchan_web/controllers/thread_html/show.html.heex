@@ -34,11 +34,11 @@
   data-thread-reply-form
   data-remember-stuff
   data-board-uri={@board.uri}
-  data-draft-key={@summary.thread.id}
+  data-draft-key={PostView.public_post_id(@summary.thread)}
 >
   <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
   <input type="hidden" name="board" value={@board.uri} />
-  <input type="hidden" name="thread" value={@summary.thread.id} />
+  <input type="hidden" name="thread" value={PostView.public_post_id(@summary.thread)} />
 
   <table>
     <tr :if={!@config.field_disable_name}>
@@ -234,17 +234,17 @@
   <input type="hidden" id="thread_delete_post_id" name="delete_post_id" value="" />
   <input type="hidden" id="thread_report_post_id" name="report_post_id" value="" />
 
-  <div
-    class="thread"
-    id={"thread_#{post.id}"}
-    data-board={@board.uri}
-    data-board-uri={@board.uri}
-    data-thread-id={post.id}
-    data-watch-url={"/watcher/#{@board.uri}/#{post.id}"}
-    data-unwatch-url={"/watcher/#{@board.uri}/#{post.id}"}
-    data-watched={to_string(@thread_watch.watched)}
-  >
-    <a id={to_string(post.id)} class="post_anchor"></a>
+<div
+  class="thread"
+  id={"thread_#{PostView.public_post_id(post)}"}
+  data-board={@board.uri}
+  data-board-uri={@board.uri}
+  data-thread-id={PostView.public_post_id(post)}
+  data-watch-url={"/watcher/#{@board.uri}/#{PostView.public_post_id(post)}"}
+  data-unwatch-url={"/watcher/#{@board.uri}/#{PostView.public_post_id(post)}"}
+  data-watched={to_string(@thread_watch.watched)}
+>
+    <a id={to_string(PostView.public_post_id(post))} class="post_anchor"></a>
     <.files_block
       :if={PostView.media_entries(post, @config) != []}
       post={post}
@@ -257,7 +257,7 @@
 
     <div
       class="post op"
-      id={"op_#{post.id}"}
+      id={"op_#{PostView.public_post_id(post)}"}
       {case PostView.post_container_style(post) do
         nil -> []
         style -> [style: style]
@@ -268,29 +268,29 @@
           :if={!@mobile_client?}
           type="checkbox"
           class="delete"
-          name={"delete_#{post.id}"}
-          id={"delete_#{post.id}"}
+          name={"delete_#{PostView.public_post_id(post)}"}
+          id={"delete_#{PostView.public_post_id(post)}"}
         />
         <.thread_top_controls
           board_uri={@board.uri}
-          thread_id={post.id}
-          post_target={"op_#{post.id}"}
+          thread_id={PostView.public_post_id(post)}
+          post_target={"op_#{PostView.public_post_id(post)}"}
           watch={@thread_watch}
         />
-        <label for={"delete_#{post.id}"}>
+        <label for={"delete_#{PostView.public_post_id(post)}"}>
           <.post_identity
             post={post}
             config={@config}
             board={@board}
             moderator={@current_moderator}
-            own={@show_yous and MapSet.member?(@own_post_ids, post.id)}
+            own={@show_yous and MapSet.member?(@own_post_ids, PostView.public_post_id(post))}
           />
         </label>
         <.post_number_links
-          post_id={post.id}
+          post_id={PostView.public_post_id(post)}
           post_href={
             Eirinchan.ThreadPaths.thread_path(template.board, template.post, template.config) <>
-              "##{post.id}"
+              "##{PostView.public_post_id(post)}"
           }
           quote_href={
             PostView.reply_path(
@@ -301,7 +301,7 @@
               :quote
             )
           }
-          quote_to={post.id}
+          quote_to={PostView.public_post_id(post)}
         />
         <.backlinks post={post} backlinks_map={@backlinks_map} />
         <%= for icon <- PostView.state_icons(post, @config) do %>
@@ -336,31 +336,32 @@
 
     <div id="thread-refresh-target" data-fragment-md5={@fragment_md5}>
       <%= for reply <- @summary.replies do %>
-        <div class="post reply" id={"reply_#{reply.id}"}>
+        <% reply_public_id = PostView.public_post_id(reply) %>
+        <div class="post reply" id={"reply_#{reply_public_id}"}>
           <p class="intro">
-            <a id={to_string(reply.id)} class="post_anchor"></a>
+            <a id={to_string(reply_public_id)} class="post_anchor"></a>
             <input
               :if={!@mobile_client?}
               type="checkbox"
               class="delete"
-              name={"delete_#{reply.id}"}
-              id={"delete_#{reply.id}"}
+              name={"delete_#{reply_public_id}"}
+              id={"delete_#{reply_public_id}"}
             />
-            <.reply_post_button post_target={"reply_#{reply.id}"} />
-            <label for={"delete_#{reply.id}"}>
+            <.reply_post_button post_target={"reply_#{reply_public_id}"} />
+            <label for={"delete_#{reply_public_id}"}>
               <.post_identity
                 post={reply}
                 config={@config}
                 board={@board}
                 moderator={@current_moderator}
-                own={@show_yous and MapSet.member?(@own_post_ids, reply.id)}
+                own={@show_yous and MapSet.member?(@own_post_ids, reply_public_id)}
               />
             </label>
             <.post_number_links
-              post_id={reply.id}
-              post_href={Eirinchan.ThreadPaths.thread_path(@board, post, @config) <> "##{reply.id}"}
+              post_id={reply_public_id}
+              post_href={Eirinchan.ThreadPaths.thread_path(@board, post, @config) <> "##{reply_public_id}"}
               quote_href={PostView.reply_path(@board, post, reply, @config, :quote)}
-              quote_to={reply.id}
+              quote_to={reply_public_id}
             />
             <.backlinks post={reply} backlinks_map={@backlinks_map} />
           </p>

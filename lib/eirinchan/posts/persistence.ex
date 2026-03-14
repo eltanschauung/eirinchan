@@ -24,9 +24,11 @@ defmodule Eirinchan.Posts.Persistence do
     upload_entries = Map.get(attrs, "__upload_entries__", [])
 
     case repo.transaction(fn ->
-           with {:ok, post} <- insert_post(board, thread, attrs, repo, config, now),
+           with {:ok, locked_board} <- lock_board(board, repo),
+                {:ok, attrs} <- allocate_public_id(locked_board, attrs, repo),
+                {:ok, post} <- insert_post(locked_board, thread, attrs, repo, config, now),
                 {:ok, post} <- maybe_store_uploads(board, post, upload_entries, repo, config),
-                :ok <- store_citations(board, post, repo),
+                :ok <- store_citations(locked_board, post, repo),
                 :ok <- after_insert.() do
              post
            else
@@ -147,7 +149,7 @@ defmodule Eirinchan.Posts.Persistence do
   def store_citations(board, post, repo) do
     target_post_ids =
       post.body
-      |> extract_cited_post_ids()
+      |> extract_cited_public_ids()
       |> existing_cited_post_ids(board.id, repo)
 
     Enum.reduce_while(target_post_ids, :ok, fn target_post_id, :ok ->
@@ -166,9 +168,9 @@ defmodule Eirinchan.Posts.Persistence do
     end)
   end
 
-  defp extract_cited_post_ids(nil), do: []
+  defp extract_cited_public_ids(nil), do: []
 
-  defp extract_cited_post_ids(body) do
+  defp extract_cited_public_ids(body) do
     Regex.scan(~r/>>(\d+)/u, body)
     |> Enum.map(fn [_, id] -> String.to_integer(id) end)
     |> Enum.uniq()
@@ -176,12 +178,57 @@ defmodule Eirinchan.Posts.Persistence do
 
   defp existing_cited_post_ids([], _board_id, _repo), do: []
 
-  defp existing_cited_post_ids(target_ids, board_id, repo) do
+  defp existing_cited_post_ids(target_public_ids, board_id, repo) do
     repo.all(
       from post in Post,
-        where: post.board_id == ^board_id and post.id in ^target_ids,
+        where: post.board_id == ^board_id and post.public_id in ^target_public_ids,
         select: post.id
     )
+  end
+
+  defp lock_board(%BoardRecord{} = board, repo) do
+    case repo.one(from board_record in BoardRecord, where: board_record.id == ^board.id, lock: "FOR UPDATE") do
+      %BoardRecord{} = locked_board -> {:ok, locked_board}
+      _ -> {:error, :board_not_found}
+    end
+  end
+
+  defp allocate_public_id(%BoardRecord{} = board, attrs, repo) do
+    explicit_public_id =
+      case Map.get(attrs, "public_id") || Map.get(attrs, :public_id) do
+        value when is_integer(value) and value > 0 -> value
+        value when is_binary(value) ->
+          case Integer.parse(value) do
+            {parsed, ""} when parsed > 0 -> parsed
+            _ -> nil
+          end
+
+        _ ->
+          nil
+      end
+
+    public_id = explicit_public_id || board.next_public_post_id || 1
+    next_public_post_id = max((board.next_public_post_id || 1), public_id + 1)
+
+    case board
+         |> Ecto.Changeset.change(next_public_post_id: next_public_post_id)
+         |> repo.update() do
+      {:ok, _updated_board} ->
+        {:ok, put_param(attrs, "public_id", public_id)}
+
+      {:error, _changeset} ->
+        {:error, :board_counter_update_failed}
+    end
+  end
+
+  defp put_param(attrs, string_key, value) when is_map(attrs) do
+    if Enum.all?(Map.keys(attrs), &is_atom/1) do
+      Map.put(attrs, String.to_existing_atom(string_key), value)
+    else
+      Map.put(attrs, string_key, value)
+    end
+  rescue
+    ArgumentError -> Map.put(attrs, String.to_atom(string_key), value)
   end
 
   defp cleanup_stored_files(metadata_list) do

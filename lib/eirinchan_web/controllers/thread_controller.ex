@@ -4,6 +4,7 @@ defmodule EirinchanWeb.ThreadController do
   alias Eirinchan.Boards
   alias Eirinchan.Build
   alias Eirinchan.Posts
+  alias Eirinchan.Posts.PublicIds
   alias Eirinchan.ThreadWatcher
   alias Eirinchan.ThreadPaths
   alias EirinchanWeb.Announcements
@@ -18,10 +19,10 @@ defmodule EirinchanWeb.ThreadController do
     board = conn.assigns.current_board
     config = conn.assigns.current_board_config
     {normalized_thread_id, noko50?} = parse_thread_request(thread_id)
-    _ = Build.ensure_thread(board, normalized_thread_id, config: config)
 
     case Posts.get_thread_view(board, normalized_thread_id, config: config, last_posts: noko50?) do
       {:ok, summary} ->
+        _ = Build.ensure_thread(board, summary.thread.id, config: config)
         boards = Boards.list_boards()
         chrome = BoardChrome.for_board(board)
 
@@ -36,13 +37,13 @@ defmodule EirinchanWeb.ThreadController do
           redirect(conn, to: canonical_path)
         else
           page_num =
-            case Posts.find_thread_page(board, summary.thread.id, config: config) do
+            case Posts.find_thread_page(board, PublicIds.public_id(summary.thread), config: config) do
               {:ok, value} -> value
               {:error, :not_found} -> 1
             end
 
           backlinks_map = Posts.backlinks_map_for_posts([summary.thread | summary.replies])
-          thread_watch = thread_watch(conn, board, summary.thread.id)
+          thread_watch = thread_watch(conn, board, PublicIds.public_id(summary.thread))
           _ = maybe_mark_thread_seen(conn, board, summary)
 
           %{watcher_count: watcher_count, watcher_you_count: watcher_you_count} =
@@ -59,7 +60,7 @@ defmodule EirinchanWeb.ThreadController do
             board: board,
             board_title: board.title,
             page_title:
-              "/#{board.uri}/ - #{summary.thread.subject || summary.thread.body || summary.thread.id}",
+              "/#{board.uri}/ - #{summary.thread.subject || summary.thread.body || PublicIds.public_id(summary.thread)}",
             summary: summary,
             backlinks_map: backlinks_map,
             own_post_ids: own_post_ids,
@@ -89,7 +90,7 @@ defmodule EirinchanWeb.ThreadController do
             head_meta:
               PublicShell.head_meta("thread",
                 board_name: board.uri,
-                thread_id: summary.thread.id,
+                thread_id: PublicIds.public_id(summary.thread),
                 resource_version: conn.assigns[:asset_version],
                 theme_label: conn.assigns[:theme_label],
                 theme_options: conn.assigns[:theme_options],
@@ -235,10 +236,10 @@ defmodule EirinchanWeb.ThreadController do
       token when is_binary(token) ->
         last_seen_post_id =
           [summary.thread | summary.replies]
-          |> Enum.map(& &1.id)
-          |> Enum.max(fn -> summary.thread.id end)
+          |> Enum.map(&PublicIds.public_id/1)
+          |> Enum.max(fn -> PublicIds.public_id(summary.thread) end)
 
-        ThreadWatcher.mark_seen(token, board.uri, summary.thread.id, last_seen_post_id)
+        ThreadWatcher.mark_seen(token, board.uri, summary.thread.id, public_post_internal_id(board, last_seen_post_id))
 
       _ ->
         :ok
@@ -249,6 +250,13 @@ defmodule EirinchanWeb.ThreadController do
     case conn.assigns[:browser_token] do
       token when is_binary(token) -> ThreadWatcher.watch_metrics(token)
       _ -> %{watcher_count: 0, watcher_you_count: 0}
+    end
+  end
+
+  defp public_post_internal_id(board, public_post_id) do
+    case Posts.get_post(board, public_post_id) do
+      {:ok, post} -> post.id
+      _ -> public_post_id
     end
   end
 end

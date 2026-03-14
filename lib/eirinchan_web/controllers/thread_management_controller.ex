@@ -7,7 +7,7 @@ defmodule EirinchanWeb.ThreadManagementController do
   alias Eirinchan.Posts
   alias Eirinchan.Runtime.Config
   alias Eirinchan.Settings
-  alias EirinchanWeb.ModerationAudit
+  alias EirinchanWeb.{ModerationAudit, PostView}
 
   action_fallback EirinchanWeb.FallbackController
 
@@ -32,7 +32,9 @@ defmodule EirinchanWeb.ThreadManagementController do
              Map.take(params, ["sticky", "locked", "cycle", "sage"]),
              config: board_config(board_record, EirinchanWeb.RequestMeta.request_host(conn))
            ) do
-      ModerationAudit.log(conn, "Updated thread No. #{thread.id}", board: board_record)
+      ModerationAudit.log(conn, "Updated thread No. #{PostView.public_post_id(thread)}",
+        board: board_record
+      )
       render(conn, :show, thread: thread)
     else
       nil -> {:error, :not_found}
@@ -57,7 +59,7 @@ defmodule EirinchanWeb.ThreadManagementController do
            ) do
       ModerationAudit.log(
         conn,
-        "Moved thread No. #{thread.id} from /#{source_board.uri}/ to /#{target_board.uri}/",
+        "Moved thread No. #{PostView.public_post_id(thread)} from /#{source_board.uri}/ to /#{target_board.uri}/",
         board: target_board
       )
       render(conn, :show, thread: thread)

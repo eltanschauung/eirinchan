@@ -276,15 +276,16 @@
     <div id="board-threads">
       <%= for summary <- @page_data.threads do %>
         <% thread = summary.thread %>
-        <% watch = Map.get(@thread_watch_state, thread.id, %{watched: false, unread_count: 0}) %>
+        <% thread_public_id = PostView.public_post_id(thread) %>
+        <% watch = Map.get(@thread_watch_state, thread_public_id, %{watched: false, unread_count: 0}) %>
         <div
           class="thread"
-          id={"thread_#{thread.id}"}
+          id={"thread_#{thread_public_id}"}
           data-board={@board.uri}
           data-board-uri={@board.uri}
-          data-thread-id={thread.id}
-          data-watch-url={"/watcher/#{@board.uri}/#{thread.id}"}
-          data-unwatch-url={"/watcher/#{@board.uri}/#{thread.id}"}
+          data-thread-id={thread_public_id}
+          data-watch-url={"/watcher/#{@board.uri}/#{thread_public_id}"}
+          data-unwatch-url={"/watcher/#{@board.uri}/#{thread_public_id}"}
           data-watched={to_string(watch.watched)}
         >
           <.files_block
@@ -299,7 +300,7 @@
 
           <div
             class="post op"
-            id={"op_#{thread.id}"}
+            id={"op_#{thread_public_id}"}
             {case PostView.post_container_style(thread) do
           nil -> []
           style -> [style: style]
@@ -308,8 +309,8 @@
             <p class="intro">
               <.thread_top_controls
                 board_uri={@board.uri}
-                thread_id={thread.id}
-                post_target={"op_#{thread.id}"}
+                thread_id={thread_public_id}
+                post_target={"op_#{thread_public_id}"}
                 watch={watch}
                 show_hide={true}
               />
@@ -319,15 +320,15 @@
                   config={@config}
                   board={@board}
                   moderator={@current_moderator}
-                  own={@show_yous and MapSet.member?(@own_post_ids, thread.id)}
+                  own={@show_yous and MapSet.member?(@own_post_ids, thread_public_id)}
                 />
               </label>
               <.post_number_links
-                post_id={thread.id}
-                post_href={PostView.thread_path(@board, thread, @config) <> "##{thread.id}"}
+                post_id={thread_public_id}
+                post_href={PostView.thread_path(@board, thread, @config) <> "##{thread_public_id}"}
                 quote_href={PostView.reply_path(@board, thread, thread, @config, :quote)}
-                quote_to={thread.id}
-                quick_reply_thread={thread.id}
+                quote_to={thread_public_id}
+                quick_reply_thread={thread_public_id}
                 quote_mode={:navigate}
               />
               <.backlinks post={thread} backlinks_map={@backlinks_map} />
@@ -362,30 +363,31 @@
           </div>
 
           <%= for reply <- summary.replies do %>
-            <div class="post reply" id={"reply_#{reply.id}"}>
+            <% reply_public_id = PostView.public_post_id(reply) %>
+            <div class="post reply" id={"reply_#{reply_public_id}"}>
               <p class="intro">
                 <input
                   :if={!@mobile_client?}
                   type="checkbox"
                   class="delete"
-                  name={"delete_#{reply.id}"}
-                  id={"delete_#{reply.id}"}
+                  name={"delete_#{reply_public_id}"}
+                  id={"delete_#{reply_public_id}"}
                 />
-                <.reply_post_button post_target={"reply_#{reply.id}"} />
-                <label for={"delete_#{reply.id}"}>
+                <.reply_post_button post_target={"reply_#{reply_public_id}"} />
+                <label for={"delete_#{reply_public_id}"}>
                   <.post_identity
                     post={reply}
                     config={@config}
                     board={@board}
                     moderator={@current_moderator}
-                    own={@show_yous and MapSet.member?(@own_post_ids, reply.id)}
+                    own={@show_yous and MapSet.member?(@own_post_ids, reply_public_id)}
                   />
                 </label>
                 <.post_number_links
-                  post_id={reply.id}
-                  post_href={PostView.thread_path(@board, thread, @config) <> "##{reply.id}"}
+                  post_id={reply_public_id}
+                  post_href={PostView.thread_path(@board, thread, @config) <> "##{reply_public_id}"}
                   quote_href={PostView.reply_path(@board, thread, reply, @config, :quote)}
-                  quote_to={reply.id}
+                  quote_to={reply_public_id}
                   quote_mode={:navigate}
                 />
                 <.backlinks post={reply} backlinks_map={@backlinks_map} />

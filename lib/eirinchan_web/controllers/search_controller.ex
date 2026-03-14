@@ -7,6 +7,7 @@ defmodule EirinchanWeb.SearchController do
   alias Eirinchan.CustomPages
   alias Eirinchan.Posts
   alias Eirinchan.Posts.Post
+  alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Repo
   alias Eirinchan.Runtime.Config
   alias Eirinchan.Settings
@@ -209,9 +210,10 @@ defmodule EirinchanWeb.SearchController do
     |> Enum.sort_by(& &1.board.uri)
   end
 
-  defp result_url(%{board: board, thread_id: nil, id: id}),
-    do: "/#{board.uri}/res/#{id}.html#p#{id}"
+  defp result_url(%{board: board, thread_id: nil} = post),
+    do: "/#{board.uri}/res/#{PublicIds.public_id(post)}.html#p#{PublicIds.public_id(post)}"
 
-  defp result_url(%{board: board, thread_id: thread_id, id: id}),
-    do: "/#{board.uri}/res/#{thread_id}.html#p#{id}"
+  defp result_url(%{board: board, thread_id: _thread_id} = post),
+    do:
+      "/#{board.uri}/res/#{PublicIds.thread_public_id(post)}.html#p#{PublicIds.public_id(post)}"
 end

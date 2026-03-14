@@ -1,6 +1,7 @@
 defmodule EirinchanWeb.PageControllerTest do
   use EirinchanWeb.ConnCase
 
+  alias Eirinchan.Posts.PublicIds
   alias Eirinchan.ThreadWatcher
   alias Eirinchan.PostOwnership
 
@@ -191,7 +192,9 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ "Let's bring /bnat/ to life with tranimals and babies!"
   end
 
-  test "GET /formatting normalizes stored full html overrides into the shared shell", %{conn: conn} do
+  test "GET /formatting normalizes stored full html overrides into the shared shell", %{
+    conn: conn
+  } do
     author = moderator_fixture(%{username: "formattingeditor"})
 
     {:ok, _page} =
@@ -301,7 +304,7 @@ defmodule EirinchanWeb.PageControllerTest do
     assert xml =~ "<?xml version=\"1.0\""
     assert xml =~ "<loc>/#{board.uri}</loc>"
     assert xml =~ "<loc>/#{board.uri}/catalog.html</loc>"
-    assert xml =~ "<loc>/#{board.uri}/res/#{thread.id}.html</loc>"
+    assert xml =~ "<loc>/#{board.uri}/res/#{PublicIds.public_id(thread)}.html</loc>"
   end
 
   test "GET /pages/flags renders the flags page", %{conn: conn} do
@@ -440,7 +443,7 @@ defmodule EirinchanWeb.PageControllerTest do
     board = board_fixture(%{uri: "watchyoufrag", title: "Watch You Frag"})
     thread = thread_fixture(board, %{subject: "Watched Thread", body: "Opening"})
     owned_reply = reply_fixture(board, thread, %{body: "Owned"})
-    _citing_reply = reply_fixture(board, thread, %{body: ">>#{owned_reply.id} cited"})
+    _citing_reply = reply_fixture(board, thread, %{body: ">>#{PublicIds.public_id(owned_reply)} cited"})
     token = "watcher-you-fragment-token"
 
     {:ok, _} = PostOwnership.record(token, owned_reply.id)
@@ -483,7 +486,7 @@ defmodule EirinchanWeb.PageControllerTest do
     board = board_fixture(%{uri: "watchyouhome", title: "Watch You Home"})
     thread = thread_fixture(board, %{body: "Watcher home thread"})
     owned_reply = reply_fixture(board, thread, %{body: "Owned"})
-    _citing_reply = reply_fixture(board, thread, %{body: ">>#{owned_reply.id} cited"})
+    _citing_reply = reply_fixture(board, thread, %{body: ">>#{PublicIds.public_id(owned_reply)} cited"})
     token = "token-home-watch-you-123456"
 
     {:ok, _} = PostOwnership.record(token, owned_reply.id)

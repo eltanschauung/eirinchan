@@ -5,6 +5,7 @@ defmodule EirinchanWeb.PostView do
 
   alias Eirinchan.Boardlist
   alias Eirinchan.Moderation
+  alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Posts.PostFile
   alias Eirinchan.Themes
   alias Eirinchan.ThreadPaths
@@ -31,10 +32,10 @@ defmodule EirinchanWeb.PostView do
         post.file_name
 
       is_nil(post.thread_id) ->
-        "Thread ##{post.id}"
+        "Thread ##{PublicIds.public_id(post)}"
 
       true ->
-        "Reply ##{post.id}"
+        "Reply ##{PublicIds.public_id(post)}"
     end
   end
 
@@ -93,11 +94,15 @@ defmodule EirinchanWeb.PostView do
 
   def thread_path(board, post, config), do: ThreadPaths.thread_path(board, post, config)
 
+  def public_post_id(post), do: PublicIds.public_id(post)
+
   def reply_path(board, thread, post, config, mode \\ :post) do
+    public_post_id = PublicIds.public_id(post)
+
     suffix =
       case mode do
-        :quote -> "#q#{post.id}"
-        _ -> "#p#{post.id}"
+        :quote -> "#q#{public_post_id}"
+        _ -> "#p#{public_post_id}"
       end
 
     thread_path(board, thread, config) <> suffix
@@ -817,19 +822,21 @@ defmodule EirinchanWeb.PostView do
   end
 
   defp control_metadata(post, board, session_token, action) do
+    public_post_id = PublicIds.public_id(post)
+
     action_path =
       case action do
-        :delete -> "#{board.uri}/delete/#{post.id}"
-        :deletebyip -> "#{board.uri}/deletebyip/#{post.id}"
-        :ban24 -> "#{board.uri}/ban24/#{post.id}"
-        :ban -> "#{board.uri}/ban/#{post.id}"
-        :bandelete -> "#{board.uri}/ban&delete/#{post.id}"
-        :sticky -> "#{board.uri}/#{if post.sticky, do: "unsticky", else: "sticky"}/#{post.id}"
-        :bumplock -> "#{board.uri}/#{if post.sage, do: "bumpunlock", else: "bumplock"}/#{post.id}"
-        :lock -> "#{board.uri}/#{if post.locked, do: "unlock", else: "lock"}/#{post.id}"
-        :move -> "#{board.uri}/#{if thread_op?(post), do: "move", else: "move_reply"}/#{post.id}"
-        :cycle -> "#{board.uri}/#{if post.cycle, do: "uncycle", else: "cycle"}/#{post.id}"
-        :editpost -> "#{board.uri}/edit/#{post.id}"
+        :delete -> "#{board.uri}/delete/#{public_post_id}"
+        :deletebyip -> "#{board.uri}/deletebyip/#{public_post_id}"
+        :ban24 -> "#{board.uri}/ban24/#{public_post_id}"
+        :ban -> "#{board.uri}/ban/#{public_post_id}"
+        :bandelete -> "#{board.uri}/ban&delete/#{public_post_id}"
+        :sticky -> "#{board.uri}/#{if post.sticky, do: "unsticky", else: "sticky"}/#{public_post_id}"
+        :bumplock -> "#{board.uri}/#{if post.sage, do: "bumpunlock", else: "bumplock"}/#{public_post_id}"
+        :lock -> "#{board.uri}/#{if post.locked, do: "unlock", else: "lock"}/#{public_post_id}"
+        :move -> "#{board.uri}/#{if thread_op?(post), do: "move", else: "move_reply"}/#{public_post_id}"
+        :cycle -> "#{board.uri}/#{if post.cycle, do: "uncycle", else: "cycle"}/#{public_post_id}"
+        :editpost -> "#{board.uri}/edit/#{public_post_id}"
       end
 
     href = "/mod.php?/" <> action_path
@@ -909,7 +916,7 @@ defmodule EirinchanWeb.PostView do
 
   defp file_control_metadata(post, file, board, session_token, :deletefile) do
     file_index = file_index(post, file)
-    action_path = "#{board.uri}/deletefile/#{post.id}/#{file_index}"
+    action_path = "#{board.uri}/deletefile/#{PublicIds.public_id(post)}/#{file_index}"
     href = "/mod.php?/" <> action_path
     token = ManageSecurity.sign_action(session_token, action_path)
 
@@ -924,7 +931,7 @@ defmodule EirinchanWeb.PostView do
 
   defp file_control_metadata(post, file, board, session_token, :spoilerimage) do
     file_index = file_index(post, file)
-    action_path = "#{board.uri}/spoiler/#{post.id}/#{file_index}"
+    action_path = "#{board.uri}/spoiler/#{PublicIds.public_id(post)}/#{file_index}"
     href = "/mod.php?/" <> action_path
     token = ManageSecurity.sign_action(session_token, action_path)
 
@@ -1051,13 +1058,14 @@ defmodule EirinchanWeb.PostView do
   defp render_quote_links(line, board, thread, config, opts) do
     own_post_ids = Keyword.get(opts, :own_post_ids, MapSet.new())
     show_yous = Keyword.get(opts, :show_yous, false)
+    op_public_id = if thread, do: PublicIds.public_id(thread), else: nil
 
     Regex.replace(~r/&gt;&gt;(\d+)/, line, fn _match, id ->
       post_id = String.to_integer(id)
       href = ThreadPaths.thread_path(board, thread, config) <> "##{id}"
 
       op =
-        if thread && Map.get(thread, :id) == post_id,
+        if op_public_id == post_id,
           do: " <small>(OP)</small>",
           else: ""
 

@@ -1680,7 +1680,7 @@ defmodule EirinchanWeb.ManagePageController do
            ) do
       ModerationAudit.log(
         conn,
-        "Banned #{display_ip_for_log(Map.get(params, "ip", post.ip_subnet))} for post No. #{post.id}" <>
+        "Banned #{display_ip_for_log(Map.get(params, "ip", post.ip_subnet))} for post No. #{PostView.public_post_id(post)}" <>
           if(Map.get(params, "delete") in ["1", "true", "on"], do: " and deleted the post", else: ""),
         moderator: moderator,
         board: board
@@ -1741,7 +1741,10 @@ defmodule EirinchanWeb.ManagePageController do
              Map.take(params, ["name", "email", "subject", "body"]),
              config: effective_board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
            ) do
-      ModerationAudit.log(conn, "Edited post No. #{post.id}", moderator: moderator, board: board)
+      ModerationAudit.log(conn, "Edited post No. #{PostView.public_post_id(post)}",
+        moderator: moderator,
+        board: board
+      )
 
       conn
       |> put_flash(:info, "Post updated.")
@@ -1838,7 +1841,7 @@ defmodule EirinchanWeb.ManagePageController do
            ) do
       ModerationAudit.log(
         conn,
-        "Moved thread No. #{moved_thread.id} from /#{source_board.uri}/ to /#{target_board.uri}/",
+        "Moved thread No. #{PostView.public_post_id(moved_thread)} from /#{source_board.uri}/ to /#{target_board.uri}/",
         moderator: moderator,
         board: target_board
       )
@@ -1893,7 +1896,7 @@ defmodule EirinchanWeb.ManagePageController do
            ) do
       ModerationAudit.log(
         conn,
-        "Moved reply No. #{moved_reply.id} from /#{source_board.uri}/ to /#{target_board.uri}/ thread No. #{target_thread_id}",
+        "Moved reply No. #{PostView.public_post_id(moved_reply)} from /#{source_board.uri}/ to /#{target_board.uri}/ thread No. #{target_thread_id}",
         moderator: moderator,
         board: target_board
       )
@@ -1904,7 +1907,11 @@ defmodule EirinchanWeb.ManagePageController do
         to:
           Eirinchan.ThreadPaths.thread_path(
             target_board,
-            %Eirinchan.Posts.Post{id: moved_reply.thread_id, slug: nil},
+            %Eirinchan.Posts.Post{
+              id: moved_reply.thread_id,
+              public_id: String.to_integer(target_thread_id),
+              slug: nil
+            },
             effective_board_config(target_board, EirinchanWeb.RequestMeta.request_host(conn))
           )
       )
@@ -2783,9 +2790,9 @@ defmodule EirinchanWeb.ManagePageController do
 
   defp moderation_return_path(board, post) do
     if is_nil(post.thread_id) do
-      "/#{board.uri}/res/#{post.id}.html"
+      "/#{board.uri}/res/#{PostView.public_post_id(post)}.html"
     else
-      "/#{board.uri}/res/#{post.thread_id}.html##{post.id}"
+      "/#{board.uri}/res/#{Eirinchan.Posts.PublicIds.thread_public_id(post)}.html##{PostView.public_post_id(post)}"
     end
   end
 

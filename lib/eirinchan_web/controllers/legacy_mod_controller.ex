@@ -92,7 +92,7 @@ defmodule EirinchanWeb.LegacyModController do
            Posts.delete_post_file(board, post_id, file_index,
              config: board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
            ) do
-      ModerationAudit.log(conn, "Deleted file from post No. #{post.id}",
+      ModerationAudit.log(conn, "Deleted file from post No. #{PostView.public_post_id(post)}",
         moderator: moderator,
         board: board
       )
@@ -114,7 +114,7 @@ defmodule EirinchanWeb.LegacyModController do
            Posts.spoilerize_post_file(board, post_id, file_index,
              config: board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
            ) do
-      ModerationAudit.log(conn, "Spoilered file on post No. #{post.id}",
+      ModerationAudit.log(conn, "Spoilered file on post No. #{PostView.public_post_id(post)}",
         moderator: moderator,
         board: board
       )
@@ -186,12 +186,12 @@ defmodule EirinchanWeb.LegacyModController do
              mod_user_id: moderator.id,
              ip_subnet: subnet,
              reason:
-               "Subnet ban from post control for #{display_ip_for_log(post.ip_subnet)} on /#{board.uri}/ No. #{post.id}",
+               "Subnet ban from post control for #{display_ip_for_log(post.ip_subnet)} on /#{board.uri}/ No. #{PostView.public_post_id(post)}",
              active: true
            }) do
       ModerationAudit.log(
         conn,
-        "Created /24 ban #{subnet} from #{display_ip_for_log(post.ip_subnet)} on post No. #{post.id}",
+        "Created /24 ban #{subnet} from #{display_ip_for_log(post.ip_subnet)} on post No. #{PostView.public_post_id(post)}",
         moderator: moderator,
         board: board
       )
