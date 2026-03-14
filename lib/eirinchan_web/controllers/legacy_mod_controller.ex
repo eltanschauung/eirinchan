@@ -185,10 +185,13 @@ defmodule EirinchanWeb.LegacyModController do
              board_id: nil,
              mod_user_id: moderator.id,
              ip_subnet: subnet,
-             reason: "Subnet ban from post control on /#{board.uri}/ No. #{post.id}",
+             reason:
+               "Subnet ban from post control for #{display_ip_for_log(post.ip_subnet)} on /#{board.uri}/ No. #{post.id}",
              active: true
            }) do
-      ModerationAudit.log(conn, "Created /24 ban #{subnet} from post No. #{post.id}",
+      ModerationAudit.log(
+        conn,
+        "Created /24 ban #{subnet} from #{display_ip_for_log(post.ip_subnet)} on post No. #{post.id}",
         moderator: moderator,
         board: board
       )
