@@ -260,3 +260,14 @@ function init_file_selector(max_images, root) {
     }
   });
 }
+
+$(function() {
+  $('form[data-post-form]').each(function() {
+    var maxImages = parseInt($(this).attr('data-max-images') || '1', 10);
+    if (isNaN(maxImages) || maxImages < 1) {
+      maxImages = 1;
+    }
+
+    init_file_selector(maxImages, this);
+  });
+});

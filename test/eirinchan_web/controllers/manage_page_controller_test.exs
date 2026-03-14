@@ -127,8 +127,22 @@ defmodule EirinchanWeb.ManagePageControllerTest do
 
     assert page =~ ~s(class="banform")
     assert page =~ "Unban selected"
-    assert page =~ "198.51.100.7"
-    assert page =~ "Spam"
+    assert page =~ ~s(data-banlist-url="/manage/bans/browser.json")
+    assert page =~ "/js/mod/ban-list.js"
+
+    response =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> get("/manage/bans/browser.json")
+      |> json_response(200)
+
+    cloaked_ip = Eirinchan.IpCrypt.cloak_ip("198.51.100.7")
+
+    assert Enum.any?(response, fn row ->
+             row["mask"] == cloaked_ip and row["reason"] == "Spam" and
+               row["history_url"] == "/manage/ip/#{cloaked_ip}/browser"
+           end)
 
     conn =
       conn
