@@ -558,15 +558,22 @@ defmodule EirinchanWeb.PageController do
   defp recent_snippet(nil), do: "<em>(no comment)</em>"
 
   defp recent_snippet(body) do
+    len = 20
+
     body
+    |> String.replace(~r/<br\/?>/i, "  ")
+    |> String.replace(~r/<[^>]+>/, "")
     |> String.replace(~r/\s+/, " ")
     |> String.trim()
-    |> String.split(" ", trim: true)
-    |> Enum.take(30)
-    |> Enum.join(" ")
     |> case do
-      "" -> "<em>(no comment)</em>"
-      snippet -> Phoenix.HTML.html_escape(snippet) |> Phoenix.HTML.safe_to_string()
+      "" ->
+        "<em>(no comment)</em>"
+
+      cleaned ->
+        strlen = String.length(cleaned)
+        snippet = String.slice(cleaned, 0, len)
+        escaped = Phoenix.HTML.html_escape(snippet) |> Phoenix.HTML.safe_to_string()
+        "<em>" <> escaped <> if(strlen > len, do: "&hellip;", else: "") <> "</em>"
     end
   end
 
