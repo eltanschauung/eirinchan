@@ -17,7 +17,7 @@ defmodule Eirinchan.IpMatching do
 
   def normalize_ip(ip) do
     case parse_ip(ip) do
-      {:ok, parsed} -> parsed
+      {:ok, parsed} -> normalize_mapped_ipv4(parsed)
       _ -> nil
     end
   end
@@ -27,9 +27,13 @@ defmodule Eirinchan.IpMatching do
     |> String.trim()
     |> String.to_charlist()
     |> :inet.parse_address()
+    |> case do
+      {:ok, parsed} -> {:ok, normalize_mapped_ipv4(parsed)}
+      other -> other
+    end
   end
 
-  def parse_ip(value) when is_tuple(value), do: {:ok, value}
+  def parse_ip(value) when is_tuple(value), do: {:ok, normalize_mapped_ipv4(value)}
   def parse_ip(_value), do: :error
 
   def ip_in_cidr?(ip, cidr) do
@@ -62,4 +66,15 @@ defmodule Eirinchan.IpMatching do
   end
 
   defp ip_to_binary(_value), do: :error
+
+  defp normalize_mapped_ipv4({0, 0, 0, 0, 0, 65_535, upper, lower}) do
+    {
+      Bitwise.band(Bitwise.bsr(upper, 8), 0xFF),
+      Bitwise.band(upper, 0xFF),
+      Bitwise.band(Bitwise.bsr(lower, 8), 0xFF),
+      Bitwise.band(lower, 0xFF)
+    }
+  end
+
+  defp normalize_mapped_ipv4(ip), do: ip
 end
