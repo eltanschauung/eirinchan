@@ -14,15 +14,44 @@ var Menu = window.Menu;
 
 function ensureQuickActionForm($post, postId) {
 	var $checkbox = $('#delete_' + postId);
-	if (!$checkbox.length) {
-		return $();
-	}
-
-	if (!$checkbox.prop('checked')) {
+	if ($checkbox.length && !$checkbox.prop('checked')) {
 		$checkbox.prop('checked', true).trigger('change');
 	}
 
-	return $post.find('form.post-actions');
+	var $quickForm = $post.find('form.post-actions');
+	if ($quickForm.length) {
+		return $quickForm;
+	}
+
+	var $sharedForm = $('form[name="postcontrols"]:first');
+	if ($sharedForm.length) {
+		if (!$sharedForm.find('input[name="delete_post_id"]').length) {
+			$sharedForm.prepend('<input type="hidden" name="delete_post_id" value="">');
+		}
+
+		if (!$sharedForm.find('input[name="report_post_id"]').length) {
+			$sharedForm.prepend('<input type="hidden" name="report_post_id" value="">');
+		}
+	}
+
+	return $sharedForm;
+}
+
+function prepareSharedActionForm($form, postId, action) {
+	if (!$form.length || $form.hasClass('post-actions')) {
+		return;
+	}
+
+	var $deletePostId = $form.find('input[name="delete_post_id"]').first();
+	var $reportPostId = $form.find('input[name="report_post_id"]').first();
+
+	if (action === 'delete') {
+		$deletePostId.val(postId);
+		$reportPostId.val('');
+	} else if (action === 'report') {
+		$reportPostId.val(postId);
+		$deletePostId.val('');
+	}
 }
 	
 if ($('#delete-fields #password').length) {
@@ -46,7 +75,9 @@ Menu.onclick(function(e, $buf) {
 				return;
 			}
 
-			var $fileToggle = $form.find('#delete_file_' + postId);
+			prepareSharedActionForm($form, postId, 'delete');
+
+			var $fileToggle = $form.find('#delete_file_' + postId + ', #delete_file, input[name="file"]').first();
 			var $password = $form.find('input[name="password"]');
 			var passwordValue = $.trim($password.val() || '');
 			if ($(this).attr('id') === 'delete_file_menu') {
@@ -79,6 +110,7 @@ Menu.onclick(function(e, $buf) {
 			return;
 		}
 
+		prepareSharedActionForm($form, postId, 'report');
 		$form.find('input[name="reason"]').trigger('focus');
 	});
 });
