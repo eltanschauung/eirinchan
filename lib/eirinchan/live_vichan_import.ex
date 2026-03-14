@@ -13,7 +13,8 @@ defmodule Eirinchan.LiveVichanImport do
   alias Eirinchan.Settings
   alias Eirinchan.Uploads
 
-  @script Path.expand("../../priv/scripts/export_live_vichan_page.php", __DIR__)
+  @page_script Path.expand("../../priv/scripts/export_live_vichan_page.php", __DIR__)
+  @thread_script Path.expand("../../priv/scripts/export_live_vichan_thread.php", __DIR__)
 
   def import_page(opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
@@ -30,8 +31,36 @@ defmodule Eirinchan.LiveVichanImport do
     end
   end
 
+  def import_thread(opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+    source_root = Keyword.get(opts, :source_root, "/var/www/bantculture.com/vichan")
+    board_uri = Keyword.get(opts, :board, "bant")
+    thread_id = Keyword.fetch!(opts, :thread_id)
+
+    with {:ok, payload} <- export_live_thread(source_root, board_uri, thread_id),
+         {:ok, board} <- ensure_board(payload["board"], repo),
+         {:ok, result} <- import_payload(board, payload, repo, source_root),
+         :ok <- rebuild_board(board, repo) do
+      {:ok,
+       Map.merge(result, %{
+         board: board.uri,
+         build_root: Build.board_root(),
+         live_thread_id: thread_id,
+         imported_public_id: result.op.public_id
+       })}
+    end
+  end
+
   defp export_live_page(source_root, board_uri, limit) do
-    case System.cmd("php", [@script, source_root, board_uri, Integer.to_string(limit)],
+    export_with_script(@page_script, source_root, board_uri, limit)
+  end
+
+  defp export_live_thread(source_root, board_uri, thread_id) do
+    export_with_script(@thread_script, source_root, board_uri, thread_id)
+  end
+
+  defp export_with_script(script, source_root, board_uri, value) do
+    case System.cmd("php", [script, source_root, board_uri, Integer.to_string(value)],
            stderr_to_stdout: true
          ) do
       {output, 0} ->
@@ -60,11 +89,7 @@ defmodule Eirinchan.LiveVichanImport do
   end
 
   defp import_payload(%BoardRecord{} = board, payload, repo, source_root) do
-    instance_config = Settings.current_instance_config()
-    runtime_board = Boards.BoardRecord.to_board(board)
-
-    config =
-      Config.compose(nil, instance_config, board.config_overrides || %{}, board: runtime_board)
+    config = board_runtime_config(board)
 
     grouped =
       payload["posts"]
@@ -73,7 +98,7 @@ defmodule Eirinchan.LiveVichanImport do
     imported =
       payload["thread_ids"]
       |> Enum.map(fn legacy_thread_id ->
-        import_thread(
+        import_thread_rows(
           board,
           grouped[legacy_thread_id] || [],
           repo,
@@ -86,17 +111,24 @@ defmodule Eirinchan.LiveVichanImport do
     case Enum.find(imported, &match?({:error, _}, &1)) do
       nil ->
         merged =
-          Enum.reduce(imported, %{threads: 0, replies: 0, files: 0, post_map: %{}}, fn {:ok, row},
-                                                                                       acc ->
+          Enum.reduce(imported, %{threads: 0, replies: 0, files: 0, op: nil, post_map: %{}}, fn {:ok, row},
+                                                                                                  acc ->
             %{
-              threads: acc.threads + row.threads,
+              threads: acc.threads + 1,
               replies: acc.replies + row.replies,
               files: acc.files + row.files,
+              op: acc.op || row.op,
               post_map: Map.merge(acc.post_map, row.post_map)
             }
           end)
 
-        :ok = rewrite_imported_citations(board, grouped, merged.post_map, repo)
+        :ok =
+          rewrite_imported_citations(
+            grouped |> Map.values() |> List.flatten(),
+            merged.post_map,
+            repo
+          )
+
         {:ok, Map.drop(merged, [:post_map])}
 
       {:error, reason} ->
@@ -104,7 +136,7 @@ defmodule Eirinchan.LiveVichanImport do
     end
   end
 
-  defp import_thread(
+  defp import_thread_rows(
          %BoardRecord{} = board,
          [op | replies],
          repo,
@@ -114,29 +146,43 @@ defmodule Eirinchan.LiveVichanImport do
        ) do
     case existing_thread_map(board, [op | replies], repo, legacy_thread_id) do
       {:ok, post_map} ->
-        {:ok, %{threads: 0, replies: 0, files: 0, post_map: post_map}}
+        {:ok,
+         %{
+           op: Map.fetch!(post_map, op["id"]),
+           replies: length(replies),
+           files: count_files(op) + Enum.sum(Enum.map(replies, &count_files/1)),
+           post_map: post_map
+         }}
 
       :error ->
         repo.transaction(
           fn ->
-            inserted_op = insert_post(board, nil, op, repo, config, source_root)
+            locked_board =
+              repo.one!(
+                from board_record in BoardRecord,
+                  where: board_record.id == ^board.id,
+                  lock: "FOR UPDATE"
+              )
 
-            {post_map, reply_count, file_count} =
+            {inserted_op, locked_board} =
+              insert_post(board, locked_board, nil, op, repo, config, source_root)
+
+            {post_map, _board_after, reply_count, file_count} =
               Enum.reduce(
                 replies,
-                {%{legacy_thread_id => inserted_op.id, op["id"] => inserted_op.id}, 0,
+                {%{legacy_thread_id => inserted_op, op["id"] => inserted_op}, locked_board, 0,
                  count_files(op)},
-                fn reply, {map, count, files} ->
-                  inserted_reply =
-                    insert_post(board, inserted_op, reply, repo, config, source_root)
+                fn reply, {map, board_acc, count, files} ->
+                  {inserted_reply, updated_board} =
+                    insert_post(board, board_acc, inserted_op, reply, repo, config, source_root)
 
-                  {Map.put(map, reply["id"], inserted_reply.id), count + 1,
+                  {Map.put(map, reply["id"], inserted_reply), updated_board, count + 1,
                    files + count_files(reply)}
                 end
               )
 
             %{
-              threads: 1,
+              op: inserted_op,
               replies: reply_count,
               files: file_count,
               post_map: post_map
@@ -145,7 +191,7 @@ defmodule Eirinchan.LiveVichanImport do
           timeout: :infinity
         )
         |> case do
-          {:ok, summary} -> {:ok, summary}
+          {:ok, result} -> {:ok, result}
           {:error, reason} -> {:error, reason}
         end
     end
@@ -154,15 +200,14 @@ defmodule Eirinchan.LiveVichanImport do
   end
 
   defp existing_thread_map(%BoardRecord{} = board, [op | replies], repo, legacy_thread_id) do
-    inserted_at = DateTime.from_unix!(op["time"]) |> DateTime.truncate(:second)
+    inserted_at = unix_second_datetime(op["time"])
     op_slug = blank_to_nil(op["slug"])
     {op_body, _codes, _alts} = extract_body_and_flags(op["body_nomarkup"] || op["body"] || "")
 
     query =
       from post in Post,
         where:
-          post.board_id == ^board.id and is_nil(post.thread_id) and
-            post.inserted_at == ^inserted_at
+          post.board_id == ^board.id and is_nil(post.thread_id) and post.inserted_at == ^inserted_at
 
     query =
       if op_slug do
@@ -184,11 +229,11 @@ defmodule Eirinchan.LiveVichanImport do
           reply_map =
             Enum.zip(replies, existing_replies)
             |> Enum.into(%{}, fn {legacy_reply, existing_reply} ->
-              {legacy_reply["id"], existing_reply.id}
+              {legacy_reply["id"], existing_reply}
             end)
 
           {:ok,
-           Map.merge(%{legacy_thread_id => existing_op.id, op["id"] => existing_op.id}, reply_map)}
+           Map.merge(%{legacy_thread_id => existing_op, op["id"] => existing_op}, reply_map)}
         else
           :error
         end
@@ -198,11 +243,11 @@ defmodule Eirinchan.LiveVichanImport do
     end
   end
 
-  defp insert_post(%BoardRecord{} = board, thread, legacy_row, repo, config, source_root) do
+  defp insert_post(%BoardRecord{} = board, locked_board, thread, legacy_row, repo, config, source_root) do
     {body, flag_codes, flag_alts} =
       extract_body_and_flags(legacy_row["body_nomarkup"] || legacy_row["body"] || "")
 
-    inserted_at = DateTime.from_unix!(legacy_row["time"]) |> DateTime.truncate(:second)
+    inserted_at = unix_second_datetime(legacy_row["time"])
     bump_at = legacy_bump_at(legacy_row)
 
     primary_file =
@@ -222,6 +267,13 @@ defmodule Eirinchan.LiveVichanImport do
         nil -> %{}
         file -> copy_asset_and_build_attrs(board, file, config, source_root, is_nil(thread))
       end
+
+    public_id = locked_board.next_public_post_id || 1
+
+    {:ok, updated_board} =
+      locked_board
+      |> Ecto.Changeset.change(next_public_post_id: public_id + 1)
+      |> repo.update()
 
     post =
       %Post{
@@ -252,6 +304,7 @@ defmodule Eirinchan.LiveVichanImport do
         sage: truthy?(legacy_row["sage"]),
         slug: blank_to_nil(legacy_row["slug"]),
         ip_subnet: nil,
+        public_id: public_id,
         inserted_at: inserted_at,
         updated_at: inserted_at
       }
@@ -287,7 +340,7 @@ defmodule Eirinchan.LiveVichanImport do
       |> repo.insert!()
     end)
 
-    post
+    {post, updated_board}
   end
 
   defp copy_asset_and_build_attrs(
@@ -332,8 +385,7 @@ defmodule Eirinchan.LiveVichanImport do
         if spoiler_thumb?(legacy_file) do
           Path.basename(stored_name)
         else
-          legacy_file["thumb"] ||
-            Path.basename(stored_name)
+          legacy_file["thumb"] || Path.basename(stored_name)
         end
 
       file_rel = "/#{board.uri}/src/#{stored_name}"
@@ -398,49 +450,50 @@ defmodule Eirinchan.LiveVichanImport do
     end
   end
 
-  defp rewrite_imported_citations(%BoardRecord{} = board, grouped, post_map, repo) do
-    grouped
-    |> Map.values()
-    |> List.flatten()
-    |> Enum.each(fn row ->
-      new_post_id = Map.fetch!(post_map, row["id"])
+  defp rewrite_imported_citations(rows, post_map, repo) do
+    Enum.each(rows, fn row ->
+      new_post = Map.fetch!(post_map, row["id"])
       original_body = row["body_nomarkup"] || row["body"] || ""
       {clean_body, _codes, _alts} = extract_body_and_flags(original_body)
       rewritten = remap_cites(clean_body, post_map)
 
-      repo.update_all(from(post in Post, where: post.id == ^new_post_id), set: [body: rewritten])
+      repo.update_all(from(post in Post, where: post.id == ^new_post.id), set: [body: rewritten])
 
-      extract_cited_ids(rewritten)
+      extract_cited_ids(clean_body)
       |> Enum.uniq()
-      |> Enum.each(fn target_id ->
-        if repo.get_by(Post, id: target_id, board_id: board.id) do
-          now = now_usec()
+      |> Enum.each(fn legacy_target_id ->
+        case Map.get(post_map, legacy_target_id) do
+          %Post{} = target_post ->
+            now = now_usec()
 
-          repo.insert_all(
-            "cites",
-            [
-              %{
-                post_id: new_post_id,
-                target_post_id: target_id,
-                inserted_at: now,
-                updated_at: now
-              }
-            ],
-            on_conflict: :nothing
-          )
+            repo.insert_all(
+              "cites",
+              [
+                %{
+                  post_id: new_post.id,
+                  target_post_id: target_post.id,
+                  inserted_at: now,
+                  updated_at: now
+                }
+              ],
+              on_conflict: :nothing
+            )
 
-          repo.insert_all(
-            "nntp_references",
-            [
-              %{
-                post_id: new_post_id,
-                target_post_id: target_id,
-                inserted_at: now,
-                updated_at: now
-              }
-            ],
-            on_conflict: :nothing
-          )
+            repo.insert_all(
+              "nntp_references",
+              [
+                %{
+                  post_id: new_post.id,
+                  target_post_id: target_post.id,
+                  inserted_at: now,
+                  updated_at: now
+                }
+              ],
+              on_conflict: :nothing
+            )
+
+          _ ->
+            :ok
         end
       end)
     end)
@@ -451,8 +504,8 @@ defmodule Eirinchan.LiveVichanImport do
   defp remap_cites(body, post_map) when is_binary(body) do
     Regex.replace(~r/>>(\d+)/u, body, fn _, id ->
       case Map.get(post_map, String.to_integer(id)) do
-        nil -> ">>#{id}"
-        mapped -> ">>#{mapped}"
+        %Post{} = mapped -> ">>#{mapped.public_id}"
+        _ -> ">>#{id}"
       end
     end)
   end
@@ -528,13 +581,30 @@ defmodule Eirinchan.LiveVichanImport do
 
   defp integer_or_nil(nil), do: nil
   defp integer_or_nil(value) when is_integer(value), do: value
-  defp integer_or_nil(value) when is_binary(value), do: String.to_integer(value)
 
-  defp truthy?(value), do: value in [true, 1, "1"]
+  defp integer_or_nil(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {parsed, ""} -> parsed
+      _ -> nil
+    end
+  end
 
-  defp legacy_bump_at(%{"bump" => nil, "time" => time}), do: from_unix_usec(time)
+  defp integer_or_nil(_), do: nil
 
-  defp legacy_bump_at(%{"bump" => bump}), do: from_unix_usec(bump)
+  defp truthy?(value), do: value in [true, 1, "1", "true"]
+
+  defp legacy_bump_at(%{"bump" => value}) when is_integer(value), do: unix_usec_datetime(value)
+  defp legacy_bump_at(_), do: nil
+
+  defp unix_second_datetime(value) when is_integer(value) do
+    DateTime.from_unix!(value, :second)
+    |> DateTime.truncate(:second)
+  end
+
+  defp unix_usec_datetime(value) when is_integer(value) do
+    DateTime.from_unix!(value, :second)
+    |> Map.put(:microsecond, {0, 6})
+  end
 
   defp shuffle_all_threads(repo) do
     now = now_usec()
@@ -554,29 +624,23 @@ defmodule Eirinchan.LiveVichanImport do
     :ok
   end
 
-  defp from_unix_usec(seconds) when is_integer(seconds) do
-    DateTime.from_unix!(seconds * 1_000_000, :microsecond)
-  end
-
-  defp now_usec do
-    DateTime.utc_now()
-    |> DateTime.to_unix(:microsecond)
-    |> DateTime.from_unix!(:microsecond)
-  end
+  defp now_usec, do: DateTime.utc_now() |> DateTime.truncate(:microsecond)
 
   defp rebuild_all_boards(repo) do
-    instance_config = Settings.current_instance_config()
-
     Boards.list_boards(repo: repo)
-    |> Enum.each(fn board ->
-      runtime_board = Boards.BoardRecord.to_board(board)
-
-      config =
-        Config.compose(nil, instance_config, board.config_overrides || %{}, board: runtime_board)
-
-      Build.rebuild_board(board, repo: repo, config: config)
-    end)
+    |> Enum.each(&rebuild_board(&1, repo))
 
     :ok
+  end
+
+  defp rebuild_board(board, repo) do
+    config = board_runtime_config(board)
+    Build.rebuild_board(board, repo: repo, config: config)
+  end
+
+  defp board_runtime_config(board) do
+    instance_config = Settings.current_instance_config()
+    runtime_board = Boards.BoardRecord.to_board(board)
+    Config.compose(nil, instance_config, board.config_overrides || %{}, board: runtime_board)
   end
 end
