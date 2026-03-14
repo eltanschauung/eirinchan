@@ -162,20 +162,27 @@ function init_file_selector(max_images, root) {
     $root.find('.file-thumbs').empty();
   });
 
-  $root.on('click', '.strip-fn-btn', function(e) {
+  $(document).on('click' + selectorNamespace, '.strip-fn-btn', function(e) {
+    if (!$.contains($root[0], this)) {
+      return;
+    }
+
     e.stopPropagation();
     var $container = $(this).closest('.tmb-container');
-    var file = $container.data('file-ref');
-    var extension = file.name.split('.').pop();
-    var newName = Date.now() + '.' + extension;
-    var newFile = new File([file.slice(0, file.size, file.type)], newName, { type: file.type });
-    var index = files.indexOf(file);
+    var index = $container.parent().children('.tmb-container').index($container);
+    var file = files[index] || $container.data('file-ref');
 
-    if (index !== -1) {
-      files[index] = newFile;
-      $container.data('file-ref', newFile);
-      $container.find('.tmb-filename').text(newName);
+    if (!file || !file.name) {
+      return;
     }
+
+    var extension = file.name.indexOf('.') !== -1 ? file.name.split('.').pop() : '';
+    var newName = extension ? (Date.now() + '.' + extension) : String(Date.now());
+    var newFile = new File([file.slice(0, file.size, file.type)], newName, { type: file.type });
+
+    files[index] = newFile;
+    $container.data('file-ref', newFile);
+    $container.find('.tmb-filename').text(newName);
   });
 
   var dragCounter = 0;
