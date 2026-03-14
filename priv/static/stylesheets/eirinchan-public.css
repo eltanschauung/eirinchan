@@ -3,6 +3,21 @@ body {
   min-height: 100%;
 }
 
+#admin_options_links {
+  white-space: nowrap;
+}
+
+.mobile-style #admin_options_links {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2em;
+  font-size: clamp(8px, 2.6vw, 10px);
+}
+
+.mobile-style #admin_options_links > span {
+  display: none;
+}
+
 #blotterContainer {
   margin: 8px 0 10px;
   text-align: center;
