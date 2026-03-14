@@ -646,6 +646,26 @@
     return saved;
   }
 
+  function clearCurrentBodyDraft() {
+    var saved = {};
+
+    try {
+      saved = JSON.parse(window.sessionStorage.body || "{}");
+    } catch (_error) {
+      saved = {};
+    }
+
+    delete saved[normalizeDraftUrl(document.location)];
+    window.sessionStorage.body = JSON.stringify(saved);
+
+    try {
+      if (localStorage.body) {
+        localStorage.body = "";
+      }
+    } catch (_error) {
+    }
+  }
+
   function restoreBodyDraft(form) {
     if (!form || !form.elements || !form.elements["body"]) return;
 
@@ -728,7 +748,11 @@
   }
 
   function afterPostSuccess(response) {
-    if (!response || typeof window.jQuery === 'undefined') return;
+    if (!response) return;
+
+    clearCurrentBodyDraft();
+
+    if (typeof window.jQuery === 'undefined') return;
     window.jQuery(document).trigger('ajax_after_post', response);
   }
 
