@@ -125,15 +125,21 @@ defmodule EirinchanWeb.ManagePageController do
   def bans(conn, params) do
     with {:ok, moderator} <- ensure_moderator(conn) do
       boards = Moderation.list_accessible_boards(moderator)
-      board_ids = Enum.map(boards, & &1.id)
       filters = ban_list_filters(params, moderator)
 
       conn
-      |> assign(:extra_stylesheets, (conn.assigns[:extra_stylesheets] || []) ++ ["/stylesheets/mod/ban-list.css"])
+      |> assign(:extra_stylesheets, (conn.assigns[:extra_stylesheets] || []) ++ [
+        "/stylesheets/longtable/longtable.css",
+        "/stylesheets/mod/ban-list.css"
+      ])
+      |> assign(:custom_javascript_urls, [
+        "/js/strftime.min.js",
+        "/js/longtable/longtable.js",
+        "/js/mod/ban-list.js"
+      ])
       |> render(:bans,
         moderator: moderator,
         boards: boards,
-        bans: filtered_ban_entries(boards, board_ids, filters),
         filters: filters,
         only_mine_available?: moderator.role != "admin",
         config: Settings.current_instance_config()
@@ -141,6 +147,24 @@ defmodule EirinchanWeb.ManagePageController do
     else
       {:error, :unauthorized} ->
         redirect(conn, to: ~p"/manage/login")
+    end
+  end
+
+  def bans_json(conn, _params) do
+    with {:ok, moderator} <- ensure_moderator(conn) do
+      boards = Moderation.list_accessible_boards(moderator)
+      board_ids = Enum.map(boards, & &1.id)
+      boards_by_id = Map.new(boards, &{&1.id, &1})
+
+      json(
+        conn,
+        Bans.list_bans()
+        |> Enum.filter(&accessible_ban?(board_ids, &1))
+        |> Enum.map(&ban_list_row(&1, boards_by_id))
+      )
+    else
+      {:error, :unauthorized} ->
+        conn |> put_status(:unauthorized) |> json(%{error: "unauthorized"})
     end
   end
 
@@ -164,11 +188,7 @@ defmodule EirinchanWeb.ManagePageController do
           board_ids = Enum.map(boards, & &1.id)
 
           ban_ids =
-            params
-            |> Map.get("ban_ids", [])
-            |> List.wrap()
-            |> Enum.map(&normalize_ban_id/1)
-            |> Enum.reject(&is_nil/1)
+            selected_ban_ids(params)
 
           bans =
             Bans.list_bans()
@@ -2366,57 +2386,62 @@ defmodule EirinchanWeb.ManagePageController do
     }
   end
 
-  defp filtered_ban_entries(boards, board_ids, filters) do
-    boards_by_id = Map.new(boards, &{&1.id, &1})
-    now = DateTime.utc_now()
+  defp selected_ban_ids(params) do
+    direct_ids =
+      params
+      |> Map.get("ban_ids", [])
+      |> List.wrap()
+      |> Enum.map(&normalize_ban_id/1)
+      |> Enum.reject(&is_nil/1)
 
-    Bans.list_bans()
-    |> Enum.filter(&accessible_ban?(board_ids, &1))
-    |> Enum.filter(fn ban ->
-      filters["only_mine"] != "1" or (not is_nil(ban.board_id) and ban.board_id in board_ids)
-    end)
-    |> Enum.filter(fn ban -> filters["only_not_expired"] != "1" or Bans.active?(ban, now) end)
-    |> Enum.filter(&ban_matches_search?(&1, filters["search"]))
-    |> Enum.map(fn ban ->
-      %{
-        ban: ban,
-        board: Map.get(boards_by_id, ban.board_id, ban.board),
-        active?: Bans.active?(ban, now)
-      }
-    end)
+    keyed_ids =
+      params
+      |> Enum.flat_map(fn
+        {"ban_" <> id, _value} -> [normalize_ban_id(id)]
+        _other -> []
+      end)
+      |> Enum.reject(&is_nil/1)
+
+    (direct_ids ++ keyed_ids)
+    |> Enum.uniq()
+  end
+
+  defp ban_list_row(ban, boards_by_id) do
+    board = Map.get(boards_by_id, ban.board_id, ban.board)
+    masked_ip = EirinchanWeb.IpPresentation.display_ip(ban.ip_subnet, nil)
+    exact_ip? = is_binary(ban.ip_subnet) and not String.contains?(ban.ip_subnet, "/")
+    cloak = Eirinchan.IpCrypt.cloak_ip(ban.ip_subnet)
+
+    %{
+      id: ban.id,
+      access: true,
+      single_addr: exact_ip?,
+      masked: false,
+      mask: masked_ip,
+      reason: ban.reason || "",
+      board: if(board, do: board.uri, else: nil),
+      created: DateTime.to_unix(ban.inserted_at),
+      expires: ban.expires_at && DateTime.to_unix(ban.expires_at),
+      username: ban.mod_user && ban.mod_user.username,
+      staff: ban.mod_user && ban.mod_user.username,
+      vstaff: false,
+      seen: 0,
+      message: "",
+      history_url:
+        if(exact_ip?,
+          do: "/manage/ip/#{cloak}/browser",
+          else: nil
+        ),
+      edit_url:
+        if(board,
+          do: "/manage/boards/#{board.uri}/ip/#{cloak}/browser?edit_ban=#{ban.id}#bans",
+          else: "/manage/ip/#{cloak}/browser?edit_ban=#{ban.id}#bans"
+        )
+    }
   end
 
   defp accessible_ban?(board_ids, ban) do
     is_nil(ban.board_id) or ban.board_id in board_ids
-  end
-
-  defp ban_matches_search?(_ban, ""), do: true
-
-  defp ban_matches_search?(ban, search) do
-    terms =
-      search
-      |> String.downcase()
-      |> String.split(~r/\s+/u, trim: true)
-
-    fields = %{
-      "mask" => to_string(ban.ip_subnet || ""),
-      "reason" => to_string(ban.reason || ""),
-      "board" => if(ban.board, do: ban.board.uri, else: ""),
-      "staff" => if(ban.mod_user, do: ban.mod_user.username, else: ""),
-      "message" => ""
-    }
-
-    Enum.all?(terms, fn term ->
-      case String.split(term, ":", parts: 2) do
-        [key, value] when key in ["mask", "reason", "board", "staff", "message"] ->
-          String.contains?(String.downcase(Map.get(fields, key, "")), String.downcase(value))
-
-        _ ->
-          Enum.any?(fields, fn {_key, field_value} ->
-            String.contains?(String.downcase(field_value), term)
-          end)
-      end
-    end)
   end
 
   defp normalize_ban_id(id) do

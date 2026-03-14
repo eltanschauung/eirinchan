@@ -1,24 +1,53 @@
-var banlist_init = function(token, my_boards, inMod) {
-  inMod = !inMod;
-
+function banlist_init(url, my_boards) {
+  var translate = window._ || function(value) { return value; };
+  var deviceType = window.device_type || ($('html').hasClass('mobile-style') ? 'mobile' : 'desktop');
   var lt;
-
   var selected = {};
 
-  var time = function() { return Date.now()/1000|0; }
+  function time() {
+    return Date.now() / 1000 | 0;
+  }
 
-  $.getJSON(inMod ? ("?/bans.json/"+token) : token, function(t) {
+  function escapeHTML(value) {
+    return $('<div>').text(value == null ? '' : String(value)).html();
+  }
+
+  function agoText(seconds) {
+    var delta = Math.max(0, time() - (seconds | 0));
+
+    if (delta < 60) return delta + 's';
+    if (delta < 3600) return Math.floor(delta / 60) + 'm';
+    if (delta < 86400) return Math.floor(delta / 3600) + 'h';
+    if (delta < 604800) return Math.floor(delta / 86400) + 'd';
+    if (delta < 2592000) return Math.floor(delta / 604800) + 'w';
+    if (delta < 31536000) return Math.floor(delta / 2592000) + 'mo';
+    return Math.floor(delta / 31536000) + 'y';
+  }
+
+  function untilText(seconds) {
+    var delta = Math.max(0, (seconds | 0) - time());
+
+    if (delta < 60) return delta + 's';
+    if (delta < 3600) return Math.floor(delta / 60) + 'm';
+    if (delta < 86400) return Math.floor(delta / 3600) + 'h';
+    if (delta < 604800) return Math.floor(delta / 86400) + 'd';
+    if (delta < 2592000) return Math.floor(delta / 604800) + 'w';
+    if (delta < 31536000) return Math.floor(delta / 2592000) + 'mo';
+    return Math.floor(delta / 31536000) + 'y';
+  }
+
+  $.getJSON(url, function(data) {
     $("#banlist").on("new-row", function(e, drow, el) {
       var sel = selected[drow.id];
       if (sel) {
         $(el).find('input.unban').prop("checked", true);
       }
+
       $(el).find('input.unban').on("click", function() {
         selected[drow.id] = $(this).prop("checked");
       });
 
-
-      if (drow.expires && drow.expires != 0 && drow.expires < time()) {
+      if (drow.expires && drow.expires !== 0 && drow.expires < time()) {
         $(el).find("td").css("text-decoration", "line-through");
       }
     });
@@ -26,100 +55,137 @@ var banlist_init = function(token, my_boards, inMod) {
     var selall = "<input type='checkbox' id='select-all' style='float: left;'>";
 
     lt = $("#banlist").longtable({
-      mask: {name: selall+_("IP address"), width: "220px", fmt: function(f) {
-        var pre = "";
-        if (inMod && f.access) {
-          pre = "<input type='checkbox' class='unban'>";
+      mask: {
+        name: selall + translate("IP address"),
+        width: "220px",
+        fmt: function(row) {
+          var pre = row.access ? "<input type='checkbox' class='unban'>" : "";
+          var label = escapeHTML(row.mask);
+
+          if (row.history_url) {
+            return pre + "<a href='" + escapeHTML(row.history_url) + "'>" + label + "</a>";
+          }
+
+          return pre + label;
         }
+      },
+      reason: {
+        name: translate("Reason"),
+        width: "calc(100% - 770px - 6 * 4px)",
+        fmt: function(row) {
+          var add = "";
+          var suffix = "";
 
-        if (inMod && f.single_addr && !f.masked) {
-	  return pre+"<a href='?/IP/"+f.mask+"'>"+f.mask+"</a>";
-	}
-	return pre+f.mask;
-      } },
-      reason: {name: _("Reason"), width: "calc(100% - 770px - 6 * 4px)", fmt: function(f) {
-	var add = "", suf = '';
-        if (f.seen == 1) add += "<i class='fa fa-check' title='"+_("Seen")+"'></i>";
-	if (f.message) {
-	  add += "<i class='fa fa-comment' title='"+_("Message for which user was banned is included")+"'></i>";
-	  suf = "<br /><br /><strong>"+_("Message:")+"</strong><br />"+f.message;
-	}
+          if (row.seen === 1) {
+            add += "<i class='fa fa-check' title='" + translate("Seen") + "'></i>";
+          }
 
-	if (add) { add = "<div style='float: right;'>"+add+"</div>"; }
+          if (row.message) {
+            add += "<i class='fa fa-comment' title='" + translate("Message for which user was banned is included") + "'></i>";
+            suffix = "<br /><br /><strong>" + translate("Message:") + "</strong><br />" + escapeHTML(row.message);
+          }
 
-        if (f.reason) return add + f.reason + suf;
-        else return add + "-" + suf;
-      } },
-      board: {name: _("Board"), width: "60px", fmt: function(f) {
-        if (f.board) return "/"+f.board+"/";
-	else return "<em>"+_("all")+"</em>";
-      } },
-      created: {name: _("Set"), width: "100px", fmt: function(f) {
-        return ago(f.created) + _(" ago"); // in AGO form
-      } },
-      // duration?
-      expires: {name: _("Expires"), width: "235px", fmt: function(f) {
-	if (!f.expires || f.expires == 0) return "<em>"+_("never")+"</em>";
-  var formattedDate = strftime("%m/%d/%Y (%a) %H:%M:%S", new Date((f.expires|0)*1000), datelocale);
-  return formattedDate + ((f.expires < time()) ? "" : " <small>"+_("in ")+until(f.expires|0)+"</small>");
-      } },
-      username: {name: _("Staff"), width: "100px", fmt: function(f) {
-	var pre='',suf='',un=f.username;
-	if (inMod && f.username && f.username != '?' && !f.vstaff) {
-	  pre = "<a href='?/new_PM/"+f.username+"'>";
-	  suf = "</a>";
-	}
-	if (!f.username) {
-	  un = "<em>"+_("system")+"</em>";
-	}
-	return pre + un + suf;
-      } },
+          if (add) {
+            add = "<div style='float: right;'>" + add + "</div>";
+          }
+
+          return add + (row.reason ? escapeHTML(row.reason) : "-") + suffix;
+        }
+      },
+      board: {
+        name: translate("Board"),
+        width: "60px",
+        fmt: function(row) {
+          if (row.board) return "/" + escapeHTML(row.board) + "/";
+          return "<em>" + translate("all") + "</em>";
+        }
+      },
+      created: {
+        name: translate("Set"),
+        width: "100px",
+        fmt: function(row) {
+          return agoText(row.created) + translate(" ago");
+        }
+      },
+      expires: {
+        name: translate("Expires"),
+        width: "235px",
+        fmt: function(row) {
+          if (!row.expires || row.expires === 0) {
+            return "<em>" + translate("never") + "</em>";
+          }
+
+          var formattedDate = strftime("%m/%d/%Y (%a) %H:%M:%S", new Date((row.expires | 0) * 1000), datelocale);
+          return formattedDate + ((row.expires < time()) ? "" : " <small>" + translate("in ") + untilText(row.expires | 0) + "</small>");
+        }
+      },
+      username: {
+        name: translate("Staff"),
+        width: "100px",
+        fmt: function(row) {
+          if (!row.username) {
+            return "<em>" + translate("system") + "</em>";
+          }
+
+          return escapeHTML(row.username);
+        }
+      },
       id: {
-         name: (inMod)?_("Edit"):"&nbsp;", width: (inMod)?"35px":"0px", fmt: function(f) {
-	 if (!inMod) return '';
-	 return "<a href='?/edit_ban/"+f.id+"'>Edit</a>";
-       } }
-    }, {}, t);
+        name: translate("Edit"),
+        width: "35px",
+        fmt: function(row) {
+          if (!row.edit_url) return "";
+          return "<a href='" + escapeHTML(row.edit_url) + "'>Edit</a>";
+        }
+      }
+    }, {}, data);
 
     $("#select-all").click(function(e) {
       var $this = $(this);
       $("input.unban").prop("checked", $this.prop("checked"));
-      lt.get_data().forEach(function(v) { v.access && (selected[v.id] = $this.prop("checked")); });
+      lt.get_data().forEach(function(row) {
+        if (row.access) {
+          selected[row.id] = $this.prop("checked");
+        }
+      });
       e.stopPropagation();
     });
 
-    var filter = function(e) {
-      if ($("#only_mine").prop("checked") && ($.inArray(e.board, my_boards) === -1)) return false;
-      if ($("#only_not_expired").prop("checked") && e.expires && e.expires != 0 && e.expires < time()) return false;
+    function filter(row) {
+      if ($("#only_mine").prop("checked") && ($.inArray(row.board, my_boards) === -1)) return false;
+      if ($("#only_not_expired").prop("checked") && row.expires && row.expires !== 0 && row.expires < time()) return false;
+
       if ($("#search").val()) {
         var terms = $("#search").val().split(" ");
-
         var fields = ["mask", "reason", "board", "staff", "message"];
+        var retFalse = false;
 
-        var ret_false = false;
-	terms.forEach(function(t) {
+        terms.forEach(function(term) {
           var fs = fields;
+          var match;
 
-	  var re = /^(mask|reason|board|staff|message):/, ma;
-          if (ma = t.match(re)) {
-            fs = [ma[1]];
-	    t = t.replace(re, "");
-	  }
+          match = term.match(/^(mask|reason|board|staff|message):/);
+          if (match) {
+            fs = [match[1]];
+            term = term.replace(/^(mask|reason|board|staff|message):/, "");
+          }
 
-	  var found = false
-	  fs.forEach(function(f) {
-	    if (e[f] && e[f].indexOf(t) !== -1) {
-	      found = true;
-	    }
-	  });
-	  if (!found) ret_false = true;
+          var found = false;
+          fs.forEach(function(field) {
+            var value = row[field];
+            if (value && String(value).toLowerCase().indexOf(term.toLowerCase()) !== -1) {
+              found = true;
+            }
+          });
+
+          if (!found) retFalse = true;
         });
 
-        if (ret_false) return false;
+        if (retFalse) return false;
       }
 
       return true;
-    };
+    }
 
     $("#only_mine, #only_not_expired, #search").on("click input", function() {
       lt.set_filter(filter);
@@ -129,36 +195,57 @@ var banlist_init = function(token, my_boards, inMod) {
     $(".banform").on("submit", function() { return false; });
 
     $("#unban").on("click", function() {
-      if (confirm('Are you sure you want to unban the selected IPs?')) {
-        $(".banform .hiddens").remove();
-        $("<input type='hidden' name='unban' value='unban' class='hiddens'>").appendTo(".banform");
-    
-        $.each(selected, function(e) {
-          $("<input type='hidden' name='ban_"+e+"' value='unban' class='hiddens'>").appendTo(".banform");
-        });
-    
-        $(".banform").off("submit").submit();
+      if (!confirm('Are you sure you want to unban the selected IPs?')) {
+        return;
       }
+
+      $(".banform .hiddens").remove();
+
+      $.each(selected, function(id, enabled) {
+        if (enabled) {
+          $("<input type='hidden' name='ban_ids[]' class='hiddens'>").val(id).appendTo(".banform");
+        }
+      });
+
+      $(".banform").off("submit").submit();
     });
 
-    if (device_type == 'desktop') {
-      // Stick topbar
+    if (deviceType === 'desktop') {
       var stick_on = $(".banlist-opts").offset().top;
       var state = true;
+
       $(window).on("scroll resize", function() {
-        if ($(window).scrollTop() > stick_on && state == true) {
-  	  $("body").css("margin-top", $(".banlist-opts").height());
+        if ($(window).scrollTop() > stick_on && state === true) {
+          $("body").css("margin-top", $(".banlist-opts").height());
           $(".banlist-opts").addClass("boardlist top").detach().prependTo("body");
-  	  $("#banlist tr:not(.row)").addClass("tblhead").detach().appendTo(".banlist-opts");
-	  state = !state;
-        }
-        else if ($(window).scrollTop() < stick_on && state == false) {
-	  $("body").css("margin-top", "auto");
+          $("#banlist tr:not(.row)").addClass("tblhead").detach().appendTo(".banlist-opts");
+          state = !state;
+        } else if ($(window).scrollTop() < stick_on && state === false) {
+          $("body").css("margin-top", "auto");
           $(".banlist-opts").removeClass("boardlist top").detach().prependTo(".banform");
-	  $(".tblhead").detach().prependTo("#banlist");
+          $(".tblhead").detach().prependTo("#banlist");
           state = !state;
         }
       });
     }
   });
-}
+};
+
+$(function() {
+  var $form = $(".banform[data-banlist-url]").first();
+
+  if (!$form.length) {
+    return;
+  }
+
+  var url = $form.attr("data-banlist-url");
+  var myBoards = [];
+
+  try {
+    myBoards = JSON.parse($form.attr("data-my-boards") || "[]");
+  } catch (_error) {
+    myBoards = [];
+  }
+
+  banlist_init(url, myBoards);
+});
