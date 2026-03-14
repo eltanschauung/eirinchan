@@ -529,6 +529,7 @@ defmodule EirinchanWeb.PostComponents do
         :image_classes,
         [
           "post-image",
+          if(PostView.deleted_file?(assigns.file), do: "file_deleted", else: nil),
           if(Map.get(assigns.file, :spoiler, false), do: "spoiler-image", else: nil),
           if(PostView.deleted_file?(assigns.file), do: "deleted", else: nil)
         ]

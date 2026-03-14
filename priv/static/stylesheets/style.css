@@ -1315,6 +1315,11 @@ div.boardlist a {
   margin-left: 5px;
 }
 
+.file_deleted {
+  width: 232px;
+  height: 232px;
+}
+
 .dropzone .remove-btn {
   cursor: pointer;
   color: rgba(125, 125, 125, 0.5);
