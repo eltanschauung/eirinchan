@@ -9,6 +9,7 @@ defmodule EirinchanWeb.PostComponents do
   attr :groups, :list, required: true
   attr :class_name, :string, default: "boardlist"
   attr :watcher_count, :integer, default: 0
+  attr :watcher_unread_count, :integer, default: 0
   attr :watcher_you_count, :integer, default: 0
   attr :mobile_client?, :boolean, default: false
 
@@ -34,7 +35,11 @@ defmodule EirinchanWeb.PostComponents do
           title={"Watcher#{if @watcher_count > 0, do: " (#{@watcher_count})", else: ""}"}
           aria-label={"Watcher#{if @watcher_count > 0, do: " (#{@watcher_count})", else: ""}"}
           data-count={@watcher_count}
-          class={if @watcher_you_count > 0, do: "replies-quoting-you", else: nil}
+          data-unread-count={@watcher_unread_count}
+          class={[
+            @watcher_unread_count > 0 && "has-unread",
+            @watcher_you_count > 0 && "replies-quoting-you"
+          ]}
         >
           👁
         </a>

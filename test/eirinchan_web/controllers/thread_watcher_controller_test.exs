@@ -24,6 +24,7 @@ defmodule EirinchanWeb.ThreadWatcherControllerTest do
              "watched" => true,
              "thread_id" => ^thread_id,
              "watcher_count" => 1,
+             "watcher_unread_count" => 0,
              "watcher_you_count" => 0
            } = json_response(conn, 200)
 
@@ -40,6 +41,7 @@ defmodule EirinchanWeb.ThreadWatcherControllerTest do
              "watched" => false,
              "thread_id" => ^thread_id,
              "watcher_count" => 0,
+             "watcher_unread_count" => 0,
              "watcher_you_count" => 0
            } = json_response(conn, 200)
 
@@ -83,6 +85,7 @@ defmodule EirinchanWeb.ThreadWatcherControllerTest do
              "thread_id" => ^thread_id,
              "last_seen_post_id" => last_seen_post_id,
              "watcher_count" => 1,
+             "watcher_unread_count" => 0,
              "watcher_you_count" => 0
            } = json_response(conn, 200)
 

@@ -252,6 +252,14 @@ body.active-catalog .catalog-nav-row .pages {
   margin-left: 0.35em;
 }
 
+#watcher-link {
+  opacity: 0.5;
+}
+
+#watcher-link.has-unread {
+  opacity: 0;
+}
+
 #watcher-link.replies-quoting-you,
 .watcher-you-count.replies-quoting-you {
   color: red;

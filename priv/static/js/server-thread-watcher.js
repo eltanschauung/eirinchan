@@ -9,13 +9,18 @@
     return field ? field.value : null;
   };
 
-  var setWatcherCount = function(count, youCount) {
+  var setWatcherCount = function(count, youCount, unreadCount) {
     if (typeof youCount !== 'number' || isNaN(youCount)) {
       youCount = parseInt(document.body && document.body.dataset ? document.body.dataset.watcherYouCount || '0' : '0', 10) || 0;
     }
 
+    if (typeof unreadCount !== 'number' || isNaN(unreadCount)) {
+      unreadCount = parseInt(document.body && document.body.dataset ? document.body.dataset.watcherUnreadCount || '0' : '0', 10) || 0;
+    }
+
     if (document.body && document.body.dataset) {
       document.body.dataset.watcherCount = String(count);
+      document.body.dataset.watcherUnreadCount = String(unreadCount);
       document.body.dataset.watcherYouCount = String(youCount);
     }
 
@@ -26,6 +31,8 @@
       link.title = label;
       link.setAttribute('aria-label', label);
       link.dataset.count = String(count);
+      link.dataset.unreadCount = String(unreadCount);
+      link.classList.toggle('has-unread', unreadCount > 0);
       link.classList.toggle('replies-quoting-you', youCount > 0);
     }
   };
@@ -95,7 +102,7 @@
       return response.ok ? response.json() : null;
     }).then(function(payload) {
       if (payload && typeof payload.watcher_count === 'number') {
-        setWatcherCount(payload.watcher_count, payload.watcher_you_count);
+        setWatcherCount(payload.watcher_count, payload.watcher_you_count, payload.watcher_unread_count);
       }
     }).catch(function(error) {
       console.error(error);
@@ -190,7 +197,7 @@
     }).then(function(payload) {
       syncWatchLinks(payload.thread_id, !!payload.watched);
       if (typeof payload.watcher_count === 'number') {
-        setWatcherCount(payload.watcher_count, payload.watcher_you_count);
+        setWatcherCount(payload.watcher_count, payload.watcher_you_count, payload.watcher_unread_count);
       }
       if (watcherTab && window.Options && Options.get_tab && Options.get_tab('watcher') && watcherTab.icon.hasClass('active')) {
         refreshWatcherTab();
@@ -218,7 +225,8 @@
       }
       setWatcherCount(
         parseInt(document.body && document.body.dataset ? document.body.dataset.watcherCount || '0' : '0', 10) || 0,
-        parseInt(document.body && document.body.dataset ? document.body.dataset.watcherYouCount || '0' : '0', 10) || 0
+        parseInt(document.body && document.body.dataset ? document.body.dataset.watcherYouCount || '0' : '0', 10) || 0,
+        parseInt(document.body && document.body.dataset ? document.body.dataset.watcherUnreadCount || '0' : '0', 10) || 0
       );
     }
   });

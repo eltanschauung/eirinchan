@@ -90,7 +90,11 @@ defmodule EirinchanWeb.BoardController do
         chrome = BoardChrome.for_board(board)
         thread_watch_state = thread_watch_state(conn, board)
 
-        %{watcher_count: watcher_count, watcher_you_count: watcher_you_count} =
+        %{
+          watcher_count: watcher_count,
+          watcher_unread_count: watcher_unread_count,
+          watcher_you_count: watcher_you_count
+        } =
           watcher_metrics(conn)
 
         own_post_ids = ShowYous.owned_post_ids(conn, Enum.map(page_data.threads, & &1.thread))
@@ -106,6 +110,7 @@ defmodule EirinchanWeb.BoardController do
           threads: page_data.threads,
           thread_watch_state: thread_watch_state,
           watcher_count: watcher_count,
+          watcher_unread_count: watcher_unread_count,
           watcher_you_count: watcher_you_count,
           own_post_ids: own_post_ids,
           show_yous: show_yous,
@@ -138,6 +143,7 @@ defmodule EirinchanWeb.BoardController do
               browser_timezone: conn.assigns[:browser_timezone],
               browser_timezone_offset_minutes: conn.assigns[:browser_timezone_offset_minutes],
               watcher_count: watcher_count,
+              watcher_unread_count: watcher_unread_count,
               watcher_you_count: watcher_you_count
             ),
           eager_javascript_urls: PublicShell.eager_javascript_urls(:catalog, config),
@@ -186,7 +192,11 @@ defmodule EirinchanWeb.BoardController do
         backlinks_map = page_backlinks_map(page_data)
         thread_watch_state = thread_watch_state(conn, board)
 
-        %{watcher_count: watcher_count, watcher_you_count: watcher_you_count} =
+        %{
+          watcher_count: watcher_count,
+          watcher_unread_count: watcher_unread_count,
+          watcher_you_count: watcher_you_count
+        } =
           watcher_metrics(conn)
 
         own_post_ids = own_post_ids(conn, page_data)
@@ -205,6 +215,7 @@ defmodule EirinchanWeb.BoardController do
           show_yous: show_yous,
           thread_watch_state: thread_watch_state,
           watcher_count: watcher_count,
+          watcher_unread_count: watcher_unread_count,
           watcher_you_count: watcher_you_count,
           current_moderator: conn.assigns[:current_moderator],
           secure_manage_token: conn.assigns[:secure_manage_token],
@@ -234,6 +245,7 @@ defmodule EirinchanWeb.BoardController do
               browser_timezone: conn.assigns[:browser_timezone],
               browser_timezone_offset_minutes: conn.assigns[:browser_timezone_offset_minutes],
               watcher_count: watcher_count,
+              watcher_unread_count: watcher_unread_count,
               watcher_you_count: watcher_you_count
             ),
           eager_javascript_urls: PublicShell.eager_javascript_urls(:index, config),
@@ -363,7 +375,7 @@ defmodule EirinchanWeb.BoardController do
   defp watcher_metrics(conn) do
     case conn.assigns[:browser_token] do
       token when is_binary(token) -> ThreadWatcher.watch_metrics(token)
-      _ -> %{watcher_count: 0, watcher_you_count: 0}
+      _ -> %{watcher_count: 0, watcher_unread_count: 0, watcher_you_count: 0}
     end
   end
 

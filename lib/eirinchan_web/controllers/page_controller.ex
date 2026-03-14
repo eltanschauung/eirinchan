@@ -254,7 +254,11 @@ defmodule EirinchanWeb.PageController do
     primary_board = Enum.find(boards, &(&1.uri == "bant")) || %{uri: "bant"}
     chrome = BoardChrome.for_board(primary_board)
 
-    %{watcher_count: watcher_count, watcher_you_count: watcher_you_count} = watcher_metrics(conn)
+    %{
+      watcher_count: watcher_count,
+      watcher_unread_count: watcher_unread_count,
+      watcher_you_count: watcher_you_count
+    } = watcher_metrics(conn)
 
     [
       boards: boards,
@@ -270,6 +274,7 @@ defmodule EirinchanWeb.PageController do
       body_class: public_body_class(page_kind),
       body_data_stylesheet: public_data_stylesheet(conn),
       watcher_count: watcher_count,
+      watcher_unread_count: watcher_unread_count,
       watcher_you_count: watcher_you_count,
       head_meta:
         PublicShell.head_meta(active_page,
@@ -279,6 +284,7 @@ defmodule EirinchanWeb.PageController do
           browser_timezone: conn.assigns[:browser_timezone],
           browser_timezone_offset_minutes: conn.assigns[:browser_timezone_offset_minutes],
           watcher_count: watcher_count,
+          watcher_unread_count: watcher_unread_count,
           watcher_you_count: watcher_you_count
         ),
       javascript_urls: PublicShell.javascript_urls(active_page),
@@ -411,7 +417,11 @@ defmodule EirinchanWeb.PageController do
   defp recent_theme_assigns(conn, active_page, _settings) do
     boards = Boards.list_boards()
 
-    %{watcher_count: watcher_count, watcher_you_count: watcher_you_count} = watcher_metrics(conn)
+    %{
+      watcher_count: watcher_count,
+      watcher_unread_count: watcher_unread_count,
+      watcher_you_count: watcher_you_count
+    } = watcher_metrics(conn)
 
     [
       boards: boards,
@@ -424,6 +434,7 @@ defmodule EirinchanWeb.PageController do
       body_class: nil,
       body_data_stylesheet: public_data_stylesheet(conn),
       watcher_count: watcher_count,
+      watcher_unread_count: watcher_unread_count,
       watcher_you_count: watcher_you_count,
       head_meta:
         PublicShell.head_meta(active_page,
@@ -433,6 +444,7 @@ defmodule EirinchanWeb.PageController do
           browser_timezone: conn.assigns[:browser_timezone],
           browser_timezone_offset_minutes: conn.assigns[:browser_timezone_offset_minutes],
           watcher_count: watcher_count,
+          watcher_unread_count: watcher_unread_count,
           watcher_you_count: watcher_you_count
         ),
       javascript_urls: PublicShell.javascript_urls(active_page),
@@ -798,7 +810,7 @@ defmodule EirinchanWeb.PageController do
   defp watcher_metrics(conn) do
     case conn.assigns[:browser_token] do
       token when is_binary(token) -> ThreadWatcher.watch_metrics(token)
-      _ -> %{watcher_count: 0, watcher_you_count: 0}
+      _ -> %{watcher_count: 0, watcher_unread_count: 0, watcher_you_count: 0}
     end
   end
 end

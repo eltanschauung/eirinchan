@@ -150,16 +150,24 @@ defmodule Eirinchan.ThreadWatcher do
     watches = list_watches(browser_token)
 
     if watches == [] do
-      %{watcher_count: 0, watcher_you_count: 0}
+      %{watcher_count: 0, watcher_unread_count: 0, watcher_you_count: 0}
     else
       thread_ids = Enum.map(watches, & &1.thread_id)
+      watcher_unread_count =
+        unread_counts(watches, thread_ids)
+        |> Map.values()
+        |> Enum.sum()
 
       watcher_you_count =
         unread_you_counts(watches, thread_ids, browser_token)
         |> Map.values()
         |> Enum.sum()
 
-      %{watcher_count: length(watches), watcher_you_count: watcher_you_count}
+      %{
+        watcher_count: length(watches),
+        watcher_unread_count: watcher_unread_count,
+        watcher_you_count: watcher_you_count
+      }
     end
   end
 

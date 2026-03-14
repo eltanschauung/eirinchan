@@ -99,6 +99,10 @@
     window.watcher_count = parseInteger(metaContent('eirinchan:watcher-count'), 0);
   }
 
+  if (typeof window.watcher_unread_count === 'undefined') {
+    window.watcher_unread_count = parseInteger(metaContent('eirinchan:watcher-unread-count'), 0);
+  }
+
   if (typeof window.watcher_you_count === 'undefined') {
     window.watcher_you_count = parseInteger(metaContent('eirinchan:watcher-you-count'), 0);
   }
