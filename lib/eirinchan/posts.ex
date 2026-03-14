@@ -1041,6 +1041,8 @@ defmodule Eirinchan.Posts do
         thread: thread,
         replies: replies,
         reply_count: reply_count,
+        has_noko50: reply_count >= config.noko50_min,
+        last_count: config.noko50_count,
         image_count: reply_image_count + reply_extra_image_count + post_image_count(thread),
         omitted_posts: max(reply_count - length(replies), 0),
         omitted_images:
