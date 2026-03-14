@@ -13,6 +13,7 @@ defmodule EirinchanWeb.ManagePageController do
   alias Eirinchan.FlagsConfig
   alias Eirinchan.Installation
   alias Eirinchan.Moderation
+  alias Eirinchan.ModerationLog
   alias Eirinchan.News
   alias Eirinchan.Posts.Post
   alias Eirinchan.Reports
@@ -21,7 +22,7 @@ defmodule EirinchanWeb.ManagePageController do
   alias Eirinchan.Settings
   alias Eirinchan.Themes
   alias Eirinchan.WhaleStickers
-  alias EirinchanWeb.{HtmlSanitizer, ManageSecurity, PostView, RequestMeta}
+  alias EirinchanWeb.{HtmlSanitizer, ManageSecurity, ModerationAudit, PostView, RequestMeta}
 
   plug :assign_manage_shell
 
@@ -44,6 +45,7 @@ defmodule EirinchanWeb.ManagePageController do
         secure_token = ManageSecurity.generate_token()
         session_fingerprint = ManageSecurity.session_fingerprint(moderator)
         login_ip = ManageSecurity.ip_fingerprint(RequestMeta.effective_remote_ip(conn))
+        ModerationAudit.log(conn, "Logged in", moderator: moderator)
 
         conn
         |> configure_session(renew: true)
@@ -82,6 +84,41 @@ defmodule EirinchanWeb.ManagePageController do
     else
       {:error, :unauthorized} ->
         redirect(conn, to: ~p"/manage/login")
+    end
+  end
+
+  def moderation_log(conn, params) do
+    with {:ok, moderator} <- ensure_admin(conn) do
+      page = positive_integer_param(params["page"], 1)
+      username = normalize_filter(params["username"])
+      board_uri = normalize_filter(params["board"])
+      page_size = ModerationLog.default_page_size()
+
+      total_entries =
+        ModerationLog.count_entries(username: username, board_uri: board_uri)
+
+      render(conn, :log,
+        moderator: moderator,
+        entries:
+          ModerationLog.list_entries(
+            page: page,
+            page_size: page_size,
+            username: username,
+            board_uri: board_uri
+          ),
+        page: page,
+        page_count: max(div(total_entries + page_size - 1, page_size), 1),
+        username: username,
+        board_uri: board_uri,
+        show_ip: PostView.can_view_ip?(moderator),
+        config: Settings.current_instance_config()
+      )
+    else
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      {:error, :forbidden} ->
+        render_dashboard_error(conn, "Administrator access required.", %{}, :forbidden)
     end
   end
 
@@ -166,8 +203,10 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def update_flags(conn, params) do
-    with {:ok, _moderator} <- ensure_admin(conn),
+    with {:ok, moderator} <- ensure_admin(conn),
          {:ok, _config} <- FlagsConfig.update(params) do
+      ModerationAudit.log(conn, "Updated flags configuration", moderator: moderator)
+
       conn
       |> put_flash(:info, "Flags configuration updated.")
       |> redirect(to: ~p"/manage/flags/browser")
@@ -202,8 +241,10 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def update_dnsbl(conn, %{"dnsbl_json" => dnsbl_json, "dnsbl_exceptions" => dnsbl_exceptions}) do
-    with {:ok, _moderator} <- ensure_admin(conn),
+    with {:ok, moderator} <- ensure_admin(conn),
          {:ok, _config} <- DNSBLConfig.update(dnsbl_json, dnsbl_exceptions) do
+      ModerationAudit.log(conn, "Updated DNSBL configuration", moderator: moderator)
+
       conn
       |> put_flash(:info, "DNSBL configuration updated.")
       |> redirect(to: ~p"/manage/dnsbl/browser")
@@ -226,8 +267,10 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def update_stickers(conn, %{"stickers_json" => stickers_json}) do
-    with {:ok, _moderator} <- ensure_admin(conn),
+    with {:ok, moderator} <- ensure_admin(conn),
          {:ok, _stickers} <- WhaleStickers.update(stickers_json) do
+      ModerationAudit.log(conn, "Updated sticker configuration", moderator: moderator)
+
       conn
       |> put_flash(:info, "Sticker configuration updated.")
       |> redirect(to: ~p"/manage/stickers/browser")
@@ -249,8 +292,10 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def update_boardlist(conn, %{"boardlist_json" => boardlist_json}) do
-    with {:ok, _moderator} <- ensure_admin(conn),
+    with {:ok, moderator} <- ensure_admin(conn),
          {:ok, _groups} <- Boardlist.update_from_json(boardlist_json, Boards.list_boards()) do
+      ModerationAudit.log(conn, "Updated boardlist configuration", moderator: moderator)
+
       conn
       |> put_flash(:info, "Boardlist updated.")
       |> redirect(to: ~p"/manage/boardlist/browser")
@@ -313,6 +358,16 @@ defmodule EirinchanWeb.ManagePageController do
              body: params["body"],
              reply_to_id: params["reply_to_id"]
            }) do
+      ModerationAudit.log(
+        conn,
+        "Sent staff message" <>
+          case Moderation.get_user(params["recipient_id"]) do
+            %{username: username} -> " to #{username}"
+            _ -> ""
+          end,
+        moderator: moderator
+      )
+
       conn
       |> put_flash(:info, "Message sent.")
       |> redirect(to: ~p"/manage/messages/browser")
@@ -333,8 +388,10 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def update_config(conn, %{"config_json" => config_json}) do
-    with {:ok, _moderator} <- ensure_admin(conn),
+    with {:ok, moderator} <- ensure_admin(conn),
          {:ok, _config} <- Settings.update_instance_config_from_json(config_json) do
+      ModerationAudit.log(conn, "Updated instance configuration", moderator: moderator)
+
       conn
       |> put_flash(:info, "Instance config updated.")
       |> redirect(to: ~p"/manage/config/browser")
@@ -377,10 +434,15 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def update_board_config(conn, %{"uri" => uri, "config_json" => config_json}) do
-    with {:ok, _moderator} <- ensure_admin(conn),
+    with {:ok, moderator} <- ensure_admin(conn),
          board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          {:ok, overrides} <- parse_config_json(config_json),
          {:ok, _board} <- Boards.update_board(board, %{"config_overrides" => overrides}) do
+      ModerationAudit.log(conn, "Updated board configuration for /#{uri}/",
+        moderator: moderator,
+        board: board
+      )
+
       conn
       |> put_flash(:info, "Board config updated.")
       |> redirect(to: "/manage/boards/#{uri}/config/browser")
@@ -453,6 +515,8 @@ defmodule EirinchanWeb.ManagePageController do
   def install_theme(conn, %{"name" => name} = params) do
     with {:ok, moderator} <- ensure_admin(conn),
          {:ok, _theme} <- Themes.install_theme(name, Map.put(params, "mod_user_id", moderator.id)) do
+      ModerationAudit.log(conn, "Installed theme #{name}", moderator: moderator)
+
       conn
       |> put_flash(:info, "Theme installed.")
       |> redirect(to: "/manage/themes/browser/#{name}")
@@ -477,8 +541,10 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def delete_theme(conn, %{"name" => name}) do
-    with {:ok, _moderator} <- ensure_admin(conn),
+    with {:ok, moderator} <- ensure_admin(conn),
          :ok <- Themes.uninstall_theme(name) do
+      ModerationAudit.log(conn, "Uninstalled theme #{name}", moderator: moderator)
+
       conn
       |> put_flash(:info, "Theme uninstalled.")
       |> redirect(to: ~p"/manage/themes/browser")
@@ -503,8 +569,10 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def rebuild_theme(conn, %{"name" => name}) do
-    with {:ok, _moderator} <- ensure_admin(conn),
+    with {:ok, moderator} <- ensure_admin(conn),
          :ok <- Themes.rebuild_theme(name) do
+      ModerationAudit.log(conn, "Rebuilt theme #{name}", moderator: moderator)
+
       conn
       |> put_flash(:info, "Theme rebuilt.")
       |> redirect(to: "/manage/themes/browser/#{name}")
@@ -547,6 +615,8 @@ defmodule EirinchanWeb.ManagePageController do
     with {:ok, moderator} <- ensure_news_editor(conn),
          {:ok, _entry} <-
            News.create_entry(%{title: title, body: body, mod_user_id: moderator.id}) do
+      ModerationAudit.log(conn, "Created news entry #{inspect(title)}", moderator: moderator)
+
       conn
       |> put_flash(:info, "News entry created.")
       |> redirect(to: ~p"/manage/news/browser")
@@ -563,9 +633,11 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def update_news(conn, %{"id" => id, "title" => title, "body" => body}) do
-    with {:ok, _moderator} <- ensure_news_editor(conn),
+    with {:ok, moderator} <- ensure_news_editor(conn),
          %News.Entry{} = entry <- News.get_entry(id),
          {:ok, _entry} <- News.update_entry(entry, %{title: title, body: body}) do
+      ModerationAudit.log(conn, "Updated news entry #{inspect(title)}", moderator: moderator)
+
       conn
       |> put_flash(:info, "News entry updated.")
       |> redirect(to: ~p"/manage/news/browser")
@@ -585,9 +657,11 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def delete_news(conn, %{"id" => id}) do
-    with {:ok, _moderator} <- ensure_news_editor(conn),
+    with {:ok, moderator} <- ensure_news_editor(conn),
          %News.Entry{} = entry <- News.get_entry(id),
          {:ok, _entry} <- News.delete_entry(entry) do
+      ModerationAudit.log(conn, "Deleted news entry #{inspect(entry.title)}", moderator: moderator)
+
       conn
       |> put_flash(:info, "News entry deleted.")
       |> redirect(to: ~p"/manage/news/browser")
@@ -623,8 +697,17 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def update_blotter(conn, params) do
-    with {:ok, _moderator} <- ensure_news_editor(conn),
+    with {:ok, moderator} <- ensure_news_editor(conn),
          {:ok, _config} <- persist_announcement_editor(params) do
+      action =
+        case params["editor"] do
+          "global_message" -> "Updated global message"
+          "news_blotter" -> "Updated news blotter"
+          _ -> "Updated announcement editor"
+        end
+
+      ModerationAudit.log(conn, action, moderator: moderator)
+
       conn
       |> put_flash(:info, "Announcement updated.")
       |> redirect(to: ~p"/manage/announcement/browser")
@@ -641,8 +724,10 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def delete_announcement(conn, _params) do
-    with {:ok, _moderator} <- ensure_news_editor(conn),
+    with {:ok, moderator} <- ensure_news_editor(conn),
          {:ok, _config} <- update_global_message("") do
+      ModerationAudit.log(conn, "Removed global message", moderator: moderator)
+
       conn
       |> put_flash(:info, "Global message removed.")
       |> redirect(to: ~p"/manage/announcement/browser")
@@ -676,6 +761,8 @@ defmodule EirinchanWeb.ManagePageController do
              body: body,
              mod_user_id: moderator.id
            }) do
+      ModerationAudit.log(conn, "Created custom page /#{slug}", moderator: moderator)
+
       conn
       |> put_flash(:info, "Custom page created.")
       |> redirect(to: ~p"/manage/pages/browser")
@@ -692,9 +779,11 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def update_page(conn, %{"id" => id, "slug" => slug, "title" => title, "body" => body}) do
-    with {:ok, _moderator} <- ensure_news_editor(conn),
+    with {:ok, moderator} <- ensure_news_editor(conn),
          %CustomPages.Page{} = page <- load_custom_page(id),
          {:ok, _page} <- CustomPages.update_page(page, %{slug: slug, title: title, body: body}) do
+      ModerationAudit.log(conn, "Updated custom page /#{slug}", moderator: moderator)
+
       conn
       |> put_flash(:info, "Custom page updated.")
       |> redirect(to: ~p"/manage/pages/browser")
@@ -714,9 +803,11 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def delete_page(conn, %{"id" => id}) do
-    with {:ok, _moderator} <- ensure_news_editor(conn),
+    with {:ok, moderator} <- ensure_news_editor(conn),
          %CustomPages.Page{} = page <- load_custom_page(id),
          {:ok, _page} <- CustomPages.delete_page(page) do
+      ModerationAudit.log(conn, "Deleted custom page /#{page.slug}", moderator: moderator)
+
       conn
       |> put_flash(:info, "Custom page deleted.")
       |> redirect(to: ~p"/manage/pages/browser")
@@ -874,6 +965,11 @@ defmodule EirinchanWeb.ManagePageController do
              board_id: board.id,
              mod_user_id: moderator.id
            }) do
+      ModerationAudit.log(conn, "Added IP note for #{IpCrypt.cloak_ip(decoded_ip)}",
+        moderator: moderator,
+        board: board
+      )
+
       conn
       |> put_flash(:info, "IP note added.")
       |> redirect(to: "/manage/boards/#{board.uri}/ip/#{IpCrypt.cloak_ip(decoded_ip)}/browser")
@@ -905,6 +1001,11 @@ defmodule EirinchanWeb.ManagePageController do
          {:ok, decoded_ip} <- decode_ip_param(ip),
          {:ok, note} <- load_board_note(id, board.id),
          {:ok, _note} <- Moderation.update_ip_note(note, %{body: body}) do
+      ModerationAudit.log(conn, "Updated IP note for #{IpCrypt.cloak_ip(decoded_ip)}",
+        moderator: moderator,
+        board: board
+      )
+
       conn
       |> put_flash(:info, "IP note updated.")
       |> redirect(to: "/manage/boards/#{board.uri}/ip/#{IpCrypt.cloak_ip(decoded_ip)}/browser")
@@ -936,6 +1037,11 @@ defmodule EirinchanWeb.ManagePageController do
          {:ok, decoded_ip} <- decode_ip_param(ip),
          {:ok, note} <- load_board_note(id, board.id),
          {:ok, _note} <- Moderation.delete_ip_note(note) do
+      ModerationAudit.log(conn, "Deleted IP note for #{IpCrypt.cloak_ip(decoded_ip)}",
+        moderator: moderator,
+        board: board
+      )
+
       conn
       |> put_flash(:info, "IP note deleted.")
       |> redirect(to: "/manage/boards/#{board.uri}/ip/#{IpCrypt.cloak_ip(decoded_ip)}/browser")
@@ -968,6 +1074,10 @@ defmodule EirinchanWeb.ManagePageController do
                config_by_board: config_map(&1, EirinchanWeb.RequestMeta.request_host(conn))
              )
            ) do
+      ModerationAudit.log(conn, "Deleted posts by IP #{IpCrypt.cloak_ip(decoded_ip)}",
+        moderator: moderator
+      )
+
       conn
       |> put_flash(:info, "Posts deleted for IP.")
       |> redirect(to: "/manage/ip/#{IpCrypt.cloak_ip(decoded_ip)}/browser")
@@ -992,6 +1102,11 @@ defmodule EirinchanWeb.ManagePageController do
            Eirinchan.Posts.moderate_delete_posts_by_ip(board, decoded_ip,
              config: effective_board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
            ) do
+      ModerationAudit.log(conn, "Deleted board posts by IP #{IpCrypt.cloak_ip(decoded_ip)}",
+        moderator: moderator,
+        board: board
+      )
+
       conn
       |> put_flash(:info, "Posts deleted for IP.")
       |> redirect(to: "/manage/boards/#{board.uri}/ip/#{IpCrypt.cloak_ip(decoded_ip)}/browser")
@@ -1018,6 +1133,11 @@ defmodule EirinchanWeb.ManagePageController do
          report when not is_nil(report) <- Reports.get_report(id),
          :ok <- authorize_report(moderator, report),
          {:ok, _report} <- Reports.dismiss_report(report.board, id) do
+      ModerationAudit.log(conn, "Dismissed report ##{report.id}",
+        moderator: moderator,
+        board: report.board
+      )
+
       conn
       |> put_flash(:info, "Report dismissed.")
       |> redirect(to: report_redirect_path(params))
@@ -1040,6 +1160,11 @@ defmodule EirinchanWeb.ManagePageController do
     with {:ok, moderator} <- ensure_moderator(conn),
          report when not is_nil(report) <- accessible_report_for_post(moderator, post_id),
          {:ok, _count} <- Reports.dismiss_reports_for_post(report.board, post_id) do
+      ModerationAudit.log(conn, "Dismissed reports for post No. #{post_id}",
+        moderator: moderator,
+        board: report.board
+      )
+
       conn
       |> put_flash(:info, "Reports dismissed.")
       |> redirect(to: report_redirect_path(params))
@@ -1061,6 +1186,11 @@ defmodule EirinchanWeb.ManagePageController do
          :ok <- authorize_report(moderator, report),
          {:ok, _count} <-
            Reports.dismiss_reports_for_ip(accessible_report_scope(moderator), report.ip) do
+      ModerationAudit.log(conn, "Dismissed reports for IP #{display_ip_for_log(report.ip)}",
+        moderator: moderator,
+        board: report.board
+      )
+
       conn
       |> put_flash(:info, "Reports dismissed.")
       |> redirect(to: report_redirect_path(params))
@@ -1141,6 +1271,14 @@ defmodule EirinchanWeb.ManagePageController do
              params,
              EirinchanWeb.RequestMeta.request_host(conn)
            ) do
+      ModerationAudit.log(
+        conn,
+        "Banned #{display_ip_for_log(Map.get(params, "ip", post.ip_subnet))} for post No. #{post.id}" <>
+          if(Map.get(params, "delete") in ["1", "true", "on"], do: " and deleted the post", else: ""),
+        moderator: moderator,
+        board: board
+      )
+
       conn
       |> put_flash(:info, "Ban created.")
       |> redirect(to: moderation_return_path(board, post))
@@ -1196,6 +1334,8 @@ defmodule EirinchanWeb.ManagePageController do
              Map.take(params, ["name", "email", "subject", "body"]),
              config: effective_board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
            ) do
+      ModerationAudit.log(conn, "Edited post No. #{post.id}", moderator: moderator, board: board)
+
       conn
       |> put_flash(:info, "Post updated.")
       |> redirect(to: moderation_return_path(board, post))
@@ -1289,6 +1429,13 @@ defmodule EirinchanWeb.ManagePageController do
              target_config:
                effective_board_config(target_board, EirinchanWeb.RequestMeta.request_host(conn))
            ) do
+      ModerationAudit.log(
+        conn,
+        "Moved thread No. #{moved_thread.id} from /#{source_board.uri}/ to /#{target_board.uri}/",
+        moderator: moderator,
+        board: target_board
+      )
+
       conn
       |> put_flash(:info, "Thread moved.")
       |> redirect(
@@ -1337,6 +1484,13 @@ defmodule EirinchanWeb.ManagePageController do
              target_config:
                effective_board_config(target_board, EirinchanWeb.RequestMeta.request_host(conn))
            ) do
+      ModerationAudit.log(
+        conn,
+        "Moved reply No. #{moved_reply.id} from /#{source_board.uri}/ to /#{target_board.uri}/ thread No. #{target_thread_id}",
+        moderator: moderator,
+        board: target_board
+      )
+
       conn
       |> put_flash(:info, "Reply moved.")
       |> redirect(
@@ -1391,6 +1545,11 @@ defmodule EirinchanWeb.ManagePageController do
              status: Map.get(params, "status", "resolved"),
              resolution_note: params["resolution_note"]
            }) do
+      ModerationAudit.log(conn, "Resolved ban appeal ##{appeal.id}",
+        moderator: moderator,
+        board: appeal.ban && appeal.ban.board
+      )
+
       conn
       |> put_flash(:info, "Appeal updated.")
       |> redirect(to: appeal_redirect_path(params))
@@ -1413,8 +1572,10 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def create_board(conn, params) do
-    with {:ok, _moderator} <- ensure_admin(conn),
+    with {:ok, moderator} <- ensure_admin(conn),
          {:ok, board} <- Boards.create_board(Map.take(params, ["uri", "title", "subtitle"])) do
+      ModerationAudit.log(conn, "Created board /#{board.uri}/", moderator: moderator, board: board)
+
       conn
       |> put_flash(:info, "Board created.")
       |> redirect(to: "/#{board.uri}")
@@ -1463,9 +1624,11 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def update_board(conn, %{"uri" => uri} = params) do
-    with {:ok, _moderator} <- ensure_admin(conn),
+    with {:ok, moderator} <- ensure_admin(conn),
          board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          {:ok, _board} <- Boards.update_board(board, Map.take(params, ["title", "subtitle"])) do
+      ModerationAudit.log(conn, "Updated board /#{uri}/", moderator: moderator, board: board)
+
       conn
       |> put_flash(:info, "Board updated.")
       |> redirect(to: ~p"/manage")
@@ -1485,9 +1648,11 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def delete_board(conn, %{"uri" => uri}) do
-    with {:ok, _moderator} <- ensure_admin(conn),
+    with {:ok, moderator} <- ensure_admin(conn),
          board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          {:ok, _board} <- Boards.delete_board(board) do
+      ModerationAudit.log(conn, "Deleted board /#{uri}/", moderator: moderator, board_uri: uri)
+
       conn
       |> put_flash(:info, "Board deleted.")
       |> redirect(to: ~p"/manage")
@@ -1515,6 +1680,8 @@ defmodule EirinchanWeb.ManagePageController do
           _ -> Build.rebuild_board(board, config: config)
         end
 
+      ModerationAudit.log(conn, "Rebuilt board /#{uri}/", moderator: moderator, board: board)
+
       conn
       |> put_flash(:info, "Board rebuilt.")
       |> redirect(to: ~p"/manage")
@@ -1531,6 +1698,8 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def delete_session(conn, _params) do
+    ModerationAudit.log(conn, "Logged out")
+
     conn
     |> clear_session()
     |> configure_session(drop: true)
@@ -1557,6 +1726,28 @@ defmodule EirinchanWeb.ManagePageController do
 
   defp stringify(params), do: Enum.into(params, %{}, fn {k, v} -> {to_string(k), v} end)
 
+  defp normalize_filter(nil), do: nil
+
+  defp normalize_filter(value) do
+    value
+    |> to_string()
+    |> String.trim()
+    |> case do
+      "" -> nil
+      trimmed -> trimmed
+    end
+  end
+
+  defp positive_integer_param(value, default) do
+    case Integer.parse(to_string(value || "")) do
+      {parsed, ""} when parsed > 0 -> parsed
+      _ -> default
+    end
+  end
+
+  defp display_ip_for_log(nil), do: "hidden IP"
+  defp display_ip_for_log(ip), do: IpCrypt.cloak_ip(ip)
+
   defp render_dashboard_error(conn, message, params, status \\ :forbidden) do
     conn
     |> put_status(status)
@@ -1565,6 +1756,7 @@ defmodule EirinchanWeb.ManagePageController do
       boards: Moderation.list_accessible_boards(conn.assigns[:current_moderator]),
       report_count: accessible_report_count(conn.assigns[:current_moderator]),
       appeal_count: accessible_appeal_count(conn.assigns[:current_moderator]),
+      feedback_count: Feedback.unread_count(),
       unread_messages: Moderation.count_unread_messages(conn.assigns[:current_moderator]),
       news_blotter_entry_count:
         Settings.current_instance_config()

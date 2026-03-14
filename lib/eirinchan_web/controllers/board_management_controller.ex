@@ -3,6 +3,7 @@ defmodule EirinchanWeb.BoardManagementController do
 
   alias Eirinchan.Boards
   alias Eirinchan.Moderation
+  alias EirinchanWeb.ModerationAudit
 
   action_fallback EirinchanWeb.FallbackController
 
@@ -12,6 +13,7 @@ defmodule EirinchanWeb.BoardManagementController do
 
   def create(conn, params) do
     with {:ok, board} <- Boards.create_board(params) do
+      ModerationAudit.log(conn, "Created board /#{board.uri}/", board: board)
       conn
       |> put_status(:created)
       |> render(:show, board: board)
@@ -28,6 +30,7 @@ defmodule EirinchanWeb.BoardManagementController do
   def update(conn, %{"uri" => uri} = params) do
     with board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          {:ok, board} <- Boards.update_board(board, Map.delete(params, "uri")) do
+      ModerationAudit.log(conn, "Updated board /#{board.uri}/", board: board)
       render(conn, :show, board: board)
     else
       nil -> {:error, :not_found}
@@ -38,6 +41,7 @@ defmodule EirinchanWeb.BoardManagementController do
   def delete(conn, %{"uri" => uri}) do
     with board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          {:ok, _board} <- Boards.delete_board(board) do
+      ModerationAudit.log(conn, "Deleted board /#{uri}/", board_uri: uri)
       send_resp(conn, :no_content, "")
     else
       nil -> {:error, :not_found}

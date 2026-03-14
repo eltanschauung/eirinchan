@@ -2,6 +2,7 @@ defmodule EirinchanWeb.FeedbackManagementController do
   use EirinchanWeb, :controller
 
   alias Eirinchan.Feedback
+  alias EirinchanWeb.ModerationAudit
 
   action_fallback EirinchanWeb.FallbackController
 
@@ -16,6 +17,7 @@ defmodule EirinchanWeb.FeedbackManagementController do
   def mark_read(conn, %{"id" => id}) do
     with {:ok, _feedback} <- Feedback.mark_read(id),
          feedback when not is_nil(feedback) <- Feedback.get_feedback(id) do
+      ModerationAudit.log(conn, "Marked feedback ##{feedback.id} as read")
       render(conn, :show, feedback: feedback, moderator: conn.assigns.current_moderator)
     else
       nil -> {:error, :not_found}
@@ -26,6 +28,7 @@ defmodule EirinchanWeb.FeedbackManagementController do
     with {:ok, _comment} <- Feedback.add_comment(id, params),
          {:ok, _feedback} <- Feedback.mark_read(id),
          feedback when not is_nil(feedback) <- Feedback.get_feedback(id) do
+      ModerationAudit.log(conn, "Commented on feedback ##{feedback.id}")
       render(conn, :show, feedback: feedback, moderator: conn.assigns.current_moderator)
     else
       nil -> {:error, :not_found}
@@ -34,6 +37,7 @@ defmodule EirinchanWeb.FeedbackManagementController do
 
   def delete(conn, %{"id" => id}) do
     with {:ok, _feedback} <- Feedback.delete_feedback(id) do
+      ModerationAudit.log(conn, "Deleted feedback ##{id}")
       send_resp(conn, :no_content, "")
     end
   end

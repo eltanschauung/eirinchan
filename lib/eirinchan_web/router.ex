@@ -91,6 +91,7 @@ defmodule EirinchanWeb.Router do
     get "/announcement/browser", ManagePageController, :blotter
     post "/announcement/browser", ManagePageController, :update_blotter
     delete "/announcement/browser", ManagePageController, :delete_announcement
+    get "/log/browser", ManagePageController, :moderation_log
     get "/pages/browser", ManagePageController, :pages
     post "/pages/browser", ManagePageController, :create_page
     patch "/pages/browser/:id", ManagePageController, :update_page

@@ -7,6 +7,7 @@ defmodule EirinchanWeb.PostManagementController do
   alias Eirinchan.Posts
   alias Eirinchan.Runtime.Config
   alias Eirinchan.Settings
+  alias EirinchanWeb.ModerationAudit
 
   action_fallback EirinchanWeb.FallbackController
 
@@ -31,6 +32,7 @@ defmodule EirinchanWeb.PostManagementController do
              Map.take(params, ["name", "email", "subject", "body"]),
              config: board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
            ) do
+      ModerationAudit.log(conn, "Edited post No. #{post.id}", board: board)
       render(conn, :show, post: post)
     else
       nil -> {:error, :not_found}
@@ -45,6 +47,7 @@ defmodule EirinchanWeb.PostManagementController do
            Posts.moderate_delete_post(board, post_id,
              config: board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
            ) do
+      ModerationAudit.log(conn, "Deleted post No. #{post_id}", board: board)
       json(conn, %{data: result})
     else
       nil -> {:error, :not_found}
@@ -56,6 +59,7 @@ defmodule EirinchanWeb.PostManagementController do
     with board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          :ok <- authorize_board(conn, board),
          {:ok, post} <- delete_file_target(board, post_id, params, conn) do
+      ModerationAudit.log(conn, "Deleted file from post No. #{post.id}", board: board)
       render(conn, :show, post: post)
     else
       nil -> {:error, :not_found}
@@ -67,6 +71,7 @@ defmodule EirinchanWeb.PostManagementController do
     with board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          :ok <- authorize_board(conn, board),
          {:ok, post} <- spoiler_target(board, post_id, params, conn) do
+      ModerationAudit.log(conn, "Spoilered file on post No. #{post.id}", board: board)
       render(conn, :show, post: post)
     else
       nil -> {:error, :not_found}
@@ -98,6 +103,11 @@ defmodule EirinchanWeb.PostManagementController do
              target_config:
                board_config(target_board, EirinchanWeb.RequestMeta.request_host(conn))
            ) do
+      ModerationAudit.log(
+        conn,
+        "Moved reply No. #{post.id} from /#{source_board.uri}/ to /#{target_board.uri}/ thread No. #{target_thread_id}",
+        board: target_board
+      )
       render(conn, :show, post: post)
     else
       nil -> {:error, :not_found}

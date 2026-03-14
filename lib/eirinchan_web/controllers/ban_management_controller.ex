@@ -4,6 +4,8 @@ defmodule EirinchanWeb.BanManagementController do
   alias Eirinchan.Bans
   alias Eirinchan.Boards
   alias Eirinchan.Moderation
+  alias Eirinchan.IpCrypt
+  alias EirinchanWeb.ModerationAudit
 
   action_fallback EirinchanWeb.FallbackController
 
@@ -34,6 +36,12 @@ defmodule EirinchanWeb.BanManagementController do
              length: params["length"],
              active: Map.get(params, "active", true)
            }) do
+      ModerationAudit.log(
+        conn,
+        "Created ban for #{cloak_or_hidden(params["ip_subnet"])}",
+        board: board
+      )
+
       conn
       |> put_status(:created)
       |> render(:show, ban: ban, board: board, moderator: conn.assigns.current_moderator)
@@ -53,6 +61,12 @@ defmodule EirinchanWeb.BanManagementController do
              ban,
              Map.take(params, ["ip_subnet", "reason", "expires_at", "length", "active"])
            ) do
+      ModerationAudit.log(
+        conn,
+        "Updated ban ##{ban.id} for #{cloak_or_hidden(ban.ip_subnet)}",
+        board: board
+      )
+
       render(conn, :show, ban: ban, board: board, moderator: conn.assigns.current_moderator)
     else
       nil -> {:error, :not_found}
@@ -68,4 +82,7 @@ defmodule EirinchanWeb.BanManagementController do
       {:error, :forbidden}
     end
   end
+
+  defp cloak_or_hidden(nil), do: "hidden IP"
+  defp cloak_or_hidden(ip), do: IpCrypt.cloak_ip(ip)
 end

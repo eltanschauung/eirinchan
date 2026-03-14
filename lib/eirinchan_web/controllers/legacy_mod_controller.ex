@@ -8,7 +8,7 @@ defmodule EirinchanWeb.LegacyModController do
   alias Eirinchan.Reports
   alias Eirinchan.Runtime.Config
   alias Eirinchan.Settings
-  alias EirinchanWeb.ManageSecurity
+  alias EirinchanWeb.{ManageSecurity, ModerationAudit}
   alias EirinchanWeb.PostView
 
   def show(conn, _params) do
@@ -65,12 +65,13 @@ defmodule EirinchanWeb.LegacyModController do
   end
 
   defp dispatch_board_action(conn, [uri, "delete", post_id, token]) do
-    with {:ok, _moderator, board} <- authorized_board(conn, uri),
+    with {:ok, moderator, board} <- authorized_board(conn, uri),
          :ok <- verify_action_token(conn, "#{uri}/delete/#{post_id}", token),
          {:ok, _result} <-
            Posts.moderate_delete_post(board, post_id,
              config: board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
            ) do
+      ModerationAudit.log(conn, "Deleted post No. #{post_id}", moderator: moderator, board: board)
       redirect(conn, to: "/#{uri}")
     else
       error -> legacy_error(conn, error)
@@ -86,6 +87,11 @@ defmodule EirinchanWeb.LegacyModController do
            Posts.delete_post_file(board, post_id, file_index,
              config: board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
            ) do
+      ModerationAudit.log(conn, "Deleted file from post No. #{post.id}",
+        moderator: moderator,
+        board: board
+      )
+
       redirect(conn,
         to: thread_destination(board, post, EirinchanWeb.RequestMeta.request_host(conn))
       )
@@ -103,6 +109,11 @@ defmodule EirinchanWeb.LegacyModController do
            Posts.spoilerize_post_file(board, post_id, file_index,
              config: board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
            ) do
+      ModerationAudit.log(conn, "Spoilered file on post No. #{post.id}",
+        moderator: moderator,
+        board: board
+      )
+
       redirect(conn,
         to: thread_destination(board, post, EirinchanWeb.RequestMeta.request_host(conn))
       )
@@ -120,6 +131,11 @@ defmodule EirinchanWeb.LegacyModController do
            Posts.moderate_delete_posts_by_ip(board, post.ip_subnet,
              config: board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
            ) do
+      ModerationAudit.log(conn, "Deleted posts by IP #{display_ip_for_log(post.ip_subnet)}",
+        moderator: moderator,
+        board: board
+      )
+
       redirect(conn, to: "/#{uri}")
     else
       error -> legacy_error(conn, error)
@@ -138,9 +154,14 @@ defmodule EirinchanWeb.LegacyModController do
              config_by_board:
                config_map(
                  Moderation.list_accessible_boards(moderator),
-                 EirinchanWeb.RequestMeta.request_host(conn)
-               )
+                EirinchanWeb.RequestMeta.request_host(conn)
+              )
            ) do
+      ModerationAudit.log(conn, "Deleted posts across boards by IP #{display_ip_for_log(post.ip_subnet)}",
+        moderator: moderator,
+        board: board
+      )
+
       redirect(conn, to: "/#{uri}")
     else
       error -> legacy_error(conn, error)
@@ -168,6 +189,11 @@ defmodule EirinchanWeb.LegacyModController do
              action,
              EirinchanWeb.RequestMeta.request_host(conn)
            ) do
+      ModerationAudit.log(conn, "#{humanize_thread_action(action)} thread No. #{post_id}",
+        moderator: moderator,
+        board: board
+      )
+
       redirect(conn, to: "/#{uri}")
     else
       error -> legacy_error(conn, error)
@@ -233,6 +259,11 @@ defmodule EirinchanWeb.LegacyModController do
          :ok <- authorize_report(moderator, report),
          :ok <- verify_action_token(conn, "reports/#{report_id}/dismiss", token),
          {:ok, _report} <- Reports.dismiss_report(report.board, report_id) do
+      ModerationAudit.log(conn, "Dismissed report ##{report.id}",
+        moderator: moderator,
+        board: report.board
+      )
+
       redirect(conn, to: "/manage/reports/browser")
     else
       error -> legacy_error(conn, error)
@@ -245,6 +276,11 @@ defmodule EirinchanWeb.LegacyModController do
          :ok <- authorize_report(moderator, report),
          :ok <- verify_action_token(conn, "reports/#{report_id}/dismiss&post", token),
          {:ok, _count} <- Reports.dismiss_reports_for_post(report.board, report.post_id) do
+      ModerationAudit.log(conn, "Dismissed reports for post No. #{report.post_id}",
+        moderator: moderator,
+        board: report.board
+      )
+
       redirect(conn, to: "/manage/reports/browser")
     else
       error -> legacy_error(conn, error)
@@ -258,6 +294,11 @@ defmodule EirinchanWeb.LegacyModController do
          :ok <- verify_action_token(conn, "reports/#{report_id}/dismiss&all", token),
          {:ok, _count} <-
            Reports.dismiss_reports_for_ip(accessible_report_scope(moderator), report.ip) do
+      ModerationAudit.log(conn, "Dismissed reports for IP #{display_ip_for_log(report.ip)}",
+        moderator: moderator,
+        board: report.board
+      )
+
       redirect(conn, to: "/manage/reports/browser")
     else
       error -> legacy_error(conn, error)
@@ -265,6 +306,19 @@ defmodule EirinchanWeb.LegacyModController do
   end
 
   defp dispatch_report_action(conn, _parts), do: send_resp(conn, :not_found, "Page not found")
+
+  defp humanize_thread_action("sticky"), do: "Made sticky"
+  defp humanize_thread_action("unsticky"), do: "Removed sticky from"
+  defp humanize_thread_action("lock"), do: "Locked"
+  defp humanize_thread_action("unlock"), do: "Unlocked"
+  defp humanize_thread_action("bumplock"), do: "Bumplocked"
+  defp humanize_thread_action("bumpunlock"), do: "Removed bumplock from"
+  defp humanize_thread_action("cycle"), do: "Enabled cycle on"
+  defp humanize_thread_action("uncycle"), do: "Disabled cycle on"
+  defp humanize_thread_action(action), do: String.capitalize(action)
+
+  defp display_ip_for_log(nil), do: "hidden IP"
+  defp display_ip_for_log(ip), do: IpCrypt.cloak_ip(ip)
 
   defp dispatch_feedback_action(conn, []) do
     with {:ok, _moderator} <- authorized_moderator(conn) do
