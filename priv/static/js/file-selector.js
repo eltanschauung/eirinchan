@@ -227,11 +227,11 @@ function init_file_selector(max_images, root) {
   });
 
   $dropzone.on('keypress click', function(e) {
-    e.stopPropagation();
-
     if ((e.which !== 1 || e.target.className !== 'file-hint') && e.which !== 13) {
       return;
     }
+
+    e.stopPropagation();
 
     var $selector = $('<input type="file" multiple>');
 
