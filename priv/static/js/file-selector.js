@@ -26,26 +26,22 @@ function init_file_selector(max_images, root) {
 
   var $uploadCell = $root.find('#upload td, [data-upload-row] td').first();
   var $fileInput = $root.find('#upload_file, [data-upload-file]').first();
+  var $dropzoneWrap = $uploadCell.find('.dropzone-wrap').first();
 
-  if (!$uploadCell.length || !$fileInput.length) {
+  if (!$uploadCell.length || !$fileInput.length || !$dropzoneWrap.length) {
     return;
   }
 
-  var $dropzoneWrap = $(
-    '<div class="dropzone-wrap" style="display: none;">' +
-      '<div class="dropzone" tabindex="0">' +
-        '<div class="file-hint">' + _('Select/drop/paste files here') + '</div>' +
-        '<div class="file-thumbs"></div>' +
-      '</div>' +
-    '</div>'
-  );
-
   var files = [];
   var selectorNamespace = '.file_selector_' + ($root.attr('id') || Math.floor(Math.random() * 1000000));
+  var $dropzone = $dropzoneWrap.find('.dropzone').first();
+  var $thumbs = $dropzoneWrap.find('.file-thumbs').first();
 
-  $dropzoneWrap.prependTo($uploadCell);
-  $fileInput.remove();
-  $dropzoneWrap.css('user-select', 'none').show();
+  if (!$dropzone.length || !$thumbs.length) {
+    return;
+  }
+
+  $dropzoneWrap.css('user-select', 'none');
   $root.data('file-selector-initialized', true);
 
   function thumbContainerCount() {
@@ -88,7 +84,7 @@ function init_file_selector(max_images, root) {
         $('<div>').addClass('file-tmb'),
         $('<div>').addClass('tmb-filename').text(fileName)
       )
-      .appendTo($root.find('.file-thumbs').first());
+      .appendTo($thumbs);
 
     var $fileThumb = $container.find('.file-tmb');
     if (fileType === 'image') {
@@ -186,7 +182,6 @@ function init_file_selector(max_images, root) {
   });
 
   var dragCounter = 0;
-  var $dropzone = $root.find('.dropzone').first();
 
   $dropzone.on('dragenter dragover dragleave drop', function(e) {
     e.stopPropagation();
