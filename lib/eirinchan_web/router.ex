@@ -96,10 +96,6 @@ defmodule EirinchanWeb.Router do
     post "/pages/browser", ManagePageController, :create_page
     patch "/pages/browser/:id", ManagePageController, :update_page
     delete "/pages/browser/:id", ManagePageController, :delete_page
-    get "/news/browser", ManagePageController, :news
-    post "/news/browser", ManagePageController, :create_news
-    patch "/news/browser/:id", ManagePageController, :update_news
-    delete "/news/browser/:id", ManagePageController, :delete_news
     get "/messages/browser", ManagePageController, :messages
     post "/messages/browser", ManagePageController, :create_message
     get "/recent-posts/browser", ManagePageController, :recent_posts

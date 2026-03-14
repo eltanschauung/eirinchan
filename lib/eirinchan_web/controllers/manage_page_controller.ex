@@ -464,18 +464,6 @@ defmodule EirinchanWeb.ManagePageController do
     end
   end
 
-  def news(conn, _params) do
-    with {:ok, moderator} <- ensure_moderator(conn) do
-      render(conn, :news,
-        moderator: moderator,
-        news_entries: News.list_entries(),
-        error: nil
-      )
-    else
-      {:error, :unauthorized} -> redirect(conn, to: ~p"/manage/login")
-    end
-  end
-
   def themes(conn, _params) do
     with {:ok, moderator} <- ensure_admin(conn) do
       render(conn, :themes,
@@ -609,72 +597,6 @@ defmodule EirinchanWeb.ManagePageController do
     |> assign(:skip_app_stylesheet, true)
     |> assign(:skip_flash_group, true)
     |> assign(:hide_theme_switcher, true)
-  end
-
-  def create_news(conn, %{"title" => title, "body" => body}) do
-    with {:ok, moderator} <- ensure_news_editor(conn),
-         {:ok, _entry} <-
-           News.create_entry(%{title: title, body: body, mod_user_id: moderator.id}) do
-      ModerationAudit.log(conn, "Created news entry #{inspect(title)}", moderator: moderator)
-
-      conn
-      |> put_flash(:info, "News entry created.")
-      |> redirect(to: ~p"/manage/news/browser")
-    else
-      {:error, :unauthorized} ->
-        redirect(conn, to: ~p"/manage/login")
-
-      {:error, :forbidden} ->
-        render_news_error(conn, "Moderator access required.")
-
-      {:error, %Ecto.Changeset{} = changeset} ->
-        render_news_error(conn, format_changeset(changeset), :unprocessable_entity)
-    end
-  end
-
-  def update_news(conn, %{"id" => id, "title" => title, "body" => body}) do
-    with {:ok, moderator} <- ensure_news_editor(conn),
-         %News.Entry{} = entry <- News.get_entry(id),
-         {:ok, _entry} <- News.update_entry(entry, %{title: title, body: body}) do
-      ModerationAudit.log(conn, "Updated news entry #{inspect(title)}", moderator: moderator)
-
-      conn
-      |> put_flash(:info, "News entry updated.")
-      |> redirect(to: ~p"/manage/news/browser")
-    else
-      {:error, :unauthorized} ->
-        redirect(conn, to: ~p"/manage/login")
-
-      {:error, :forbidden} ->
-        render_news_error(conn, "Moderator access required.")
-
-      nil ->
-        render_news_error(conn, "News entry not found.", :not_found)
-
-      {:error, %Ecto.Changeset{} = changeset} ->
-        render_news_error(conn, format_changeset(changeset), :unprocessable_entity)
-    end
-  end
-
-  def delete_news(conn, %{"id" => id}) do
-    with {:ok, moderator} <- ensure_news_editor(conn),
-         %News.Entry{} = entry <- News.get_entry(id),
-         {:ok, _entry} <- News.delete_entry(entry) do
-      ModerationAudit.log(conn, "Deleted news entry #{inspect(entry.title)}", moderator: moderator)
-
-      conn
-      |> put_flash(:info, "News entry deleted.")
-      |> redirect(to: ~p"/manage/news/browser")
-    else
-      {:error, :unauthorized} ->
-        redirect(conn, to: ~p"/manage/login")
-
-      {:error, :forbidden} ->
-        render_news_error(conn, "Moderator access required.")
-
-      nil ->
-        render_news_error(conn, "News entry not found.", :not_found)
-    end
   end
 
   def blotter(conn, _params) do
@@ -1766,16 +1688,6 @@ defmodule EirinchanWeb.ManagePageController do
       news_entries: News.list_entries(limit: 10),
       error: message,
       params: Map.take(stringify(params), ["uri", "title", "subtitle"])
-    )
-  end
-
-  defp render_news_error(conn, message, status \\ :forbidden) do
-    conn
-    |> put_status(status)
-    |> render(:news,
-      moderator: conn.assigns[:current_moderator],
-      news_entries: News.list_entries(),
-      error: message
     )
   end
 

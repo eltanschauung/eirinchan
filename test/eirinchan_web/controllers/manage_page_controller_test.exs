@@ -479,59 +479,6 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert File.exists?(Path.join([Build.board_root(), board.uri, "res", "#{thread.id}.html"]))
   end
 
-  test "browser news management creates, updates, and deletes entries", %{conn: conn} do
-    moderator = moderator_fixture(%{role: "admin"})
-
-    create_conn =
-      conn
-      |> login_moderator(moderator)
-      |> post("/manage/news/browser", %{"title" => "Launch", "body" => "Site is live"})
-
-    assert redirected_to(create_conn) == "/manage/news/browser"
-
-    news_page =
-      create_conn
-      |> recycle()
-      |> login_moderator(moderator)
-      |> get("/manage/news/browser")
-      |> html_response(200)
-
-    assert news_page =~ "Manage News"
-    assert news_page =~ "Launch"
-    assert news_page =~ "Site is live"
-
-    [entry] = Eirinchan.News.list_entries()
-
-    update_conn =
-      conn
-      |> recycle()
-      |> login_moderator(moderator)
-      |> patch("/manage/news/browser/#{entry.id}", %{
-        "title" => "Launch Updated",
-        "body" => "Site is more live"
-      })
-
-    assert redirected_to(update_conn) == "/manage/news/browser"
-
-    public_news =
-      update_conn
-      |> recycle()
-      |> get("/news")
-      |> html_response(200)
-
-    assert public_news =~ "Launch Updated"
-    assert public_news =~ "Site is more live"
-
-    delete_conn =
-      conn
-      |> recycle()
-      |> login_moderator(moderator)
-      |> delete("/manage/news/browser/#{entry.id}")
-
-    assert redirected_to(delete_conn) == "/manage/news/browser"
-    assert Eirinchan.News.list_entries() == []
-  end
-
   test "browser announcement management updates global message and history", %{
     conn: conn
   } do

@@ -14,12 +14,35 @@
  */
 
 $(document).ready(function(){
+	var csrfToken = function() {
+		var token = $('input[name=_csrf_token]:first').val();
+		if (token)
+			return token;
+
+		return $('meta[name="csrf-token"]').attr('content') || '';
+	};
+
+	var boardUri = function($checkbox) {
+		var board = $('input[name=board]:first').val();
+		if (board)
+			return board;
+
+		var container = $checkbox.closest('[data-board],[data-board-uri]');
+		return container.attr('data-board') || container.attr('data-board-uri') || '';
+	};
+
+	var postAction = function() {
+		return $('form[name="post"]:first').attr('action') || '/post.php';
+	};
+
 	var open_form = function() {
-		var thread = $(this).parent().parent().hasClass('op');
+		var $checkbox = $(this);
+		var thread = $checkbox.parent().parent().hasClass('op');
 		var id = $(this).attr('name').match(/^delete_(\d+)$/)[1];
 		var submitButton;
 		
 		if(this.checked) {
+			var board = boardUri($checkbox);
 			var post_form = $('<form class="post-actions" method="post" style="margin:10px 0 0 0">' +
 				'<div style="text-align:right">' +
 					(!thread ? '<hr>' : '') +
@@ -40,9 +63,9 @@ $(document).ready(function(){
 				'</div>' +
 			'</form>');
 			post_form
-				.attr('action', $('form[name="post"]:first').attr('action'))
-				.append($('input[name=board]:first').clone())
-				.append($('input[name=_csrf_token]:first').clone())
+				.attr('action', postAction())
+				.append($('<input type="hidden" name="board">').val(board))
+				.append($('<input type="hidden" name="_csrf_token">').val(csrfToken()))
 				.find('input:not([type="checkbox"]):not([type="submit"]):not([type="hidden"])').keypress(function(e) {
 					if(e.which == 13) {
 						e.preventDefault();

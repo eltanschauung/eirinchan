@@ -401,8 +401,8 @@ defmodule EirinchanWeb.PostView do
         fn -> control_entry(post, board, session_token, :deletebyip, :confirm) end
       )
       |> maybe_add_control_entry(
-        can_moderate?(moderator, board, :deletebyip_global),
-        fn -> control_entry(post, board, session_token, :deletebyip_global, :confirm) end
+        can_moderate?(moderator, board, :ban24) and present?(post.ip_subnet),
+        fn -> control_entry(post, board, session_token, :ban24, :confirm) end
       )
       |> maybe_add_control_entry(
         can_moderate?(moderator, board, :ban),
@@ -796,7 +796,7 @@ defmodule EirinchanWeb.PostView do
   defp permission_level(:ban), do: 20
   defp permission_level(:bandelete), do: 20
   defp permission_level(:deletebyip), do: 20
-  defp permission_level(:deletebyip_global), do: 30
+  defp permission_level(:ban24), do: 30
   defp permission_level(:sticky), do: 20
   defp permission_level(:cycle), do: 20
   defp permission_level(:lock), do: 20
@@ -821,7 +821,7 @@ defmodule EirinchanWeb.PostView do
       case action do
         :delete -> "#{board.uri}/delete/#{post.id}"
         :deletebyip -> "#{board.uri}/deletebyip/#{post.id}"
-        :deletebyip_global -> "#{board.uri}/deletebyip/#{post.id}/global"
+        :ban24 -> "#{board.uri}/ban24/#{post.id}"
         :ban -> "#{board.uri}/ban/#{post.id}"
         :bandelete -> "#{board.uri}/ban&delete/#{post.id}"
         :sticky -> "#{board.uri}/#{if post.sticky, do: "unsticky", else: "sticky"}/#{post.id}"
@@ -837,7 +837,7 @@ defmodule EirinchanWeb.PostView do
     secure_href =
       case action do
         act
-        when act in [:delete, :deletebyip, :deletebyip_global, :sticky, :bumplock, :lock, :cycle] ->
+        when act in [:delete, :deletebyip, :ban24, :sticky, :bumplock, :lock, :cycle] ->
           token = ManageSecurity.sign_action(session_token, action_path)
           href <> "/#{token}"
 
@@ -856,7 +856,7 @@ defmodule EirinchanWeb.PostView do
 
   defp control_title(_post, :delete), do: "Delete"
   defp control_title(_post, :deletebyip), do: "Delete all posts by IP"
-  defp control_title(_post, :deletebyip_global), do: "Delete all posts by IP across all boards"
+  defp control_title(_post, :ban24), do: "Ban this /24 subnet across all boards"
   defp control_title(_post, :ban), do: "Ban"
   defp control_title(_post, :bandelete), do: "Ban & Delete"
 
@@ -879,7 +879,7 @@ defmodule EirinchanWeb.PostView do
 
   defp control_label(_post, :delete), do: "[D]"
   defp control_label(_post, :deletebyip), do: "[D+]"
-  defp control_label(_post, :deletebyip_global), do: "[D++]"
+  defp control_label(_post, :ban24), do: "[D24]"
   defp control_label(_post, :ban), do: "[B]"
   defp control_label(_post, :bandelete), do: "[B&D]"
   defp control_label(post, :sticky), do: if(post.sticky, do: "[-Sticky]", else: "[Sticky]")
@@ -894,8 +894,8 @@ defmodule EirinchanWeb.PostView do
   defp control_confirm(:deletebyip),
     do: "Are you sure you want to delete all posts by this IP address?"
 
-  defp control_confirm(:deletebyip_global),
-    do: "Are you sure you want to delete all posts by this IP address, across all boards?"
+  defp control_confirm(:ban24),
+    do: "Are you sure you want to ban this /24 subnet across all boards?"
 
   defp control_confirm(:sticky),
     do: "Are you sure you want to change sticky state for this thread?"

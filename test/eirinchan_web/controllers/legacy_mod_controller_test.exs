@@ -91,6 +91,30 @@ defmodule EirinchanWeb.LegacyModControllerTest do
     assert still_present.id == thread.id
   end
 
+  test "legacy ban24 route creates a global /24 ban", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+    board = board_fixture()
+    thread = thread_fixture(board)
+
+    Repo.update_all(from(p in Eirinchan.Posts.Post, where: p.id == ^thread.id),
+      set: [ip_subnet: "99.254.181.161"]
+    )
+
+    conn = login_moderator(conn, moderator)
+
+    conn =
+      get(
+        conn,
+        "/mod.php?/#{board.uri}/ban24/#{thread.id}/#{signed_token(conn, "#{board.uri}/ban24/#{thread.id}")}"
+      )
+
+    assert redirected_to(conn) == "/#{board.uri}"
+
+    [ban] = Eirinchan.Bans.list_bans()
+    assert ban.board_id == nil
+    assert ban.ip_subnet == "99.254.181.0/24"
+  end
+
   test "legacy deletefile route removes a single file for janitors", %{conn: conn} do
     board = board_fixture()
 
