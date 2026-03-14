@@ -404,7 +404,14 @@ defmodule Eirinchan.LiveVichanImport do
         |> Map.put(:thumb_path, thumb_rel)
         |> Map.put(:spoiler, spoiler?)
 
-      :ok = Uploads.regenerate_thumbnail(file_abs, thumb_abs, config, metadata, op?)
+      :ok =
+        case Uploads.regenerate_thumbnail(file_abs, thumb_abs, config, metadata, op?) do
+          :ok ->
+            :ok
+
+          {:error, _reason} ->
+            restore_live_thumbnail(board, legacy_file, source_root, file_abs, thumb_abs, config)
+        end
 
       %{
         file_name: metadata.file_name,
@@ -447,6 +454,54 @@ defmodule Eirinchan.LiveVichanImport do
 
       true ->
         raise "legacy file entry missing file path"
+    end
+  end
+
+  defp thumb_source_rel(%BoardRecord{} = board, legacy_file) do
+    cond do
+      spoiler_thumb?(legacy_file) ->
+        nil
+
+      is_binary(legacy_file["thumb_path"]) and legacy_file["thumb_path"] not in ["", "spoiler"] ->
+        String.trim_leading(legacy_file["thumb_path"], "/")
+
+      is_binary(legacy_file["thumb"]) and legacy_file["thumb"] not in ["", "spoiler"] ->
+        Path.join([board.uri, "thumb", legacy_file["thumb"]])
+
+      true ->
+        nil
+    end
+  end
+
+  defp restore_live_thumbnail(
+         %BoardRecord{} = board,
+         legacy_file,
+         source_root,
+         file_abs,
+         thumb_abs,
+         config
+       ) do
+    cond do
+      truthy?(legacy_file["spoiler"]) or spoiler_thumb?(legacy_file) ->
+        File.cp!(Path.join(Application.app_dir(:eirinchan, "priv/static/static"), "spoiler.png"), thumb_abs)
+        :ok
+
+      true ->
+        case thumb_source_rel(board, legacy_file) do
+          nil ->
+            {:error, :upload_failed}
+
+          thumb_rel ->
+            live_thumb_abs = Path.join(source_root, thumb_rel)
+
+            if File.exists?(live_thumb_abs) do
+              thumb_abs |> Path.dirname() |> File.mkdir_p!()
+              File.cp!(live_thumb_abs, thumb_abs)
+              :ok
+            else
+              {:error, :upload_failed}
+            end
+        end
     end
   end
 

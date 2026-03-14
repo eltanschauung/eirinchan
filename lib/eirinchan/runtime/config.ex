@@ -188,7 +188,7 @@ defmodule Eirinchan.Runtime.Config do
     max_image_width: 0,
     max_image_height: 0,
     file_thumb: nil,
-    file_icons: %{".webm" => "video.png", ".mp4" => "video.png"},
+    file_icons: %{ ".webm" => "video.png", ".mp4" => "video.png", ".mp3" => "mp3.png" },
     minimum_copy_resize: false,
     upload_by_url_enabled: false,
     upload_by_url_timeout_ms: 5_000,
