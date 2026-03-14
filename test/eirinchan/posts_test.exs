@@ -2378,6 +2378,48 @@ defmodule Eirinchan.PostsTest do
     assert Enum.map(summary.replies, & &1.body) == ["Reply two"]
   end
 
+  test "list_threads_page uses sticky preview count for sticky threads" do
+    board =
+      board_fixture(%{
+        config_overrides: %{threads_per_page: 1, threads_preview: 5, threads_preview_sticky: 2}
+      })
+
+    config = post_config(board.config_overrides)
+    request = post_request(board.uri)
+
+    assert {:ok, thread, _meta} =
+             Posts.create_post(
+               board,
+               %{"body" => "Sticky body", "subject" => "Sticky", "post" => "New Topic"},
+               config: config,
+               request: request
+             )
+
+    Repo.update_all(from(post in Post, where: post.id == ^thread.id), set: [sticky: true])
+
+    for body <- ["Reply one", "Reply two", "Reply three"] do
+      assert {:ok, _reply, _meta} =
+               Posts.create_post(
+                 board,
+                 %{
+                   "thread" => Integer.to_string(PublicIds.public_id(thread)),
+                   "body" => body,
+                   "post" => "New Reply"
+                 },
+                 config: config,
+                 request: request
+               )
+    end
+
+    assert {:ok, page_data} = Posts.list_threads_page(board, 1, config: config)
+    summary = hd(page_data.threads)
+
+    assert summary.thread.id == thread.id
+    assert summary.reply_count == 3
+    assert summary.omitted_posts == 1
+    assert Enum.map(summary.replies, & &1.body) == ["Reply two", "Reply three"]
+  end
+
   test "list_threads_page orders equal timestamps by newest id" do
     board = board_fixture()
     config = post_config(board.config_overrides)

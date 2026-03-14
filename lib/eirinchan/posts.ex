@@ -1006,8 +1006,6 @@ defmodule Eirinchan.Posts do
 
     replies_by_thread =
       if include_replies do
-        preview_count = config.threads_preview
-
         repo.all(
           from post in Post,
             where: post.board_id == ^board.id and post.thread_id in ^thread_ids,
@@ -1016,6 +1014,8 @@ defmodule Eirinchan.Posts do
         |> repo.preload(:extra_files)
         |> Enum.group_by(& &1.thread_id)
         |> Map.new(fn {thread_id, replies_desc} ->
+          thread = Enum.find(threads, &(&1.id == thread_id))
+          preview_count = thread_preview_count(thread, config)
           {thread_id, replies_desc |> Enum.take(preview_count) |> Enum.reverse()}
         end)
       else
@@ -1053,6 +1053,18 @@ defmodule Eirinchan.Posts do
       }
     end)
   end
+
+  defp thread_preview_count(%Post{sticky: true}, config) do
+    sticky_preview = Map.get(config, :threads_preview_sticky, config.threads_preview)
+
+    if is_integer(sticky_preview) and sticky_preview >= 0 do
+      sticky_preview
+    else
+      config.threads_preview
+    end
+  end
+
+  defp thread_preview_count(_thread, config), do: config.threads_preview
 
   defp post_delete_file_paths(%Post{thread_id: nil, id: thread_id} = thread, repo) do
     reply_paths =
