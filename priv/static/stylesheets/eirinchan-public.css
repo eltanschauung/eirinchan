@@ -4,34 +4,7 @@ body {
 }
 
 .mobile-style div.boardlist {
-  display: flex;
-  align-items: center;
-  flex-wrap: nowrap;
-  gap: 0.25em;
   white-space: nowrap;
-  font-size: clamp(7px, 2.3vw, 9pt);
-  overflow: hidden;
-}
-
-.mobile-style div.boardlist > .sub {
-  min-width: 0;
-}
-
-#admin_options_links {
-  white-space: nowrap;
-}
-
-.mobile-style #admin_options_links {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.2em;
-  margin-left: auto;
-  float: none !important;
-  flex: 0 0 auto;
-}
-
-.mobile-style #admin_options_links > span {
-  display: none;
 }
 
 #blotterContainer {
