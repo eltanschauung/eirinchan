@@ -141,11 +141,17 @@ function init_file_selector(max_images, root) {
       return;
     }
 
+    if (max_images > 1) {
+      for (var i = 0; i < max_images; i++) {
+        if (typeof files[i] === 'undefined') break;
+        formData.append('files[]', files[i]);
+      }
+      return;
+    }
+
     for (var i = 0; i < max_images; i++) {
-      var key = 'file';
-      if (i > 0) key += i + 1;
       if (typeof files[i] === 'undefined') break;
-      formData.append(key, files[i]);
+      formData.append('file', files[i]);
     }
   });
 
