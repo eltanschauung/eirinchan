@@ -5,10 +5,16 @@ function user_flag() {
 	}
 
 	var cookieName = "flag_" + boardField.value;
+	var legacyStorageKey = "flag_" + boardField.value;
 	var selector = 'input[name="user_flag"], textarea[name="user_flag"], select[name="user_flag"]';
 	var $field = $(selector).first();
 	if (!$field.length) {
 		return;
+	}
+
+	function readCookie(name) {
+		var match = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '=([^;]*)'));
+		return match ? decodeURIComponent(match[1]) : null;
 	}
 
 	function writeCookie(value) {
@@ -17,6 +23,20 @@ function user_flag() {
 			'=' +
 			encodeURIComponent(value) +
 			'; path=/; max-age=31536000; samesite=lax';
+	}
+
+	var cookieValue = readCookie(cookieName);
+	var legacyValue = null;
+
+	try {
+		legacyValue = window.localStorage.getItem(legacyStorageKey);
+	} catch (err) {
+		legacyValue = null;
+	}
+
+	if ((cookieValue === null || cookieValue === '') && legacyValue && legacyValue !== $field.val()) {
+		writeCookie(legacyValue);
+		$field.val(legacyValue);
 	}
 
 	$(document).on('change input', selector, function() {
