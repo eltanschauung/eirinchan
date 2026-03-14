@@ -28,6 +28,8 @@ defmodule EirinchanWeb do
         js
         main.js
         recent.css
+        site_logo.png
+        site_logo2.png
         static
         stylesheets
         theme-thumbs
@@ -41,6 +43,7 @@ defmodule EirinchanWeb do
         robots.txt
         spoiler_skillet.png
         tewi_down.png
+        whales.jpg
       )
 
   def router do
