@@ -158,6 +158,7 @@ defmodule Eirinchan.Runtime.Config do
     ],
     dnsbl: [["rbl.efnetrbl.org", 4]],
     dnsbl_exceptions: ["127.0.0.1"],
+    use_dnsbl: true,
     country_flags: false,
     allow_no_country: false,
     country_flags_condensed: true,

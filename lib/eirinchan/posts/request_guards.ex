@@ -41,15 +41,19 @@ defmodule Eirinchan.Posts.RequestGuards do
   end
 
   def validate_dnsbl(request, config) do
-    dnsbl_opts =
-      case Map.get(request, :dnsbl_resolver) do
-        resolver when is_function(resolver, 1) -> [resolver: resolver]
-        _ -> []
-      end
+    if Map.get(config, :use_dnsbl, true) do
+      dnsbl_opts =
+        case Map.get(request, :dnsbl_resolver) do
+          resolver when is_function(resolver, 1) -> [resolver: resolver]
+          _ -> []
+        end
 
-    case DNSBL.check(Map.get(request, :remote_ip), config, dnsbl_opts) do
-      :ok -> :ok
-      {:error, _name} -> {:error, :dnsbl}
+      case DNSBL.check(Map.get(request, :remote_ip), config, dnsbl_opts) do
+        :ok -> :ok
+        {:error, _name} -> {:error, :dnsbl}
+      end
+    else
+      :ok
     end
   end
 
