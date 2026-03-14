@@ -4,6 +4,8 @@ defmodule EirinchanWeb.ReportManagementController do
   alias Eirinchan.Boards
   alias Eirinchan.Moderation
   alias Eirinchan.Reports
+  alias Eirinchan.IpCrypt
+  alias EirinchanWeb.ModerationAudit
 
   action_fallback EirinchanWeb.FallbackController
 
@@ -23,6 +25,7 @@ defmodule EirinchanWeb.ReportManagementController do
     with board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          :ok <- authorize_board(conn, board),
          {:ok, _report} <- Reports.dismiss_report(board, id) do
+      ModerationAudit.log(conn, "Dismissed report ##{id}", board: board)
       send_resp(conn, :no_content, "")
     else
       nil -> {:error, :not_found}
@@ -34,6 +37,7 @@ defmodule EirinchanWeb.ReportManagementController do
     with board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          :ok <- authorize_board(conn, board),
          {:ok, _count} <- Reports.dismiss_reports_for_post(board, post_id) do
+      ModerationAudit.log(conn, "Dismissed reports for post No. #{post_id}", board: board)
       send_resp(conn, :no_content, "")
     else
       nil -> {:error, :not_found}
@@ -45,6 +49,7 @@ defmodule EirinchanWeb.ReportManagementController do
     with board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          :ok <- authorize_board(conn, board),
          {:ok, _count} <- Reports.dismiss_reports_for_ip(board, ip) do
+      ModerationAudit.log(conn, "Dismissed reports for IP #{IpCrypt.cloak_ip(ip)}", board: board)
       send_resp(conn, :no_content, "")
     else
       nil -> {:error, :not_found}

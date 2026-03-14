@@ -1,0 +1,55 @@
+<h1>Moderation log</h1>
+
+<table class="modlog">
+  <tr>
+    <th>Staff</th>
+    <th>IP address</th>
+    <th>Time</th>
+    <th>Board</th>
+    <th>Action</th>
+  </tr>
+  <%= for entry <- @entries do %>
+    <tr>
+      <td class="minimal">
+        <%= cond do %>
+          <% entry.mod_user -> %>
+            <a href={~p"/manage/log/browser?username=#{entry.mod_user.username}"}>
+              <%= entry.mod_user.username %>
+            </a>
+          <% true -> %>
+            <em>system</em>
+        <% end %>
+      </td>
+      <td class="minimal">
+        <%= if @show_ip and is_binary(entry.actor_ip) and entry.actor_ip != "" do %>
+          <a href={~p"/manage/ip/#{Eirinchan.IpCrypt.cloak_ip(entry.actor_ip)}/browser"}>
+            <%= Eirinchan.IpCrypt.cloak_ip(entry.actor_ip) %>
+          </a>
+        <% else %>
+          <em>hidden</em>
+        <% end %>
+      </td>
+      <td class="minimal">
+        <span title={EirinchanWeb.PostView.formatted_timestamp(entry, @config)}>
+          <%= EirinchanWeb.PostView.relative_timestamp(entry) %>
+        </span>
+      </td>
+      <td class="minimal">
+        <%= if is_binary(entry.board_uri) and entry.board_uri != "" do %>
+          <a href={"/#{entry.board_uri}/index.html"}><%= entry.board_uri %></a>
+        <% else %>
+          -
+        <% end %>
+      </td>
+      <td><%= entry.text %></td>
+    </tr>
+  <% end %>
+</table>
+
+<%= if @page_count > 1 do %>
+  <p class="unimportant" style="text-align:center;word-wrap:break-word">
+    <%= for page <- 1..@page_count do %>
+      <a href={~p"/manage/log/browser?#{[page: page, username: @username, board: @board_uri]}"}>[<%= page %>]</a>
+    <% end %>
+  </p>
+<% end %>

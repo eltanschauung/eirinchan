@@ -2,7 +2,7 @@ defmodule EirinchanWeb.ManageSessionController do
   use EirinchanWeb, :controller
 
   alias Eirinchan.Moderation
-  alias EirinchanWeb.{ManageSecurity, RequestMeta}
+  alias EirinchanWeb.{ManageSecurity, ModerationAudit, RequestMeta}
 
   def create(conn, %{"username" => username, "password" => password}) do
     case Moderation.authenticate(username, password) do
@@ -10,6 +10,7 @@ defmodule EirinchanWeb.ManageSessionController do
         secure_token = ManageSecurity.generate_token()
         session_fingerprint = ManageSecurity.session_fingerprint(user)
         login_ip = ManageSecurity.ip_fingerprint(RequestMeta.effective_remote_ip(conn))
+        ModerationAudit.log(conn, "Logged in", moderator: user)
 
         conn
         |> configure_session(renew: true)
@@ -40,6 +41,8 @@ defmodule EirinchanWeb.ManageSessionController do
   end
 
   def delete(conn, _params) do
+    ModerationAudit.log(conn, "Logged out")
+
     conn
     |> clear_session()
     |> configure_session(drop: true)
