@@ -141,7 +141,8 @@ defmodule EirinchanWeb.ManagePageControllerTest do
 
     assert Enum.any?(response, fn row ->
              row["mask"] == cloaked_ip and row["reason"] == "Spam" and
-               row["history_url"] == "/manage/ip/#{cloaked_ip}/browser"
+               row["history_url"] == "/manage/ip/#{cloaked_ip}/browser" and
+               row["edit_url"] == "/manage/bans/#{ban.id}/browser"
            end)
 
     conn =
@@ -152,6 +153,43 @@ defmodule EirinchanWeb.ManagePageControllerTest do
 
     assert redirected_to(conn) == "/manage/bans/browser"
     refute Bans.get_ban(ban.id).active
+  end
+
+  test "ban browser page edits subnet bans by id", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+    board = board_fixture(%{uri: "bant"})
+
+    {:ok, ban} =
+      Bans.create_ban(%{
+        board_id: board.id,
+        mod_user_id: moderator.id,
+        ip_subnet: "198.51.100.0/24",
+        reason: "range ban"
+      })
+
+    page =
+      conn
+      |> login_moderator(moderator)
+      |> get("/manage/bans/#{ban.id}/browser")
+      |> html_response(200)
+
+    assert page =~ "Ban ##{ban.id}"
+    assert page =~ "198.51.100.0/24"
+    assert page =~ ~s(action="/manage/bans/#{ban.id}/browser")
+
+    conn =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> patch("/manage/bans/#{ban.id}/browser", %{
+        "ip_mask" => "198.51.100.0/24",
+        "reason" => "updated range ban",
+        "length" => "",
+        "board" => board.uri
+      })
+
+    assert redirected_to(conn) == "/manage/bans/#{ban.id}/browser"
+    assert Bans.get_ban(ban.id).reason == "updated range ban"
   end
 
   test "global ip history page renders posts notes bans and history sections", %{conn: conn} do
