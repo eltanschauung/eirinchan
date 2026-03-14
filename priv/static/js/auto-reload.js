@@ -60,6 +60,11 @@ $(document).ready(function(){
 	
 	var title = document.title;
 
+	var numeric_suffix = function(value) {
+		var match = (value || '').toString().match(/(\d+)$/);
+		return match ? parseInt(match[1], 10) : 0;
+	};
+
 	if (typeof update_title == "undefined") {
 	   var update_title = function() { 
 	   	if (new_posts) {
@@ -78,6 +83,10 @@ $(document).ready(function(){
 	var window_active = true;
 	$(window).focus(function() {
 		window_active = true;
+		if (!is_thread_page) {
+			new_posts = 0;
+			update_title();
+		}
 		recheck_activated();
 
 		// Reset the delay if needed
@@ -338,6 +347,10 @@ $(document).ready(function(){
 					}
 				});
 
+				var max_current_id = Object.keys(current_ids).reduce(function(maxId, id) {
+					return Math.max(maxId, numeric_suffix(id));
+				}, 0);
+
 				Array.prototype.forEach.call(replacement.querySelectorAll('.mix'), function(card) {
 					var id = card.getAttribute('data-id');
 					var clone = card.cloneNode(true);
@@ -350,7 +363,9 @@ $(document).ready(function(){
 						current_ids[id].replaceWith(clone);
 						current_ids[id] = clone;
 					} else {
-						new_threads++;
+						if (numeric_suffix(id) > max_current_id) {
+							new_threads++;
+						}
 						cards_to_prepend.push(clone);
 					}
 				});
@@ -368,6 +383,11 @@ $(document).ready(function(){
 
 				if (window.bind_image_hover) {
 					window.bind_image_hover(currentGrid);
+				}
+
+				if (new_threads > 0) {
+					new_posts += new_threads;
+					update_title();
 				}
 
 				if ($('#auto_update_status').is(':checked')) {
@@ -421,6 +441,8 @@ $(document).ready(function(){
 				var current = document.querySelector('#board-refresh-target');
 				var currentThreads;
 				var hiddenStateById = {};
+				var loaded_posts = 0;
+				var max_current_post_id = 0;
 
 				if (!replacement || !current) {
 					$('#update_secs').text(_("Unknown error"));
@@ -433,6 +455,10 @@ $(document).ready(function(){
 
 				currentThreads = current.querySelector('#board-threads');
 				if (currentThreads) {
+					Array.prototype.forEach.call(currentThreads.querySelectorAll('.post[id]'), function(node) {
+						max_current_post_id = Math.max(max_current_post_id, numeric_suffix(node.id));
+					});
+
 					Array.prototype.forEach.call(currentThreads.querySelectorAll('.thread'), function(node) {
 						if (!node.id) return;
 						hiddenStateById[node.id] = {
@@ -458,6 +484,12 @@ $(document).ready(function(){
 					}
 				});
 
+				Array.prototype.forEach.call(replacement.querySelectorAll('.post[id]'), function(node) {
+					if (numeric_suffix(node.id) > max_current_post_id) {
+						loaded_posts++;
+					}
+				});
+
 				current.replaceWith(replacement);
 
 				$(replacement).find('.post').each(function() {
@@ -467,6 +499,11 @@ $(document).ready(function(){
 						$(document).trigger('new_post', this);
 					}
 				});
+
+				if (loaded_posts > 0) {
+					new_posts += loaded_posts;
+					update_title();
+				}
 
 				if ($('#auto_update_status').is(':checked')) {
 					poll_interval_delay = poll_interval_mindelay;
