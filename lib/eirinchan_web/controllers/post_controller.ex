@@ -142,6 +142,7 @@ defmodule EirinchanWeb.PostController do
         noko: meta.noko,
         fragment_kind: if(post.thread_id, do: "reply", else: "thread"),
         watcher_count: watcher_metrics.watcher_count,
+        watcher_unread_count: watcher_metrics.watcher_unread_count,
         watcher_you_count: watcher_metrics.watcher_you_count
       }
 
@@ -230,7 +231,7 @@ defmodule EirinchanWeb.PostController do
         ThreadWatcher.watch_metrics(token)
 
       _ ->
-        %{watcher_count: 0, watcher_you_count: 0}
+        %{watcher_count: 0, watcher_unread_count: 0, watcher_you_count: 0}
     end
   end
 

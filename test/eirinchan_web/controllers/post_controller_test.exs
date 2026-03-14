@@ -72,6 +72,7 @@ defmodule EirinchanWeb.PostControllerTest do
              "redirect" => redirect,
              "noko" => true,
              "watcher_count" => 1,
+             "watcher_unread_count" => 0,
              "watcher_you_count" => 0
            } = json_response(conn, 200)
 

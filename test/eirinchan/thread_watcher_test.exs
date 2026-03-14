@@ -51,10 +51,11 @@ defmodule Eirinchan.ThreadWatcherTest do
     assert ThreadWatcher.watch_count("token-state-1234567890") == 1
   end
 
-  test "watch metrics include unread (You) replies" do
+  test "watch metrics include unread watched posts separately from (You) replies" do
     board = board_fixture(%{uri: "watchyou", title: "Watch You"})
     thread = thread_fixture(board, %{body: "OP"})
     owned_reply = reply_fixture(board, thread, %{body: "Owned reply"})
+    _plain_reply = reply_fixture(board, thread, %{body: "plain unread"})
     _citing_reply = reply_fixture(board, thread, %{body: ">>#{PublicIds.public_id(owned_reply)} cited"})
     token = "token-you-1234567890"
 
@@ -65,7 +66,8 @@ defmodule Eirinchan.ThreadWatcherTest do
                last_seen_post_id: owned_reply.id
              })
 
-    assert %{watcher_count: 1, watcher_you_count: 1} = ThreadWatcher.watch_metrics(token)
+    assert %{watcher_count: 1, watcher_unread_count: 2, watcher_you_count: 1} =
+             ThreadWatcher.watch_metrics(token)
 
     state = ThreadWatcher.watch_state_for_board(token, board.uri)
     assert %{you_unread_count: 1} = state[PublicIds.public_id(thread)]

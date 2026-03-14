@@ -16,13 +16,16 @@ defmodule EirinchanWeb.ThreadWatcherController do
              thread.id,
              %{last_seen_post_id: thread.id}
            ) do
+      watcher_metrics = ThreadWatcher.watch_metrics(conn.assigns.browser_token)
+
       json(conn, %{
         ok: true,
         watched: true,
         thread_id: PublicIds.public_id(thread),
         board: board.uri,
-        watcher_count: ThreadWatcher.watch_count(conn.assigns.browser_token),
-        watcher_you_count: ThreadWatcher.watch_metrics(conn.assigns.browser_token).watcher_you_count
+        watcher_count: watcher_metrics.watcher_count,
+        watcher_unread_count: watcher_metrics.watcher_unread_count,
+        watcher_you_count: watcher_metrics.watcher_you_count
       })
     else
       {:error, :not_found} -> send_resp(conn, :not_found, "")
@@ -36,13 +39,16 @@ defmodule EirinchanWeb.ThreadWatcherController do
          {:ok, thread} <- Posts.fetch_thread(board, thread_id),
          {:ok, _count} <-
            ThreadWatcher.unwatch_thread(conn.assigns.browser_token, board.uri, thread.id) do
+      watcher_metrics = ThreadWatcher.watch_metrics(conn.assigns.browser_token)
+
       json(conn, %{
         ok: true,
         watched: false,
         thread_id: PublicIds.public_id(thread),
         board: board.uri,
-        watcher_count: ThreadWatcher.watch_count(conn.assigns.browser_token),
-        watcher_you_count: ThreadWatcher.watch_metrics(conn.assigns.browser_token).watcher_you_count
+        watcher_count: watcher_metrics.watcher_count,
+        watcher_unread_count: watcher_metrics.watcher_unread_count,
+        watcher_you_count: watcher_metrics.watcher_you_count
       })
     else
       {:error, :not_found} -> send_resp(conn, :not_found, "")
@@ -64,12 +70,15 @@ defmodule EirinchanWeb.ThreadWatcherController do
              thread.id,
              last_seen_post.id
            ) do
+      watcher_metrics = ThreadWatcher.watch_metrics(conn.assigns.browser_token)
+
       json(conn, %{
         ok: true,
         thread_id: PublicIds.public_id(thread),
         last_seen_post_id: parsed_last_seen_post_id,
-        watcher_count: ThreadWatcher.watch_count(conn.assigns.browser_token),
-        watcher_you_count: ThreadWatcher.watch_metrics(conn.assigns.browser_token).watcher_you_count
+        watcher_count: watcher_metrics.watcher_count,
+        watcher_unread_count: watcher_metrics.watcher_unread_count,
+        watcher_you_count: watcher_metrics.watcher_you_count
       })
     else
       {:error, :not_found} -> send_resp(conn, :not_found, "")

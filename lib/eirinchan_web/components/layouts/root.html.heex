@@ -88,6 +88,7 @@
     class={assigns[:body_class] || "8chan vichan"}
     data-stylesheet={assigns[:body_data_stylesheet]}
     data-watcher-count={assigns[:watcher_count] || 0}
+    data-watcher-unread-count={assigns[:watcher_unread_count] || 0}
     data-watcher-you-count={assigns[:watcher_you_count] || 0}
     data-mobile-client={to_string(assigns[:conn].assigns[:mobile_client?] || false)}
     data-timezone={assigns[:conn].assigns[:browser_timezone] || nil}
@@ -98,6 +99,7 @@
         groups={assigns[:global_boardlist_groups]}
         class_name={assigns[:global_boardlist_class_name] || "boardlist"}
         watcher_count={assigns[:watcher_count] || 0}
+        watcher_unread_count={assigns[:watcher_unread_count] || 0}
         watcher_you_count={assigns[:watcher_you_count] || 0}
         mobile_client?={assigns[:conn].assigns[:mobile_client?] || false}
       />

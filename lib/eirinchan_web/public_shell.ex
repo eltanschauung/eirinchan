@@ -23,6 +23,7 @@ defmodule EirinchanWeb.PublicShell do
     selected_style = Keyword.get(opts, :theme_label, "Yotsuba")
     resource_version = Keyword.get(opts, :resource_version, "")
     watcher_count = Keyword.get(opts, :watcher_count, 0)
+    watcher_unread_count = Keyword.get(opts, :watcher_unread_count, 0)
     watcher_you_count = Keyword.get(opts, :watcher_you_count, 0)
     stylesheets_board = Keyword.get(opts, :stylesheets_board, Map.get(config, :stylesheets_board, true))
     browser_timezone = Keyword.get(opts, :browser_timezone) || Map.get(config, :viewer_timezone) || Map.get(config, :timezone, "UTC")
@@ -56,6 +57,7 @@ defmodule EirinchanWeb.PublicShell do
       "eirinchan:genpassword-chars" => to_string(Map.get(config, :genpassword_chars) || ""),
       "eirinchan:post-success-cookie-name" => "eirinchan_posted",
       "eirinchan:watcher-count" => to_string(watcher_count),
+      "eirinchan:watcher-unread-count" => to_string(watcher_unread_count),
       "eirinchan:watcher-you-count" => to_string(watcher_you_count),
       "eirinchan:browser-timezone" => to_string(browser_timezone || ""),
       "eirinchan:browser-timezone-offset" => to_string(browser_timezone_offset_minutes)

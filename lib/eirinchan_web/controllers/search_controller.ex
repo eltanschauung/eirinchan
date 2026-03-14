@@ -11,6 +11,7 @@ defmodule EirinchanWeb.SearchController do
   alias Eirinchan.Repo
   alias Eirinchan.Runtime.Config
   alias Eirinchan.Settings
+  alias Eirinchan.ThreadWatcher
   alias EirinchanWeb.BoardChrome
   alias EirinchanWeb.HtmlSanitizer
   alias EirinchanWeb.PublicShell
@@ -95,6 +96,11 @@ defmodule EirinchanWeb.SearchController do
 
   defp assign_search_shell(conn, _opts) do
     stylesheet = conn.assigns[:theme_stylesheet] || "/stylesheets/yotsuba.css"
+    watcher_metrics =
+      case conn.assigns[:browser_token] do
+        token when is_binary(token) -> ThreadWatcher.watch_metrics(token)
+        _ -> %{watcher_count: 0, watcher_unread_count: 0, watcher_you_count: 0}
+      end
 
     conn
     |> assign(:page_title, "Search")
@@ -104,6 +110,9 @@ defmodule EirinchanWeb.SearchController do
     |> assign(:primary_stylesheet_id, "stylesheet")
     |> assign(:body_class, "8chan vichan is-not-moderator active-search")
     |> assign(:body_data_stylesheet, Path.basename(stylesheet))
+    |> assign(:watcher_count, watcher_metrics.watcher_count)
+    |> assign(:watcher_unread_count, watcher_metrics.watcher_unread_count)
+    |> assign(:watcher_you_count, watcher_metrics.watcher_you_count)
     |> assign(
       :head_meta,
       PublicShell.head_meta("search",
@@ -111,7 +120,10 @@ defmodule EirinchanWeb.SearchController do
         theme_label: conn.assigns[:theme_label],
         theme_options: conn.assigns[:theme_options],
         browser_timezone: conn.assigns[:browser_timezone],
-        browser_timezone_offset_minutes: conn.assigns[:browser_timezone_offset_minutes]
+        browser_timezone_offset_minutes: conn.assigns[:browser_timezone_offset_minutes],
+        watcher_count: watcher_metrics.watcher_count,
+        watcher_unread_count: watcher_metrics.watcher_unread_count,
+        watcher_you_count: watcher_metrics.watcher_you_count
       )
     )
     |> assign(:javascript_urls, PublicShell.javascript_urls(:search))

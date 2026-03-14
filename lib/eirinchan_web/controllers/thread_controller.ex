@@ -46,7 +46,11 @@ defmodule EirinchanWeb.ThreadController do
           thread_watch = thread_watch(conn, board, PublicIds.public_id(summary.thread))
           _ = maybe_mark_thread_seen(conn, board, summary)
 
-          %{watcher_count: watcher_count, watcher_you_count: watcher_you_count} =
+          %{
+            watcher_count: watcher_count,
+            watcher_unread_count: watcher_unread_count,
+            watcher_you_count: watcher_you_count
+          } =
             watcher_metrics(conn)
 
           own_post_ids = ShowYous.owned_post_ids(conn, [summary.thread | summary.replies])
@@ -67,6 +71,7 @@ defmodule EirinchanWeb.ThreadController do
             show_yous: show_yous,
             thread_watch: thread_watch,
             watcher_count: watcher_count,
+            watcher_unread_count: watcher_unread_count,
             watcher_you_count: watcher_you_count,
             mobile_client?: conn.assigns[:mobile_client?] || false,
             current_moderator: conn.assigns[:current_moderator],
@@ -97,6 +102,7 @@ defmodule EirinchanWeb.ThreadController do
                 browser_timezone: conn.assigns[:browser_timezone],
                 browser_timezone_offset_minutes: conn.assigns[:browser_timezone_offset_minutes],
                 watcher_count: watcher_count,
+                watcher_unread_count: watcher_unread_count,
                 watcher_you_count: watcher_you_count
               ),
             head_extra_meta_tags: PublicShell.thread_meta(board, summary.thread, config),
@@ -249,7 +255,7 @@ defmodule EirinchanWeb.ThreadController do
   defp watcher_metrics(conn) do
     case conn.assigns[:browser_token] do
       token when is_binary(token) -> ThreadWatcher.watch_metrics(token)
-      _ -> %{watcher_count: 0, watcher_you_count: 0}
+      _ -> %{watcher_count: 0, watcher_unread_count: 0, watcher_you_count: 0}
     end
   end
 
