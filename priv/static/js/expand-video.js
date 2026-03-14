@@ -53,6 +53,9 @@ function setupVideo(thumb, url) {
 			video = document.createElement("video");
 			video.src = url;
 			video.loop = loop;
+			video.preload = "metadata";
+			video.setAttribute("playsinline", "");
+			video.setAttribute("webkit-playsinline", "");
 			video.innerText = _("Your browser does not support HTML5 video.");
 
 			videoHide = document.createElement("img");
@@ -69,6 +72,13 @@ function setupVideo(thumb, url) {
 			videoContainer.appendChild(videoHide);
 			videoContainer.appendChild(video);
 			thumb.parentNode.insertBefore(videoContainer, thumb.nextSibling);
+
+			// Keep native mobile control gestures local to the video player.
+			["click", "touchstart", "touchmove", "touchend"].forEach(function(eventName) {
+				video.addEventListener(eventName, function(e) {
+					e.stopPropagation();
+				}, false);
+			});
 
 			// Dragging to the left collapses the video
 			video.addEventListener("mousedown", function(e) {
