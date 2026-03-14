@@ -122,6 +122,81 @@ defmodule EirinchanWeb.ManagePageController do
     end
   end
 
+  def bans(conn, params) do
+    with {:ok, moderator} <- ensure_moderator(conn) do
+      boards = Moderation.list_accessible_boards(moderator)
+      board_ids = Enum.map(boards, & &1.id)
+      filters = ban_list_filters(params, moderator)
+
+      conn
+      |> assign(:extra_stylesheets, (conn.assigns[:extra_stylesheets] || []) ++ ["/stylesheets/mod/ban-list.css"])
+      |> render(:bans,
+        moderator: moderator,
+        boards: boards,
+        bans: filtered_ban_entries(boards, board_ids, filters),
+        filters: filters,
+        only_mine_available?: moderator.role != "admin",
+        config: Settings.current_instance_config()
+      )
+    else
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+    end
+  end
+
+  def update_bans(conn, params) do
+    with {:ok, moderator} <- ensure_moderator(conn) do
+      case params["action"] do
+        "filter" ->
+          filters = ban_list_filters(params, moderator)
+
+          redirect(conn,
+            to:
+              ~p"/manage/bans/browser?#{%{
+                only_mine: filters["only_mine"],
+                only_not_expired: filters["only_not_expired"],
+                search: filters["search"]
+              }}"
+          )
+
+        _ ->
+          boards = Moderation.list_accessible_boards(moderator)
+          board_ids = Enum.map(boards, & &1.id)
+
+          ban_ids =
+            params
+            |> Map.get("ban_ids", [])
+            |> List.wrap()
+            |> Enum.map(&normalize_ban_id/1)
+            |> Enum.reject(&is_nil/1)
+
+          bans =
+            Bans.list_bans()
+            |> Enum.filter(&accessible_ban?(board_ids, &1))
+            |> Enum.filter(&(&1.id in ban_ids))
+
+          Enum.each(bans, fn ban ->
+            {:ok, _ban} = Bans.update_ban(ban, %{active: false})
+          end)
+
+          if bans != [] do
+            ModerationAudit.log(
+              conn,
+              "Removed #{length(bans)} ban" <> if(length(bans) == 1, do: "", else: "s"),
+              moderator: moderator
+            )
+          end
+
+          conn
+          |> put_flash(:info, if(bans == [], do: "No bans selected.", else: "Ban(s) removed."))
+          |> redirect(to: ~p"/manage/bans/browser")
+      end
+    else
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+    end
+  end
+
   def config(conn, _params) do
     with {:ok, moderator} <- ensure_admin(conn) do
       render(conn, :config,
@@ -816,12 +891,18 @@ defmodule EirinchanWeb.ManagePageController do
     end
   end
 
-  def ip_history(conn, %{"ip" => ip}) do
+  def ip_history(conn, %{"ip" => ip} = params) do
     with {:ok, moderator} <- ensure_moderator(conn),
          true <- PostView.can_view_ip?(moderator),
          {:ok, decoded_ip} <- decode_ip_param(ip) do
       boards = Moderation.list_accessible_boards(moderator)
       board_ids = Enum.map(boards, & &1.id)
+      posts = Moderation.list_ip_posts(decoded_ip, board_ids: board_ids)
+      config = Settings.current_instance_config()
+      ban_form = ip_ban_form_params(decoded_ip, nil, params)
+      matching_bans = Bans.list_matching_bans(decoded_ip, board_ids: board_ids)
+      edit_ban = selected_ip_ban(matching_bans, params)
+      ban_form = maybe_apply_edit_ban(ban_form, edit_ban)
 
       render(conn, :ip_history,
         moderator: moderator,
@@ -829,8 +910,13 @@ defmodule EirinchanWeb.ManagePageController do
         ip: IpCrypt.cloak_ip(decoded_ip),
         displayed_ip: EirinchanWeb.IpPresentation.display_ip(decoded_ip, moderator),
         board: nil,
-        posts: Moderation.list_ip_posts(decoded_ip, board_ids: board_ids),
-        notes: Moderation.list_ip_notes(decoded_ip, board_ids: board_ids)
+        config: config,
+        post_groups: ip_history_post_groups(posts, boards, EirinchanWeb.RequestMeta.request_host(conn)),
+        notes: Moderation.list_ip_notes(decoded_ip, board_ids: board_ids),
+        bans: matching_bans,
+        logs: ip_history_logs(decoded_ip, board_ids),
+        ban_form: ban_form,
+        editing_ban: edit_ban
       )
     else
       {:error, :unauthorized} ->
@@ -844,19 +930,31 @@ defmodule EirinchanWeb.ManagePageController do
     end
   end
 
-  def board_ip_history(conn, %{"uri" => uri, "ip" => ip}) do
+  def board_ip_history(conn, %{"uri" => uri, "ip" => ip} = params) do
     with {:ok, moderator} <- ensure_moderator(conn),
          {:ok, board} <- load_accessible_board(moderator, uri),
          true <- PostView.can_view_ip?(moderator, board),
          {:ok, decoded_ip} <- decode_ip_param(ip) do
+      posts = Moderation.list_ip_posts(decoded_ip, board_ids: [board.id])
+      config = Settings.current_instance_config()
+      matching_bans = Bans.list_matching_bans(decoded_ip, board_id: board.id)
+      edit_ban = selected_ip_ban(matching_bans, params)
+      ban_form = ip_ban_form_params(decoded_ip, board.uri, params) |> maybe_apply_edit_ban(edit_ban)
+
       render(conn, :ip_history,
         moderator: moderator,
         boards: Moderation.list_accessible_boards(moderator),
         ip: IpCrypt.cloak_ip(decoded_ip),
         displayed_ip: EirinchanWeb.IpPresentation.display_ip(decoded_ip, moderator),
         board: board,
-        posts: Moderation.list_ip_posts(decoded_ip, board_ids: [board.id]),
-        notes: Moderation.list_ip_notes(decoded_ip, board_id: board.id)
+        config: config,
+        post_groups:
+          ip_history_post_groups(posts, [board], EirinchanWeb.RequestMeta.request_host(conn)),
+        notes: Moderation.list_ip_notes(decoded_ip, board_id: board.id),
+        bans: matching_bans,
+        logs: ip_history_logs(decoded_ip, [board.id], board.uri),
+        ban_form: ban_form,
+        editing_ban: edit_ban
       )
     else
       {:error, :unauthorized} ->
@@ -907,6 +1005,37 @@ defmodule EirinchanWeb.ManagePageController do
 
       {:error, :not_found} ->
         render_dashboard_error(conn, "Board not found.", %{}, :not_found)
+
+      {:error, :invalid_ip} ->
+        render_dashboard_error(conn, "Invalid IP address.", %{}, :bad_request)
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        render_dashboard_error(conn, format_changeset(changeset), %{}, :unprocessable_entity)
+    end
+  end
+
+  def create_global_ip_note(conn, %{"ip" => ip, "body" => body}) do
+    with {:ok, moderator} <- ensure_moderator(conn),
+         true <- PostView.can_view_ip?(moderator),
+         {:ok, decoded_ip} <- decode_ip_param(ip),
+         {:ok, _note} <-
+           Moderation.add_ip_note(decoded_ip, %{
+             body: body,
+             mod_user_id: moderator.id
+           }) do
+      ModerationAudit.log(conn, "Added a note for #{IpCrypt.cloak_ip(decoded_ip)}",
+        moderator: moderator
+      )
+
+      conn
+      |> put_flash(:info, "IP note added.")
+      |> redirect(to: "/manage/ip/#{IpCrypt.cloak_ip(decoded_ip)}/browser#notes")
+    else
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      false ->
+        render_dashboard_error(conn, "Administrator access required.", %{}, :forbidden)
 
       {:error, :invalid_ip} ->
         render_dashboard_error(conn, "Invalid IP address.", %{}, :bad_request)
@@ -979,6 +1108,267 @@ defmodule EirinchanWeb.ManagePageController do
 
       {:error, :not_found} ->
         render_dashboard_error(conn, "IP note not found.", %{}, :not_found)
+
+      {:error, :invalid_ip} ->
+        render_dashboard_error(conn, "Invalid IP address.", %{}, :bad_request)
+    end
+  end
+
+  def delete_global_ip_note(conn, %{"ip" => ip, "id" => id}) do
+    with {:ok, moderator} <- ensure_moderator(conn),
+         true <- PostView.can_view_ip?(moderator),
+         {:ok, decoded_ip} <- decode_ip_param(ip),
+         {:ok, note} <- load_global_note(id, decoded_ip, moderator),
+         {:ok, _note} <- Moderation.delete_ip_note(note) do
+      ModerationAudit.log(conn, "Removed a note for #{IpCrypt.cloak_ip(decoded_ip)}",
+        moderator: moderator
+      )
+
+      conn
+      |> put_flash(:info, "IP note deleted.")
+      |> redirect(to: "/manage/ip/#{IpCrypt.cloak_ip(decoded_ip)}/browser#notes")
+    else
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      false ->
+        render_dashboard_error(conn, "Administrator access required.", %{}, :forbidden)
+
+      {:error, :not_found} ->
+        render_dashboard_error(conn, "IP note not found.", %{}, :not_found)
+
+      {:error, :invalid_ip} ->
+        render_dashboard_error(conn, "Invalid IP address.", %{}, :bad_request)
+    end
+  end
+
+  def create_ip_ban(conn, %{"ip" => ip} = params) do
+    with {:ok, moderator} <- ensure_moderator(conn),
+         true <- PostView.can_view_ip?(moderator),
+         {:ok, decoded_ip} <- decode_ip_param(ip),
+         {:ok, target_board_id} <- target_ban_board_id(moderator, params["board"]),
+         {:ok, _ban} <-
+           Bans.create_ban(%{
+             board_id: target_board_id,
+             mod_user_id: moderator.id,
+             ip_subnet: normalize_ban_ip_mask(Map.get(params, "ip_mask", ip)),
+             reason: params["reason"],
+             length: params["length"],
+             active: true
+           }) do
+      ModerationAudit.log(conn, "Banned #{display_ip_for_log(decoded_ip)}",
+        moderator: moderator
+      )
+
+      conn
+      |> put_flash(:info, "Ban created.")
+      |> redirect(to: "/manage/ip/#{IpCrypt.cloak_ip(decoded_ip)}/browser#bans")
+    else
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      false ->
+        render_dashboard_error(conn, "Administrator access required.", %{}, :forbidden)
+
+      {:error, :forbidden} ->
+        render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
+
+      {:error, :invalid_ip} ->
+        render_dashboard_error(conn, "Invalid IP address.", %{}, :bad_request)
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        render_dashboard_error(conn, format_changeset(changeset), %{}, :unprocessable_entity)
+    end
+  end
+
+  def update_ip_ban(conn, %{"ip" => ip, "id" => id} = params) do
+    with {:ok, moderator} <- ensure_moderator(conn),
+         true <- PostView.can_view_ip?(moderator),
+         {:ok, decoded_ip} <- decode_ip_param(ip),
+         {:ok, ban} <- load_accessible_ban(id, moderator),
+         {:ok, target_board_id} <- target_ban_board_id(moderator, params["board"]),
+         {:ok, _ban} <-
+           Bans.update_ban(ban, %{
+             board_id: target_board_id,
+             ip_subnet: normalize_ban_ip_mask(Map.get(params, "ip_mask", ban.ip_subnet)),
+             reason: params["reason"],
+             length: params["length"],
+             active: true
+           }) do
+      ModerationAudit.log(conn, "Updated ban ##{ban.id} for #{display_ip_for_log(decoded_ip)}",
+        moderator: moderator
+      )
+
+      conn
+      |> put_flash(:info, "Ban updated.")
+      |> redirect(to: "/manage/ip/#{IpCrypt.cloak_ip(decoded_ip)}/browser#bans")
+    else
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      false ->
+        render_dashboard_error(conn, "Administrator access required.", %{}, :forbidden)
+
+      {:error, :forbidden} ->
+        render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
+
+      {:error, :not_found} ->
+        render_dashboard_error(conn, "Ban not found.", %{}, :not_found)
+
+      {:error, :invalid_ip} ->
+        render_dashboard_error(conn, "Invalid IP address.", %{}, :bad_request)
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        render_dashboard_error(conn, format_changeset(changeset), %{}, :unprocessable_entity)
+    end
+  end
+
+  def delete_ip_ban(conn, %{"ip" => ip, "id" => id}) do
+    with {:ok, moderator} <- ensure_moderator(conn),
+         true <- PostView.can_view_ip?(moderator),
+         {:ok, decoded_ip} <- decode_ip_param(ip),
+         {:ok, ban} <- load_accessible_ban(id, moderator),
+         {:ok, _ban} <- Bans.update_ban(ban, %{active: false}) do
+      ModerationAudit.log(conn, "Removed ban ##{ban.id} for #{display_ip_for_log(decoded_ip)}",
+        moderator: moderator
+      )
+
+      conn
+      |> put_flash(:info, "Ban removed.")
+      |> redirect(to: "/manage/ip/#{IpCrypt.cloak_ip(decoded_ip)}/browser#bans")
+    else
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      false ->
+        render_dashboard_error(conn, "Administrator access required.", %{}, :forbidden)
+
+      {:error, :forbidden} ->
+        render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
+
+      {:error, :not_found} ->
+        render_dashboard_error(conn, "Ban not found.", %{}, :not_found)
+
+      {:error, :invalid_ip} ->
+        render_dashboard_error(conn, "Invalid IP address.", %{}, :bad_request)
+    end
+  end
+
+  def create_board_ip_ban(conn, %{"uri" => uri, "ip" => ip} = params) do
+    with {:ok, moderator} <- ensure_moderator(conn),
+         {:ok, board} <- load_accessible_board(moderator, uri),
+         true <- PostView.can_view_ip?(moderator, board),
+         {:ok, decoded_ip} <- decode_ip_param(ip),
+         {:ok, target_board_id} <- target_ban_board_id(moderator, params["board"]),
+         {:ok, _ban} <-
+           Bans.create_ban(%{
+             board_id: target_board_id,
+             mod_user_id: moderator.id,
+             ip_subnet: normalize_ban_ip_mask(Map.get(params, "ip_mask", ip)),
+             reason: params["reason"],
+             length: params["length"],
+             active: true
+           }) do
+      ModerationAudit.log(conn, "Banned #{display_ip_for_log(decoded_ip)}",
+        moderator: moderator,
+        board: board
+      )
+
+      conn
+      |> put_flash(:info, "Ban created.")
+      |> redirect(to: "/manage/boards/#{board.uri}/ip/#{IpCrypt.cloak_ip(decoded_ip)}/browser#bans")
+    else
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      {:error, :forbidden} ->
+        render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
+
+      false ->
+        render_dashboard_error(conn, "Moderator IP access required.", %{}, :forbidden)
+
+      {:error, :not_found} ->
+        render_dashboard_error(conn, "Board not found.", %{}, :not_found)
+
+      {:error, :invalid_ip} ->
+        render_dashboard_error(conn, "Invalid IP address.", %{}, :bad_request)
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        render_dashboard_error(conn, format_changeset(changeset), %{}, :unprocessable_entity)
+    end
+  end
+
+  def update_board_ip_ban(conn, %{"uri" => uri, "ip" => ip, "id" => id} = params) do
+    with {:ok, moderator} <- ensure_moderator(conn),
+         {:ok, board} <- load_accessible_board(moderator, uri),
+         true <- PostView.can_view_ip?(moderator, board),
+         {:ok, decoded_ip} <- decode_ip_param(ip),
+         {:ok, ban} <- load_accessible_ban(id, moderator),
+         {:ok, target_board_id} <- target_ban_board_id(moderator, params["board"]),
+         {:ok, _ban} <-
+           Bans.update_ban(ban, %{
+             board_id: target_board_id,
+             ip_subnet: normalize_ban_ip_mask(Map.get(params, "ip_mask", ban.ip_subnet)),
+             reason: params["reason"],
+             length: params["length"],
+             active: true
+           }) do
+      ModerationAudit.log(conn, "Updated ban ##{ban.id} for #{display_ip_for_log(decoded_ip)}",
+        moderator: moderator,
+        board: board
+      )
+
+      conn
+      |> put_flash(:info, "Ban updated.")
+      |> redirect(to: "/manage/boards/#{board.uri}/ip/#{IpCrypt.cloak_ip(decoded_ip)}/browser#bans")
+    else
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      {:error, :forbidden} ->
+        render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
+
+      false ->
+        render_dashboard_error(conn, "Moderator IP access required.", %{}, :forbidden)
+
+      {:error, :not_found} ->
+        render_dashboard_error(conn, "Ban not found.", %{}, :not_found)
+
+      {:error, :invalid_ip} ->
+        render_dashboard_error(conn, "Invalid IP address.", %{}, :bad_request)
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        render_dashboard_error(conn, format_changeset(changeset), %{}, :unprocessable_entity)
+    end
+  end
+
+  def delete_board_ip_ban(conn, %{"uri" => uri, "ip" => ip, "id" => id}) do
+    with {:ok, moderator} <- ensure_moderator(conn),
+         {:ok, board} <- load_accessible_board(moderator, uri),
+         true <- PostView.can_view_ip?(moderator, board),
+         {:ok, decoded_ip} <- decode_ip_param(ip),
+         {:ok, ban} <- load_accessible_ban(id, moderator),
+         {:ok, _ban} <- Bans.update_ban(ban, %{active: false}) do
+      ModerationAudit.log(conn, "Removed ban ##{ban.id} for #{display_ip_for_log(decoded_ip)}",
+        moderator: moderator,
+        board: board
+      )
+
+      conn
+      |> put_flash(:info, "Ban removed.")
+      |> redirect(to: "/manage/boards/#{board.uri}/ip/#{IpCrypt.cloak_ip(decoded_ip)}/browser#bans")
+    else
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      {:error, :forbidden} ->
+        render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
+
+      false ->
+        render_dashboard_error(conn, "Moderator IP access required.", %{}, :forbidden)
+
+      {:error, :not_found} ->
+        render_dashboard_error(conn, "Ban not found.", %{}, :not_found)
 
       {:error, :invalid_ip} ->
         render_dashboard_error(conn, "Invalid IP address.", %{}, :bad_request)
@@ -1942,6 +2332,174 @@ defmodule EirinchanWeb.ManagePageController do
     case IpCrypt.uncloak_ip(ip) do
       nil -> {:error, :invalid_ip}
       decoded -> {:ok, decoded}
+    end
+  end
+
+  defp normalize_ban_ip_mask(nil), do: nil
+
+  defp normalize_ban_ip_mask(value) do
+    trimmed = value |> to_string() |> String.trim()
+
+    cond do
+      trimmed == "" ->
+        trimmed
+
+      String.contains?(trimmed, "/") ->
+        trimmed
+
+      true ->
+        IpCrypt.uncloak_ip(trimmed) || trimmed
+    end
+  end
+
+  defp ban_list_filters(params, moderator) do
+    %{
+      "only_mine" =>
+        if(
+          moderator.role != "admin" and Map.get(params, "only_mine") in ["1", "true", "on"],
+          do: "1",
+          else: "0"
+        ),
+      "only_not_expired" =>
+        if(Map.get(params, "only_not_expired") in ["1", "true", "on"], do: "1", else: "0"),
+      "search" => Map.get(params, "search", "") |> to_string() |> String.trim()
+    }
+  end
+
+  defp filtered_ban_entries(boards, board_ids, filters) do
+    boards_by_id = Map.new(boards, &{&1.id, &1})
+    now = DateTime.utc_now()
+
+    Bans.list_bans()
+    |> Enum.filter(&accessible_ban?(board_ids, &1))
+    |> Enum.filter(fn ban ->
+      filters["only_mine"] != "1" or (not is_nil(ban.board_id) and ban.board_id in board_ids)
+    end)
+    |> Enum.filter(fn ban -> filters["only_not_expired"] != "1" or Bans.active?(ban, now) end)
+    |> Enum.filter(&ban_matches_search?(&1, filters["search"]))
+    |> Enum.map(fn ban ->
+      %{
+        ban: ban,
+        board: Map.get(boards_by_id, ban.board_id, ban.board),
+        active?: Bans.active?(ban, now)
+      }
+    end)
+  end
+
+  defp accessible_ban?(board_ids, ban) do
+    is_nil(ban.board_id) or ban.board_id in board_ids
+  end
+
+  defp ban_matches_search?(_ban, ""), do: true
+
+  defp ban_matches_search?(ban, search) do
+    terms =
+      search
+      |> String.downcase()
+      |> String.split(~r/\s+/u, trim: true)
+
+    fields = %{
+      "mask" => to_string(ban.ip_subnet || ""),
+      "reason" => to_string(ban.reason || ""),
+      "board" => if(ban.board, do: ban.board.uri, else: ""),
+      "staff" => if(ban.mod_user, do: ban.mod_user.username, else: ""),
+      "message" => ""
+    }
+
+    Enum.all?(terms, fn term ->
+      case String.split(term, ":", parts: 2) do
+        [key, value] when key in ["mask", "reason", "board", "staff", "message"] ->
+          String.contains?(String.downcase(Map.get(fields, key, "")), String.downcase(value))
+
+        _ ->
+          Enum.any?(fields, fn {_key, field_value} ->
+            String.contains?(String.downcase(field_value), term)
+          end)
+      end
+    end)
+  end
+
+  defp normalize_ban_id(id) do
+    case Integer.parse(to_string(id || "")) do
+      {value, ""} when value > 0 -> value
+      _ -> nil
+    end
+  end
+
+  defp ip_history_post_groups(posts, boards, host) do
+    entries =
+      posts
+      |> Repo.preload([:board, :extra_files])
+      |> recent_post_entries(boards, host)
+
+    entries
+    |> Enum.group_by(& &1.board.id)
+    |> Enum.sort_by(fn {board_id, _entries} -> board_id end)
+    |> Enum.map(fn {_board_id, grouped_entries} ->
+      %{board: hd(grouped_entries).board, entries: grouped_entries}
+    end)
+  end
+
+  defp ip_history_logs(decoded_ip, board_ids, board_uri \\ nil) do
+    IpCrypt.cloak_ip(decoded_ip)
+    |> ModerationLog.list_recent_entries_by_text(limit: 50, board_uri: board_uri)
+    |> Enum.filter(fn entry ->
+      not is_binary(entry.board_uri) or entry.board_uri == "" or board_uri != nil or
+        accessible_log_board?(board_ids, entry.board_uri)
+    end)
+  end
+
+  defp accessible_log_board?(board_ids, board_uri) do
+    case Boards.get_board_by_uri(board_uri) do
+      nil -> false
+      board -> board.id in board_ids
+    end
+  end
+
+  defp selected_ip_ban(bans, params) do
+    selected_id = normalize_ban_id(Map.get(params, "edit_ban"))
+    Enum.find(bans, &(&1.id == selected_id))
+  end
+
+  defp ip_ban_form_params(decoded_ip, default_board_uri, params) do
+    %{
+      "ip_mask" => Map.get(params, "ip_mask", IpCrypt.cloak_ip(decoded_ip)),
+      "reason" => Map.get(params, "reason", ""),
+      "length" => Map.get(params, "length", ""),
+      "board" => Map.get(params, "board", default_board_uri || "*")
+    }
+  end
+
+  defp maybe_apply_edit_ban(params, nil), do: params
+
+  defp maybe_apply_edit_ban(_params, ban) do
+    %{
+      "ip_mask" => IpCrypt.cloak_ip(ban.ip_subnet),
+      "reason" => ban.reason || "",
+      "length" => "",
+      "board" => if(ban.board, do: ban.board.uri, else: "*")
+    }
+  end
+
+  defp load_accessible_ban(id, moderator) do
+    board_ids = moderator |> Moderation.list_accessible_boards() |> Enum.map(& &1.id)
+
+    case Bans.get_ban(id) do
+      nil -> {:error, :not_found}
+      ban ->
+        if accessible_ban?(board_ids, ban), do: {:ok, ban}, else: {:error, :forbidden}
+    end
+  end
+
+  defp load_global_note(id, decoded_ip, moderator) do
+    board_ids = moderator |> Moderation.list_accessible_boards() |> Enum.map(& &1.id)
+
+    case Repo.get(Eirinchan.Moderation.IpNote, id) do
+      %{ip_subnet: ^decoded_ip, board_id: board_id} = note ->
+        if is_nil(board_id) or board_id in board_ids, do: {:ok, note}, else: {:error, :not_found}
+
+      _ ->
+        {:error, :not_found}
     end
   end
 

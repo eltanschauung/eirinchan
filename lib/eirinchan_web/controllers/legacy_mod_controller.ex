@@ -15,6 +15,9 @@ defmodule EirinchanWeb.LegacyModController do
 
   def show(conn, _params) do
     case conn.query_string do
+      "/bans" ->
+        redirect(conn, to: ~p"/manage/bans/browser")
+
       "/themes" ->
         redirect(conn, to: ~p"/manage/themes/browser")
 

@@ -1,7 +1,12 @@
 defmodule EirinchanWeb.ManagePageControllerTest do
   use EirinchanWeb.ConnCase, async: false
+  import Ecto.Query, only: [from: 2]
 
+  alias Eirinchan.Bans
   alias Eirinchan.Feedback
+  alias Eirinchan.Moderation
+  alias Eirinchan.ModerationLog
+  alias Eirinchan.Repo
 
   test "login page renders and browser login redirects to the dashboard", %{conn: conn} do
     moderator = moderator_fixture(%{username: "admin", password: "secret123"})
@@ -100,6 +105,85 @@ defmodule EirinchanWeb.ManagePageControllerTest do
   test "browser dashboard redirects to setup when no admin exists", %{conn: conn} do
     conn = get(conn, "/manage/login")
     assert redirected_to(conn) == "/setup"
+  end
+
+  test "ban list browser page renders and unbans selected bans", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+    board = board_fixture(%{uri: "bant"})
+
+    {:ok, ban} =
+      Bans.create_ban(%{
+        board_id: board.id,
+        mod_user_id: moderator.id,
+        ip_subnet: "198.51.100.7",
+        reason: "Spam"
+      })
+
+    page =
+      conn
+      |> login_moderator(moderator)
+      |> get("/manage/bans/browser")
+      |> html_response(200)
+
+    assert page =~ ~s(class="banform")
+    assert page =~ "Unban selected"
+    assert page =~ "198.51.100.7"
+    assert page =~ "Spam"
+
+    conn =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> post("/manage/bans/browser", %{"ban_ids" => [Integer.to_string(ban.id)]})
+
+    assert redirected_to(conn) == "/manage/bans/browser"
+    refute Bans.get_ban(ban.id).active
+  end
+
+  test "global ip history page renders posts notes bans and history sections", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+    board = board_fixture(%{uri: "bant", title: "International Random"})
+    thread = thread_fixture(board)
+
+    Repo.update_all(from(p in Eirinchan.Posts.Post, where: p.id == ^thread.id),
+      set: [ip_subnet: "198.51.100.7"]
+    )
+
+    {:ok, _note} =
+      Moderation.add_ip_note("198.51.100.7", %{
+        body: "watch this IP",
+        mod_user_id: moderator.id
+      })
+
+    {:ok, _ban} =
+      Bans.create_ban(%{
+        board_id: nil,
+        mod_user_id: moderator.id,
+        ip_subnet: "198.51.100.7",
+        reason: "range ban"
+      })
+
+    {:ok, _log} =
+      ModerationLog.log_action(%{
+        mod_user_id: moderator.id,
+        actor_ip: "127.0.0.1",
+        board_uri: board.uri,
+        text: "Touched #{Eirinchan.IpCrypt.cloak_ip("198.51.100.7")}"
+      })
+
+    page =
+      conn
+      |> login_moderator(moderator)
+      |> get("/manage/ip/198.51.100.7/browser")
+      |> html_response(200)
+
+    assert page =~ ~s(<fieldset id="notes">)
+    assert page =~ "watch this IP"
+    assert page =~ ~s(<fieldset id="bans">)
+    assert page =~ "range ban"
+    assert page =~ ~s(<fieldset id="history">)
+    assert page =~ "Touched 198.51.100.7"
+    assert page =~ "/ bant / - International Random"
   end
 
   test "admin can update boardlist configuration from the dashboard", %{conn: conn} do

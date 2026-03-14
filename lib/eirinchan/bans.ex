@@ -88,6 +88,51 @@ defmodule Eirinchan.Bans do
     repo.all(query)
   end
 
+  @spec list_matching_bans(String.t() | tuple() | nil, keyword()) :: [Ban.t()]
+  def list_matching_bans(remote_ip, opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+    board_id = Keyword.get(opts, :board_id)
+    board_ids = Keyword.get(opts, :board_ids)
+    include_inactive = Keyword.get(opts, :include_inactive, true)
+    remote_ip = normalize_ip(remote_ip)
+
+    query =
+      from ban in Ban,
+        order_by: [desc: ban.active, desc: ban.inserted_at],
+        preload: [:board, :mod_user]
+
+    query =
+      cond do
+        board_id ->
+          from ban in query, where: is_nil(ban.board_id) or ban.board_id == ^board_id
+
+        is_list(board_ids) ->
+          from ban in query, where: is_nil(ban.board_id) or ban.board_id in ^board_ids
+
+        true ->
+          query
+      end
+
+    query =
+      if include_inactive do
+        query
+      else
+        from ban in query, where: ban.active == true
+      end
+
+    repo.all(query)
+    |> Enum.filter(&ban_matches?(&1, remote_ip))
+  end
+
+  @spec active?(Ban.t(), DateTime.t()) :: boolean()
+  def active?(%Ban{} = ban, now \\ DateTime.utc_now()) do
+    ban.active &&
+      case ban.expires_at do
+        nil -> true
+        %DateTime{} = expires_at -> DateTime.compare(expires_at, now) == :gt
+      end
+  end
+
   @spec get_ban(String.t() | integer(), keyword()) :: Ban.t() | nil
   def get_ban(id, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
