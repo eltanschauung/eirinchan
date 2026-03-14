@@ -36,6 +36,10 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ "Recent Images"
     assert page =~ "Latest Posts"
     assert page =~ "Stats"
+    assert page =~ "What is bnat?"
+    assert page =~ "Whales are learning facts!"
+    assert page =~ ~s(src="/site_logo.png")
+    assert page =~ ~s(src="/whales.jpg")
     assert page =~ "Technology"
     assert page =~ "Recent reply body"
     assert page =~ ~s(href="/stylesheets/style.css)
@@ -47,8 +51,7 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ ~s(src="/main.js)
     assert page =~ ~s(id="options_handler")
     assert page =~ ~s(id="style-select")
-    assert page =~ "Tinyboard + vichan 5.2.2 +"
-    assert page =~ ~s(href="https://github.com/username/eirinchan-v1")
+    assert page =~ "We witches are not whale lol."
   end
 
   test "GET / redirects to setup when no admin exists", %{conn: conn} do
@@ -277,38 +280,11 @@ defmodule EirinchanWeb.PageControllerTest do
 
     assert page =~ "Recent Posts"
     assert page =~ "Recent Images"
+    assert page =~ "What is bnat?"
     assert page =~ "Recent reply"
     assert page =~ board.title
     assert page =~ ~s(class="boardlist")
     assert page =~ ~s(href="/recent.css)
-  end
-
-  test "GET / renders recent theme body box from installed settings", %{conn: conn} do
-    moderator_fixture()
-    board = board_fixture(%{uri: "tea#{System.unique_integer([:positive])}", title: "Tea"})
-    _thread = thread_fixture(board, %{subject: "Recent thread", body: "Opening"})
-
-    {:ok, _theme} =
-      Eirinchan.Themes.install_theme("recent", %{
-        "title" => "Recent Posts",
-        "exclude" => "",
-        "limit_images" => "3",
-        "limit_posts" => "30",
-        "html" => "recent.html",
-        "css" => "recent.css",
-        "basecss" => "recent.css",
-        "body_title" => "What is bnat?",
-        "body" => "This is an international imageboard popula..."
-      })
-
-    page =
-      conn
-      |> get("/")
-      |> html_response(200)
-
-    assert page =~ ~s(class="box middle")
-    assert page =~ "What is bnat?"
-    assert page =~ "This is an international imageboard popula..."
   end
 
   test "GET /sitemap.xml renders board and thread urls", %{conn: conn} do

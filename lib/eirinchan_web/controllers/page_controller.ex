@@ -418,6 +418,7 @@ defmodule EirinchanWeb.PageController do
       global_boardlist_groups: PostView.boardlist_groups(boards),
       show_footer: true,
       public_shell: true,
+      page_title: "Recent Posts",
       viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",
       base_stylesheet: "/stylesheets/style.css",
       body_class: nil,
@@ -464,6 +465,8 @@ defmodule EirinchanWeb.PageController do
   defp recent_theme_stats(settings) do
     board_ids = recent_board_ids(settings)
 
+    week_cutoff = DateTime.utc_now() |> DateTime.add(-7 * 24 * 60 * 60, :second)
+
     total_posts =
       Repo.aggregate(from(post in Post, where: post.board_id in ^board_ids), :count, :id)
 
@@ -471,6 +474,22 @@ defmodule EirinchanWeb.PageController do
       Repo.one(
         from post in Post,
           where: post.board_id in ^board_ids and not is_nil(post.ip_subnet),
+          select: count(post.ip_subnet, :distinct)
+      ) || 0
+
+    posts_week =
+      Repo.aggregate(
+        from(post in Post, where: post.board_id in ^board_ids and post.inserted_at > ^week_cutoff),
+        :count,
+        :id
+      )
+
+    posters_week =
+      Repo.one(
+        from post in Post,
+          where:
+            post.board_id in ^board_ids and post.inserted_at > ^week_cutoff and
+              not is_nil(post.ip_subnet),
           select: count(post.ip_subnet, :distinct)
       ) || 0
 
@@ -493,6 +512,8 @@ defmodule EirinchanWeb.PageController do
     %{
       total_posts: number_with_delimiters(total_posts),
       unique_posters: number_with_delimiters(unique_posters),
+      posts_week: number_with_delimiters(posts_week),
+      posters_week: number_with_delimiters(posters_week),
       active_content: PostView.file_size_text(%{file_size: primary_bytes + extra_bytes})
     }
   end
@@ -515,11 +536,11 @@ defmodule EirinchanWeb.PageController do
   end
 
   defp recent_image_summary(post) do
-    {thumbwidth, thumbheight} = fit_recent_thumb(post.image_width, post.image_height)
+    {thumb_src, thumbwidth, thumbheight} = recent_thumb(post)
 
     %{
       link: "/#{post.board.uri}/res/#{post.thread_id || post.id}.html##{post.id}",
-      src: "/#{post.board.uri}/thumb/#{Path.basename(post.thumb_path)}",
+      src: thumb_src,
       thumbwidth: thumbwidth,
       thumbheight: thumbheight,
       alt: post.subject || post.body || ""
@@ -579,6 +600,85 @@ defmodule EirinchanWeb.PageController do
   end
 
   defp fit_recent_thumb(_, _), do: {125, 125}
+
+  defp recent_thumb(%{spoiler: true}) do
+    {"/static/spoiler_skillet.png", 128, 128}
+  end
+
+  defp recent_thumb(post) do
+    src = "/#{post.board.uri}/thumb/#{Path.basename(post.thumb_path)}"
+
+    case thumb_dimensions(post) do
+      {width, height} -> {src, width, height}
+      nil ->
+        {width, height} = fit_recent_thumb(post.image_width, post.image_height)
+        {src, width, height}
+    end
+  end
+
+  defp thumb_dimensions(%{thumb_path: thumb_path}) when is_binary(thumb_path) do
+    path =
+      thumb_path
+      |> String.trim_leading("/")
+      |> then(&Path.join(Application.fetch_env!(:eirinchan, :build_output_root), &1))
+
+    case File.read(path) do
+      {:ok, binary} ->
+        case :binary.match(binary, <<0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A>>) do
+          {0, _} -> png_dimensions(binary)
+          :nomatch -> jpeg_dimensions(binary)
+        end
+
+      _ ->
+        nil
+    end
+  end
+
+  defp thumb_dimensions(_), do: nil
+
+  defp png_dimensions(<<
+         0x89,
+         0x50,
+         0x4E,
+         0x47,
+         0x0D,
+         0x0A,
+         0x1A,
+         0x0A,
+         _len::32,
+         "IHDR",
+         width::32,
+         height::32,
+         _rest::binary
+       >>),
+       do: {width, height}
+
+  defp png_dimensions(_), do: nil
+
+  defp jpeg_dimensions(<<0xFF, 0xD8, rest::binary>>), do: jpeg_dimensions_scan(rest)
+  defp jpeg_dimensions(_), do: nil
+
+  defp jpeg_dimensions_scan(<<0xFF, marker, _len::16, rest::binary>>)
+       when marker in [0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE,
+                       0xCF] do
+    <<_precision, height::16, width::16, _rest::binary>> = rest
+    {width, height}
+  end
+
+  defp jpeg_dimensions_scan(<<0xFF, marker, len::16, rest::binary>>)
+       when marker not in [0xD8, 0xD9, 0x01] and marker not in 0xD0..0xD7 do
+    skip = max(len - 2, 0)
+
+    if byte_size(rest) >= skip do
+      <<_segment::binary-size(skip), tail::binary>> = rest
+      jpeg_dimensions_scan(tail)
+    else
+      nil
+    end
+  end
+
+  defp jpeg_dimensions_scan(<<_byte, rest::binary>>), do: jpeg_dimensions_scan(rest)
+  defp jpeg_dimensions_scan(_), do: nil
 
   defp global_catalog_threads do
     Boards.list_boards()

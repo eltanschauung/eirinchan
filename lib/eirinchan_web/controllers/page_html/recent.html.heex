@@ -1,20 +1,37 @@
-<header>
-  <h1><%= @recent_settings["title"] %></h1>
-  <div class="subtitle"></div>
-  <.admin_shortcuts moderator={@current_moderator} />
+<header style="text-align:center;">
+  <img class="site_logo" src="/site_logo.png" />
 </header>
 
 <div class="box-wrap">
-  <div
-    :if={(@recent_settings["body_title"] || "") != "" or (@recent_settings["body"] || "") != ""}
-    class="box middle"
-  >
-    <h2><i><%= @recent_settings["body_title"] %></i></h2>
-    <div class="content">
-      <%= @recent_settings["body"] %>
+  <div class="box middle" style="text-align:center;border:none;background-color: rgb(0, 0, 0, 0);">
+    <span style="width:100%;">
+      <a href="/faq">FAQ</a><p1> - </p1><a href="/rules">Rules</a><p1> - </p1><a href="/formatting"
+      >Formatting</a><p1> - </p1><a href="mailto:malkuthbr2@pissmail.com">Contact</a>
+    </span>
+  </div>
+  <div class="box middle">
+    <h2><i>What is bnat?</i></h2>
+    <div class="content" style="padding:2px;">
+      <p1>
+        This is an international imageboard populated by fans of Touhou Project (<a
+          href="https://en.touhouwiki.net/wiki/Touhou_Project"
+        >東方Project</a>) and other otaku franchises such as Dragon Ball and Umineko no Naku Koro ni. Users are
+        free to post anything they wish as long as it obeys US law and doesn't disrupt the fun times. Make sure to
+        lurk 0 seconds before posting and invite ALL of your friends; seriously! If this site doesn't take off we go
+        down like total bitches and it's cucked.
+      </p1>
+      <br /><br />
+      <p1>
+        Since being unleashed upon the world in October 2023, the website has grown to average over a thousand posts
+        weekly and receives hella content contribution from the local gentlemen. Visit <a href="/bant">>>>/bant/</a>
+        for the main board and <a href="/faq">>>>/faq/</a> to learn about our website.
+      </p1>
     </div>
   </div>
-
+  <div class="box middle">
+    <h2><i>Whales are learning facts!</i></h2>
+    <img src="/whales.jpg" style="margin:0px;width:100%;height:72%;" />
+  </div>
   <div class="box left">
     <h2>Recent Images</h2>
     <ul>
@@ -31,7 +48,6 @@
       <% end %>
     </ul>
   </div>
-
   <div class="box right">
     <h2>Latest Posts</h2>
     <ul>
@@ -45,12 +61,11 @@
       <% end %>
     </ul>
   </div>
-
   <div class="box right">
     <h2>Stats</h2>
     <ul>
-      <li>Total posts: <%= @stats.total_posts %></li>
-      <li>Unique posters: <%= @stats.unique_posters %></li>
+      <li>Total posts: <%= @stats.total_posts %> | This week: <%= @stats.posts_week %></li>
+      <li>Unique IPs: <%= @stats.unique_posters %> | This week: <%= @stats.posters_week %></li>
       <li>Active content: <%= @stats.active_content %></li>
     </ul>
   </div>
@@ -58,6 +73,12 @@
 
 <hr />
 
-<%= if @show_footer do %>
-  <EirinchanWeb.PostComponents.site_footer />
-<% end %>
+<footer>
+  <p class="unimportant" style="margin-top:20px;text-align:center;">
+    We witches are not whale lol. I will never call 'whale' a Sukusuku though.
+  </p>
+  <p class="unimportant" style="text-align:center;">
+    All trademarks, copyrights, comments, and images on this page are owned by their respective parties because
+    Gensokyo has laws
+  </p>
+</footer>
