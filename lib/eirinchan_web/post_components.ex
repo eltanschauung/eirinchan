@@ -160,6 +160,37 @@ defmodule EirinchanWeb.PostComponents do
     """
   end
 
+  attr :input_name, :string, required: true
+  attr :input_id, :string, default: nil
+  attr :multiple, :boolean, default: false
+  attr :upload_by_url_enabled, :boolean, default: false
+
+  def file_selector_shell(assigns) do
+    ~H"""
+    <input
+      type="file"
+      name={@input_name}
+      id={@input_id}
+      data-upload-file
+      multiple={@multiple}
+      hidden
+    />
+    <noscript>
+      <input type="file" name={@input_name} multiple={@multiple} />
+    </noscript>
+    <div class="dropzone-wrap" data-file-selector-shell>
+      <div class="dropzone" tabindex="0">
+        <div class="file-hint">Select/drop/paste files here</div>
+        <div class="file-thumbs"></div>
+      </div>
+    </div>
+    <div :if={@upload_by_url_enabled} style="float:none;text-align:left" id="upload_url">
+      <label for="file_url">Or URL</label>:
+      <input style="display:inline" type="text" id="file_url" name="file_url" size="35" />
+    </div>
+    """
+  end
+
   def boardlist_html(assigns) do
     assigns
     |> with_component_assigns()

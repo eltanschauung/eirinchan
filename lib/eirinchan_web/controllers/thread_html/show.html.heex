@@ -185,8 +185,11 @@
     <tr id="upload">
       <th>File</th>
       <td>
-        <input :if={@config.max_images > 1} type="file" name="files[]" id="upload_file" multiple />
-        <input :if={@config.max_images <= 1} type="file" name="file" id="upload_file" />
+        <.file_selector_shell
+          input_name={if @config.max_images > 1, do: "files[]", else: "file"}
+          input_id="upload_file"
+          multiple={@config.max_images > 1}
+        />
       </td>
     </tr>
     <tr

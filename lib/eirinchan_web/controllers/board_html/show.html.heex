@@ -172,16 +172,12 @@
     <tr id="upload">
       <th>File</th>
       <td>
-        <input :if={@config.max_images > 1} type="file" name="files[]" id="upload_file" multiple />
-        <input :if={@config.max_images <= 1} type="file" name="file" id="upload_file" />
-        <div
-          :if={@config.upload_by_url_enabled}
-          style="float:none;text-align:left"
-          id="upload_url"
-        >
-          <label for="file_url">Or URL</label>:
-          <input style="display:inline" type="text" id="file_url" name="file_url" size="35" />
-        </div>
+        <.file_selector_shell
+          input_name={if @config.max_images > 1, do: "files[]", else: "file"}
+          input_id="upload_file"
+          multiple={@config.max_images > 1}
+          upload_by_url_enabled={@config.upload_by_url_enabled}
+        />
       </td>
     </tr>
     <tr

@@ -109,10 +109,8 @@
     </tr>
     <tr :if={!@config.user_flag} data-upload-row>
       <td colspan="1">
-        <input
-          type="file"
-          data-upload-file
-          name={if @config.max_images > 1, do: "files[]", else: "file"}
+        <.file_selector_shell
+          input_name={if @config.max_images > 1, do: "files[]", else: "file"}
           multiple={@config.max_images > 1}
         />
       </td>
@@ -123,10 +121,8 @@
     </tr>
     <tr :if={@config.user_flag} data-upload-row>
       <td colspan="2">
-        <input
-          type="file"
-          data-upload-file
-          name={if @config.max_images > 1, do: "files[]", else: "file"}
+        <.file_selector_shell
+          input_name={if @config.max_images > 1, do: "files[]", else: "file"}
           multiple={@config.max_images > 1}
         />
       </td>
