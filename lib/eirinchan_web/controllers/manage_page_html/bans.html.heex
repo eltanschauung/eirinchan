@@ -1,0 +1,97 @@
+<.flash_group flash={@flash} />
+
+<form action={~p"/manage/bans/browser"} method="post" class="banform">
+  <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+
+  <div class="banlist-opts">
+    <div class="checkboxes">
+      <label :if={@only_mine_available?}>
+        <input
+          type="checkbox"
+          id="only_mine"
+          name="only_mine"
+          value="1"
+          checked={@filters["only_mine"] == "1"}
+        /> Show only bans from boards I moderate
+      </label>
+      <label>
+        <input
+          type="checkbox"
+          id="only_not_expired"
+          name="only_not_expired"
+          value="1"
+          checked={@filters["only_not_expired"] == "1"}
+        /> Show only active bans
+      </label>
+    </div>
+    <div class="buttons">
+      <input type="text" id="search" name="search" placeholder="Search" value={@filters["search"]} />
+      <input type="submit" name="unban" id="unban" value="Unban selected" />
+      <button
+        type="submit"
+        name="action"
+        value="filter"
+        style="display:none"
+        aria-hidden="true"
+        tabindex="-1"
+      >
+      </button>
+    </div>
+
+    <br class="clear" />
+  </div>
+
+  <table class="mod" style="width:100%" id="banlist">
+    <tr>
+      <th>IP address</th>
+      <th>Reason</th>
+      <th>Board</th>
+      <th>Set</th>
+      <th>Expires</th>
+      <th>Staff</th>
+      <th>Edit</th>
+    </tr>
+    <%= for entry <- @bans do %>
+      <tr>
+        <td>
+          <input type="checkbox" class="unban" name="ban_ids[]" value={entry.ban.id} />
+          <%= EirinchanWeb.IpPresentation.display_ip(entry.ban.ip_subnet, @moderator) %>
+        </td>
+        <td><%= if entry.ban.reason in [nil, ""], do: "-", else: entry.ban.reason %></td>
+        <td>
+          <%= if entry.board do %>
+            /<%= entry.board.uri %>/
+          <% else %>
+            <em>all</em>
+          <% end %>
+        </td>
+        <td><%= EirinchanWeb.PostView.relative_timestamp(entry.ban) %> ago</td>
+        <td>
+          <%= if entry.ban.expires_at do %>
+            <%= EirinchanWeb.PostView.formatted_timestamp(%{inserted_at: entry.ban.expires_at}, @config) %>
+          <% else %>
+            <em>never</em>
+          <% end %>
+        </td>
+        <td>
+          <%= if entry.ban.mod_user do %>
+            <%= entry.ban.mod_user.username %>
+          <% else %>
+            <em>system</em>
+          <% end %>
+        </td>
+        <td>
+          <%= if entry.board do %>
+            <a href={"/manage/boards/#{entry.board.uri}/ip/#{Eirinchan.IpCrypt.cloak_ip(entry.ban.ip_subnet)}/browser?edit_ban=#{entry.ban.id}#bans"}>
+              Edit
+            </a>
+          <% else %>
+            <a href={"/manage/ip/#{Eirinchan.IpCrypt.cloak_ip(entry.ban.ip_subnet)}/browser?edit_ban=#{entry.ban.id}#bans"}>
+              Edit
+            </a>
+          <% end %>
+        </td>
+      </tr>
+    <% end %>
+  </table>
+</form>

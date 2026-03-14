@@ -91,6 +91,8 @@ defmodule EirinchanWeb.Router do
     get "/announcement/browser", ManagePageController, :blotter
     post "/announcement/browser", ManagePageController, :update_blotter
     delete "/announcement/browser", ManagePageController, :delete_announcement
+    get "/bans/browser", ManagePageController, :bans
+    post "/bans/browser", ManagePageController, :update_bans
     get "/log/browser", ManagePageController, :moderation_log
     get "/pages/browser", ManagePageController, :pages
     post "/pages/browser", ManagePageController, :create_page
@@ -115,11 +117,19 @@ defmodule EirinchanWeb.Router do
     patch "/boards/:uri/threads/:thread_id/browser/move", ManagePageController, :move_thread
     patch "/boards/:uri/posts/:post_id/browser/move", ManagePageController, :move_reply
     get "/ip/:ip/browser", ManagePageController, :ip_history
+    post "/ip/:ip/browser/notes", ManagePageController, :create_global_ip_note
+    delete "/ip/:ip/browser/notes/:id", ManagePageController, :delete_global_ip_note
+    post "/ip/:ip/browser/bans", ManagePageController, :create_ip_ban
+    patch "/ip/:ip/browser/bans/:id", ManagePageController, :update_ip_ban
+    delete "/ip/:ip/browser/bans/:id", ManagePageController, :delete_ip_ban
     delete "/ip/:ip/browser/posts", ManagePageController, :delete_ip_posts
     get "/boards/:uri/ip/:ip/browser", ManagePageController, :board_ip_history
     post "/boards/:uri/ip/:ip/browser/notes", ManagePageController, :create_ip_note
     patch "/boards/:uri/ip/:ip/browser/notes/:id", ManagePageController, :update_ip_note
     delete "/boards/:uri/ip/:ip/browser/notes/:id", ManagePageController, :delete_ip_note
+    post "/boards/:uri/ip/:ip/browser/bans", ManagePageController, :create_board_ip_ban
+    patch "/boards/:uri/ip/:ip/browser/bans/:id", ManagePageController, :update_board_ip_ban
+    delete "/boards/:uri/ip/:ip/browser/bans/:id", ManagePageController, :delete_board_ip_ban
     delete "/boards/:uri/ip/:ip/browser/posts", ManagePageController, :delete_board_ip_posts
     get "/boards/:uri/reports/browser", ManagePageController, :reports
     delete "/boards/:uri/reports/browser/:id", ManagePageController, :dismiss_report

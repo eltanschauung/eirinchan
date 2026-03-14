@@ -42,6 +42,20 @@ defmodule Eirinchan.ModerationLog do
     |> repo.aggregate(:count, :id)
   end
 
+  def list_recent_entries_by_text(text, opts \\ []) when is_binary(text) do
+    repo = Keyword.get(opts, :repo, Repo)
+    limit = max(Keyword.get(opts, :limit, 50), 1)
+
+    query =
+      from [log, _mod_user] in filtered_query(Keyword.put(opts, :text, text)),
+        order_by: [desc: log.inserted_at, desc: log.id],
+        limit: ^limit
+
+    query
+    |> repo.all()
+    |> repo.preload(:mod_user)
+  end
+
   defp filtered_query(opts) do
     username =
       opts
@@ -51,6 +65,11 @@ defmodule Eirinchan.ModerationLog do
     board_uri =
       opts
       |> Keyword.get(:board_uri)
+      |> normalize_filter()
+
+    text =
+      opts
+      |> Keyword.get(:text)
       |> normalize_filter()
 
     query =
@@ -65,8 +84,16 @@ defmodule Eirinchan.ModerationLog do
         query
       end
 
-    if is_binary(board_uri) do
-      from [log, mod_user] in query, where: log.board_uri == ^board_uri
+    query =
+      if is_binary(board_uri) do
+        from [log, mod_user] in query, where: log.board_uri == ^board_uri
+      else
+        query
+      end
+
+    if is_binary(text) do
+      pattern = "%" <> text <> "%"
+      from [log, mod_user] in query, where: ilike(log.text, ^pattern)
     else
       query
     end

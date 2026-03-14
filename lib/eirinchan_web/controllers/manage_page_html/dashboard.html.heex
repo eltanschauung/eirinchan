@@ -28,6 +28,7 @@
     <li><a href={~p"/manage/reports/browser"}>Report queue (<%= @report_count %>)</a></li>
     <li><a href={~p"/manage/feedback/browser"}>Feedback (<%= @feedback_count %>)</a></li>
     <li><a href={~p"/manage/ban-appeals/browser"}>Ban appeals (<%= @appeal_count %>)</a></li>
+    <li><a href={~p"/manage/bans/browser"}>Ban list</a></li>
     <li :if={@moderator.role == "admin"}>
       <a href={~p"/manage/log/browser"}>Moderation log</a>
     </li>

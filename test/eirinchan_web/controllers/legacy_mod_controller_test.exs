@@ -18,6 +18,17 @@ defmodule EirinchanWeb.LegacyModControllerTest do
     assert redirected_to(conn) == "/manage/ip/198.51.100.7/browser"
   end
 
+  test "legacy bans route redirects to the browser ban list", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+
+    conn =
+      conn
+      |> login_moderator(moderator)
+      |> get("/mod.php?/bans")
+
+    assert redirected_to(conn) == "/manage/bans/browser"
+  end
+
   test "legacy IP route accepts cloaked ips", %{conn: conn} do
     moderator = moderator_fixture(%{role: "admin"})
 
