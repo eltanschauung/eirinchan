@@ -14,6 +14,7 @@ defmodule Eirinchan.Application do
       Eirinchan.Repo,
       {DNSCluster, query: Application.get_env(:eirinchan, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Eirinchan.PubSub},
+      {Task.Supervisor, name: Eirinchan.BuildTaskSupervisor},
       EirinchanWeb.FragmentCache,
       # Start a worker by calling: Eirinchan.Worker.start_link(arg)
       # {Eirinchan.Worker, arg},

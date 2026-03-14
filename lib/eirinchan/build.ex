@@ -313,10 +313,12 @@ defmodule Eirinchan.Build do
         :ok
 
       _ ->
-        with :ok <- build_thread(board, thread_id, config: config, repo: repo),
-             :ok <- build_indexes(board, config: config, repo: repo) do
-          :ok
-        end
+        run_async(fn ->
+          with :ok <- build_thread(board, thread_id, config: config, repo: repo),
+               :ok <- build_indexes(board, config: config, repo: repo) do
+            :ok
+          end
+        end)
     end
   end
 
@@ -335,7 +337,19 @@ defmodule Eirinchan.Build do
         :ok
 
       _ ->
-        build_indexes(board, config: config, repo: repo)
+        run_async(fn -> build_indexes(board, config: config, repo: repo) end)
+    end
+  end
+
+  defp run_async(fun) when is_function(fun, 0) do
+    if Mix.env() == :test do
+      fun.()
+    else
+      case Task.Supervisor.start_child(Eirinchan.BuildTaskSupervisor, fun) do
+        {:ok, _pid} -> :ok
+        {:error, {:already_started, _pid}} -> :ok
+        {:error, reason} -> {:error, reason}
+      end
     end
   end
 
