@@ -457,6 +457,26 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     assert catalog_page =~ ~s(name="delete_post_id")
   end
 
+  test "catalog page links qualifying threads to noko50", %{conn: conn} do
+    :ok = Eirinchan.Themes.enable_page_theme("catalog")
+
+    board =
+      board_fixture(%{
+        uri: "noko#{System.unique_integer([:positive])}",
+        config_overrides: %{noko50_min: 1}
+      })
+
+    thread = thread_fixture(board, %{subject: "Noko catalog"})
+    _reply = reply_fixture(board, thread, %{body: "reply"})
+
+    catalog_page =
+      conn
+      |> get("/#{board.uri}/catalog.html")
+      |> html_response(200)
+
+    assert catalog_page =~ ~s(href="/#{board.uri}/res/#{PublicIds.public_id(thread)}+50.html")
+  end
+
   test "catalog page only renders moderator controls for logged-in moderators", %{conn: conn} do
     :ok = Eirinchan.Themes.enable_page_theme("catalog")
 

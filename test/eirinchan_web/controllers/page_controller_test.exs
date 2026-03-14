@@ -55,6 +55,28 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ "We witches are not whale lol."
   end
 
+  test "GET / recent links prefer noko50 threads when available", %{conn: conn} do
+    moderator_fixture()
+
+    board =
+      board_fixture(%{
+        uri: "recentnoko#{System.unique_integer([:positive])}",
+        title: "Recent Noko",
+        config_overrides: %{noko50_min: 1}
+      })
+
+    thread = thread_fixture(board, %{subject: "Recent noko", body: "opening"})
+    reply = reply_fixture(board, thread, %{body: "latest recent reply"})
+
+    page =
+      conn
+      |> get("/")
+      |> html_response(200)
+
+    assert page =~
+             ~s(href="/#{board.uri}/res/#{PublicIds.public_id(thread)}+50.html##{PublicIds.public_id(reply)}")
+  end
+
   test "GET / redirects to setup when no admin exists", %{conn: conn} do
     conn = get(conn, ~p"/")
     assert redirected_to(conn) == "/setup"
