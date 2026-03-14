@@ -626,7 +626,7 @@ defmodule EirinchanWeb.PostView do
     cond do
       ext in [".webm", ".mp4"] -> false
       ext in image_exts -> true
-      is_binary(file[:file_type]) -> String.starts_with?(file.file_type, "image/")
+      is_binary(Map.get(file, :file_type)) -> String.starts_with?(file.file_type, "image/")
       true -> false
     end
   end
