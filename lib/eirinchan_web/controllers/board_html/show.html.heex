@@ -336,6 +336,11 @@
               <span :if={thread.cycle} style="display:none">[Cyclical]</span>
               <span :if={thread.sage} style="display:none">[Bumplocked]</span>
               <a href={PostView.thread_path(@board, thread, @config)}>[Reply]</a>
+              <%= if summary.has_noko50 do %>
+                <a href={Eirinchan.ThreadPaths.thread_path(@board, thread, @config, noko50: true)}>
+                  [Last <%= summary.last_count %> Posts]
+                </a>
+              <% end %>
               <.post_controls
                 post={thread}
                 board={@board}

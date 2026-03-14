@@ -424,6 +424,32 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     assert page =~ ~s(class="quote")
   end
 
+  test "board pages render noko50 link for qualifying threads after reply link", %{conn: conn} do
+    board =
+      board_fixture(%{
+        config_overrides: %{noko50_min: 1, noko50_count: 100}
+      })
+
+    thread = thread_fixture(board, %{body: "Opening body", subject: "Thread"})
+    reply_fixture(board, thread, %{body: "Reply one"})
+
+    page =
+      conn
+      |> get(~p"/#{board.uri}")
+      |> html_response(200)
+
+    assert page =~ ~s([Reply]</a>)
+    assert page =~ ~s([Last 100 Posts])
+
+    assert page =~
+             ~s(<a href="/#{board.uri}/res/#{PublicIds.public_id(thread)}-thread+100.html">[Last 100 Posts]</a>)
+
+    assert Regex.match?(
+             ~r/\[Reply\]<\/a>\s*<a href="\/#{board.uri}\/res\/#{PublicIds.public_id(thread)}-thread\+100\.html">\[Last 100 Posts\]<\/a>/,
+             page
+           )
+  end
+
   test "catalog page renders thread summaries across board pages", %{conn: conn} do
     :ok = Eirinchan.Themes.enable_page_theme("catalog")
     board = board_fixture(%{config_overrides: %{threads_per_page: 1}})
