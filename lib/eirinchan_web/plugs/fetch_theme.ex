@@ -55,7 +55,13 @@ defmodule EirinchanWeb.Plugs.FetchTheme do
   end
 
   defp decode_board_themes_cookie(value) when is_binary(value) do
-    case Jason.decode(value) do
+    decoded_value =
+      case URI.decode(value) do
+        ^value -> value
+        decoded -> decoded
+      end
+
+    case Jason.decode(decoded_value) do
       {:ok, %{} = decoded} -> decoded
       _ -> %{}
     end

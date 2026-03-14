@@ -45,19 +45,19 @@ defmodule EirinchanWeb.PublicShell do
       |> Jason.encode!()
 
     %{
-      "eirinchan:active-page" => escape(active_page),
-      "eirinchan:board-name" => escape(board_name),
-      "eirinchan:thread-id" => escape(to_string(Keyword.get(opts, :thread_id) || "")),
+      "eirinchan:active-page" => to_string(active_page || ""),
+      "eirinchan:board-name" => to_string(board_name || ""),
+      "eirinchan:thread-id" => to_string(Keyword.get(opts, :thread_id) || ""),
       "eirinchan:config-root" => "/",
-      "eirinchan:resource-version" => escape(resource_version),
-      "eirinchan:selected-style" => escape(selected_style),
-      "eirinchan:styles" => escape(styles_json),
+      "eirinchan:resource-version" => to_string(resource_version || ""),
+      "eirinchan:selected-style" => to_string(selected_style || ""),
+      "eirinchan:styles" => styles_json,
       "eirinchan:stylesheets-board" => if(stylesheets_board, do: "true", else: "false"),
-      "eirinchan:genpassword-chars" => escape(Map.get(config, :genpassword_chars)),
+      "eirinchan:genpassword-chars" => to_string(Map.get(config, :genpassword_chars) || ""),
       "eirinchan:post-success-cookie-name" => "eirinchan_posted",
       "eirinchan:watcher-count" => to_string(watcher_count),
       "eirinchan:watcher-you-count" => to_string(watcher_you_count),
-      "eirinchan:browser-timezone" => escape(browser_timezone),
+      "eirinchan:browser-timezone" => to_string(browser_timezone || ""),
       "eirinchan:browser-timezone-offset" => to_string(browser_timezone_offset_minutes)
     }
   end
