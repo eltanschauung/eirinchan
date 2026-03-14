@@ -1,7 +1,9 @@
 defmodule EirinchanWeb.LegacyModController do
   use EirinchanWeb, :controller
 
+  alias Eirinchan.Bans
   alias Eirinchan.Boards
+  alias Eirinchan.IpAccessAuth
   alias Eirinchan.IpCrypt
   alias Eirinchan.Moderation
   alias Eirinchan.Posts
@@ -164,6 +166,34 @@ defmodule EirinchanWeb.LegacyModController do
 
       redirect(conn, to: "/#{uri}")
     else
+      error -> legacy_error(conn, error)
+    end
+  end
+
+  defp dispatch_board_action(conn, [uri, "ban24", post_id, token]) do
+    with {:ok, moderator, board} <- authorized_board(conn, uri),
+         :ok <- require_role(moderator, 30),
+         :ok <- verify_action_token(conn, "#{uri}/ban24/#{post_id}", token),
+         {:ok, post} <- Posts.get_post(board, post_id),
+         true <- is_binary(post.ip_subnet) and post.ip_subnet != "",
+         {:ok, subnet} <- IpAccessAuth.subnet_for_ip(post.ip_subnet),
+         {:ok, _ban} <-
+           Bans.create_ban(%{
+             board_id: nil,
+             mod_user_id: moderator.id,
+             ip_subnet: subnet,
+             reason: "Subnet ban from post control on /#{board.uri}/ No. #{post.id}",
+             active: true
+           }) do
+      ModerationAudit.log(conn, "Created /24 ban #{subnet} from post No. #{post.id}",
+        moderator: moderator,
+        board: board
+      )
+
+      redirect(conn, to: "/#{uri}")
+    else
+      false -> send_resp(conn, :bad_request, "Post has no IP.")
+      {:error, :invalid_ip} -> send_resp(conn, :bad_request, "Invalid IP address.")
       error -> legacy_error(conn, error)
     end
   end
