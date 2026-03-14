@@ -2,6 +2,7 @@ defmodule EirinchanWeb.PostControllerTest do
   use EirinchanWeb.ConnCase, async: true
 
   import ExUnit.CaptureLog
+  alias Eirinchan.Posts.PublicIds
   alias Eirinchan.ThreadWatcher
 
   test "classic posting redirects OP creation to the thread page", %{conn: conn} do
@@ -56,14 +57,14 @@ defmodule EirinchanWeb.PostControllerTest do
       |> put_req_cookie("browser_token", token)
       |> put_req_header("referer", referer)
       |> post(~p"/#{board.uri}/post", %{
-        "thread" => Integer.to_string(thread.id),
+        "thread" => Integer.to_string(PublicIds.public_id(thread)),
         "email" => "noko",
         "body" => "reply body",
         "json_response" => "1",
         "post" => "New Reply"
       })
 
-    thread_id = thread.id
+    thread_id = PublicIds.public_id(thread)
 
     assert %{
              "id" => id,
@@ -74,7 +75,7 @@ defmodule EirinchanWeb.PostControllerTest do
              "watcher_you_count" => 0
            } = json_response(conn, 200)
 
-    assert redirect == "/#{board.uri}/res/#{thread.id}.html#p#{id}"
+    assert redirect == "/#{board.uri}/res/#{thread_id}.html#p#{id}"
     assert ThreadWatcher.watched?(token, board.uri, thread.id)
 
     encoded_cookie =
@@ -1175,7 +1176,7 @@ defmodule EirinchanWeb.PostControllerTest do
       conn
       |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
       |> post("/#{board.uri}/post", %{
-        "report_post_id" => Integer.to_string(thread.id),
+        "report_post_id" => Integer.to_string(PublicIds.public_id(thread)),
         "reason" => "Spam thread",
         "json_response" => "1"
       })
@@ -1183,7 +1184,7 @@ defmodule EirinchanWeb.PostControllerTest do
     assert %{"report_id" => _id, "redirect" => redirect, "status" => "ok"} =
              json_response(conn, 200)
 
-    assert redirect =~ "/#{board.uri}/res/#{thread.id}-reported-subject.html"
+    assert redirect =~ "/#{board.uri}/res/#{PublicIds.public_id(thread)}-reported-subject.html"
   end
 
   test "report branch rejects unknown posts", %{conn: conn} do
@@ -1211,7 +1212,7 @@ defmodule EirinchanWeb.PostControllerTest do
       conn
       |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
       |> post("/#{board.uri}/post", %{
-        "thread" => Integer.to_string(thread.id),
+        "thread" => Integer.to_string(PublicIds.public_id(thread)),
         "body" => "Reply body",
         "password" => "replypw",
         "json_response" => "1",
@@ -1236,7 +1237,7 @@ defmodule EirinchanWeb.PostControllerTest do
              "redirect" => redirect
            } = json_response(delete_conn, 200)
 
-    assert redirect =~ "/#{board.uri}/res/#{thread.id}-delete-target.html"
+    assert redirect =~ "/#{board.uri}/res/#{PublicIds.public_id(thread)}-delete-target.html"
   end
 
   test "delete branch removes threads and redirects to the board", %{conn: conn} do
@@ -1249,7 +1250,7 @@ defmodule EirinchanWeb.PostControllerTest do
       conn
       |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
       |> post("/#{board.uri}/post", %{
-        "delete_post_id" => Integer.to_string(thread.id),
+        "delete_post_id" => Integer.to_string(PublicIds.public_id(thread)),
         "password" => "threadpw",
         "json_response" => "1"
       })
@@ -1260,7 +1261,7 @@ defmodule EirinchanWeb.PostControllerTest do
              "redirect" => redirect
            } = json_response(delete_conn, 200)
 
-    assert deleted_post_id == thread.id
+    assert deleted_post_id == PublicIds.public_id(thread)
     assert redirect == "/#{board.uri}"
   end
 
@@ -1332,11 +1333,11 @@ defmodule EirinchanWeb.PostControllerTest do
       |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
       |> post(~p"/#{board.uri}/post", %{
         "mode" => "report",
-        "delete[]" => [Integer.to_string(thread.id)],
+        "delete[]" => [Integer.to_string(PublicIds.public_id(thread))],
         "reason" => "legacy report"
       })
 
-    assert redirected_to(report_conn) == "/#{board.uri}/res/#{thread.id}.html"
+    assert redirected_to(report_conn) == "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html"
     [report] = Eirinchan.Reports.list_reports(board)
     assert report.post_id == thread.id
 
@@ -1346,12 +1347,12 @@ defmodule EirinchanWeb.PostControllerTest do
       |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
       |> post(~p"/#{board.uri}/post", %{
         "mode" => "delete",
-        "delete[]" => [Integer.to_string(thread.id)],
+        "delete[]" => [Integer.to_string(PublicIds.public_id(thread))],
         "pwd" => "threadpw"
       })
 
     assert redirected_to(delete_conn) == "/#{board.uri}"
-    assert {:error, :not_found} = Eirinchan.Posts.get_thread(board, thread.id)
+    assert {:error, :not_found} = Eirinchan.Posts.get_thread(board, PublicIds.public_id(thread))
   end
 
   test "public delete form payload deletes selected post instead of treating submit value as id", %{
@@ -1362,10 +1363,10 @@ defmodule EirinchanWeb.PostControllerTest do
 
     conn =
       conn
-      |> put_req_header("referer", "http://www.example.com/#{board.uri}/res/#{thread.id}.html")
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/res/#{PublicIds.public_id(thread)}.html")
       |> post("/post.php", %{
         "board" => board.uri,
-        "delete_#{thread.id}" => "on",
+        "delete_#{PublicIds.public_id(thread)}" => "on",
         "password" => "threadpw",
         "delete" => "Delete",
         "_csrf_token" => Plug.CSRFProtection.get_csrf_token()
@@ -1382,12 +1383,12 @@ defmodule EirinchanWeb.PostControllerTest do
       conn
       |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
       |> post(~p"/#{board.uri}/post", %{
-        "delete_#{thread.id}" => "",
+        "delete_#{PublicIds.public_id(thread)}" => "",
         "reason" => "quick report",
         "report" => "Report"
       })
 
-    assert redirected_to(conn) == "/#{board.uri}/res/#{thread.id}.html"
+    assert redirected_to(conn) == "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html"
     [report] = Eirinchan.Reports.list_reports(board)
     assert report.post_id == thread.id
   end

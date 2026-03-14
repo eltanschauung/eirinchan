@@ -3,6 +3,7 @@ defmodule EirinchanWeb.ThreadControllerTest do
   import Ecto.Query
 
   alias Eirinchan.Posts
+  alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Posts.Post
   alias Eirinchan.Repo
   alias Eirinchan.Runtime.Config
@@ -34,7 +35,10 @@ defmodule EirinchanWeb.ThreadControllerTest do
     thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
     _reply = reply_fixture(board, thread, %{body: "Reply body"})
 
-    page = conn |> get("/#{board.uri}/res/#{thread.id}.html?fragment=1") |> html_response(200)
+    page =
+      conn
+      |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html?fragment=1")
+      |> html_response(200)
 
     assert page =~ ~s(id="thread-refresh-target")
     assert page =~ ~s(class="post reply")
@@ -49,14 +53,14 @@ defmodule EirinchanWeb.ThreadControllerTest do
 
     md5_a =
       conn
-      |> get("/#{board.uri}/res/#{thread.id}.html?fragment=md5")
+      |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html?fragment=md5")
       |> response(200)
       |> String.trim()
 
     md5_b =
       conn
       |> recycle()
-      |> get("/#{board.uri}/res/#{thread.id}.html?fragment=md5")
+      |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html?fragment=md5")
       |> response(200)
       |> String.trim()
 
@@ -69,7 +73,7 @@ defmodule EirinchanWeb.ThreadControllerTest do
 
     md5_before =
       conn
-      |> get("/#{board.uri}/res/#{thread.id}.html?fragment=md5")
+      |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html?fragment=md5")
       |> response(200)
       |> String.trim()
 
@@ -78,7 +82,7 @@ defmodule EirinchanWeb.ThreadControllerTest do
       |> recycle()
       |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
       |> post("/#{board.uri}/post", %{
-        "thread" => Integer.to_string(thread.id),
+        "thread" => Integer.to_string(PublicIds.public_id(thread)),
         "body" => "Reply body",
         "json_response" => "1",
         "post" => "New Reply"
@@ -87,7 +91,7 @@ defmodule EirinchanWeb.ThreadControllerTest do
     md5_after =
       conn
       |> recycle()
-      |> get("/#{board.uri}/res/#{thread.id}.html?fragment=md5")
+      |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html?fragment=md5")
       |> response(200)
       |> String.trim()
 
@@ -110,7 +114,7 @@ defmodule EirinchanWeb.ThreadControllerTest do
                request: %{referer: "http://www.example.com/#{board.uri}/index.html"}
              )
 
-    conn = get(conn, "/#{board.uri}/res/#{thread.id}.html")
+    conn = get(conn, "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html")
 
     assert redirected_to(conn) == ThreadPaths.thread_path(board, thread, config)
   end
@@ -159,14 +163,17 @@ defmodule EirinchanWeb.ThreadControllerTest do
       })
 
     thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
-    page = conn |> get("/#{board.uri}/res/#{thread.id}.html") |> html_response(200)
+
+    page =
+      conn |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html") |> html_response(200)
+
     document = Floki.parse_document!(page)
 
     reply_form =
       document
       |> Floki.find("form")
       |> Enum.find(fn form ->
-        Floki.find(form, ~s(input[name="thread"][value="#{thread.id}"])) != []
+        Floki.find(form, ~s(input[name="thread"][value="#{PublicIds.public_id(thread)}"])) != []
       end)
 
     assert reply_form
@@ -197,7 +204,8 @@ defmodule EirinchanWeb.ThreadControllerTest do
                request: %{referer: "http://www.example.com/#{board.uri}/index.html"}
              )
 
-    page = conn |> get("/#{board.uri}/res/#{thread.id}.html") |> html_response(200)
+    page =
+      conn |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html") |> html_response(200)
 
     assert page =~ ~s(title="Sauce")
   end
@@ -227,7 +235,8 @@ defmodule EirinchanWeb.ThreadControllerTest do
                request: %{referer: "http://www.example.com/#{board.uri}/index.html"}
              )
 
-    page = conn |> get("/#{board.uri}/res/#{thread.id}.html") |> html_response(200)
+    page =
+      conn |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html") |> html_response(200)
 
     refute page =~ ~s(title="Sauce")
     refute page =~ ~s(class="flag")
@@ -249,7 +258,8 @@ defmodule EirinchanWeb.ThreadControllerTest do
                request: %{referer: "http://www.example.com/#{board.uri}/index.html"}
              )
 
-    page = conn |> get("/#{board.uri}/res/#{thread.id}.html") |> html_response(200)
+    page =
+      conn |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html") |> html_response(200)
 
     assert page =~ ~s(name="embed")
     assert page =~ ~s(class="video-container")
@@ -287,14 +297,16 @@ defmodule EirinchanWeb.ThreadControllerTest do
     board = board_fixture()
     thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
 
-    page = conn |> get("/#{board.uri}/res/#{thread.id}.html") |> html_response(200)
+    page =
+      conn |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html") |> html_response(200)
+
     document = Floki.parse_document!(page)
 
     assert Floki.find(document, ~s(template#quick-reply-template form#quick-reply)) != []
 
     assert Floki.find(
              document,
-             ~s(template#quick-reply-template input[name="thread"][value="#{thread.id}"])
+             ~s(template#quick-reply-template input[name="thread"][value="#{PublicIds.public_id(thread)}"])
            ) != []
 
     assert Floki.find(
@@ -309,7 +321,8 @@ defmodule EirinchanWeb.ThreadControllerTest do
     board = board_fixture(%{config_overrides: %{catalog_name: "Orin"}})
     thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
 
-    page = conn |> get("/#{board.uri}/res/#{thread.id}.html") |> html_response(200)
+    page =
+      conn |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html") |> html_response(200)
 
     assert page =~ "[Orin]"
     refute page =~ "[Catalog]"
@@ -324,13 +337,13 @@ defmodule EirinchanWeb.ThreadControllerTest do
     page =
       conn
       |> put_req_cookie("browser_token", token)
-      |> get("/#{board.uri}/res/#{thread.id}.html")
+      |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html")
       |> html_response(200)
 
-    assert page =~ ~s(data-thread-id="#{thread.id}")
+    assert page =~ ~s(data-thread-id="#{PublicIds.public_id(thread)}")
     refute page =~ ~s(class="thread-watch-toggle")
     refute page =~ "[Unwatch]"
-    assert page =~ ~s(data-watch-url="/watcher/#{board.uri}/#{thread.id}")
+    assert page =~ ~s(data-watch-url="/watcher/#{board.uri}/#{PublicIds.public_id(thread)}")
   end
 
   test "thread pages render stored OP tags", %{conn: conn} do
@@ -353,7 +366,8 @@ defmodule EirinchanWeb.ThreadControllerTest do
                request: %{referer: "http://www.example.com/#{board.uri}/index.html"}
              )
 
-    page = conn |> get("/#{board.uri}/res/#{thread.id}.html") |> html_response(200)
+    page =
+      conn |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html") |> html_response(200)
 
     assert page =~ "Tag: Anime"
   end
@@ -380,7 +394,7 @@ defmodule EirinchanWeb.ThreadControllerTest do
                Posts.create_post(
                  board,
                  %{
-                   "thread" => Integer.to_string(thread.id),
+                   "thread" => Integer.to_string(PublicIds.public_id(thread)),
                    "body" => body,
                    "post" => "New Reply"
                  },
@@ -411,7 +425,8 @@ defmodule EirinchanWeb.ThreadControllerTest do
     board = board_fixture()
     thread = thread_fixture(board)
 
-    page = conn |> get("/#{board.uri}/res/#{thread.id}.html") |> html_response(200)
+    page =
+      conn |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html") |> html_response(200)
 
     assert page =~ ~s(title="Meta">meta</a>)
     assert page =~ ~s(title="#{board.title}">#{board.uri}</a>)
@@ -424,7 +439,8 @@ defmodule EirinchanWeb.ThreadControllerTest do
     board = board_fixture(%{uri: "bant", title: "International Random"})
     thread = thread_fixture(board, %{body: "Thread body"})
 
-    page = conn |> get("/#{board.uri}/res/#{thread.id}.html") |> html_response(200)
+    page =
+      conn |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html") |> html_response(200)
 
     assert page =~ ~s(class="8chan vichan is-not-moderator active-thread")
     assert page =~ ~s(data-stylesheet="yotsuba.css")
@@ -446,7 +462,10 @@ defmodule EirinchanWeb.ThreadControllerTest do
       })
 
     thread = thread_fixture(board)
-    page = conn |> get("/#{board.uri}/res/#{thread.id}.html") |> html_response(200)
+
+    page =
+      conn |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html") |> html_response(200)
+
     document = Floki.parse_document!(page)
 
     assert page =~ "reply check"
@@ -461,12 +480,14 @@ defmodule EirinchanWeb.ThreadControllerTest do
     board = board_fixture()
     thread = thread_fixture(board)
 
-    page = conn |> get("/#{board.uri}/res/#{thread.id}.html") |> html_response(200)
+    page =
+      conn |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html") |> html_response(200)
+
     document = Floki.parse_document!(page)
 
     assert Floki.find(
              document,
-             ~s(form#reply-form[data-remember-stuff][data-draft-key="#{thread.id}"])
+             ~s(form#reply-form[data-remember-stuff][data-draft-key="#{PublicIds.public_id(thread)}"])
            ) != []
   end
 
@@ -474,7 +495,9 @@ defmodule EirinchanWeb.ThreadControllerTest do
     board = board_fixture()
     thread = thread_fixture(board)
 
-    page = conn |> get("/#{board.uri}/res/#{thread.id}.html") |> html_response(200)
+    page =
+      conn |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html") |> html_response(200)
+
     document = Floki.parse_document!(page)
 
     assert Floki.find(document, ~s(form#reply-form input[type="text"][name="password"])) != []
@@ -483,7 +506,7 @@ defmodule EirinchanWeb.ThreadControllerTest do
   test "thread pages render (You) markers from browser token ownership", %{conn: conn} do
     board = board_fixture(%{uri: "showyous", title: "Show Yous"})
     thread = thread_fixture(board, %{body: "Opening body"})
-    reply = reply_fixture(board, thread, %{body: ">>#{thread.id}"})
+    reply = reply_fixture(board, thread, %{body: ">>#{PublicIds.public_id(thread)}"})
     token = "show-yous-thread-token"
 
     assert {:ok, _} = Eirinchan.PostOwnership.record(token, thread.id)
@@ -493,7 +516,7 @@ defmodule EirinchanWeb.ThreadControllerTest do
       conn
       |> put_req_cookie("browser_token", token)
       |> put_req_cookie("show_yous", "true")
-      |> get("/#{board.uri}/res/#{thread.id}.html")
+      |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html")
       |> html_response(200)
 
     assert page =~ ~s|<span class="own_post">(You)</span>|
@@ -512,7 +535,8 @@ defmodule EirinchanWeb.ThreadControllerTest do
                request: %{referer: "http://www.example.com/#{board.uri}/index.html"}
              )
 
-    page = conn |> get("/#{board.uri}/res/#{thread.id}.html") |> html_response(200)
+    page =
+      conn |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html") |> html_response(200)
 
     assert page =~ thread.tripcode
   end
@@ -526,7 +550,7 @@ defmodule EirinchanWeb.ThreadControllerTest do
     page =
       conn
       |> login_moderator(moderator)
-      |> get("/#{board.uri}/res/#{thread.id}.html")
+      |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html")
       |> html_response(200)
 
     assert page =~ ~s(class="controls op")
@@ -544,31 +568,35 @@ defmodule EirinchanWeb.ThreadControllerTest do
 
     page =
       conn
-      |> get("/#{board.uri}/res/#{thread.id}.html")
+      |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html")
       |> html_response(200)
 
     document = Floki.parse_document!(page)
 
     assert Floki.find(document, ~s(form#reply-form[data-thread-reply-form])) != []
     assert Floki.find(document, ~s(textarea[data-post-body])) != []
-    assert Floki.find(document, ~s(a[data-quote-to="#{thread.id}"])) != []
-    assert Floki.find(document, ~s(a[data-quote-to="#{reply.id}"])) != []
+    assert Floki.find(document, ~s(a[data-quote-to="#{PublicIds.public_id(thread)}"])) != []
+    assert Floki.find(document, ~s(a[data-quote-to="#{PublicIds.public_id(reply)}"])) != []
   end
 
   test "thread pages render vichan-style body quote links", %{conn: conn} do
     board = board_fixture()
     thread = thread_fixture(board, %{body: "Opening body"})
-    reply = reply_fixture(board, thread, %{body: ">>#{thread.id}\n>quoted line"})
+
+    reply =
+      reply_fixture(board, thread, %{body: ">>#{PublicIds.public_id(thread)}\n>quoted line"})
 
     page =
       conn
-      |> get("/#{board.uri}/res/#{thread.id}.html")
+      |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html")
       |> html_response(200)
 
-    assert page =~ ~s(href="/#{board.uri}/res/#{thread.id}.html##{thread.id}")
-    assert page =~ "&gt;&gt;#{thread.id}</a> <small>(OP)</small>"
+    assert page =~
+             ~s(href="/#{board.uri}/res/#{PublicIds.public_id(thread)}.html##{PublicIds.public_id(thread)}")
+
+    assert page =~ "&gt;&gt;#{PublicIds.public_id(thread)}</a> <small>(OP)</small>"
     assert page =~ ~s(class="quote")
-    assert page =~ Integer.to_string(reply.id)
+    assert page =~ Integer.to_string(PublicIds.public_id(reply))
   end
 
   test "thread pages pre-render local time attributes", %{conn: conn} do
@@ -577,7 +605,7 @@ defmodule EirinchanWeb.ThreadControllerTest do
 
     page =
       conn
-      |> get("/#{board.uri}/res/#{thread.id}.html")
+      |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html")
       |> html_response(200)
 
     document = Floki.parse_document!(page)
@@ -600,7 +628,7 @@ defmodule EirinchanWeb.ThreadControllerTest do
     page =
       conn
       |> put_req_cookie("timezone_offset", "-180")
-      |> get("/#{board.uri}/res/#{thread.id}.html")
+      |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html")
       |> html_response(200)
 
     assert page =~ "03/13/26 (Fri) 09:00:00"
@@ -613,7 +641,7 @@ defmodule EirinchanWeb.ThreadControllerTest do
 
     page =
       conn
-      |> get("/#{board.uri}/res/#{thread.id}.html")
+      |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html")
       |> html_response(200)
 
     assert page =~ ~s(id="options_handler")
@@ -631,12 +659,14 @@ defmodule EirinchanWeb.ThreadControllerTest do
     File.rm_rf!(Path.join(Build.board_root(), board.uri))
     thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
 
-    thread_path = Path.join([Build.board_root(), board.uri, "res", "#{thread.id}.html"])
+    thread_path =
+      Path.join([Build.board_root(), board.uri, "res", "#{PublicIds.public_id(thread)}.html"])
+
     refute File.exists?(thread_path)
 
     page =
       conn
-      |> get("/#{board.uri}/res/#{thread.id}.html")
+      |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html")
       |> html_response(200)
 
     assert page =~ "Thread body"
@@ -682,11 +712,11 @@ defmodule EirinchanWeb.ThreadControllerTest do
     page =
       conn
       |> put_req_cookie("browser_token", token)
-      |> get("/#{board.uri}/res/#{thread.id}.html")
+      |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html")
       |> html_response(200)
 
     assert page =~ ~s(data-watcher-count="1")
-    assert page =~ ~s(data-thread-id="#{thread.id}")
-    assert page =~ ~s(data-watch-url="/watcher/#{board.uri}/#{thread.id}")
+    assert page =~ ~s(data-thread-id="#{PublicIds.public_id(thread)}")
+    assert page =~ ~s(data-watch-url="/watcher/#{board.uri}/#{PublicIds.public_id(thread)}")
   end
 end

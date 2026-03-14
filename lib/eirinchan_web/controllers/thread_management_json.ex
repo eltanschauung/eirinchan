@@ -1,11 +1,13 @@
 defmodule EirinchanWeb.ThreadManagementJSON do
+  alias Eirinchan.Posts.PublicIds
+
   def show(%{thread: thread}) do
     %{data: thread_data(thread)}
   end
 
   defp thread_data(thread) do
     %{
-      id: thread.id,
+      id: PublicIds.public_id(thread),
       board_id: thread.board_id,
       sticky: thread.sticky,
       locked: thread.locked,

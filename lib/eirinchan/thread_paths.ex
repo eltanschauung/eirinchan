@@ -5,6 +5,7 @@ defmodule Eirinchan.ThreadPaths do
 
   alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.Posts.Post
+  alias Eirinchan.Posts.PublicIds
 
   @spec parse_thread_id(String.t() | integer()) :: {:ok, integer()} | :error
   def parse_thread_id(value) when is_integer(value), do: {:ok, value}
@@ -17,7 +18,8 @@ defmodule Eirinchan.ThreadPaths do
   end
 
   @spec thread_filename(Post.t(), map(), keyword()) :: String.t()
-  def thread_filename(%Post{id: id, slug: slug}, config, opts \\ []) do
+  def thread_filename(%Post{slug: slug} = thread, config, opts \\ []) do
+    public_id = PublicIds.public_id(thread)
     noko50? = Keyword.get(opts, :noko50, false)
 
     template =
@@ -28,13 +30,13 @@ defmodule Eirinchan.ThreadPaths do
       end
 
     template
-    |> String.replace("%d", Integer.to_string(id))
+    |> String.replace("%d", Integer.to_string(public_id))
     |> String.replace("%s", slug || "")
   end
 
   @spec legacy_thread_filename(Post.t(), map()) :: String.t()
-  def legacy_thread_filename(%Post{id: id}, config) do
-    String.replace(config.file_page, "%d", Integer.to_string(id))
+  def legacy_thread_filename(%Post{} = thread, config) do
+    String.replace(config.file_page, "%d", Integer.to_string(PublicIds.public_id(thread)))
   end
 
   @spec thread_path(BoardRecord.t(), Post.t(), map(), keyword()) :: String.t()

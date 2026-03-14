@@ -31,6 +31,7 @@ defmodule Eirinchan.PostsTest do
   alias Eirinchan.Antispam
   alias Eirinchan.Build
   alias Eirinchan.Posts
+  alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Posts.Post
   alias Eirinchan.Runtime.Config
 
@@ -99,7 +100,7 @@ defmodule Eirinchan.PostsTest do
              Posts.create_post(
                board,
                %{
-                 "thread" => Integer.to_string(thread.id),
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
                  "body" => "reply body",
                  "post" => "New Reply"
                },
@@ -200,7 +201,7 @@ defmodule Eirinchan.PostsTest do
              Posts.create_post(
                board,
                %{
-                 "resto" => Integer.to_string(thread.id),
+                 "resto" => Integer.to_string(PublicIds.public_id(thread)),
                  "message" => "legacy reply",
                  "mode" => "regist"
                },
@@ -273,7 +274,7 @@ defmodule Eirinchan.PostsTest do
              Posts.create_post(
                board,
                %{
-                 "thread" => Integer.to_string(thread.id),
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
                  "body" => " \n\t ",
                  "file" => upload,
                  "post" => "New Reply"
@@ -331,7 +332,8 @@ defmodule Eirinchan.PostsTest do
                board,
                %{
                  "body" => "first post",
-                 "file" => raw_upload_fixture("exploit.png", "<html><script>alert(1)</script></html>"),
+                 "file" =>
+                   raw_upload_fixture("exploit.png", "<html><script>alert(1)</script></html>"),
                  "post" => "New Topic"
                },
                config: post_config(board.config_overrides),
@@ -465,7 +467,7 @@ defmodule Eirinchan.PostsTest do
              Posts.create_post(
                board,
                %{
-                 "thread" => Integer.to_string(thread.id),
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
                  "body" => "reply body",
                  "file" => upload_fixture("reply.png", geometry: "120x60"),
                  "post" => "New Reply"
@@ -613,7 +615,7 @@ defmodule Eirinchan.PostsTest do
              Posts.create_post(
                board,
                %{
-                 "thread" => Integer.to_string(thread.id),
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
                  "body" => "Reply body",
                  "file" => raw_upload_fixture("reply.txt", "hello"),
                  "post" => "New Reply"
@@ -794,7 +796,7 @@ defmodule Eirinchan.PostsTest do
         request: post_request(board.uri)
       )
 
-    assert {:error, :not_found} = Posts.get_post(board, old_thread.id)
+    assert {:error, :not_found} = Posts.get_post(board, PublicIds.public_id(old_thread))
   end
 
   test "create_post keeps old threads past early-404 when reply threshold is met" do
@@ -835,7 +837,7 @@ defmodule Eirinchan.PostsTest do
         request: post_request(board.uri)
       )
 
-    assert {:ok, _thread} = Posts.get_post(board, old_thread.id)
+    assert {:ok, _thread} = Posts.get_post(board, PublicIds.public_id(old_thread))
   end
 
   test "create_post prunes overflow threads when max pages are exceeded" do
@@ -874,7 +876,9 @@ defmodule Eirinchan.PostsTest do
         repo: Repo
       )
 
-    assert {:error, :not_found} = Posts.get_post(board, old_thread.id, repo: Repo)
+    assert {:error, :not_found} =
+             Posts.get_post(board, PublicIds.public_id(old_thread), repo: Repo)
+
     assert {:ok, _thread} = Posts.get_post(board, new_thread.id, repo: Repo)
   end
 
@@ -1042,7 +1046,7 @@ defmodule Eirinchan.PostsTest do
                repo: Eirinchan.TestFailingPostFileRepo
              )
 
-    refute Repo.exists?(from post in Post, where: post.board_id == ^board.id)
+    refute Repo.exists?(from(post in Post, where: post.board_id == ^board.id))
     assert Path.wildcard(Path.join(Eirinchan.Build.board_root(), "#{board.uri}/src/*")) == []
     assert Path.wildcard(Path.join(Eirinchan.Build.board_root(), "#{board.uri}/thumb/*")) == []
   end
@@ -1429,7 +1433,7 @@ defmodule Eirinchan.PostsTest do
              Posts.create_post(
                board,
                %{
-                 "thread" => Integer.to_string(thread.id),
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
                  "body" => "reply body",
                  "tag" => "A",
                  "post" => "New Reply"
@@ -1513,7 +1517,7 @@ defmodule Eirinchan.PostsTest do
              Posts.create_post(
                board,
                %{
-                 "thread" => Integer.to_string(thread.id),
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
                  "body" => "mod reply",
                  "post" => "New Reply"
                },
@@ -1581,7 +1585,7 @@ defmodule Eirinchan.PostsTest do
              Posts.create_post(
                board,
                %{
-                 "thread" => Integer.to_string(thread.id),
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
                  "body" => "reply body",
                  "post" => "New Reply"
                },
@@ -1673,7 +1677,7 @@ defmodule Eirinchan.PostsTest do
              Posts.create_post(
                board,
                %{
-                 "thread" => Integer.to_string(thread.id),
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
                  "body" => "reply body",
                  "post" => "New Reply"
                },
@@ -1685,7 +1689,7 @@ defmodule Eirinchan.PostsTest do
              Posts.create_post(
                board,
                %{
-                 "thread" => Integer.to_string(thread.id),
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
                  "body" => "reply body",
                  "captcha" => "ok",
                  "post" => "New Reply"
@@ -1704,8 +1708,9 @@ defmodule Eirinchan.PostsTest do
              Posts.create_post(
                board,
                %{
-                 "thread" => Integer.to_string(thread.id),
-                 "body" => "see >>#{thread.id} and >>#{reply.id} and >>999999",
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
+                 "body" =>
+                   "see >>#{PublicIds.public_id(thread)} and >>#{PublicIds.public_id(reply)} and >>999999",
                  "post" => "New Reply"
                },
                config: post_config(board.config_overrides),
@@ -1855,7 +1860,7 @@ defmodule Eirinchan.PostsTest do
              Posts.create_post(
                board,
                %{
-                 "thread" => Integer.to_string(thread.id),
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
                  "body" => "first reply",
                  "post" => "New Reply"
                },
@@ -1867,7 +1872,7 @@ defmodule Eirinchan.PostsTest do
              Posts.create_post(
                board,
                %{
-                 "thread" => Integer.to_string(thread.id),
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
                  "body" => "second reply",
                  "post" => "New Reply"
                },
@@ -1897,7 +1902,7 @@ defmodule Eirinchan.PostsTest do
              Posts.create_post(
                board,
                %{
-                 "thread" => Integer.to_string(thread.id),
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
                  "body" => "Reply body",
                  "file" => upload_fixture("reply.png", "reply"),
                  "post" => "New Reply"
@@ -1910,7 +1915,7 @@ defmodule Eirinchan.PostsTest do
              Posts.create_post(
                board,
                %{
-                 "thread" => Integer.to_string(thread.id),
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
                  "body" => "Text-only reply",
                  "post" => "New Reply"
                },
@@ -1975,7 +1980,7 @@ defmodule Eirinchan.PostsTest do
              Posts.create_post(
                board,
                %{
-                 "thread" => Integer.to_string(thread.id),
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
                  "body" => "Reply body",
                  "file" => reply_upload,
                  "post" => "New Reply"
@@ -2012,7 +2017,7 @@ defmodule Eirinchan.PostsTest do
              Posts.create_post(
                board,
                %{
-                 "thread" => Integer.to_string(thread.id),
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
                  "body" => "Reply body",
                  "post" => "New Reply"
                },
@@ -2177,7 +2182,7 @@ defmodule Eirinchan.PostsTest do
              Posts.create_post(
                board,
                %{
-                 "thread" => Integer.to_string(thread.id),
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
                  "body" => "First reply",
                  "post" => "New Reply"
                },
@@ -2189,7 +2194,7 @@ defmodule Eirinchan.PostsTest do
              Posts.create_post(
                board,
                %{
-                 "thread" => Integer.to_string(thread.id),
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
                  "body" => "Second reply",
                  "post" => "New Reply"
                },
@@ -2225,7 +2230,7 @@ defmodule Eirinchan.PostsTest do
              Posts.create_post(
                board,
                %{
-                 "thread" => Integer.to_string(thread.id),
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
                  "body" => "Reply body",
                  "password" => "replypw",
                  "post" => "New Reply"
@@ -2235,14 +2240,14 @@ defmodule Eirinchan.PostsTest do
              )
 
     assert {:error, :invalid_password} =
-             Posts.delete_post(board, reply.id, "wrong", config: config)
+             Posts.delete_post(board, PublicIds.public_id(reply), "wrong", config: config)
 
     assert {:ok, %{deleted_post_id: deleted_post_id, thread_id: thread_id, thread_deleted: false}} =
-             Posts.delete_post(board, reply.id, "replypw", config: config)
+             Posts.delete_post(board, PublicIds.public_id(reply), "replypw", config: config)
 
-    assert deleted_post_id == reply.id
-    assert thread_id == thread.id
-    assert {:ok, [reloaded_thread]} = Posts.get_thread(board, thread.id, config: config)
+    assert deleted_post_id == PublicIds.public_id(reply)
+    assert thread_id == PublicIds.public_id(thread)
+    assert {:ok, [reloaded_thread]} = Posts.get_thread(board, PublicIds.public_id(thread), config: config)
     assert reloaded_thread.id == thread.id
   end
 
@@ -2268,7 +2273,7 @@ defmodule Eirinchan.PostsTest do
              Posts.create_post(
                board,
                %{
-                 "thread" => Integer.to_string(thread.id),
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
                  "body" => "Reply body",
                  "password" => "replypw",
                  "post" => "New Reply"
@@ -2278,11 +2283,11 @@ defmodule Eirinchan.PostsTest do
              )
 
     assert {:ok, %{deleted_post_id: deleted_post_id, thread_id: thread_id, thread_deleted: true}} =
-             Posts.delete_post(board, thread.id, "threadpw", config: config)
+             Posts.delete_post(board, PublicIds.public_id(thread), "threadpw", config: config)
 
-    assert deleted_post_id == thread.id
-    assert thread_id == thread.id
-    assert {:error, :not_found} = Posts.get_thread(board, thread.id, config: config)
+    assert deleted_post_id == PublicIds.public_id(thread)
+    assert thread_id == PublicIds.public_id(thread)
+    assert {:error, :not_found} = Posts.get_thread(board, PublicIds.public_id(thread), config: config)
     assert Posts.list_threads(board, config: config) == []
   end
 
@@ -2385,7 +2390,7 @@ defmodule Eirinchan.PostsTest do
              Posts.create_post(
                board,
                %{
-                 "thread" => Integer.to_string(thread.id),
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
                  "body" => "Reply one",
                  "file" => upload_fixture("reply1.png", "reply-one"),
                  "post" => "New Reply"
@@ -2398,7 +2403,7 @@ defmodule Eirinchan.PostsTest do
              Posts.create_post(
                board,
                %{
-                 "thread" => Integer.to_string(thread.id),
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
                  "body" => "Reply two",
                  "file" => upload_fixture("reply2.png", "reply-two"),
                  "post" => "New Reply"
@@ -2440,7 +2445,7 @@ defmodule Eirinchan.PostsTest do
                Posts.create_post(
                  board,
                  %{
-                   "thread" => Integer.to_string(thread.id),
+                   "thread" => Integer.to_string(PublicIds.public_id(thread)),
                    "body" => body,
                    "post" => "New Reply"
                  },
@@ -2487,7 +2492,7 @@ defmodule Eirinchan.PostsTest do
              Posts.create_post(
                board,
                %{
-                 "thread" => Integer.to_string(thread.id),
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
                  "body" => "Reply body",
                  "password" => "replypw",
                  "file" => upload_fixture("reply.png", "reply"),
@@ -2501,7 +2506,7 @@ defmodule Eirinchan.PostsTest do
     assert File.exists?(Eirinchan.Uploads.filesystem_path(reply.thumb_path))
 
     assert {:ok, %{thread_deleted: false}} =
-             Posts.delete_post(board, reply.id, "replypw", config: config)
+             Posts.delete_post(board, PublicIds.public_id(reply), "replypw", config: config)
 
     refute File.exists?(Eirinchan.Uploads.filesystem_path(reply.file_path))
     refute File.exists?(Eirinchan.Uploads.filesystem_path(reply.thumb_path))
@@ -2509,7 +2514,7 @@ defmodule Eirinchan.PostsTest do
     assert File.exists?(Eirinchan.Uploads.filesystem_path(thread.thumb_path))
 
     assert {:ok, %{thread_deleted: true}} =
-             Posts.delete_post(board, thread.id, "threadpw", config: config)
+             Posts.delete_post(board, PublicIds.public_id(thread), "threadpw", config: config)
 
     refute File.exists?(Eirinchan.Uploads.filesystem_path(thread.file_path))
     refute File.exists?(Eirinchan.Uploads.filesystem_path(thread.thumb_path))
@@ -2525,11 +2530,11 @@ defmodule Eirinchan.PostsTest do
              Posts.update_post(
                board,
                reply.id,
-               %{"body" => "After >>#{thread.id}"},
+               %{"body" => "After >>#{PublicIds.public_id(thread)}"},
                config: config
              )
 
-    assert updated_reply.body == "After >>#{thread.id}"
+    assert updated_reply.body == "After >>#{PublicIds.public_id(thread)}"
 
     assert Enum.map(Posts.list_cites_for_post(updated_reply, repo: Repo), & &1.target_post_id) ==
              [thread.id]
@@ -2544,7 +2549,7 @@ defmodule Eirinchan.PostsTest do
     assert {:ok, %{deleted_post_id: deleted_post_id, thread_deleted: false}} =
              Posts.moderate_delete_post(board, reply.id, config: config)
 
-    assert deleted_post_id == reply.id
+    assert deleted_post_id == PublicIds.public_id(reply)
     assert {:ok, [reloaded_thread]} = Posts.get_thread(board, thread.id, config: config)
     assert reloaded_thread.id == thread.id
   end
@@ -2840,7 +2845,11 @@ defmodule Eirinchan.PostsTest do
     assert {:ok, _reply, _meta} =
              Posts.create_post(
                board,
-               %{"thread" => Integer.to_string(thread.id), "body" => "bump", "post" => "Reply"},
+               %{
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
+                 "body" => "bump",
+                 "post" => "Reply"
+               },
                config: config,
                request: request,
                repo: Repo
@@ -2853,7 +2862,7 @@ defmodule Eirinchan.PostsTest do
              Posts.create_post(
                board,
                %{
-                 "thread" => Integer.to_string(thread.id),
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
                  "body" => "sage",
                  "email" => "sage",
                  "post" => "Reply"
@@ -2905,8 +2914,8 @@ defmodule Eirinchan.PostsTest do
     assert {:ok, bump_reply, _meta} =
              Posts.create_post(
                board,
-               %{
-                 "thread" => Integer.to_string(older_thread.id),
+                %{
+                 "thread" => Integer.to_string(PublicIds.public_id(older_thread)),
                  "body" => "Bumping reply",
                  "password" => "replypw",
                  "post" => "New Reply"
@@ -2920,9 +2929,9 @@ defmodule Eirinchan.PostsTest do
     assert hd(page_after_bump.threads).thread.id == older_thread.id
 
     assert {:ok, %{deleted_post_id: deleted_post_id, thread_deleted: false}} =
-             Posts.delete_post(board, bump_reply.id, "replypw", config: config, repo: Repo)
+             Posts.delete_post(board, PublicIds.public_id(bump_reply), "replypw", config: config, repo: Repo)
 
-    assert deleted_post_id == bump_reply.id
+    assert deleted_post_id == PublicIds.public_id(bump_reply)
 
     assert {:ok, page_after_delete} =
              Posts.list_threads_page(board, 1, config: config, repo: Repo)
@@ -2952,7 +2961,7 @@ defmodule Eirinchan.PostsTest do
              Posts.create_post(
                source_board,
                %{
-                 "thread" => Integer.to_string(thread.id),
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
                  "body" => "Reply body",
                  "file" => upload_fixture("reply.png", geometry: "32x32"),
                  "post" => "New Reply"
@@ -2965,10 +2974,7 @@ defmodule Eirinchan.PostsTest do
     old_reply_file = reply.file_path
 
     source_thread_output =
-      Path.join([Build.board_root(), source_board.uri, "res", "#{thread.id}.html"])
-
-    target_thread_output =
-      Path.join([Build.board_root(), target_board.uri, "res", "#{thread.id}.html"])
+      Path.join([Build.board_root(), source_board.uri, "res", "#{PublicIds.public_id(thread)}.html"])
 
     assert {:ok, moved_thread} =
              Posts.move_thread(
@@ -2979,6 +2985,9 @@ defmodule Eirinchan.PostsTest do
                target_config: target_config
              )
 
+    target_thread_output =
+      Path.join([Build.board_root(), target_board.uri, "res", "#{PublicIds.public_id(moved_thread)}.html"])
+
     assert moved_thread.board_id == target_board.id
     assert moved_thread.file_path =~ ~r|^/#{target_board.uri}/src/\d+\.png$|
     refute File.exists?(Eirinchan.Uploads.filesystem_path(old_thread_file))
@@ -2986,9 +2995,9 @@ defmodule Eirinchan.PostsTest do
     assert File.exists?(Eirinchan.Uploads.filesystem_path(moved_thread.file_path))
     assert File.exists?(target_thread_output)
     refute File.exists?(source_thread_output)
-    assert {:error, :not_found} = Posts.get_thread(source_board, thread.id)
+    assert {:error, :not_found} = Posts.get_thread(source_board, PublicIds.public_id(thread))
 
-    assert {:ok, [reloaded_thread, moved_reply]} = Posts.get_thread(target_board, thread.id)
+    assert {:ok, [reloaded_thread, moved_reply]} = Posts.get_thread(target_board, PublicIds.public_id(moved_thread))
     assert reloaded_thread.board_id == target_board.id
     assert moved_reply.board_id == target_board.id
     assert moved_reply.thread_id == thread.id
@@ -3006,8 +3015,8 @@ defmodule Eirinchan.PostsTest do
     assert {:ok, reply, _meta} =
              Posts.create_post(
                source_board,
-               %{
-                 "thread" => Integer.to_string(source_thread.id),
+                %{
+                 "thread" => Integer.to_string(PublicIds.public_id(source_thread)),
                  "body" => "Movable reply",
                  "file" => upload_fixture("move-reply.png", geometry: "32x32"),
                  "post" => "New Reply"
@@ -3023,7 +3032,7 @@ defmodule Eirinchan.PostsTest do
                source_board,
                reply.id,
                target_board,
-               target_thread.id,
+               PublicIds.public_id(target_thread),
                source_config: source_config,
                target_config: target_config
              )
@@ -3034,16 +3043,16 @@ defmodule Eirinchan.PostsTest do
     refute File.exists?(Eirinchan.Uploads.filesystem_path(old_file))
     assert File.exists?(Eirinchan.Uploads.filesystem_path(moved_reply.file_path))
 
-    assert {:ok, [reloaded_source_thread]} = Posts.get_thread(source_board, source_thread.id)
+    assert {:ok, [reloaded_source_thread]} = Posts.get_thread(source_board, PublicIds.public_id(source_thread))
     assert reloaded_source_thread.id == source_thread.id
 
     assert {:ok, [_target_thread, moved_reply_from_target]} =
-             Posts.get_thread(target_board, target_thread.id)
+             Posts.get_thread(target_board, PublicIds.public_id(target_thread))
 
     assert moved_reply_from_target.id == reply.id
 
     assert File.read!(
-             Path.join([Build.board_root(), target_board.uri, "res", "#{target_thread.id}.html"])
+             Path.join([Build.board_root(), target_board.uri, "res", "#{PublicIds.public_id(target_thread)}.html"])
            ) =~
              "Movable reply"
   end

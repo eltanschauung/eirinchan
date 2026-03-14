@@ -47,9 +47,9 @@
         <hr />
         <a
           class="eita-link"
-          id={"eita-#{entry.board.uri}-#{entry.thread.id}"}
-          href={EirinchanWeb.PostView.thread_path(entry.board, entry.thread, entry.config) <> "##{entry.post.id}"}
-        >/ <%= entry.board.uri %> /<%= entry.post.id %></a><br />
+          id={"eita-#{entry.board.uri}-#{EirinchanWeb.PostView.public_post_id(entry.thread)}"}
+          href={EirinchanWeb.PostView.thread_path(entry.board, entry.thread, entry.config) <> "##{EirinchanWeb.PostView.public_post_id(entry.post)}"}
+        >/ <%= entry.board.uri %> /<%= EirinchanWeb.PostView.public_post_id(entry.post) %></a><br />
         <.moderation_post
           post={entry.post}
           board={entry.board}

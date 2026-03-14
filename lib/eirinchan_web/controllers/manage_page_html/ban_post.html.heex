@@ -1,12 +1,12 @@
 <.flash_group flash={@flash} />
 <section>
-  <h1>Ban post #<%= @post.id %> on /<%= @board.uri %>/</h1>
+  <h1>Ban post #<%= EirinchanWeb.PostView.public_post_id(@post) %> on /<%= @board.uri %>/</h1>
   <p><a href={~p"/manage"}>Back to Manage</a></p>
   <p :if={@error} class="error"><%= @error %></p>
 </section>
 
 <section>
-  <form action={"/manage/boards/#{@board.uri}/posts/#{@post.id}/ban/browser"} method="post">
+  <form action={"/manage/boards/#{@board.uri}/posts/#{EirinchanWeb.PostView.public_post_id(@post)}/ban/browser"} method="post">
     <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
     <input type="hidden" name="token" value={@secure_manage_token} />
     <input type="hidden" name="delete" value={@params["delete"]} />

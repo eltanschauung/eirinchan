@@ -3,6 +3,7 @@ defmodule EirinchanWeb.ThreadWatcherController do
 
   alias Eirinchan.Boards
   alias Eirinchan.Posts
+  alias Eirinchan.Posts.PublicIds
   alias Eirinchan.ThreadWatcher
 
   def create(conn, %{"board" => board_uri, "thread_id" => thread_id}) do
@@ -18,7 +19,7 @@ defmodule EirinchanWeb.ThreadWatcherController do
       json(conn, %{
         ok: true,
         watched: true,
-        thread_id: thread.id,
+        thread_id: PublicIds.public_id(thread),
         board: board.uri,
         watcher_count: ThreadWatcher.watch_count(conn.assigns.browser_token),
         watcher_you_count: ThreadWatcher.watch_metrics(conn.assigns.browser_token).watcher_you_count
@@ -38,7 +39,7 @@ defmodule EirinchanWeb.ThreadWatcherController do
       json(conn, %{
         ok: true,
         watched: false,
-        thread_id: thread.id,
+        thread_id: PublicIds.public_id(thread),
         board: board.uri,
         watcher_count: ThreadWatcher.watch_count(conn.assigns.browser_token),
         watcher_you_count: ThreadWatcher.watch_metrics(conn.assigns.browser_token).watcher_you_count
@@ -54,17 +55,18 @@ defmodule EirinchanWeb.ThreadWatcherController do
     with {:ok, board} <- fetch_board(board_uri),
          {:ok, thread} <- Posts.fetch_thread(board, thread_id),
          {parsed_last_seen_post_id, ""} <- Integer.parse(to_string(last_seen_post_id)),
-         true <- parsed_last_seen_post_id >= thread.id,
+         true <- parsed_last_seen_post_id >= PublicIds.public_id(thread),
+         {:ok, last_seen_post} <- Posts.get_post(board, parsed_last_seen_post_id),
          {:ok, _watch} <-
            ThreadWatcher.mark_seen(
              conn.assigns.browser_token,
              board.uri,
              thread.id,
-             parsed_last_seen_post_id
+             last_seen_post.id
            ) do
       json(conn, %{
         ok: true,
-        thread_id: thread.id,
+        thread_id: PublicIds.public_id(thread),
         last_seen_post_id: parsed_last_seen_post_id,
         watcher_count: ThreadWatcher.watch_count(conn.assigns.browser_token),
         watcher_you_count: ThreadWatcher.watch_metrics(conn.assigns.browser_token).watcher_you_count

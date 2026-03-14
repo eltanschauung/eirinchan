@@ -1,6 +1,8 @@
 defmodule EirinchanWeb.SearchControllerTest do
   use EirinchanWeb.ConnCase, async: false
 
+  alias Eirinchan.Posts.PublicIds
+
   test "public search returns matching posts and respects board filters", %{conn: conn} do
     board = board_fixture(%{uri: "tea#{System.unique_integer([:positive])}", title: "Tea"})
 
@@ -30,7 +32,7 @@ defmodule EirinchanWeb.SearchControllerTest do
 
     assert page =~ "Search"
     assert page =~ "green tea leaf"
-    assert page =~ "/#{board.uri}/res/#{thread.id}.html"
+    assert page =~ "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html"
     assert page =~ "1 result in"
     assert page =~ "/ #{board.uri} / - #{board.title}"
     refute page =~ "meta tea"
@@ -107,7 +109,7 @@ defmodule EirinchanWeb.SearchControllerTest do
       Eirinchan.Posts.create_post(
         board,
         %{
-          "thread" => Integer.to_string(thread.id),
+          "thread" => Integer.to_string(PublicIds.public_id(thread)),
           "name" => "Bob",
           "subject" => "Reply subject",
           "body" => "reply body",
@@ -150,7 +152,7 @@ defmodule EirinchanWeb.SearchControllerTest do
       Eirinchan.Posts.create_post(
         board,
         %{
-          "thread" => Integer.to_string(thread.id),
+          "thread" => Integer.to_string(PublicIds.public_id(thread)),
           "name" => "Reply",
           "body" => "reply body match",
           "post" => "New Reply"
@@ -165,7 +167,7 @@ defmodule EirinchanWeb.SearchControllerTest do
       |> html_response(200)
 
     assert page =~ "reply body match"
-    assert page =~ "/#{board.uri}/res/#{thread.id}.html"
+    assert page =~ "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html"
     assert page =~ "1 result in"
   end
 

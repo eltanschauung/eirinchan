@@ -7,6 +7,7 @@ defmodule EirinchanWeb.PostController do
   alias Eirinchan.LogSystem
   alias Eirinchan.PostOwnership
   alias Eirinchan.Posts
+  alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Reports
   alias Eirinchan.ThreadWatcher
   alias Eirinchan.ThreadPaths
@@ -113,6 +114,7 @@ defmodule EirinchanWeb.PostController do
 
   defp respond_created(conn, board, post, params, meta) do
     thread_id = post.thread_id || post.id
+    public_thread_id = if post.thread_id, do: public_thread_id(board, thread_id), else: PublicIds.public_id(post)
     config = conn.assigns.current_board_config
     _ = maybe_record_post_ownership(conn, post)
     watcher_metrics = maybe_watch_thread_on_reply(conn, board, post)
@@ -125,7 +127,7 @@ defmodule EirinchanWeb.PostController do
           thread_redirect_path(board, post, thread_id, config)
 
         meta.noko ->
-          suffix = if post.thread_id, do: "#p#{post.id}", else: ""
+          suffix = if post.thread_id, do: "#p#{PublicIds.public_id(post)}", else: ""
           "#{thread_redirect_path(board, post, thread_id, config)}#{suffix}"
 
         true ->
@@ -134,8 +136,8 @@ defmodule EirinchanWeb.PostController do
 
     if params["json_response"] == "1" do
       payload = %{
-        id: post.id,
-        thread_id: thread_id,
+        id: PublicIds.public_id(post),
+        thread_id: public_thread_id,
         redirect: redirect_path,
         noko: meta.noko,
         fragment_kind: if(post.thread_id, do: "reply", else: "thread"),
@@ -145,9 +147,9 @@ defmodule EirinchanWeb.PostController do
 
       payload =
         if post.thread_id do
-          case Posts.get_thread(board, thread_id) do
+          case Posts.get_thread_by_internal_id(board, thread_id) do
             {:ok, [thread | _]} ->
-              owned_post_ids = ajax_reply_owned_post_ids(conn, post)
+              owned_post_ids = ajax_reply_owned_post_ids(conn, board, post)
 
               Map.put(
                 payload,
@@ -186,14 +188,21 @@ defmodule EirinchanWeb.PostController do
     end
   end
 
-  defp ajax_reply_owned_post_ids(conn, post) do
+  defp ajax_reply_owned_post_ids(conn, board, post) do
     if ShowYous.enabled?(conn) do
-      post_ids =
+      quoted_public_ids =
         post.body
         |> quoted_post_ids()
-        |> Kernel.++([post.id])
 
-      ShowYous.owned_post_ids(conn, Enum.map(post_ids, &%{id: &1}))
+      quoted_posts =
+        Enum.flat_map(quoted_public_ids, fn public_id ->
+          case Posts.get_post(board, public_id) do
+            {:ok, quoted_post} -> [quoted_post]
+            _ -> []
+          end
+        end)
+
+      ShowYous.owned_post_ids(conn, quoted_posts ++ [post])
     else
       MapSet.new()
     end
@@ -228,12 +237,13 @@ defmodule EirinchanWeb.PostController do
   defp respond_deleted_file(conn, board, post, params) do
     config = conn.assigns.current_board_config
     thread_id = post.thread_id || post.id
+    public_thread_id = if post.thread_id, do: public_thread_id(board, thread_id), else: PublicIds.public_id(post)
     redirect_path = thread_redirect_or_board(board, thread_id, params, config)
 
     if params["json_response"] == "1" do
       json(conn, %{
-        deleted_post_id: post.id,
-        thread_id: thread_id,
+        deleted_post_id: PublicIds.public_id(post),
+        thread_id: public_thread_id,
         thread_deleted: false,
         file_deleted_only: true,
         redirect: redirect_path
@@ -248,9 +258,9 @@ defmodule EirinchanWeb.PostController do
   end
 
   defp thread_redirect_path(board, _post, thread_id, config) do
-    case Posts.get_thread(board, thread_id) do
+    case Posts.get_thread_by_internal_id(board, thread_id) do
       {:ok, [thread | _]} -> ThreadPaths.thread_path(board, thread, config)
-      {:error, :not_found} -> "/#{board.uri}/res/#{thread_id}.html"
+      {:error, :not_found} -> "/#{board.uri}/res/#{public_thread_id(board, thread_id)}.html"
     end
   end
 
@@ -486,6 +496,13 @@ defmodule EirinchanWeb.PostController do
         {:ok, [thread | _]} -> ThreadPaths.thread_path(board, thread, config)
         {:error, :not_found} -> "/#{board.uri}/res/#{thread_id}.html"
       end
+    end
+  end
+
+  defp public_thread_id(board, internal_thread_id) do
+    case Posts.get_post_by_internal_id(board, internal_thread_id) do
+      {:ok, thread} -> PublicIds.public_id(thread)
+      _ -> internal_thread_id
     end
   end
 

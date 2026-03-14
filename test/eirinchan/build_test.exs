@@ -4,6 +4,7 @@ defmodule Eirinchan.BuildTest do
   alias Eirinchan.Build
   alias Eirinchan.BuildQueue
   alias Eirinchan.Posts
+  alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Runtime.Config
 
   setup do
@@ -66,7 +67,7 @@ defmodule Eirinchan.BuildTest do
              Posts.create_post(
                board,
                %{
-                 "thread" => Integer.to_string(thread.id),
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
                  "body" => "Reply body",
                  "post" => config.button_reply
                },
@@ -77,8 +78,11 @@ defmodule Eirinchan.BuildTest do
     board_dir = Path.join(Build.board_root(), board.uri)
     index_path = Path.join(board_dir, config.file_index)
     page_two_path = Path.join(board_dir, "2.html")
-    thread_path = Path.join([board_dir, config.dir.res, "#{thread.id}.html"])
-    thread_json_path = Path.join([board_dir, config.dir.res, "#{thread.id}.json"])
+    thread_path = Path.join([board_dir, config.dir.res, "#{PublicIds.public_id(thread)}.html"])
+
+    thread_json_path =
+      Path.join([board_dir, config.dir.res, "#{PublicIds.public_id(thread)}.json"])
+
     page_zero_json_path = Path.join(board_dir, "0.json")
     catalog_json_path = Path.join(board_dir, "catalog.json")
     catalog_html_path = Path.join(board_dir, config.file_catalog)
@@ -98,13 +102,13 @@ defmodule Eirinchan.BuildTest do
            |> hd()
            |> Map.fetch!("posts")
            |> hd()
-           |> Map.fetch!("no") == thread.id
+           |> Map.fetch!("no") == PublicIds.public_id(thread)
 
     assert Jason.decode!(File.read!(Path.join(board_dir, "1.json")))["threads"]
            |> hd()
            |> Map.fetch!("posts")
            |> hd()
-           |> Map.fetch!("no") == second_thread.id
+           |> Map.fetch!("no") == PublicIds.public_id(second_thread)
 
     assert Jason.decode!(File.read!(catalog_json_path)) |> length() == 2
     assert Jason.decode!(File.read!(threads_json_path)) |> length() == 2
@@ -131,8 +135,10 @@ defmodule Eirinchan.BuildTest do
 
     board_dir = Path.join(Build.board_root(), board.uri)
     index_path = Path.join(board_dir, config.file_index)
-    thread_path = Path.join([board_dir, config.dir.res, "#{thread.id}.html"])
-    thread_json_path = Path.join([board_dir, config.dir.res, "#{thread.id}.json"])
+    thread_path = Path.join([board_dir, config.dir.res, "#{PublicIds.public_id(thread)}.html"])
+
+    thread_json_path =
+      Path.join([board_dir, config.dir.res, "#{PublicIds.public_id(thread)}.json"])
 
     assert File.read!(index_path) =~ thread.thumb_path
     assert File.read!(thread_path) =~ thread.thumb_path
@@ -166,8 +172,10 @@ defmodule Eirinchan.BuildTest do
 
     board_dir = Path.join(Build.board_root(), board.uri)
     index_path = Path.join(board_dir, config.file_index)
-    thread_path = Path.join([board_dir, config.dir.res, "#{thread.id}.html"])
-    thread_json_path = Path.join([board_dir, config.dir.res, "#{thread.id}.json"])
+    thread_path = Path.join([board_dir, config.dir.res, "#{PublicIds.public_id(thread)}.html"])
+
+    thread_json_path =
+      Path.join([board_dir, config.dir.res, "#{PublicIds.public_id(thread)}.json"])
 
     assert File.read!(index_path) =~ ~s(class="video-container")
     assert File.read!(thread_path) =~ "img.youtube.com/vi/dQw4w9WgXcQ/0.jpg"
@@ -204,7 +212,9 @@ defmodule Eirinchan.BuildTest do
 
     board_dir = Path.join(Build.board_root(), board.uri)
     index_path = Path.join(board_dir, config.file_index)
-    thread_json_path = Path.join([board_dir, config.dir.res, "#{thread.id}.json"])
+
+    thread_json_path =
+      Path.join([board_dir, config.dir.res, "#{PublicIds.public_id(thread)}.json"])
 
     assert File.read!(index_path) =~ thread.thumb_path
     assert File.exists?(Eirinchan.Uploads.filesystem_path(thread.thumb_path))
@@ -241,7 +251,9 @@ defmodule Eirinchan.BuildTest do
     [extra] = thread.extra_files
     board_dir = Path.join(Build.board_root(), board.uri)
     index_path = Path.join(board_dir, config.file_index)
-    thread_json_path = Path.join([board_dir, config.dir.res, "#{thread.id}.json"])
+
+    thread_json_path =
+      Path.join([board_dir, config.dir.res, "#{PublicIds.public_id(thread)}.json"])
 
     assert File.read!(index_path) =~ thread.thumb_path
     assert File.read!(index_path) =~ extra.thumb_path
@@ -276,7 +288,9 @@ defmodule Eirinchan.BuildTest do
     [extra] = thread.extra_files
     board_dir = Path.join(Build.board_root(), board.uri)
     index_path = Path.join(board_dir, config.file_index)
-    thread_json_path = Path.join([board_dir, config.dir.res, "#{thread.id}.json"])
+
+    thread_json_path =
+      Path.join([board_dir, config.dir.res, "#{PublicIds.public_id(thread)}.json"])
 
     assert File.read!(index_path) =~ thread.thumb_path
     assert File.read!(index_path) =~ extra.thumb_path
@@ -310,7 +324,7 @@ defmodule Eirinchan.BuildTest do
 
     board_dir = Path.join(Build.board_root(), board.uri)
     index_path = Path.join(board_dir, config.file_index)
-    thread_path = Path.join([board_dir, config.dir.res, "#{thread.id}.html"])
+    thread_path = Path.join([board_dir, config.dir.res, "#{PublicIds.public_id(thread)}.html"])
 
     refute File.read!(index_path) =~ "Flags:"
     refute File.read!(thread_path) =~ "Flags:"
@@ -340,7 +354,7 @@ defmodule Eirinchan.BuildTest do
 
     board_dir = Path.join(Build.board_root(), board.uri)
     index_path = Path.join(board_dir, config.file_index)
-    thread_path = Path.join([board_dir, config.dir.res, "#{thread.id}.html"])
+    thread_path = Path.join([board_dir, config.dir.res, "#{PublicIds.public_id(thread)}.html"])
 
     assert File.read!(index_path) =~ "Tag: Anime"
     assert File.read!(thread_path) =~ "Tag: Anime"
@@ -363,7 +377,7 @@ defmodule Eirinchan.BuildTest do
 
     board_dir = Path.join(Build.board_root(), board.uri)
     index_path = Path.join(board_dir, config.file_index)
-    thread_path = Path.join([board_dir, config.dir.res, "#{thread.id}.html"])
+    thread_path = Path.join([board_dir, config.dir.res, "#{PublicIds.public_id(thread)}.html"])
 
     assert File.read!(index_path) =~ ~s(href="/meta/index.html")
     assert File.read!(thread_path) =~ ~s(href="/meta/index.html")
@@ -388,7 +402,7 @@ defmodule Eirinchan.BuildTest do
              )
 
     board_dir = Path.join(Build.board_root(), board.uri)
-    thread_path = Path.join([board_dir, config.dir.res, "#{thread.id}.html"])
+    thread_path = Path.join([board_dir, config.dir.res, "#{PublicIds.public_id(thread)}.html"])
 
     assert File.read!(thread_path) =~ thread.tripcode
   end
@@ -412,8 +426,15 @@ defmodule Eirinchan.BuildTest do
              )
 
     board_dir = Path.join(Build.board_root(), board.uri)
-    canonical_path = Path.join([board_dir, config.dir.res, "#{thread.id}-slug-file-subject.html"])
-    legacy_path = Path.join([board_dir, config.dir.res, "#{thread.id}.html"])
+
+    canonical_path =
+      Path.join([
+        board_dir,
+        config.dir.res,
+        "#{PublicIds.public_id(thread)}-slug-file-subject.html"
+      ])
+
+    legacy_path = Path.join([board_dir, config.dir.res, "#{PublicIds.public_id(thread)}.html"])
 
     assert File.read!(canonical_path) =~ "Opening body"
     assert File.read!(legacy_path) =~ "Opening body"
@@ -447,7 +468,7 @@ defmodule Eirinchan.BuildTest do
 
     board_dir = Path.join(Build.board_root(), board.uri)
     index_path = Path.join(board_dir, config.file_index)
-    thread_path = Path.join([board_dir, config.dir.res, "#{thread.id}.html"])
+    thread_path = Path.join([board_dir, config.dir.res, "#{PublicIds.public_id(thread)}.html"])
 
     assert File.read!(index_path) =~ "[Sticky]"
     assert File.read!(index_path) =~ "[Locked]"
@@ -479,7 +500,7 @@ defmodule Eirinchan.BuildTest do
              Posts.create_post(
                board,
                %{
-                 "thread" => Integer.to_string(thread.id),
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
                  "body" => "Reply body",
                  "password" => "replypw",
                  "post" => config.button_reply
@@ -489,10 +510,10 @@ defmodule Eirinchan.BuildTest do
              )
 
     board_dir = Path.join(Build.board_root(), board.uri)
-    thread_path = Path.join([board_dir, config.dir.res, "#{thread.id}.html"])
+    thread_path = Path.join([board_dir, config.dir.res, "#{PublicIds.public_id(thread)}.html"])
 
     canonical_thread_path =
-      Path.join([board_dir, config.dir.res, "#{thread.id}-delete-subject.html"])
+      Path.join([board_dir, config.dir.res, "#{PublicIds.public_id(thread)}-delete-subject.html"])
 
     assert File.read!(thread_path) =~ "Reply body"
 
@@ -502,7 +523,7 @@ defmodule Eirinchan.BuildTest do
     refute File.read!(thread_path) =~ "Reply body"
 
     assert {:ok, %{thread_deleted: true}} =
-             Posts.delete_post(board, thread.id, "threadpw", config: config)
+             Posts.delete_post(board, PublicIds.public_id(thread), "threadpw", config: config)
 
     refute File.exists?(thread_path)
     refute File.exists?(canonical_thread_path)
@@ -536,7 +557,7 @@ defmodule Eirinchan.BuildTest do
 
     board_dir = Path.join(Build.board_root(), board.uri)
     index_path = Path.join(board_dir, config.file_index)
-    thread_path = Path.join([board_dir, config.dir.res, "#{thread.id}.html"])
+    thread_path = Path.join([board_dir, config.dir.res, "#{PublicIds.public_id(thread)}.html"])
 
     assert File.read!(index_path) =~ "docs.txt"
     assert File.read!(index_path) =~ "Fileboard: 1 file"
@@ -558,7 +579,11 @@ defmodule Eirinchan.BuildTest do
              )
 
     board_dir = Path.join(Build.board_root(), board.uri)
-    refute File.exists?(Path.join([board_dir, config.dir.res, "#{thread.id}.html"]))
+
+    refute File.exists?(
+             Path.join([board_dir, config.dir.res, "#{PublicIds.public_id(thread)}.html"])
+           )
+
     refute File.exists?(Path.join(board_dir, config.file_index))
     assert Enum.map(BuildQueue.list_pending(), & &1.kind) == ["thread", "indexes"]
   end

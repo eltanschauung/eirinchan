@@ -5,9 +5,10 @@ defmodule EirinchanWeb.PostManagementController do
   alias Eirinchan.Boards.{Board, BoardRecord}
   alias Eirinchan.Moderation
   alias Eirinchan.Posts
+  alias Eirinchan.Repo
   alias Eirinchan.Runtime.Config
   alias Eirinchan.Settings
-  alias EirinchanWeb.ModerationAudit
+  alias EirinchanWeb.{ModerationAudit, PostView}
 
   action_fallback EirinchanWeb.FallbackController
 
@@ -32,8 +33,8 @@ defmodule EirinchanWeb.PostManagementController do
              Map.take(params, ["name", "email", "subject", "body"]),
              config: board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
            ) do
-      ModerationAudit.log(conn, "Edited post No. #{post.id}", board: board)
-      render(conn, :show, post: post)
+      ModerationAudit.log(conn, "Edited post No. #{PostView.public_post_id(post)}", board: board)
+      render(conn, :show, post: preload_management_post(post))
     else
       nil -> {:error, :not_found}
       error -> error
@@ -59,8 +60,8 @@ defmodule EirinchanWeb.PostManagementController do
     with board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          :ok <- authorize_board(conn, board),
          {:ok, post} <- delete_file_target(board, post_id, params, conn) do
-      ModerationAudit.log(conn, "Deleted file from post No. #{post.id}", board: board)
-      render(conn, :show, post: post)
+      ModerationAudit.log(conn, "Deleted file from post No. #{PostView.public_post_id(post)}", board: board)
+      render(conn, :show, post: preload_management_post(post))
     else
       nil -> {:error, :not_found}
       error -> error
@@ -71,8 +72,8 @@ defmodule EirinchanWeb.PostManagementController do
     with board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          :ok <- authorize_board(conn, board),
          {:ok, post} <- spoiler_target(board, post_id, params, conn) do
-      ModerationAudit.log(conn, "Spoilered file on post No. #{post.id}", board: board)
-      render(conn, :show, post: post)
+      ModerationAudit.log(conn, "Spoilered file on post No. #{PostView.public_post_id(post)}", board: board)
+      render(conn, :show, post: preload_management_post(post))
     else
       nil -> {:error, :not_found}
       error -> error
@@ -105,10 +106,10 @@ defmodule EirinchanWeb.PostManagementController do
            ) do
       ModerationAudit.log(
         conn,
-        "Moved reply No. #{post.id} from /#{source_board.uri}/ to /#{target_board.uri}/ thread No. #{target_thread_id}",
+        "Moved reply No. #{PostView.public_post_id(post)} from /#{source_board.uri}/ to /#{target_board.uri}/ thread No. #{target_thread_id}",
         board: target_board
       )
-      render(conn, :show, post: post)
+      render(conn, :show, post: preload_management_post(post))
     else
       nil -> {:error, :not_found}
       error -> error
@@ -145,6 +146,10 @@ defmodule EirinchanWeb.PostManagementController do
       file_index ->
         Posts.spoilerize_post_file(board, post_id, file_index, config: config)
     end
+  end
+
+  defp preload_management_post(post) do
+    Repo.preload(post, [:thread, :extra_files])
   end
 
   defp board_config(%BoardRecord{} = board_record, request_host) do

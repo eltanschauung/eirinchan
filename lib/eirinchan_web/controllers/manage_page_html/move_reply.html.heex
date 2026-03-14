@@ -1,12 +1,12 @@
 <.flash_group flash={@flash} />
 <section>
-  <h1>Move reply #<%= @post.id %> from /<%= @board.uri %>/</h1>
+  <h1>Move reply #<%= EirinchanWeb.PostView.public_post_id(@post) %> from /<%= @board.uri %>/</h1>
   <p><a href={~p"/manage"}>Back to Manage</a></p>
   <p :if={@error} class="error"><%= @error %></p>
 </section>
 
 <section>
-  <form action={"/manage/boards/#{@board.uri}/posts/#{@post.id}/browser/move"} method="post">
+  <form action={"/manage/boards/#{@board.uri}/posts/#{EirinchanWeb.PostView.public_post_id(@post)}/browser/move"} method="post">
     <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
     <input type="hidden" name="_method" value="patch" />
     <table class="mod-form-table">

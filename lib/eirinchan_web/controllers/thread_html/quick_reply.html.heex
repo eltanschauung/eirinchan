@@ -10,7 +10,7 @@
 >
   <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
   <input type="hidden" name="board" value={@board.uri} />
-  <input type="hidden" name="thread" value={@summary.thread.id} />
+  <input type="hidden" name="thread" value={PostView.public_post_id(@summary.thread)} />
 
   <table>
     <tr>

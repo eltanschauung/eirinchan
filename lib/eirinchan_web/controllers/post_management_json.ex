@@ -1,13 +1,15 @@
 defmodule EirinchanWeb.PostManagementJSON do
+  alias Eirinchan.Posts.PublicIds
+
   def show(%{post: post}) do
     %{data: post_data(post)}
   end
 
   defp post_data(post) do
     %{
-      id: post.id,
+      id: PublicIds.public_id(post),
       board_id: post.board_id,
-      thread_id: post.thread_id,
+      thread_id: PublicIds.thread_public_id(post),
       name: post.name,
       email: post.email,
       subject: post.subject,

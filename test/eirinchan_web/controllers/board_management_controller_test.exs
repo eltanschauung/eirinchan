@@ -1,6 +1,8 @@
 defmodule EirinchanWeb.BoardManagementControllerTest do
   use EirinchanWeb.ConnCase, async: false
 
+  alias Eirinchan.Posts.PublicIds
+
   alias Eirinchan.ThreadWatcher
 
   setup do
@@ -205,10 +207,10 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
       |> get(~p"/#{board.uri}")
       |> html_response(200)
 
-    assert response =~ ~s(data-thread-id="#{thread.id}")
+    assert response =~ ~s(data-thread-id="#{PublicIds.public_id(thread)}")
     refute response =~ ~s(class="thread-watch-toggle")
     refute response =~ "[Watch]"
-    assert response =~ ~s(data-watch-url="/watcher/#{board.uri}/#{thread.id}")
+    assert response =~ ~s(data-watch-url="/watcher/#{board.uri}/#{PublicIds.public_id(thread)}")
   end
 
   test "board page uses configured catalog name in search links", %{conn: conn} do
@@ -350,7 +352,7 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     conn
     |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
     |> post(~p"/#{board.uri}/post", %{
-      "thread" => Integer.to_string(thread.id),
+      "thread" => Integer.to_string(PublicIds.public_id(thread)),
       "body" => "Reply one",
       "post" => "New Reply"
     })
@@ -359,7 +361,7 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     |> recycle()
     |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
     |> post(~p"/#{board.uri}/post", %{
-      "thread" => Integer.to_string(thread.id),
+      "thread" => Integer.to_string(PublicIds.public_id(thread)),
       "body" => "Reply two",
       "post" => "New Reply"
     })
@@ -410,14 +412,15 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
   test "board pages render formatted quote links in thread previews", %{conn: conn} do
     board = board_fixture()
     thread = thread_fixture(board, %{body: "Opening body"})
-    reply_fixture(board, thread, %{body: ">>#{thread.id}\n>quoted line"})
+    reply_fixture(board, thread, %{body: ">>#{PublicIds.public_id(thread)}\n>quoted line"})
 
     page =
       conn
       |> get(~p"/#{board.uri}")
       |> html_response(200)
 
-    assert page =~ ~s(href="/#{board.uri}/res/#{thread.id}.html##{thread.id}")
+    assert page =~
+             ~s(href="/#{board.uri}/res/#{PublicIds.public_id(thread)}.html##{PublicIds.public_id(thread)}")
     assert page =~ ~s(class="quote")
   end
 
@@ -674,7 +677,7 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
 
     document = Floki.parse_document!(page)
 
-    assert Floki.find(document, ~s(a[data-quick-reply-thread="#{thread.id}"][data-quote-to])) !=
+    assert Floki.find(document, ~s(a[data-quick-reply-thread="#{PublicIds.public_id(thread)}"][data-quote-to])) !=
              []
 
     assert Floki.find(document, ~s(form#new-thread-form[data-remember-stuff])) != []
@@ -860,7 +863,7 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
       |> html_response(200)
 
     assert page =~ ~s(data-watcher-count="1")
-    assert page =~ ~s(data-thread-id="#{thread.id}")
-    assert page =~ ~s(data-watch-url="/watcher/#{board.uri}/#{thread.id}")
+    assert page =~ ~s(data-thread-id="#{PublicIds.public_id(thread)}")
+    assert page =~ ~s(data-watch-url="/watcher/#{board.uri}/#{PublicIds.public_id(thread)}")
   end
 end

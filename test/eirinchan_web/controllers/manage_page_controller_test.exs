@@ -6,6 +6,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
   alias Eirinchan.Feedback
   alias Eirinchan.Moderation
   alias Eirinchan.ModerationLog
+  alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Repo
 
   test "login page renders and browser login redirects to the dashboard", %{conn: conn} do
@@ -81,7 +82,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
         |> Map.put(:remote_ip, {198, 51, 100, 9})
         |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
         |> post("/#{board.uri}/post", %{
-          "report_post_id" => Integer.to_string(thread.id),
+          "report_post_id" => Integer.to_string(PublicIds.public_id(thread)),
           "reason" => "spam",
           "json_response" => "1"
         })
@@ -585,6 +586,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
   test "browser dashboard can rebuild accessible boards", %{conn: conn} do
     alias Eirinchan.Build
     alias Eirinchan.Posts
+    alias Eirinchan.Posts.PublicIds
     alias Eirinchan.Runtime.Config
 
     moderator = moderator_fixture(%{role: "admin"})
@@ -604,7 +606,9 @@ defmodule EirinchanWeb.ManagePageControllerTest do
                request: %{referer: "http://example.test/#{board.uri}/index.html"}
              )
 
-    refute File.exists?(Path.join([Build.board_root(), board.uri, "res", "#{thread.id}.html"]))
+    refute File.exists?(
+             Path.join([Build.board_root(), board.uri, "res", "#{PublicIds.public_id(thread)}.html"])
+           )
 
     rebuild_conn =
       conn
@@ -612,7 +616,9 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       |> post("/manage/boards/#{board.uri}/browser/rebuild")
 
     assert redirected_to(rebuild_conn) == "/manage"
-    assert File.exists?(Path.join([Build.board_root(), board.uri, "res", "#{thread.id}.html"]))
+    assert File.exists?(
+             Path.join([Build.board_root(), board.uri, "res", "#{PublicIds.public_id(thread)}.html"])
+           )
   end
 
   test "browser announcement management updates global message and history", %{
@@ -843,7 +849,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert page =~ ~s(class="thread")
     assert page =~ ~s(class="post op")
     assert page =~ ~s(class="controls op")
-    assert page =~ Integer.to_string(matching_post.id)
+    assert page =~ Integer.to_string(PublicIds.public_id(matching_post))
     assert page =~ "green leaf"
     refute page =~ ~s(id="op_#{other_post.id}")
   end
@@ -857,7 +863,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       conn
       |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
       |> post("/#{board.uri}/post", %{
-        "report_post_id" => Integer.to_string(thread.id),
+        "report_post_id" => Integer.to_string(PublicIds.public_id(thread)),
         "reason" => "Spam",
         "json_response" => "1"
       })
@@ -947,7 +953,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     page =
       conn
       |> login_moderator(moderator)
-      |> get("/manage/boards/#{board.uri}/posts/#{thread.id}/ban/browser")
+      |> get("/manage/boards/#{board.uri}/posts/#{PublicIds.public_id(thread)}/ban/browser")
       |> html_response(200)
 
     assert page =~ ~s(name="ip")
@@ -964,14 +970,14 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       conn
       |> recycle()
       |> login_moderator(moderator)
-      |> post("/manage/boards/#{board.uri}/posts/#{thread.id}/ban/browser", %{
+      |> post("/manage/boards/#{board.uri}/posts/#{PublicIds.public_id(thread)}/ban/browser", %{
         "ip" => "198.51.100.0/24",
         "reason" => "Spam",
         "length" => "1h",
         "board" => board.uri
       })
 
-    assert redirected_to(create_conn) == "/#{board.uri}/res/#{thread.id}.html"
+    assert redirected_to(create_conn) == "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html"
 
     [ban] = Eirinchan.Bans.list_bans(board_id: board.id)
     assert ban.ip_subnet == "198.51.100.0/24"
@@ -1144,15 +1150,19 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     move_thread_conn =
       conn
       |> login_moderator(moderator)
-      |> patch("/manage/boards/#{source_board.uri}/threads/#{source_thread.id}/browser/move", %{
+      |> patch("/manage/boards/#{source_board.uri}/threads/#{PublicIds.public_id(source_thread)}/browser/move", %{
         "target_board_uri" => target_board.uri
       })
 
-    assert redirected_to(move_thread_conn) == "/#{target_board.uri}/res/#{source_thread.id}.html"
-    assert {:error, :not_found} = Eirinchan.Posts.get_thread(source_board, source_thread.id)
+    {:ok, moved_thread} = Eirinchan.Posts.get_post_by_internal_id(target_board, source_thread.id)
+
+    assert redirected_to(move_thread_conn) ==
+             "/#{target_board.uri}/res/#{PublicIds.public_id(moved_thread)}.html"
+
+    assert {:error, :not_found} = Eirinchan.Posts.get_thread(source_board, PublicIds.public_id(source_thread))
 
     assert {:ok, [_moved_thread, _moved_reply]} =
-             Eirinchan.Posts.get_thread(target_board, source_thread.id)
+             Eirinchan.Posts.get_thread(target_board, PublicIds.public_id(moved_thread))
 
     move_reply_conn =
       conn
@@ -1160,14 +1170,16 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       |> login_moderator(moderator)
       |> patch("/manage/boards/#{source_board.uri}/posts/#{movable_reply.id}/browser/move", %{
         "target_board_uri" => target_board.uri,
-        "target_thread_id" => Integer.to_string(target_thread.id)
+        "target_thread_id" => Integer.to_string(PublicIds.public_id(target_thread))
       })
 
-    assert redirected_to(move_reply_conn) == "/#{target_board.uri}/res/#{target_thread.id}.html"
-    assert {:ok, [_thread]} = Eirinchan.Posts.get_thread(source_board, reply_source_thread.id)
+    assert redirected_to(move_reply_conn) ==
+             "/#{target_board.uri}/res/#{PublicIds.public_id(target_thread)}.html"
+
+    assert {:ok, [_thread]} = Eirinchan.Posts.get_thread(source_board, PublicIds.public_id(reply_source_thread))
 
     assert {:ok, [_target, moved_reply]} =
-             Eirinchan.Posts.get_thread(target_board, target_thread.id)
+             Eirinchan.Posts.get_thread(target_board, PublicIds.public_id(target_thread))
 
     assert moved_reply.id == movable_reply.id
   end
@@ -1234,7 +1246,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     page =
       conn
       |> login_moderator(moderator)
-      |> get("/manage/boards/#{board.uri}/posts/#{thread.id}/edit/browser")
+      |> get("/manage/boards/#{board.uri}/posts/#{PublicIds.public_id(thread)}/edit/browser")
       |> html_response(200)
 
     assert page =~ "<h1>Edit post</h1>"
@@ -1249,15 +1261,15 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       conn
       |> recycle()
       |> login_moderator(moderator)
-      |> patch("/manage/boards/#{board.uri}/posts/#{thread.id}/edit/browser", %{
+      |> patch("/manage/boards/#{board.uri}/posts/#{PublicIds.public_id(thread)}/edit/browser", %{
         "name" => "Changed",
         "email" => "noko",
         "subject" => "New",
         "body" => "New body"
       })
 
-    assert redirected_to(update_conn) =~ "/#{board.uri}/res/#{thread.id}"
-    assert {:ok, updated} = Eirinchan.Posts.get_post(board, thread.id)
+    assert redirected_to(update_conn) =~ "/#{board.uri}/res/#{PublicIds.public_id(thread)}"
+    assert {:ok, updated} = Eirinchan.Posts.get_post(board, PublicIds.public_id(thread))
     assert updated.name == "Changed"
     assert updated.email == "noko"
     assert updated.subject == "New"

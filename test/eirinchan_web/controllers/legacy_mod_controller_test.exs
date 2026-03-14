@@ -4,6 +4,7 @@ defmodule EirinchanWeb.LegacyModControllerTest do
 
   alias Eirinchan.IpCrypt
   alias Eirinchan.Posts
+  alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Repo
   alias Eirinchan.Reports
 
@@ -154,7 +155,7 @@ defmodule EirinchanWeb.LegacyModControllerTest do
         "/mod.php?/#{board.uri}/deletefile/#{thread.id}/1/#{signed_token(conn, "#{board.uri}/deletefile/#{thread.id}/1")}"
       )
 
-    assert redirected_to(conn) =~ "/#{board.uri}/res/#{thread.id}"
+    assert redirected_to(conn) =~ "/#{board.uri}/res/#{PublicIds.public_id(thread)}"
 
     assert {:ok, updated_thread} = Posts.get_post(board, thread.id)
     assert updated_thread.file_path
@@ -189,7 +190,7 @@ defmodule EirinchanWeb.LegacyModControllerTest do
         "/mod.php?/#{board.uri}/spoiler/#{thread.id}/1/#{signed_token(conn, "#{board.uri}/spoiler/#{thread.id}/1")}"
       )
 
-    assert redirected_to(conn) =~ "/#{board.uri}/res/#{thread.id}"
+    assert redirected_to(conn) =~ "/#{board.uri}/res/#{PublicIds.public_id(thread)}"
     assert {:ok, updated_thread} = Posts.get_post(board, thread.id)
     refute updated_thread.spoiler
     assert [%{spoiler: true}] = updated_thread.extra_files
@@ -204,7 +205,7 @@ defmodule EirinchanWeb.LegacyModControllerTest do
       conn
       |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
       |> post("/#{board.uri}/post", %{
-        "report_post_id" => Integer.to_string(thread.id),
+        "report_post_id" => Integer.to_string(PublicIds.public_id(thread)),
         "reason" => "spam",
         "json_response" => "1"
       })
@@ -233,7 +234,7 @@ defmodule EirinchanWeb.LegacyModControllerTest do
       |> Map.put(:remote_ip, {198, 51, 100, 9})
       |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
       |> post("/#{board.uri}/post", %{
-        "report_post_id" => Integer.to_string(thread.id),
+        "report_post_id" => Integer.to_string(PublicIds.public_id(thread)),
         "reason" => "spam",
         "json_response" => "1"
       })

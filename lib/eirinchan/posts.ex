@@ -11,6 +11,7 @@ defmodule Eirinchan.Posts do
   alias Eirinchan.Posts.Cite
   alias Eirinchan.Posts.Flags, as: PostsFlags
   alias Eirinchan.Posts.Metadata, as: PostsMetadata
+  alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Posts.RequestGuards, as: PostsRequestGuards
   alias Eirinchan.Posts.ThreadLookup, as: PostsThreadLookup
   alias Eirinchan.Posts.Validation, as: PostsValidation
@@ -137,7 +138,7 @@ defmodule Eirinchan.Posts do
     password = trim_to_nil(password)
 
     with {:ok, normalized_post_id} <- PostsThreadLookup.normalize_thread_id(post_id),
-         %Post{} = post <- repo.get_by(Post, id: normalized_post_id, board_id: board.id),
+         %Post{} = post <- get_post_record(repo, board, normalized_post_id),
          :ok <- validate_delete_password(post, password),
          file_paths <- post_delete_file_paths(post, repo),
          {:ok, _deleted_post} <- repo.delete(post) do
@@ -147,12 +148,12 @@ defmodule Eirinchan.Posts do
       result =
         if is_nil(post.thread_id) do
           _ = Build.rebuild_after_delete(board, {:thread, post}, config: config, repo: repo)
-          %{deleted_post_id: post.id, thread_id: post.id, thread_deleted: true}
+          %{deleted_post_id: PublicIds.public_id(post), thread_id: PublicIds.public_id(post), thread_deleted: true}
         else
           _ =
             Build.rebuild_after_delete(board, {:reply, post.thread_id}, config: config, repo: repo)
 
-          %{deleted_post_id: post.id, thread_id: post.thread_id, thread_deleted: false}
+          %{deleted_post_id: PublicIds.public_id(post), thread_id: public_thread_id(repo, post), thread_deleted: false}
         end
 
       {:ok, result}
@@ -170,6 +171,19 @@ defmodule Eirinchan.Posts do
     repo = Keyword.get(opts, :repo, Repo)
 
     with {:ok, normalized_post_id} <- PostsThreadLookup.normalize_thread_id(post_id),
+         %Post{} = post <- get_post_record(repo, board, normalized_post_id) do
+      {:ok, repo.preload(post, :extra_files)}
+    else
+      _ -> {:error, :not_found}
+    end
+  end
+
+  @spec get_post_by_internal_id(BoardRecord.t(), String.t() | integer(), keyword()) ::
+          {:ok, Post.t()} | {:error, :not_found}
+  def get_post_by_internal_id(%BoardRecord{} = board, post_id, opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+
+    with {:ok, normalized_post_id} <- PostsThreadLookup.normalize_internal_thread_id(post_id),
          %Post{} = post <- repo.get_by(Post, id: normalized_post_id, board_id: board.id) do
       {:ok, repo.preload(post, :extra_files)}
     else
@@ -222,7 +236,11 @@ defmodule Eirinchan.Posts do
 
   defp maybe_prune_threads(board, config, repo) do
     PostsPruning.prune(board, config, repo, fn thread_id ->
-      _ = moderate_delete_post(board, thread_id, repo: repo, config: config)
+      _ =
+        case get_post_by_internal_id(board, thread_id, repo: repo) do
+          {:ok, thread} -> moderate_delete_post(board, PublicIds.public_id(thread), repo: repo, config: config)
+          _ -> :ok
+        end
     end)
   end
 
@@ -346,6 +364,18 @@ defmodule Eirinchan.Posts do
     Enum.map(page_data.threads, & &1.thread)
   end
 
+  @spec get_thread_by_internal_id(BoardRecord.t(), String.t() | integer(), keyword()) ::
+          {:ok, [Post.t()]} | {:error, :not_found}
+  def get_thread_by_internal_id(%BoardRecord{} = board, thread_id, opts \\ []) do
+    PostsThreadLookup.get_thread_by_internal_id(board, thread_id, opts)
+  end
+
+  @spec get_thread_view_by_internal_id(BoardRecord.t(), String.t() | integer(), keyword()) ::
+          {:ok, map()} | {:error, :not_found}
+  def get_thread_view_by_internal_id(%BoardRecord{} = board, thread_id, opts \\ []) do
+    PostsThreadLookup.get_thread_view_by_internal_id(board, thread_id, opts)
+  end
+
   @spec list_recent_posts(keyword()) :: [Post.t()]
   def list_recent_posts(opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
@@ -382,7 +412,7 @@ defmodule Eirinchan.Posts do
 
     query
     |> repo.all()
-    |> repo.preload(:board)
+    |> repo.preload([:board, :thread])
   end
 
   @spec list_cites_for_post(Post.t() | integer(), keyword()) :: [Cite.t()]
@@ -411,6 +441,19 @@ defmodule Eirinchan.Posts do
     if post_ids == [] do
       %{}
     else
+      visible_posts =
+        case Enum.all?(posts_or_ids, &match?(%Post{}, &1)) do
+          true -> posts_or_ids
+          false ->
+            repo.all(
+              from post in Post,
+                where: post.id in ^post_ids,
+                select: %{id: post.id, public_id: post.public_id}
+            )
+        end
+
+      public_ids_by_internal = Map.new(visible_posts, fn post -> {post.id, PublicIds.public_id(post)} end)
+
       rows =
         repo.all(
           from cite in Cite,
@@ -420,11 +463,30 @@ defmodule Eirinchan.Posts do
         )
 
       Enum.reduce(rows, %{}, fn {target_post_id, post_id}, acc ->
-        Map.update(acc, target_post_id, [post_id], fn ids ->
-          if post_id in ids, do: ids, else: ids ++ [post_id]
-        end)
+        case {Map.get(public_ids_by_internal, target_post_id), Map.get(public_ids_by_internal, post_id)} do
+          {target_public_id, post_public_id}
+          when is_integer(target_public_id) and is_integer(post_public_id) ->
+            Map.update(acc, target_public_id, [post_public_id], fn ids ->
+              if post_public_id in ids, do: ids, else: ids ++ [post_public_id]
+            end)
+
+          _ ->
+            acc
+        end
       end)
     end
+  end
+
+  defp public_thread_id(repo, %Post{thread_id: thread_id}) when is_integer(thread_id) do
+    case repo.get(Post, thread_id) do
+      %Post{} = thread -> PublicIds.public_id(thread)
+      _ -> thread_id
+    end
+  end
+
+  defp get_post_record(repo, board, normalized_post_id) do
+    repo.get_by(Post, public_id: normalized_post_id, board_id: board.id) ||
+      repo.get_by(Post, id: normalized_post_id, board_id: board.id)
   end
 
   @spec list_nntp_references_for_post(Post.t() | integer(), keyword()) :: [NntpReference.t()]

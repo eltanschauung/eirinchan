@@ -16,9 +16,14 @@ defmodule EirinchanWeb.ManagePageHTML do
   attr :show_yous, :boolean, default: false
 
   def moderation_post(assigns) do
+    assigns =
+      assigns
+      |> assign(:public_post_id, PostView.public_post_id(assigns.post))
+      |> assign(:public_thread_id, PostView.public_post_id(assigns.thread))
+
     ~H"""
     <%= if is_nil(@post.thread_id) do %>
-      <div class="thread" id={"thread_#{@post.id}"} data-board={@board.uri}>
+      <div class="thread" id={"thread_#{@public_post_id}"} data-board={@board.uri}>
         <.files_block
           post={@post}
           config={@config}
@@ -30,7 +35,7 @@ defmodule EirinchanWeb.ManagePageHTML do
 
         <div
           class="post op"
-          id={"op_#{@post.id}"}
+          id={"op_#{@public_post_id}"}
           {case PostView.post_container_style(@post) do
             nil -> []
             style -> [style: style]
@@ -40,23 +45,23 @@ defmodule EirinchanWeb.ManagePageHTML do
             <input
               type="checkbox"
               class="delete"
-              name={"delete_#{@post.id}"}
-              id={"delete_#{@post.id}"}
+              name={"delete_#{@public_post_id}"}
+              id={"delete_#{@public_post_id}"}
             />
-            <label for={"delete_#{@post.id}"}>
+            <label for={"delete_#{@public_post_id}"}>
               <.post_identity
                 post={@post}
                 config={@config}
                 board={@board}
                 moderator={@moderator}
-                own={@show_yous and MapSet.member?(@own_post_ids, @post.id)}
+                own={@show_yous and MapSet.member?(@own_post_ids, @public_post_id)}
               />
             </label>
             <.post_number_links
-              post_id={@post.id}
-              post_href={PostView.thread_path(@board, @post, @config) <> "##{@post.id}"}
+              post_id={@public_post_id}
+              post_href={PostView.thread_path(@board, @post, @config) <> "##{@public_post_id}"}
               quote_href={PostView.reply_path(@board, @post, @post, @config, :quote)}
-              quote_to={@post.id}
+              quote_to={@public_post_id}
             />
             <.backlinks post={@post} backlinks_map={@backlinks_map} />
             <%= for icon <- PostView.state_icons(@post, @config) do %>
@@ -84,25 +89,25 @@ defmodule EirinchanWeb.ManagePageHTML do
         <br class="clear" />
       </div>
     <% else %>
-      <div class="post reply" id={"reply_#{@post.id}"}>
+      <div class="post reply" id={"reply_#{@public_post_id}"}>
         <p class="intro">
-          <a id={to_string(@post.id)} class="post_anchor"></a>
-          <input type="checkbox" class="delete" name={"delete_#{@post.id}"} id={"delete_#{@post.id}"} />
-          <.reply_post_button post_target={"reply_#{@post.id}"} />
-          <label for={"delete_#{@post.id}"}>
+          <a id={to_string(@public_post_id)} class="post_anchor"></a>
+          <input type="checkbox" class="delete" name={"delete_#{@public_post_id}"} id={"delete_#{@public_post_id}"} />
+          <.reply_post_button post_target={"reply_#{@public_post_id}"} />
+          <label for={"delete_#{@public_post_id}"}>
             <.post_identity
               post={@post}
               config={@config}
               board={@board}
               moderator={@moderator}
-              own={@show_yous and MapSet.member?(@own_post_ids, @post.id)}
+              own={@show_yous and MapSet.member?(@own_post_ids, @public_post_id)}
             />
           </label>
           <.post_number_links
-            post_id={@post.id}
-            post_href={PostView.thread_path(@board, @thread, @config) <> "##{@post.id}"}
+            post_id={@public_post_id}
+            post_href={PostView.thread_path(@board, @thread, @config) <> "##{@public_post_id}"}
             quote_href={PostView.reply_path(@board, @thread, @post, @config, :quote)}
-            quote_to={@post.id}
+            quote_to={@public_post_id}
           />
           <.backlinks post={@post} backlinks_map={@backlinks_map} />
         </p>

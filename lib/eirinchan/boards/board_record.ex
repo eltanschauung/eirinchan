@@ -10,6 +10,7 @@ defmodule Eirinchan.Boards.BoardRecord do
     field :title, :string
     field :subtitle, :string
     field :config_overrides, :map, default: %{}
+    field :next_public_post_id, :integer, default: 1
 
     timestamps(type: :utc_datetime)
   end

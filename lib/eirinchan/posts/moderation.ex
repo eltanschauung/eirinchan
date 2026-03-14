@@ -21,8 +21,7 @@ defmodule Eirinchan.Posts.Moderation do
     repo = Keyword.get(opts, :repo, Repo)
     config = Keyword.get(opts, :config, Config.compose())
 
-    with {:ok, normalized_post_id} <- PostsThreadLookup.normalize_thread_id(post_id),
-         %Post{} = post <- repo.get_by(Post, id: normalized_post_id, board_id: board.id),
+    with {:ok, post} <- Posts.get_post(board, post_id, repo: repo),
          file_paths <- post_delete_file_paths(post, repo),
          {:ok, _deleted_post} <- repo.delete(post) do
       _ = Posts.recalculate_thread_bump(board, post.thread_id, config: config, repo: repo)
@@ -31,12 +30,12 @@ defmodule Eirinchan.Posts.Moderation do
       result =
         if is_nil(post.thread_id) do
           _ = Build.rebuild_after_delete(board, {:thread, post}, config: config, repo: repo)
-          %{deleted_post_id: post.id, thread_id: post.id, thread_deleted: true}
+          %{deleted_post_id: post.public_id || post.id, thread_id: post.public_id || post.id, thread_deleted: true}
         else
           _ =
             Build.rebuild_after_delete(board, {:reply, post.thread_id}, config: config, repo: repo)
 
-          %{deleted_post_id: post.id, thread_id: post.thread_id, thread_deleted: false}
+          %{deleted_post_id: post.public_id || post.id, thread_id: thread_public_id(repo, post), thread_deleted: false}
         end
 
       {:ok, result}
@@ -205,10 +204,15 @@ defmodule Eirinchan.Posts.Moderation do
       case apply_file_moves(file_moves) do
         :ok ->
           case repo.transaction(fn ->
+                 {:ok, locked_target_board} = lock_board(repo, target_board.id)
+                 {public_ids_by_post_id, _updated_target_board} =
+                   allocate_public_ids!(repo, locked_target_board, posts)
+
                  updated_posts =
                    Enum.reduce_while(posts, [], fn post, acc ->
                      attrs = %{
                        board_id: target_board.id,
+                       public_id: Map.fetch!(public_ids_by_post_id, post.id),
                        file_path: remap_board_path(post.file_path, source_board, target_board),
                        thumb_path: remap_board_path(post.thumb_path, source_board, target_board)
                      }
@@ -261,9 +265,14 @@ defmodule Eirinchan.Posts.Moderation do
       case apply_file_moves(file_moves) do
         :ok ->
           case repo.transaction(fn ->
+                 {:ok, locked_target_board} = lock_board(repo, target_board.id)
+                 {public_ids_by_post_id, _updated_target_board} =
+                   allocate_public_ids!(repo, locked_target_board, [reply])
+
                  attrs = %{
                    board_id: target_board.id,
                    thread_id: target_thread.id,
+                   public_id: Map.fetch!(public_ids_by_post_id, reply.id),
                    file_path: remap_board_path(reply.file_path, source_board, target_board),
                    thumb_path: remap_board_path(reply.thumb_path, source_board, target_board)
                  }
@@ -317,6 +326,38 @@ defmodule Eirinchan.Posts.Moderation do
 
   defp normalize_request_ip(ip) when is_binary(ip), do: String.trim(ip)
   defp normalize_request_ip(_ip), do: nil
+
+  defp thread_public_id(repo, %Post{thread_id: thread_id}) when is_integer(thread_id) do
+    case repo.get(Post, thread_id) do
+      %Post{public_id: public_id} when is_integer(public_id) -> public_id
+      _ -> thread_id
+    end
+  end
+
+  defp lock_board(repo, board_id) do
+    case repo.one(from board_record in BoardRecord, where: board_record.id == ^board_id, lock: "FOR UPDATE") do
+      %BoardRecord{} = board -> {:ok, board}
+      _ -> {:error, :board_not_found}
+    end
+  end
+
+  defp allocate_public_ids!(repo, %BoardRecord{} = board, posts) do
+    start_public_id = board.next_public_post_id || 1
+
+    public_ids_by_post_id =
+      posts
+      |> Enum.with_index()
+      |> Map.new(fn {post, offset} -> {post.id, start_public_id + offset} end)
+
+    next_public_post_id = start_public_id + length(posts)
+
+    {:ok, updated_board} =
+      board
+      |> Ecto.Changeset.change(next_public_post_id: next_public_post_id)
+      |> repo.update()
+
+    {public_ids_by_post_id, updated_board}
+  end
 
   defp delete_single_post_file(%Post{} = post, file_index, repo) do
     extra = extra_files_for_post(post, repo)
