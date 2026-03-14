@@ -15,9 +15,17 @@
 $(document).ready(function(){
 	'use strict';
 
+	function thumbElement(link) {
+		return link.querySelector('canvas.post-image, img.post-image');
+	}
+
+	function fullImageElement(link) {
+		return link.querySelector('img.full-image');
+	}
+
 	var DEFAULT_MAX = 5;  // default maximum image loads
 	var inline_expand_post = function() {
-		var link = this.getElementsByTagName('a');
+		var link = this.querySelectorAll('a[data-inline-expandable="true"]');
 
 		var loadingQueue = (function () {
 			var MAX_IMAGES = localStorage.inline_expand_max || DEFAULT_MAX;   // maximum number of images to load concurrently, 0 to disable
@@ -58,8 +66,15 @@ $(document).ready(function(){
 					ele.deferred = $.Deferred();
 					ele.deferred.done(function () {
 						var $loadstart = $.Deferred();
-						var thumb = ele.childNodes[0];
-						var img = ele.childNodes[1];
+						var thumb = thumbElement(ele);
+						var img = fullImageElement(ele);
+
+						if (!thumb || !img) {
+							--loading;
+							$(ele).data('imageLoading', 'false');
+							update();
+							return;
+						}
 
 						var onLoadStart = function (img) {
 							if (img.naturalWidth) {
@@ -99,14 +114,16 @@ $(document).ready(function(){
 		})();
 
 		for (var i = 0; i < link.length; i++) {
-			if (typeof link[i] == "object" && link[i].childNodes && typeof link[i].childNodes[0] !== 'undefined' &&
-					link[i].childNodes[0].src && link[i].childNodes[0].className.match(/post-image/) && !link[i].className.match(/file/)) {
+			if (typeof link[i] == "object" && !link[i].dataset.inlineExpandBound) {
+				link[i].dataset.inlineExpandBound = 'true';
 				link[i].onclick = function(e) {
 					var img, post_body, still_open, canvas, scroll;
-					var thumb = this.childNodes[0];
+					var thumb = thumbElement(this);
 					var padding = 5;
 					var boardlist = $('.boardlist')[0];
 					
+					if (!thumb)
+						return true;
 
 					if (thumb.className == 'hidden')
 						return false;
@@ -122,7 +139,7 @@ $(document).ready(function(){
 
 						if (thumb.tagName === 'CANVAS') {
 							canvas = thumb;
-							thumb = thumb.nextSibling;
+							thumb = thumb.nextElementSibling;
 							this.removeChild(canvas);
 							canvas.style.display = 'block';
 						}
@@ -152,7 +169,8 @@ $(document).ready(function(){
 
 						thumb.style.opacity = '';
 						thumb.style.display = '';
-						if (thumb.nextSibling) this.removeChild(thumb.nextSibling);  //full image loaded or loading
+						img = fullImageElement(this);
+						if (img) this.removeChild(img);  //full image loaded or loading
 						$(this).removeData('expanded');
 						delete thumb.style.filter;
 

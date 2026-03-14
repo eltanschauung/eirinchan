@@ -500,6 +500,7 @@ defmodule EirinchanWeb.PostComponents do
         |> Enum.join(" ")
       )
       |> assign(:video_file?, PostView.video_file?(assigns.file))
+      |> assign(:expandable_image?, PostView.file_link_class(assigns.file) != "file")
 
     ~H"""
     <img
@@ -516,6 +517,7 @@ defmodule EirinchanWeb.PostComponents do
       target="_blank"
       rel="noopener noreferrer"
       class={@link_class}
+      data-inline-expandable={if @expandable_image?, do: "true", else: nil}
       data-video-file={if @video_file?, do: "true", else: nil}
       data-video-url={if @video_file?, do: @file.file_path, else: nil}
       data-default-loop={if @video_file?, do: "loop", else: nil}
