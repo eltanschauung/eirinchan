@@ -779,7 +779,7 @@ defmodule EirinchanWeb.ManagePageController do
         global_message_preview_html: current_global_message_preview_html(),
         history: global_message_history(),
         entries: Eirinchan.NewsBlotter.entries(config),
-        limit: Map.get(config, :news_blotter_limit, 15),
+        limit: max_blotter_limit(Map.get(config, :news_blotter_limit, 15)),
         blotter_preview_html: EirinchanWeb.Announcements.news_blotter_html(config),
         error: nil
       )
@@ -2194,7 +2194,7 @@ defmodule EirinchanWeb.ManagePageController do
       global_message_preview_html: current_global_message_preview_html(),
       history: global_message_history(),
       entries: Eirinchan.NewsBlotter.entries(config),
-      limit: Map.get(config, :news_blotter_limit, 15),
+      limit: max_blotter_limit(Map.get(config, :news_blotter_limit, 15)),
       blotter_preview_html: EirinchanWeb.Announcements.news_blotter_html(config),
       error: message
     )
@@ -2265,7 +2265,7 @@ defmodule EirinchanWeb.ManagePageController do
 
   defp parse_blotter_limit(%{"limit" => limit}) when is_binary(limit) do
     case Integer.parse(String.trim(limit)) do
-      {value, ""} when value > 0 -> value
+      {value, ""} when value > 0 -> max_blotter_limit(value)
       _ -> 15
     end
   end
@@ -2282,6 +2282,7 @@ defmodule EirinchanWeb.ManagePageController do
         message: entry |> Map.get("message", "") |> to_string() |> String.trim()
       }
     end)
+    |> Enum.take(max_blotter_limit())
     |> Enum.filter(fn %{date: date, message: message} ->
       date != "" and message != ""
     end)
@@ -2299,6 +2300,12 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   defp parse_index(_index), do: 0
+
+  defp max_blotter_limit(value \\ 50)
+
+  defp max_blotter_limit(value) when is_integer(value) and value > 50, do: 50
+  defp max_blotter_limit(value) when is_integer(value) and value > 0, do: value
+  defp max_blotter_limit(_value), do: 50
 
   defp render_pages_error(conn, message, status \\ :forbidden) do
     conn
