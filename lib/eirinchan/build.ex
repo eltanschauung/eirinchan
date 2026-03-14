@@ -409,7 +409,16 @@ defmodule Eirinchan.Build do
         media = render_media(summary.thread, config)
         replies = render_preview_replies(summary.replies, board, summary.thread, config)
         omitted = render_omitted(summary)
-        thread_path = ThreadPaths.thread_path(board, summary.thread, config)
+        thread_path =
+          ThreadPaths.thread_path(
+            board,
+            summary.thread,
+            config,
+            noko50:
+              Map.get_lazy(summary, :has_noko50, fn ->
+                Map.get(summary, :reply_count, 0) >= Map.get(config, :noko50_min, 0)
+              end)
+          )
         badges = render_thread_badges(summary.thread)
         delete_form = render_delete_form(board, PublicIds.public_id(summary.thread))
 
@@ -485,7 +494,16 @@ defmodule Eirinchan.Build do
       |> Enum.map_join("\n", fn summary ->
         title = html_escape(PostView.post_title(board, summary.thread, config))
         media = render_media(summary.thread, config)
-        thread_path = ThreadPaths.thread_path(board, summary.thread, config)
+        thread_path =
+          ThreadPaths.thread_path(
+            board,
+            summary.thread,
+            config,
+            noko50:
+              Map.get_lazy(summary, :has_noko50, fn ->
+                Map.get(summary, :reply_count, 0) >= Map.get(config, :noko50_min, 0)
+              end)
+          )
         badges = render_thread_badges(summary.thread)
         delete_form = render_delete_form(board, PublicIds.public_id(summary.thread))
 

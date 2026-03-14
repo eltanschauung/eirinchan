@@ -5,6 +5,7 @@ defmodule EirinchanWeb.PostView do
 
   alias Eirinchan.Boardlist
   alias Eirinchan.Moderation
+  alias Eirinchan.Posts.Post
   alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Posts.PostFile
   alias Eirinchan.Themes
@@ -93,6 +94,16 @@ defmodule EirinchanWeb.PostView do
   def board_heading(board), do: "/#{board.uri}/ - #{board.title}"
 
   def thread_path(board, post, config), do: ThreadPaths.thread_path(board, post, config)
+
+  def thread_summary_path(board, %{thread: %Post{} = thread} = summary, config) do
+    noko50? =
+      case Map.fetch(summary, :has_noko50) do
+        {:ok, value} -> value
+        :error -> Map.get(summary, :reply_count, 0) >= Map.get(config, :noko50_min, 0)
+      end
+
+    ThreadPaths.thread_path(board, thread, config, noko50: noko50?)
+  end
 
   def public_post_id(post), do: PublicIds.public_id(post)
 

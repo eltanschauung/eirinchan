@@ -459,19 +459,23 @@ defmodule EirinchanWeb.PageController do
   defp recent_theme_images(settings) do
     limit = recent_integer_setting(settings, "limit_images", 3)
     board_ids = recent_board_ids(settings)
+    posts = Posts.list_recent_posts(limit: max(limit * 25, limit), board_ids: board_ids)
+    noko50_paths = recent_noko50_paths(posts)
 
-    Posts.list_recent_posts(limit: max(limit * 25, limit), board_ids: board_ids)
+    posts
     |> Enum.filter(&recent_image_post?/1)
     |> Enum.take(limit)
-    |> Enum.map(&recent_image_summary/1)
+    |> Enum.map(&recent_image_summary(&1, noko50_paths))
   end
 
   defp recent_theme_posts(settings) do
     limit = recent_integer_setting(settings, "limit_posts", 30)
     board_ids = recent_board_ids(settings)
+    posts = Posts.list_recent_posts(limit: limit, board_ids: board_ids)
+    noko50_paths = recent_noko50_paths(posts)
 
-    Posts.list_recent_posts(limit: limit, board_ids: board_ids)
-    |> Enum.map(&recent_post_summary/1)
+    posts
+    |> Enum.map(&recent_post_summary(&1, noko50_paths))
   end
 
   defp recent_theme_stats(settings) do
@@ -547,12 +551,11 @@ defmodule EirinchanWeb.PageController do
     is_binary(post.thumb_path) and String.starts_with?(post.file_type || "", "image/")
   end
 
-  defp recent_image_summary(post) do
+  defp recent_image_summary(post, noko50_paths) do
     {thumb_src, thumbwidth, thumbheight} = recent_thumb(post)
 
     %{
-      link:
-        "/#{post.board.uri}/res/#{PublicIds.thread_public_id(post)}.html##{PublicIds.public_id(post)}",
+      link: recent_post_link(post, noko50_paths),
       src: thumb_src,
       thumbwidth: thumbwidth,
       thumbheight: thumbheight,
@@ -560,19 +563,55 @@ defmodule EirinchanWeb.PageController do
     }
   end
 
-  defp recent_post_summary(post) do
+  defp recent_post_summary(post, noko50_paths) do
     %{
       board_name: post.board.title,
-      link:
-        "/#{post.board.uri}/res/#{PublicIds.thread_public_id(post)}.html##{PublicIds.public_id(post)}",
+      link: recent_post_link(post, noko50_paths),
       snippet: recent_snippet(post.body)
     }
   end
 
+  defp recent_noko50_paths(posts) do
+    thread_ids =
+      posts
+      |> Enum.map(&thread_root_id/1)
+      |> Enum.uniq()
+
+    reply_counts =
+      if thread_ids == [] do
+        %{}
+      else
+        Repo.all(
+          from post in Post,
+            where: post.thread_id in ^thread_ids,
+            group_by: post.thread_id,
+            select: {post.thread_id, count(post.id)}
+        )
+        |> Map.new()
+      end
+
+    posts
+    |> Enum.map(fn post ->
+      thread = post.thread || post
+      config = board_config(post.board)
+      has_noko50 = Map.get(reply_counts, thread.id, 0) >= config.noko50_min
+      {thread.id, Eirinchan.ThreadPaths.thread_path(post.board, thread, config, noko50: has_noko50)}
+    end)
+    |> Map.new()
+  end
+
+  defp recent_post_link(post, noko50_paths) do
+    thread = post.thread || post
+    Map.fetch!(noko50_paths, thread.id) <> "##{PublicIds.public_id(post)}"
+  end
+
+  defp thread_root_id(%{thread_id: thread_id}) when is_integer(thread_id), do: thread_id
+  defp thread_root_id(%{id: id}), do: id
+
   defp recent_snippet(nil), do: "<em>(no comment)</em>"
 
   defp recent_snippet(body) do
-    len = 20
+    len = 32
 
     body
     |> String.replace(~r/<br\/?>/i, "  ")
@@ -709,7 +748,7 @@ defmodule EirinchanWeb.PageController do
       case Posts.list_page_data(board, config: config) do
         {:ok, pages} ->
           Enum.flat_map(pages, fn page ->
-            Enum.map(page.threads, &%{board: board, summary: &1})
+            Enum.map(page.threads, &%{board: board, config: config, summary: &1})
           end)
 
         _ ->

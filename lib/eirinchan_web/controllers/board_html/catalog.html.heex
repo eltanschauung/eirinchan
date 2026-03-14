@@ -270,7 +270,6 @@
       <%= for summary <- @threads do %>
         <% post = summary.thread %>
         <% post_public_id = PostView.public_post_id(post) %>
-        <% template = PostView.template_assigns(@board, post, @config) %>
         <div
           class="mix"
           data-reply={summary.reply_count}
@@ -290,9 +289,7 @@
             data-unwatch-url={"/watcher/#{@board.uri}/#{post_public_id}"}
             data-watched={to_string(watch.watched)}
           >
-            <a href={
-              Eirinchan.ThreadPaths.thread_path(template.board, template.post, template.config)
-            }>
+            <a href={PostView.thread_summary_path(@board, summary, @config)}>
               <img
                 :if={PostView.catalog_media_path(post, @config)}
                 src={PostView.catalog_media_path(post, @config)}

@@ -5,7 +5,6 @@
     <%= for summary <- @threads do %>
       <% post = summary.thread %>
       <% post_public_id = PostView.public_post_id(post) %>
-      <% template = PostView.template_assigns(@board, post, @config) %>
       <div
         class="mix"
         data-reply={summary.reply_count}
@@ -16,9 +15,7 @@
         data-locked={to_string(post.locked || false)}
       >
         <div class="thread grid-li grid-size-large" id={"catalog-#{post_public_id}"}>
-          <a href={
-            Eirinchan.ThreadPaths.thread_path(template.board, template.post, template.config)
-          }>
+          <a href={PostView.thread_summary_path(@board, summary, @config)}>
             <img
               :if={PostView.catalog_media_path(post, @config)}
               src={PostView.catalog_media_path(post, @config)}
