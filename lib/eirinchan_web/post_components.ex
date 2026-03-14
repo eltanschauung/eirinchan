@@ -184,7 +184,11 @@ defmodule EirinchanWeb.PostComponents do
         <div class="file-thumbs"></div>
       </div>
     </div>
-    <div :if={@upload_by_url_enabled} style="float:none;text-align:left" id="upload_url">
+    <div
+      :if={@upload_by_url_enabled}
+      style="float:none;text-align:left;display:none"
+      id="upload_url"
+    >
       <label for="file_url">Or URL</label>:
       <input style="display:inline" type="text" id="file_url" name="file_url" size="35" />
     </div>

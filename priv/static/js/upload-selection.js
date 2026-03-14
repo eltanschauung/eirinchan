@@ -69,7 +69,6 @@ $(function(){
     $("#confirm_oekaki_label").hide();
   }
 
-  if (enabled_url || enabled_embed || enabled_oekaki) {
-    enable_file();
-  }
+  // The default file-upload state is rendered server-side.
+  // Only keep the mode-switch helpers for explicit interactions.
 });
