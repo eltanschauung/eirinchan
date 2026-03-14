@@ -217,6 +217,81 @@ defmodule EirinchanWeb.ManagePageController do
     end
   end
 
+  def ban_browser(conn, %{"id" => id}) do
+    with {:ok, moderator} <- ensure_moderator(conn),
+         {:ok, ban} <- load_accessible_ban(id, moderator) do
+      render(conn, :ban,
+        moderator: moderator,
+        ban: Repo.preload(ban, [:board, :mod_user]),
+        boards: Moderation.list_accessible_boards(moderator),
+        ban_form: maybe_apply_edit_ban(%{}, ban),
+        config: Settings.current_instance_config()
+      )
+    else
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      {:error, :forbidden} ->
+        render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
+
+      {:error, :not_found} ->
+        render_dashboard_error(conn, "Ban not found.", %{}, :not_found)
+    end
+  end
+
+  def update_ban_browser(conn, %{"id" => id} = params) do
+    with {:ok, moderator} <- ensure_moderator(conn),
+         {:ok, ban} <- load_accessible_ban(id, moderator),
+         {:ok, target_board_id} <- target_ban_board_id(moderator, params["board"]),
+         {:ok, _ban} <-
+           Bans.update_ban(ban, %{
+             board_id: target_board_id,
+             ip_subnet: normalize_ban_ip_mask(Map.get(params, "ip_mask", ban.ip_subnet)),
+             reason: params["reason"],
+             length: params["length"],
+             active: true
+           }) do
+      ModerationAudit.log(conn, "Updated ban ##{ban.id}", moderator: moderator)
+
+      conn
+      |> put_flash(:info, "Ban updated.")
+      |> redirect(to: "/manage/bans/#{ban.id}/browser")
+    else
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      {:error, :forbidden} ->
+        render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
+
+      {:error, :not_found} ->
+        render_dashboard_error(conn, "Ban not found.", %{}, :not_found)
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        render_ban_browser_error(conn, id, format_changeset(changeset), params)
+    end
+  end
+
+  def delete_ban_browser(conn, %{"id" => id}) do
+    with {:ok, moderator} <- ensure_moderator(conn),
+         {:ok, ban} <- load_accessible_ban(id, moderator),
+         {:ok, _ban} <- Bans.update_ban(ban, %{active: false}) do
+      ModerationAudit.log(conn, "Removed ban ##{ban.id}", moderator: moderator)
+
+      conn
+      |> put_flash(:info, "Ban removed.")
+      |> redirect(to: "/manage/bans/browser")
+    else
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      {:error, :forbidden} ->
+        render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
+
+      {:error, :not_found} ->
+        render_dashboard_error(conn, "Ban not found.", %{}, :not_found)
+    end
+  end
+
   def config(conn, _params) do
     with {:ok, moderator} <- ensure_admin(conn) do
       render(conn, :config,
@@ -2432,11 +2507,7 @@ defmodule EirinchanWeb.ManagePageController do
           do: "/manage/ip/#{cloak}/browser",
           else: nil
         ),
-      edit_url:
-        if(board,
-          do: "/manage/boards/#{board.uri}/ip/#{cloak}/browser?edit_ban=#{ban.id}#bans",
-          else: "/manage/ip/#{cloak}/browser?edit_ban=#{ban.id}#bans"
-        )
+      edit_url: "/manage/bans/#{ban.id}/browser"
     }
   end
 
@@ -2502,7 +2573,11 @@ defmodule EirinchanWeb.ManagePageController do
       "ip_mask" => IpCrypt.cloak_ip(ban.ip_subnet),
       "reason" => ban.reason || "",
       "length" => "",
-      "board" => if(ban.board, do: ban.board.uri, else: "*")
+      "board" =>
+        case ban.board do
+          %{uri: uri} -> uri
+          _ -> "*"
+        end
     }
   end
 
@@ -2813,6 +2888,32 @@ defmodule EirinchanWeb.ManagePageController do
       seconds >= 60 * 60 -> "#{div(seconds, 60 * 60)} hours"
       seconds >= 60 -> "#{div(seconds, 60)} minutes"
       true -> "#{seconds} seconds"
+    end
+  end
+
+  defp render_ban_browser_error(conn, id, message, params, status \\ :unprocessable_entity) do
+    moderator = conn.assigns[:current_moderator]
+
+    case load_accessible_ban(id, moderator) do
+      {:ok, ban} ->
+        conn
+        |> put_status(status)
+        |> render(:ban,
+          moderator: moderator,
+          ban: Repo.preload(ban, [:board, :mod_user]),
+          boards: Moderation.list_accessible_boards(moderator),
+          ban_form: %{
+            "ip_mask" => Map.get(params, "ip_mask", IpCrypt.cloak_ip(ban.ip_subnet)),
+            "reason" => Map.get(params, "reason", ban.reason || ""),
+            "length" => Map.get(params, "length", ""),
+            "board" => Map.get(params, "board", if(ban.board, do: ban.board.uri, else: "*"))
+          },
+          config: Settings.current_instance_config(),
+          error: message
+        )
+
+      _ ->
+        render_dashboard_error(conn, "Ban not found.", %{}, :not_found)
     end
   end
 

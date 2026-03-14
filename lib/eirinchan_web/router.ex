@@ -94,6 +94,9 @@ defmodule EirinchanWeb.Router do
     get "/bans/browser", ManagePageController, :bans
     get "/bans/browser.json", ManagePageController, :bans_json
     post "/bans/browser", ManagePageController, :update_bans
+    get "/bans/:id/browser", ManagePageController, :ban_browser
+    patch "/bans/:id/browser", ManagePageController, :update_ban_browser
+    delete "/bans/:id/browser", ManagePageController, :delete_ban_browser
     get "/log/browser", ManagePageController, :moderation_log
     get "/pages/browser", ManagePageController, :pages
     post "/pages/browser", ManagePageController, :create_page

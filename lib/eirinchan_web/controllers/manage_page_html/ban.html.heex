@@ -1,0 +1,142 @@
+<.flash_group flash={@flash} />
+
+<h1>Ban #<%= @ban.id %></h1>
+
+<form action={"/manage/bans/#{@ban.id}/browser"} method="post" style="text-align:center">
+  <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+
+  <table style="width:400px;margin-bottom:10px;border-bottom:1px solid #ddd;padding:5px">
+    <tr>
+      <th>Status</th>
+      <td><%= if Eirinchan.Bans.active?(@ban), do: "Active", else: "Expired" %></td>
+    </tr>
+    <tr>
+      <th>IP</th>
+      <td><%= EirinchanWeb.IpPresentation.display_ip(@ban.ip_subnet, @moderator) %></td>
+    </tr>
+    <tr>
+      <th>Reason</th>
+      <td>
+        <%= if @ban.reason in [nil, ""] do %>
+          <em>no reason</em>
+        <% else %>
+          <%= @ban.reason %>
+        <% end %>
+      </td>
+    </tr>
+    <tr>
+      <th>Board</th>
+      <td>
+        <%= if @ban.board do %>
+          /<%= @ban.board.uri %>/
+        <% else %>
+          <em>all boards</em>
+        <% end %>
+      </td>
+    </tr>
+    <tr>
+      <th>Set</th>
+      <td><%= EirinchanWeb.PostView.formatted_timestamp(@ban, @config) %></td>
+    </tr>
+    <tr>
+      <th>Expires</th>
+      <td>
+        <%= if @ban.expires_at do %>
+          <%= EirinchanWeb.PostView.formatted_timestamp(%{inserted_at: @ban.expires_at}, @config) %>
+        <% else %>
+          <em>never</em>
+        <% end %>
+      </td>
+    </tr>
+    <tr>
+      <th>Seen</th>
+      <td>No</td>
+    </tr>
+    <tr>
+      <th>Staff</th>
+      <td>
+        <%= if @ban.mod_user do %>
+          <%= @ban.mod_user.username %>
+        <% else %>
+          <em>deleted?</em>
+        <% end %>
+      </td>
+    </tr>
+  </table>
+</form>
+
+<fieldset>
+  <legend>Edit ban</legend>
+  <form action={"/manage/bans/#{@ban.id}/browser"} method="post">
+    <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+    <input type="hidden" name="_method" value="patch" />
+
+    <table>
+      <tr>
+        <th><label for="ip_mask">IP <span class="unimportant">(or subnet)</span></label></th>
+        <td>
+          <input
+            type="text"
+            name="ip_mask"
+            id="ip_mask"
+            size="30"
+            maxlength="40"
+            value={@ban_form["ip_mask"]}
+          />
+        </td>
+      </tr>
+      <tr>
+        <th><label for="reason">Reason</label></th>
+        <td><textarea name="reason" id="reason" rows="5" cols="30"><%= @ban_form["reason"] %></textarea></td>
+      </tr>
+      <tr>
+        <th><label for="length">Length</label></th>
+        <td>
+          <input type="text" name="length" id="length" size="20" maxlength="40" value={@ban_form["length"]} />
+          <span class="unimportant">(eg. "2d1h30m" or "2 days")</span>
+        </td>
+      </tr>
+      <tr>
+        <th>Board</th>
+        <td>
+          <ul style="list-style:none;padding:2px 5px">
+            <li>
+              <input
+                type="radio"
+                name="board"
+                value="*"
+                id="ban-allboards"
+                checked={@ban_form["board"] in [nil, "", "*"]}
+              />
+              <label style="display:inline" for="ban-allboards"><em>all boards</em></label>
+            </li>
+            <%= for target_board <- @boards do %>
+              <li>
+                <input
+                  type="radio"
+                  name="board"
+                  value={target_board.uri}
+                  id={"ban-board-#{target_board.uri}"}
+                  checked={@ban_form["board"] == target_board.uri}
+                />
+                <label style="display:inline" for={"ban-board-#{target_board.uri}"}>
+                  /<%= target_board.uri %>/ - <%= target_board.title %>
+                </label>
+              </li>
+            <% end %>
+          </ul>
+        </td>
+      </tr>
+      <tr>
+        <td></td>
+        <td><input name="new_ban" type="submit" value="Edit Ban" /></td>
+      </tr>
+    </table>
+  </form>
+</fieldset>
+
+<form action={"/manage/bans/#{@ban.id}/browser"} method="post" style="text-align:center">
+  <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+  <input type="hidden" name="_method" value="delete" />
+  <input type="submit" value="Remove ban" />
+</form>
