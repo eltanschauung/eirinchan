@@ -40,15 +40,11 @@
           </a>
         </legend>
         <%= for result <- @results do %>
-          <EirinchanWeb.ManagePageHTML.moderation_post
+          <.search_post
             post={result.post}
             board={result.board}
             thread={result.thread}
-            config={
-              Eirinchan.Runtime.Config.compose(nil, %{}, result.board.config_overrides || %{})
-            }
-            moderator={@current_moderator}
-            secure_manage_token={@secure_manage_token}
+            config={@result_config}
             own_post_ids={@own_post_ids}
             show_yous={@show_yous}
           />
