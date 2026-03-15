@@ -3,7 +3,7 @@ defmodule EirinchanWeb.PostView do
 
   import Phoenix.HTML, only: [html_escape: 1, safe_to_string: 1]
 
-  alias Eirinchan.Boardlist
+  alias Eirinchan.{Boardlist, Boards, Posts}
   alias Eirinchan.Moderation
   alias Eirinchan.Posts.Post
   alias Eirinchan.Posts.PublicIds
@@ -14,6 +14,7 @@ defmodule EirinchanWeb.PostView do
   alias EirinchanWeb.{IpPresentation, ManageSecurity}
 
   @deleted_file_sentinel "deleted"
+  @filename_title_limit 256
 
   def template_assigns(board, post, config) do
     %{
@@ -550,7 +551,10 @@ defmodule EirinchanWeb.PostView do
   end
 
   def original_file_name(file) do
-    file_display_name(file)
+    case file_display_name(file) do
+      value when is_binary(value) -> String.slice(value, 0, @filename_title_limit)
+      value -> value
+    end
   end
 
   def display_file_name(file, config) do
@@ -1019,6 +1023,8 @@ defmodule EirinchanWeb.PostView do
   defp format_body_line(line, board, thread, config, opts) do
     rendered =
       line
+      |> render_plain_urls(config)
+      |> render_cross_board_links(board, config)
       |> render_quote_links(board, thread, config, opts)
       |> WhaleStickers.replace_line(config)
       |> render_line_formatting()
@@ -1029,6 +1035,23 @@ defmodule EirinchanWeb.PostView do
     else
       rendered
     end
+  end
+
+  defp render_plain_urls(line, %{markup_urls: false}), do: line
+
+  defp render_plain_urls(line, config) do
+    link_prefix =
+      config
+      |> Map.get(:link_prefix, "")
+      |> to_string()
+
+    Regex.replace(
+      ~r/((?:https?:\/\/|ftp:\/\/|irc:\/\/)[^\s<>()"]+?(?:\([^\s<>()"]*?\)[^\s<>()"]*?)*)((?:\s|<|>|"|\.|\]|\!|\?|,|&#44;|&quot;)*(?:[\s<>()"]|$))/u,
+      line,
+      fn _match, url, trailing ->
+        ~s(<a href="#{link_prefix}#{url}" rel="nofollow noopener noreferrer" target="_blank">#{url}</a>#{trailing})
+      end
+    )
   end
 
   defp render_line_formatting(line) do
@@ -1087,6 +1110,67 @@ defmodule EirinchanWeb.PostView do
 
       "<a data-highlight-reply=\"#{id}\" href=\"#{href}\">&gt;&gt;#{id}</a>#{op}#{you}"
     end)
+  end
+
+  defp render_cross_board_links(line, board, config) do
+    board_regex = Map.get(config, :board_regex, "[a-zA-Z0-9_]+")
+    regex = Regex.compile!("&gt;&gt;&gt;/((?:#{board_regex})f?)/(\\d+)?", "u")
+
+    Regex.replace(regex, line, fn _match, board_uri, post_id ->
+      if post_id in [nil, ""] do
+        ~s(<a href="/#{board_uri}/index.html">&gt;&gt;&gt;/#{board_uri}/</a>)
+      else
+        href = cross_board_post_href(board, board_uri, post_id, config)
+
+        attrs =
+          if board_uri == board.uri do
+            ~s( data-highlight-reply="#{post_id}")
+          else
+            ""
+          end
+
+        ~s(<a#{attrs} href="#{href}">&gt;&gt;&gt;/#{board_uri}/#{post_id}</a>)
+      end
+    end)
+  end
+
+  defp cross_board_post_href(current_board, target_board_uri, post_id, config) do
+    case target_board_uri do
+      ^current_board.uri ->
+        resolve_post_href(current_board, post_id, config)
+
+      _ ->
+        case Boards.get_board_by_uri(target_board_uri) do
+          nil -> "/#{target_board_uri}/res/#{post_id}.html##{post_id}"
+          board -> resolve_post_href(board, post_id, config)
+        end
+    end
+  end
+
+  defp resolve_post_href(board, post_id, config) do
+    case Integer.parse(to_string(post_id)) do
+      {parsed_id, ""} ->
+        case Posts.get_post(board, parsed_id) do
+          {:ok, %Post{} = post} ->
+            thread =
+              if is_nil(post.thread_id) do
+                post
+              else
+                case Posts.get_post_by_internal_id(board, post.thread_id) do
+                  {:ok, %Post{} = thread} -> thread
+                  _ -> post
+                end
+              end
+
+            ThreadPaths.thread_path(board, thread, config) <> "##{parsed_id}"
+
+          _ ->
+            "/#{board.uri}/res/#{parsed_id}.html##{parsed_id}"
+        end
+
+      _ ->
+        "/#{board.uri}/res/#{post_id}.html##{post_id}"
+    end
   end
 
   defp relative_timestamp_string(%DateTime{} = inserted_at) do
@@ -1208,7 +1292,7 @@ defmodule EirinchanWeb.PostView do
            ~r/^https?:\/\/(\w+\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9\-_]{10,11})(&.+)?$/i,
            embed
          ) do
-      [_, _prefix, video_id | _rest] -> "//img.youtube.com/vi/#{video_id}/0.jpg"
+      [_, _prefix, video_id | _rest] -> "https://img.youtube.com/vi/#{video_id}/0.jpg"
       _ -> nil
     end
   end

@@ -176,7 +176,15 @@ $(document).ready(function(){
 
 						//  do the scrolling after page reflow
 						if (scroll) {
-							post_body = $(thumb).parentsUntil('form > div').last();
+							post_body = $(thumb).closest('.post');
+
+							if (!post_body.length) {
+								if (localStorage.no_animated_gif === 'true' && typeof unanimate_gif === 'function') {
+									unanimate_gif(thumb);
+								}
+
+								return false;
+							}
 
 							//  on multifile posts, determin how many other images are still expanded
 							still_open = post_body.find('.post-image').filter(function(){

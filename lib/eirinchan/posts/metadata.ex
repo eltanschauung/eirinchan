@@ -1,6 +1,8 @@
 defmodule Eirinchan.Posts.Metadata do
   @moduledoc false
 
+  alias Eirinchan.Tripcode
+
   @spec normalize(map(), map(), map(), boolean()) :: {:ok, map()}
   def normalize(attrs, config, request, op?) do
     attrs =
@@ -18,7 +20,7 @@ defmodule Eirinchan.Posts.Metadata do
   defp normalize_post_identity(attrs, config) do
     attrs
     |> Map.update("name", config.anonymous, &default_name(&1, config))
-    |> normalize_tripcode()
+    |> normalize_tripcode(config)
     |> Map.update("subject", nil, &trim_to_nil/1)
     |> Map.update("password", nil, &trim_to_nil/1)
     |> Map.update("email", nil, &normalize_email/1)
@@ -33,38 +35,18 @@ defmodule Eirinchan.Posts.Metadata do
     end
   end
 
-  defp normalize_tripcode(attrs) do
+  defp normalize_tripcode(attrs, config) do
     case trim_to_nil(Map.get(attrs, "name")) do
       nil ->
         Map.put(attrs, "tripcode", nil)
 
       value ->
-        case Regex.run(~r/^(.*?)(##?)(.+)$/u, value) do
-          [_, display_name, marker, secret] ->
-            trip =
-              secret
-              |> String.trim()
-              |> tripcode_hash(marker == "##")
+        {display_name, tripcode} = Tripcode.split_name_and_tripcode(value, config)
 
-            attrs
-            |> Map.put("name", trim_to_nil(display_name))
-            |> Map.put("tripcode", trip)
-
-          _ ->
-            Map.put(attrs, "tripcode", nil)
-        end
+        attrs
+        |> Map.put("name", display_name)
+        |> Map.put("tripcode", tripcode)
     end
-  end
-
-  defp tripcode_hash(secret, secure?) do
-    salt = if secure?, do: "secure-trip", else: "trip"
-
-    digest =
-      :crypto.hash(:sha, salt <> secret)
-      |> Base.encode64(padding: false)
-      |> binary_part(0, 10)
-
-    "!" <> digest
   end
 
   defp normalize_email(nil), do: nil

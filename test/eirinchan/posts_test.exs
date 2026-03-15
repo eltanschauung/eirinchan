@@ -705,7 +705,7 @@ defmodule Eirinchan.PostsTest do
              )
   end
 
-  test "create_post canonicalizes and truncates stored filenames" do
+  test "create_post canonicalizes stored filenames without using the display truncation limit" do
     board = board_fixture(%{config_overrides: %{max_filename_display_length: 12}})
 
     assert {:ok, thread, _meta} =
@@ -724,7 +724,7 @@ defmodule Eirinchan.PostsTest do
                request: post_request(board.uri)
              )
 
-    assert thread.file_name == "a_very_long_.png"
+    assert thread.file_name == "a_very_long_display_filename_with_spaces.png"
   end
 
   test "create_post always strips EXIF metadata from stored jpeg files" do

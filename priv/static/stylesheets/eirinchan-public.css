@@ -3,7 +3,7 @@ body {
   min-height: 100%;
 }
 
-.mobile-style div.boardlist {
+div.boardlist {
   white-space: nowrap;
 }
 
