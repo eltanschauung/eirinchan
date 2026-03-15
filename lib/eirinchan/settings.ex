@@ -145,6 +145,7 @@ defmodule Eirinchan.Settings do
   @spec persist_instance_config(map()) :: :ok | {:error, term()}
   def persist_instance_config(overrides) when is_map(overrides) do
     path = config_path()
+    overrides = preserve_hidden_instance_state(overrides, current_instance_config())
 
     path
     |> Path.dirname()
@@ -168,7 +169,13 @@ defmodule Eirinchan.Settings do
     |> Path.dirname()
     |> File.mkdir_p!()
 
-    File.write(path, raw_json)
+    raw_json
+    |> Jason.decode!()
+    |> Config.normalize_override_keys()
+    |> preserve_hidden_instance_state(current_instance_config())
+    |> stringify_keys()
+    |> Jason.encode_to_iodata!(pretty: true)
+    |> then(&File.write(path, &1))
     |> tap(fn
       :ok -> refresh_instance_config_cache()
       _ -> :ok
@@ -216,7 +223,7 @@ defmodule Eirinchan.Settings do
         |> Enum.sort_by(& &1.name)
 
       persist_and_return(
-        Map.put(config, :themes, %{default: default_theme(), installed: updated}),
+        put_themes_config(config, %{default: default_theme(), installed: updated}),
         theme
       )
     else
@@ -240,7 +247,7 @@ defmodule Eirinchan.Settings do
           current -> current
         end
 
-      new_config = Map.put(config, :themes, %{default: default, installed: updated})
+      new_config = put_themes_config(config, %{default: default, installed: updated})
 
       case persist_instance_config(new_config |> bump_asset_version()) do
         :ok -> :ok
@@ -258,7 +265,7 @@ defmodule Eirinchan.Settings do
     else
       config = current_instance_config()
       themes = config |> Map.get(:themes, %{}) |> Map.get(:installed, [])
-      new_config = Map.put(config, :themes, %{default: normalized_name, installed: themes})
+      new_config = put_themes_config(config, %{default: normalized_name, installed: themes})
 
       case persist_instance_config(new_config |> bump_asset_version()) do
         :ok -> :ok
@@ -310,6 +317,43 @@ defmodule Eirinchan.Settings do
       :ok -> {:ok, result}
       {:error, reason} -> {:error, reason}
     end
+  end
+
+  defp preserve_hidden_instance_state(overrides, current) do
+    overrides
+    |> maybe_preserve_key(current, :template_themes)
+    |> maybe_preserve_nested_key(current, :themes, :page_enabled)
+  end
+
+  defp maybe_preserve_key(overrides, current, key) do
+    if Map.has_key?(overrides, key) or not Map.has_key?(current, key) do
+      overrides
+    else
+      Map.put(overrides, key, Map.get(current, key))
+    end
+  end
+
+  defp maybe_preserve_nested_key(overrides, current, parent, child) do
+    current_parent = Map.get(current, parent)
+    override_parent = Map.get(overrides, parent)
+
+    cond do
+      not is_map(current_parent) ->
+        overrides
+
+      is_map(override_parent) and Map.has_key?(override_parent, child) ->
+        overrides
+
+      not Map.has_key?(current_parent, child) ->
+        overrides
+
+      true ->
+        Map.put(overrides, parent, Map.put(override_parent || %{}, child, Map.get(current_parent, child)))
+    end
+  end
+
+  defp put_themes_config(config, updates) do
+    Map.put(config, :themes, Map.merge(Map.get(config, :themes, %{}), updates))
   end
 
   defp bump_asset_version(config) do

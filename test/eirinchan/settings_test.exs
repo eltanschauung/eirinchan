@@ -34,4 +34,33 @@ defmodule Eirinchan.SettingsTest do
     assert :ok = Settings.persist_instance_config(%{anonymous: "Nameless"})
     assert Settings.current_instance_config().anonymous == "Nameless"
   end
+
+  test "persist_instance_config preserves page theme state when overrides omit it" do
+    assert :ok =
+             Settings.persist_instance_config(%{
+               anonymous: "Anon",
+               template_themes: %{installed: %{"catalog" => %{}}},
+               themes: %{page_enabled: ["catalog"]}
+             })
+
+    assert :ok = Settings.persist_instance_config(%{anonymous: "Nameless"})
+
+    config = Settings.current_instance_config()
+    assert config.template_themes.installed[:catalog] == %{}
+    assert config.themes.page_enabled == ["catalog"]
+  end
+
+  test "theme updates preserve existing theme metadata" do
+    assert :ok =
+             Settings.persist_instance_config(%{
+               themes: %{public: ["christmas"], page_enabled: ["catalog"]}
+             })
+
+    assert :ok = Settings.set_default_theme("christmas")
+
+    config = Settings.current_instance_config()
+    assert config.themes.public == ["christmas"]
+    assert config.themes.page_enabled == ["catalog"]
+    assert config.themes.default == "christmas"
+  end
 end
