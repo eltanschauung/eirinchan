@@ -7,6 +7,7 @@ high-speed app. Uses PostgreSQL. Credit to Tinyboard, Vichan Devel and Fredrick 
 # Unique Features
 - Lightning fast speeds with Phoenix and PostgreSQL
 - Modernization to catalog and other page templates
+- Catalog pagination, updated catalog search js
 - Configurability to new themes such as a faq and flags page
 - Configurable multi flags system
 - IpAccessConf theme, a security system I developed
