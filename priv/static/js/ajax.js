@@ -171,6 +171,14 @@ $(window).ready(function() {
 							if ($reply.length) {
 								var anchor = document.getElementById(String(post_response.id)) || $reply[0];
 
+								try {
+									if (typeof window.syncBacklinksFromPost === 'function') {
+										window.syncBacklinksFromPost($reply[0]);
+									}
+								} catch (e) {
+									console.error(e);
+								}
+
 								clearReplyFields();
 								resetSubmit();
 								syncSeenForReply(post_response);
