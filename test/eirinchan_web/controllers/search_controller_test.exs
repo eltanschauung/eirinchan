@@ -3,11 +3,11 @@ defmodule EirinchanWeb.SearchControllerTest do
 
   alias Eirinchan.Posts.PublicIds
 
-  test "public search returns matching posts and respects board filters", %{conn: conn} do
-    board = board_fixture(%{uri: "tea#{System.unique_integer([:positive])}", title: "Tea"})
+  test "public search returns matching posts only for the selected board", %{conn: conn} do
+    board = board_fixture(%{uri: "tea#{System.unique_integer([:positive, :monotonic])}", title: "Tea"})
 
     other_board =
-      board_fixture(%{uri: "meta#{System.unique_integer([:positive])}", title: "Meta"})
+      board_fixture(%{uri: "meta#{System.unique_integer([:positive, :monotonic])}", title: "Meta"})
 
     {:ok, thread, _meta} =
       Eirinchan.Posts.create_post(
@@ -27,26 +27,24 @@ defmodule EirinchanWeb.SearchControllerTest do
 
     page =
       conn
-      |> get("/search", %{"q" => "leaf", "board" => board.uri})
+      |> get("/search.php", %{"search" => "leaf", "board" => board.uri})
       |> html_response(200)
 
     assert page =~ "Search"
     assert page =~ "green tea leaf"
     assert page =~ "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html"
     assert page =~ "1 result in"
-    assert page =~ "/ #{board.uri} / - #{board.title}"
+    assert page =~ "/#{board.uri}/ - #{board.title}"
     refute page =~ "meta tea"
   end
 
   test "public search logs queries", %{conn: _conn} do
     board =
       board_fixture(%{
-        uri: "tea#{System.unique_integer([:positive])}",
+        uri: "tea#{System.unique_integer([:positive, :monotonic])}",
         config_overrides: %{
-          search_query_limit_window: 60,
-          search_query_limit_count: 1,
-          search_query_global_limit_window: 60,
-          search_query_global_limit_count: 0
+          search_queries_per_minutes: [1, 1],
+          search_queries_per_minutes_all: [0, 1]
         }
       })
 
@@ -54,10 +52,10 @@ defmodule EirinchanWeb.SearchControllerTest do
 
     first_page =
       conn
-      |> get("/search", %{"q" => "tripcode", "board" => board.uri})
+      |> get("/search.php", %{"search" => "tripcode", "board" => board.uri})
       |> html_response(200)
 
-    assert first_page =~ "No results."
+    assert first_page =~ "(No results.)"
 
     assert Enum.any?(
              Eirinchan.Antispam.list_search_queries("198.51.100.99", repo: Eirinchan.Repo),
@@ -68,12 +66,10 @@ defmodule EirinchanWeb.SearchControllerTest do
   test "public search applies global query throttles across IPs", %{conn: _conn} do
     board =
       board_fixture(%{
-        uri: "rate#{System.unique_integer([:positive])}",
+        uri: "rate#{System.unique_integer([:positive, :monotonic])}",
         config_overrides: %{
-          search_query_limit_window: 60,
-          search_query_limit_count: 0,
-          search_query_global_limit_window: 60,
-          search_query_global_limit_count: 1
+          search_queries_per_minutes: [0, 1],
+          search_queries_per_minutes_all: [1, 1]
         }
       })
 
@@ -81,16 +77,16 @@ defmodule EirinchanWeb.SearchControllerTest do
     second_conn = %{build_conn() | remote_ip: {198, 51, 100, 11}}
 
     assert first_conn
-           |> get("/search", %{"q" => "tripcode", "board" => board.uri})
-           |> html_response(200) =~ "No results."
+           |> get("/search.php", %{"search" => "tripcode", "board" => board.uri})
+           |> html_response(200) =~ "(No results.)"
 
     assert second_conn
-           |> get("/search", %{"q" => "tripcode", "board" => board.uri})
-           |> html_response(200) =~ "Search rate limit exceeded."
+           |> get("/search.php", %{"search" => "tripcode", "board" => board.uri})
+           |> html_response(200) =~ "Wait a while before searching again, please."
   end
 
   test "public search supports id, thread, subject, and name filters", %{conn: conn} do
-    board = board_fixture(%{uri: "search#{System.unique_integer([:positive])}", title: "Search"})
+    board = board_fixture(%{uri: "search#{System.unique_integer([:positive, :monotonic])}", title: "Search"})
 
     {:ok, thread, _meta} =
       Eirinchan.Posts.create_post(
@@ -119,21 +115,21 @@ defmodule EirinchanWeb.SearchControllerTest do
         request: %{referer: "http://example.test/#{board.uri}/index.html"}
       )
 
-    assert get(conn, "/search", %{"q" => "id:#{reply.id}", "board" => board.uri})
+    assert get(conn, "/search.php", %{"search" => "id:#{PublicIds.public_id(reply)}", "board" => board.uri})
            |> html_response(200) =~ "reply body"
 
-    assert get(conn, "/search", %{"q" => "thread:#{thread.id}", "board" => board.uri})
+    assert get(conn, "/search.php", %{"search" => "thread:#{PublicIds.public_id(thread)}", "board" => board.uri})
            |> html_response(200) =~ "reply body"
 
-    assert get(conn, "/search", %{"q" => "subject:Tea", "board" => board.uri})
+    assert get(conn, "/search.php", %{"search" => "subject:\"Tea topic\"", "board" => board.uri})
            |> html_response(200) =~ "green leaf"
 
-    assert get(conn, "/search", %{"q" => "name:Alice", "board" => board.uri})
+    assert get(conn, "/search.php", %{"search" => "name:Alice", "board" => board.uri})
            |> html_response(200) =~ "green leaf"
   end
 
   test "public search renders thread-aware result objects for replies", %{conn: conn} do
-    board = board_fixture(%{uri: "render#{System.unique_integer([:positive])}", title: "Render"})
+    board = board_fixture(%{uri: "render#{System.unique_integer([:positive, :monotonic])}", title: "Render"})
 
     {:ok, thread, _meta} =
       Eirinchan.Posts.create_post(
@@ -163,7 +159,7 @@ defmodule EirinchanWeb.SearchControllerTest do
 
     page =
       conn
-      |> get("/search", %{"q" => "reply body", "board" => board.uri})
+      |> get("/search.php", %{"search" => "reply body", "board" => board.uri})
       |> html_response(200)
 
     assert page =~ "reply body match"
@@ -172,7 +168,7 @@ defmodule EirinchanWeb.SearchControllerTest do
   end
 
   test "public search supports wildcard and phrase search semantics", %{conn: conn} do
-    board = board_fixture(%{uri: "phrase#{System.unique_integer([:positive])}", title: "Phrase"})
+    board = board_fixture(%{uri: "phrase#{System.unique_integer([:positive, :monotonic])}", title: "Phrase"})
 
     {:ok, _thread, _meta} =
       Eirinchan.Posts.create_post(
@@ -202,7 +198,7 @@ defmodule EirinchanWeb.SearchControllerTest do
 
     phrase_page =
       conn
-      |> get("/search", %{"q" => "\"green tea\" leaf*", "board" => board.uri})
+      |> get("/search.php", %{"search" => "\"green tea\" leaf*", "board" => board.uri})
       |> html_response(200)
 
     assert phrase_page =~ "green tea leaf piles only"
@@ -210,7 +206,7 @@ defmodule EirinchanWeb.SearchControllerTest do
 
     subject_page =
       conn
-      |> get("/search", %{"q" => "subject:\"Green Tea\" top*", "board" => board.uri})
+      |> get("/search.php", %{"search" => "subject:\"Green Tea Topic\"", "board" => board.uri})
       |> html_response(200)
 
     assert subject_page =~ "Green Tea Topic"
@@ -222,21 +218,18 @@ defmodule EirinchanWeb.SearchControllerTest do
     Application.put_env(:eirinchan, :search_overrides, %{search_enabled: false})
     on_exit(fn -> Application.put_env(:eirinchan, :search_overrides, previous) end)
 
-    page =
-      conn
-      |> get("/search", %{"q" => "leaf"})
-      |> html_response(200)
+    page = conn |> get("/search.php", %{"search" => "leaf"}) |> html_response(200)
 
-    assert page =~ "Search disabled."
-    refute page =~ "Search rate limit exceeded."
+    assert page =~ "Post search is disabled"
+    refute page =~ "Wait a while before searching again, please."
   end
 
   test "public search respects board allowlists and denylists", %{conn: conn} do
     allowed_board =
-      board_fixture(%{uri: "allow#{System.unique_integer([:positive])}", title: "Allow"})
+      board_fixture(%{uri: "allow#{System.unique_integer([:positive, :monotonic])}", title: "Allow"})
 
     blocked_board =
-      board_fixture(%{uri: "block#{System.unique_integer([:positive])}", title: "Block"})
+      board_fixture(%{uri: "block#{System.unique_integer([:positive, :monotonic])}", title: "Block"})
 
     {:ok, _thread, _meta} =
       Eirinchan.Posts.create_post(
@@ -263,22 +256,17 @@ defmodule EirinchanWeb.SearchControllerTest do
 
     on_exit(fn -> Application.put_env(:eirinchan, :search_overrides, previous) end)
 
-    page =
-      conn
-      |> get("/search", %{"q" => "search result"})
-      |> html_response(200)
+    page = conn |> get("/search.php") |> html_response(200)
 
-    assert page =~ "allowed search result"
-    refute page =~ "blocked search result"
     assert page =~ ~s(value="#{allowed_board.uri}")
     refute page =~ ~s(value="#{blocked_board.uri}")
 
     blocked_page =
       conn
-      |> get("/search", %{"q" => "search result", "board" => blocked_board.uri})
+      |> get("/search.php", %{"search" => "search result", "board" => blocked_board.uri})
       |> html_response(200)
 
-    assert blocked_page =~ "Search not available for this board."
+    refute blocked_page =~ "allowed search result"
     refute blocked_page =~ "blocked search result"
   end
 end

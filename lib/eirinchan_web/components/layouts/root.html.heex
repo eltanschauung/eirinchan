@@ -11,6 +11,10 @@
       name="viewport"
       content={assigns[:viewport_content] || "width=device-width, initial-scale=1"}
     />
+    <link rel="dns-prefetch" href="//img.youtube.com" />
+    <link rel="preconnect" href="https://img.youtube.com" crossorigin />
+    <link rel="dns-prefetch" href="//www.youtube.com" />
+    <link rel="preconnect" href="https://www.youtube.com" crossorigin />
     <link :if={assigns[:favicon_url]} rel="shortcut icon" href={assigns[:favicon_url]} />
     <meta :if={!assigns[:public_shell]} name="csrf-token" content={get_csrf_token()} />
     <link
@@ -102,6 +106,7 @@
         watcher_unread_count={assigns[:watcher_unread_count] || 0}
         watcher_you_count={assigns[:watcher_you_count] || 0}
         mobile_client?={assigns[:conn].assigns[:mobile_client?] || false}
+        hide_admin_options={assigns[:hide_boardlist_admin_options] || false}
       />
     <% end %>
     <a id="top"></a>
@@ -111,11 +116,13 @@
         Map.get(assigns[:conn].cookies || %{}, "navarrows") != "false"
     } />
     <EirinchanWeb.PostComponents.options_shell
-      :if={assigns[:public_shell]}
+      :if={assigns[:public_shell] && assigns[:show_options_shell] != false}
       theme_options={assigns[:theme_options] || []}
       theme_label={assigns[:theme_label] || "Yotsuba"}
     />
-    <EirinchanWeb.PostComponents.post_menu_shell :if={assigns[:public_shell]} />
+    <EirinchanWeb.PostComponents.post_menu_shell
+      :if={assigns[:public_shell] && assigns[:show_post_menu_shell] != false}
+    />
     <%= @inner_content %>
     <div
       :if={

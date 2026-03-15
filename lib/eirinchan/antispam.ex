@@ -59,6 +59,42 @@ defmodule Eirinchan.Antispam do
     |> repo.insert()
   end
 
+  def public_search_rate_limited?(request, opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+    ip_subnet = request_ip(request)
+    per_ip_count = Keyword.get(opts, :per_ip_count, 15)
+    per_ip_window_seconds = Keyword.get(opts, :per_ip_window_seconds, 120)
+    global_count = Keyword.get(opts, :global_count, 50)
+    global_window_seconds = Keyword.get(opts, :global_window_seconds, 120)
+
+    per_ip_limited? =
+      if is_nil(ip_subnet) or per_ip_count <= 0 do
+        false
+      else
+        cutoff = DateTime.add(DateTime.utc_now(), -per_ip_window_seconds, :second)
+
+        SearchQuery
+        |> query_by_ip(ip_subnet)
+        |> query_since(cutoff)
+        |> repo.aggregate(:count, :id)
+        |> Kernel.>=(per_ip_count)
+      end
+
+    global_limited? =
+      if global_count <= 0 do
+        false
+      else
+        cutoff = DateTime.add(DateTime.utc_now(), -global_window_seconds, :second)
+
+        SearchQuery
+        |> query_since(cutoff)
+        |> repo.aggregate(:count, :id)
+        |> Kernel.>=(global_count)
+      end
+
+    per_ip_limited? or global_limited?
+  end
+
   def search_rate_limited?(query, request, config, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
     board_id = Keyword.get(opts, :board_id)

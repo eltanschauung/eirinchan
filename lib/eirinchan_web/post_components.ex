@@ -12,6 +12,7 @@ defmodule EirinchanWeb.PostComponents do
   attr :watcher_unread_count, :integer, default: 0
   attr :watcher_you_count, :integer, default: 0
   attr :mobile_client?, :boolean, default: false
+  attr :hide_admin_options, :boolean, default: false
 
   def boardlist(assigns) do
     ~H"""
@@ -27,7 +28,7 @@ defmodule EirinchanWeb.PostComponents do
         </span>
         <%= if group != List.last(@groups), do: "  " %>
       <% end %>
-      <span id="admin_options_links" style="float: right;">
+      <span :if={!@hide_admin_options} id="admin_options_links" style="float: right;">
         <a
           :if={!@mobile_client?}
           id="watcher-link"

@@ -416,6 +416,35 @@ defmodule Eirinchan.Posts do
     |> repo.preload([:board, :thread])
   end
 
+  @spec search_posts(BoardRecord.t(), String.t(), keyword()) ::
+          {:ok, [Post.t()]} | {:query_too_broad, [Post.t()]}
+  def search_posts(%BoardRecord{} = board, phrase, opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+    limit = Keyword.get(opts, :limit, 100)
+    {query_text, filters} = extract_search_query_parts(phrase)
+
+    if search_query_too_broad?(query_text, filters) do
+      {:query_too_broad, []}
+    else
+      posts =
+        from(post in Post,
+          where: post.board_id == ^board.id,
+          order_by: [desc: post.inserted_at, desc: post.id],
+          limit: ^limit
+        )
+        |> apply_search_text(query_text)
+        |> apply_search_filters(filters)
+        |> repo.all()
+        |> repo.preload([:board, :thread])
+
+      if length(posts) == limit do
+        {:query_too_broad, posts}
+      else
+        {:ok, posts}
+      end
+    end
+  end
+
   @spec list_cites_for_post(Post.t() | integer(), keyword()) :: [Cite.t()]
   def list_cites_for_post(%Post{id: post_id}, opts), do: list_cites_for_post(post_id, opts)
 
@@ -1203,6 +1232,75 @@ defmodule Eirinchan.Posts do
       {:generic, value} ->
         apply_generic_search(query, value)
     end
+  end
+
+  defp extract_search_query_parts(value) do
+    pattern = ~r/(^|\s)(\w+):("(.*)?"|[^\s]*)/u
+
+    Regex.scan(pattern, value, capture: :all_but_first)
+    |> Enum.reduce({value, %{}}, fn captures, {current, filters} ->
+      [prefix, name, raw_value | rest] = captures
+      quoted_value = List.first(rest)
+      filter_name = String.downcase(name)
+      filter_value = if quoted_value not in [nil, ""], do: quoted_value, else: raw_value
+
+      if filter_name in ["id", "thread", "subject", "name"] do
+        {
+          current
+          |> String.replace(prefix <> name <> ":" <> raw_value, prefix, global: false)
+          |> String.trim(),
+          Map.put(filters, filter_name, String.trim(filter_value))
+        }
+      else
+        {current, filters}
+      end
+    end)
+  end
+
+  defp search_query_too_broad?(query_text, filters) do
+    filters == %{} and not Regex.match?(~r/[^*^\s]/u, query_text || "")
+  end
+
+  defp apply_search_text(query, nil), do: query
+  defp apply_search_text(query, ""), do: query
+
+  defp apply_search_text(query, value) do
+    Enum.reduce(search_patterns(value), query, fn pattern, scoped_query ->
+      from post in scoped_query, where: ilike(post.body, ^pattern)
+    end)
+  end
+
+  defp apply_search_filters(query, filters) do
+    Enum.reduce(filters, query, fn
+      {"id", value}, scoped_query ->
+        case Integer.parse(value) do
+          {public_id, ""} -> from post in scoped_query, where: post.public_id == ^public_id
+          _ -> scoped_query
+        end
+
+      {"thread", value}, scoped_query ->
+        case Integer.parse(value) do
+          {thread_public_id, ""} ->
+            from post in scoped_query,
+              left_join: thread in Post,
+              on: thread.id == coalesce(post.thread_id, post.id),
+              where: thread.public_id == ^thread_public_id
+
+          _ ->
+            scoped_query
+        end
+
+      {"subject", value}, scoped_query ->
+        from post in scoped_query,
+          where: fragment("lower(coalesce(?, '')) = lower(?)", post.subject, ^value)
+
+      {"name", value}, scoped_query ->
+        from post in scoped_query,
+          where: fragment("lower(coalesce(?, '')) = lower(?)", post.name, ^value)
+
+      {_unknown, _value}, scoped_query ->
+        scoped_query
+    end)
   end
 
   defp parse_search_filter(term) do
