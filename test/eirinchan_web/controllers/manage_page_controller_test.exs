@@ -154,6 +154,15 @@ defmodule EirinchanWeb.ManagePageControllerTest do
 
     assert redirected_to(conn) == "/manage/bans/browser"
     refute Bans.get_ban(ban.id).active
+
+    response_after =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> get("/manage/bans/browser.json")
+      |> json_response(200)
+
+    refute Enum.any?(response_after, fn row -> row["id"] == ban.id end)
   end
 
   test "ban browser page edits subnet bans by id", %{conn: conn} do

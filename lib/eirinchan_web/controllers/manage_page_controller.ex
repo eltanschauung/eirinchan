@@ -159,6 +159,7 @@ defmodule EirinchanWeb.ManagePageController do
       json(
         conn,
         Bans.list_bans()
+        |> Enum.filter(& &1.active)
         |> Enum.filter(&accessible_ban?(board_ids, &1))
         |> Enum.map(&ban_list_row(&1, boards_by_id))
       )
