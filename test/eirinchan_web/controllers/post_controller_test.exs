@@ -859,6 +859,27 @@ defmodule EirinchanWeb.PostControllerTest do
     assert %{"error" => "Image dimensions too large."} = json_response(conn, 422)
   end
 
+  test "posting accepts valid image bytes even if the filename extension is altered", %{conn: conn} do
+    board = board_fixture(%{config_overrides: %{force_image_op: true}})
+
+    disguised_jpeg =
+      upload_fixture("real.jpg")
+      |> Map.put(:filename, "real.png")
+      |> Map.put(:content_type, "image/png")
+
+    conn =
+      conn
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post(~p"/#{board.uri}/post", %{
+        "body" => "first post",
+        "file" => disguised_jpeg,
+        "json_response" => "1",
+        "post" => "New Topic"
+      })
+
+    assert %{"id" => _id} = json_response(conn, 200)
+  end
+
   test "posting enforces image hard limits for file replies", %{conn: conn} do
     board = board_fixture(%{config_overrides: %{image_hard_limit: 1}})
 
