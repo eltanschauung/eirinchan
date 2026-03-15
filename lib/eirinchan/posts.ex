@@ -38,6 +38,8 @@ defmodule Eirinchan.Posts do
              | :antispam
              | :too_many_threads
              | :toomanylinks
+             | :toomanycites
+             | :toomanycross
              | :invalid_captcha
              | :banned
              | :cite_insert_failed

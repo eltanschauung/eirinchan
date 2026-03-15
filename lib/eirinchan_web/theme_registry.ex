@@ -13,7 +13,7 @@ defmodule EirinchanWeb.ThemeRegistry do
                           "eirinchan-bant.css",
                           "eirinchan-mod.css"
                         ])
-  @hidden_public_names MapSet.new(["contrast", "feedback", "ipaccessauth", "keyedfrog"])
+  @hidden_public_names MapSet.new(["contrast", "feedback", "ipaccessauth"])
   @preferred_public_order [
     "default",
     "vichan",

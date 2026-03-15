@@ -39,6 +39,8 @@ thread_watcher_spec.md
 /priv/static/site_logo2.png
 /priv/static/site_logo2_recent.png
 /priv/static/whales.jpg
+/priv/static/stylesheets/keyedfrog.css
+/static/stylesheets/keyedfrog.css
 
 thread_watcher_spec.md
 
@@ -51,3 +53,5 @@ thread_watcher_spec.md
 /var/install.json
 
 /var/access.conf
+
+/priv/static/secret_bfc.png

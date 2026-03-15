@@ -6,7 +6,7 @@ defmodule Eirinchan.Uploads do
   alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.Posts.Post
 
-  @image_extensions [".png", ".jpg", ".jpeg", ".gif"]
+  @image_extensions [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"]
   @video_extensions [".webm", ".mp4"]
 
   @spec describe(Plug.Upload.t(), map()) :: {:ok, map()} | {:error, atom()}
@@ -173,6 +173,9 @@ defmodule Eirinchan.Uploads do
     Application.fetch_env!(:eirinchan, :build_output_root)
   end
 
+  def image?(%{file_type: file_type, ext: ext}) when is_binary(file_type),
+    do: String.starts_with?(file_type, "image/") and image_extension?(ext)
+
   def image?(%{file_type: file_type}) when is_binary(file_type),
     do: String.starts_with?(file_type, "image/")
 
@@ -187,6 +190,10 @@ defmodule Eirinchan.Uploads do
       ext in [".jpg", ".jpeg"] -> file_type == "image/jpeg"
       ext == ".png" -> file_type == "image/png"
       ext == ".gif" -> file_type == "image/gif"
+      ext == ".bmp" -> file_type in ["image/bmp", "image/x-ms-bmp"]
+      ext == ".webp" -> file_type == "image/webp"
+      ext == ".svg" -> file_type == "image/svg+xml"
+      ext == ".jxl" -> file_type == "image/jxl"
       ext == ".webm" -> file_type == "video/webm"
       ext == ".mp4" -> file_type in ["video/mp4", "application/mp4"]
       ext == ".txt" -> file_type == "inode/x-empty" or String.starts_with?(file_type, "text/")
@@ -246,7 +253,7 @@ defmodule Eirinchan.Uploads do
 
   defp maybe_media_metadata(path, file_type, ext, config) do
     cond do
-      String.starts_with?(file_type, "image/") ->
+      image?(%{file_type: file_type, ext: ext}) ->
         case image_metadata(path) do
           {:ok, data} -> data
           {:error, :invalid_image} -> %{width: nil, height: nil}
@@ -589,15 +596,35 @@ defmodule Eirinchan.Uploads do
     end)
   end
 
-  defp normalize_stored_upload(path, _config, metadata) do
+  defp normalize_stored_upload(path, config, metadata) do
     if image?(metadata) do
-      case System.cmd("mogrify", ["-auto-orient", "-strip", path], stderr_to_stdout: true) do
-        {_output, 0} -> :ok
-        _ -> {:error, :upload_failed}
+      args =
+        []
+        |> maybe_add_auto_orient(config)
+        |> maybe_add_strip_exif(config)
+        |> Kernel.++([path])
+
+      case args do
+        [^path] ->
+          :ok
+
+        _ ->
+          case System.cmd("mogrify", args, stderr_to_stdout: true) do
+            {_output, 0} -> :ok
+            _ -> {:error, :upload_failed}
+          end
       end
     else
       :ok
     end
+  end
+
+  defp maybe_add_auto_orient(args, config) do
+    if Map.get(config, :convert_auto_orient, true), do: args ++ ["-auto-orient"], else: args
+  end
+
+  defp maybe_add_strip_exif(args, config) do
+    if Map.get(config, :strip_exif, true), do: args ++ ["-strip"], else: args
   end
 
   defp normalized_upload_metadata(path, metadata, config) do
@@ -605,7 +632,7 @@ defmodule Eirinchan.Uploads do
       temp_path = "#{path}.normalized"
 
       with :ok <- File.cp(path, temp_path),
-           :ok <- normalize_stored_upload(temp_path, %{}, metadata),
+           :ok <- normalize_stored_upload(temp_path, config, metadata),
            {:ok, normalized} <- refresh_stored_metadata(temp_path, metadata, config) do
         _ = File.rm(temp_path)
         {:ok, normalized}
@@ -694,7 +721,7 @@ defmodule Eirinchan.Uploads do
 
         case System.cmd(
                "convert",
-               [first_frame_path(source), "-auto-orient", "-thumbnail", geometry, destination],
+               image_thumbnail_args(source, destination, geometry, config),
                stderr_to_stdout: true
              ) do
           {_output, 0} -> :ok
@@ -756,6 +783,17 @@ defmodule Eirinchan.Uploads do
     String.downcase(Path.extname(source)) == ".gif" and
       gif_thumbnail_extension(config) == ".gif" and
       max(Map.get(config, :thumb_keep_animation_frames, 1), 1) > 1
+  end
+
+  defp image_thumbnail_args(source, destination, geometry, config) do
+    []
+    |> Kernel.++([first_frame_path(source)])
+    |> maybe_add_thumbnail_auto_orient(config)
+    |> Kernel.++(["-thumbnail", geometry, destination])
+  end
+
+  defp maybe_add_thumbnail_auto_orient(args, config) do
+    if Map.get(config, :convert_auto_orient, true), do: args ++ ["-auto-orient"], else: args
   end
 
   defp generate_placeholder_thumbnail(destination, config, metadata) do
@@ -1100,9 +1138,12 @@ defmodule Eirinchan.Uploads do
   defp canonical_extension_for_file_type("image/jpeg"), do: ".jpg"
   defp canonical_extension_for_file_type("image/png"), do: ".png"
   defp canonical_extension_for_file_type("image/gif"), do: ".gif"
+  defp canonical_extension_for_file_type("image/bmp"), do: ".bmp"
+  defp canonical_extension_for_file_type("image/x-ms-bmp"), do: ".bmp"
+  defp canonical_extension_for_file_type("image/webp"), do: ".webp"
   defp canonical_extension_for_file_type(_file_type), do: nil
 
-  defp normalized_filename(filename, config) do
+  defp normalized_filename(filename, _config) do
     original_ext = Path.extname(filename)
 
     ext =
@@ -1110,7 +1151,7 @@ defmodule Eirinchan.Uploads do
       |> Path.extname()
       |> String.downcase()
 
-    max_length = max(config.max_filename_display_length || 64, 1)
+    max_length = 256
 
     base =
       filename

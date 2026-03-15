@@ -246,6 +246,17 @@
   </div>
 </div>
 
+<span>Sort by: </span>
+<select id="sort_by" data-catalog-base={@catalog_base_path} style="display: inline-block">
+  <option selected={@catalog_sort_by == "bump:desc"} value="bump:desc">Bump order</option>
+  <option selected={@catalog_sort_by == "time:desc"} value="time:desc">Creation date</option>
+  <option selected={@catalog_sort_by == "reply:desc"} value="reply:desc">Reply count</option>
+</select>
+<span> Image size: </span>
+<select id="image_size" style="display: inline-block">
+  <option selected value="large">Default</option>
+  <option value="small">Small</option>
+</select>
 <span class="catalog_search">
   [<a
     id="catalog_search_button"
@@ -260,17 +271,6 @@
     value={@catalog_search_term}
   />
 </span>
-<span>Sort by: </span>
-<select id="sort_by" data-catalog-base={@catalog_base_path} style="display: inline-block">
-  <option selected={@catalog_sort_by == "bump:desc"} value="bump:desc">Bump order</option>
-  <option selected={@catalog_sort_by == "time:desc"} value="time:desc">Creation date</option>
-  <option selected={@catalog_sort_by == "reply:desc"} value="reply:desc">Reply count</option>
-</select>
-<span> Image size: </span>
-<select id="image_size" style="display: inline-block">
-  <option selected value="large">Default</option>
-  <option value="small">Small</option>
-</select>
 
 <h2 style="display:none">Catalog</h2>
 

@@ -20,6 +20,12 @@ defmodule Eirinchan.Antispam do
       too_many_links?(body, config) ->
         {:error, :toomanylinks}
 
+      too_many_cites?(body, config) ->
+        {:error, :toomanycites}
+
+      too_many_cross_board_links?(body, config) ->
+        {:error, :toomanycross}
+
       true ->
         post =
           %{
@@ -377,6 +383,32 @@ defmodule Eirinchan.Antispam do
     Regex.scan(url_regex, body || "")
     |> length()
     |> Kernel.>(config.max_links)
+  end
+
+  defp too_many_cites?(_body, %{max_cites: nil}), do: false
+  defp too_many_cites?(_body, %{max_cites: max_cites}) when max_cites <= 0, do: false
+
+  defp too_many_cites?(body, config) do
+    Regex.scan(~r/(^|[\s(])>>\d+((?=[\s,.)?!])|$)/um, body || "")
+    |> length()
+    |> Kernel.>(config.max_cites)
+  end
+
+  defp too_many_cross_board_links?(_body, %{max_cross: nil}), do: false
+  defp too_many_cross_board_links?(_body, %{max_cross: max_cross}) when max_cross <= 0, do: false
+
+  defp too_many_cross_board_links?(body, config) do
+    board_regex = Map.get(config, :board_regex, "[a-zA-Z0-9_]+")
+
+    regex =
+      Regex.compile!(
+        "(^|[\\s(])>>>/(?:#{board_regex})f?/(?:\\d+)?((?=[\\s,.)?!])|$)",
+        "um"
+      )
+
+    Regex.scan(regex, body || "")
+    |> length()
+    |> Kernel.>(config.max_cross)
   end
 
   defp body_hash(attrs) do
