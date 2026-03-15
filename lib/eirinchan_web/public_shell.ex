@@ -10,6 +10,23 @@ defmodule EirinchanWeb.PublicShell do
     "js/catalog.js"
   ]
 
+  @catalog_blocked_scripts MapSet.new([
+                           "js/thread-stats.js",
+                           "js/strftime.min.js",
+                           "js/navarrows2.js",
+                           "js/quick-reply.js",
+                           "js/local-time.js",
+                           "js/titlebar-notifications.js",
+                           "js/post-hover.js",
+                           "js/show-own-posts-options.js",
+                           "js/archive.js",
+                           "js/quick-post-controls.js",
+                           "js/ruffle.js",
+                           "js/expand-swf.js",
+                           "js/webm-settings.js",
+                           "js/expand-video.js"
+                         ])
+
   def head_meta(active_page, opts \\ []) do
     config =
       Keyword.get(opts, :config) || Config.compose(nil, Settings.current_instance_config(), %{})
@@ -100,6 +117,7 @@ defmodule EirinchanWeb.PublicShell do
       scripts =
         config
         |> additional_javascript()
+        |> maybe_filter_catalog_scripts(active_page)
         |> maybe_add_catalog_scripts(active_page)
         |> Enum.map(&additional_javascript_url(config, &1))
         |> Enum.reject(&is_nil/1)
@@ -216,6 +234,12 @@ defmodule EirinchanWeb.PublicShell do
   end
 
   defp maybe_add_catalog_scripts(scripts, _active_page), do: scripts
+
+  defp maybe_filter_catalog_scripts(scripts, :catalog) do
+    Enum.reject(scripts, &MapSet.member?(@catalog_blocked_scripts, &1))
+  end
+
+  defp maybe_filter_catalog_scripts(scripts, _active_page), do: scripts
 
   defp additional_javascript_url(config, script) do
     allow_remote_script_urls = Map.get(config, :allow_remote_script_urls, false)

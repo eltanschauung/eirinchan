@@ -260,6 +260,12 @@
 
 <h2 style="display:none">Catalog</h2>
 
+<form name="postcontrols" action="/post.php" method="post" hidden>
+  <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+  <input type="hidden" name="board" value={@board.uri} />
+  <input type="hidden" name="delete_post_id" value="" />
+</form>
+
 <div class="threads">
   <div id="Grid" data-fragment-md5={@fragment_md5}>
     <%= if @threads == [] do %>
@@ -331,10 +337,6 @@
             </div>
           </div>
         </div>
-        <form class="catalog-delete" action="/post.php" method="post" hidden>
-          <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
-          <input type="hidden" name="delete_post_id" value={post_public_id} />
-        </form>
       <% end %>
     <% end %>
   </div>

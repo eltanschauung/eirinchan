@@ -39,6 +39,32 @@ defmodule EirinchanWeb.PublicShellTest do
            ]
   end
 
+  test "catalog filters thread-only scripts from the public shell" do
+    config = %{
+      root: "/",
+      url_javascript: "/main.js",
+      additional_javascript: [
+        "js/jquery.min.js",
+        "js/thread-stats.js",
+        "js/quick-reply.js",
+        "js/auto-reload.js",
+        "js/catalog-search.js"
+      ],
+      additional_javascript_url: "/",
+      additional_javascript_compile: false
+    }
+
+    assert PublicShell.javascript_urls(:catalog, config) == [
+             "/js/runtime-config.js",
+             "/main.js",
+             "/js/jquery.min.js",
+             "/js/auto-reload.js",
+             "/js/catalog-search.js",
+             "/js/jquery.mixitup.min.js",
+             "/js/catalog.js"
+           ]
+  end
+
   test "compile mode suppresses separate additional javascript tags" do
     config = %{
       root: "/",
