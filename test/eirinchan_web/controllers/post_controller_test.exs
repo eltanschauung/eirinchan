@@ -802,6 +802,47 @@ defmodule EirinchanWeb.PostControllerTest do
     assert %{"error" => "Invalid image."} = json_response(invalid_image, 422)
   end
 
+  test "invalid image failures log decoder diagnostics and quarantine the upload", %{conn: conn} do
+    board = board_fixture(%{config_overrides: %{force_image_op: true}})
+    unique_name = "diag-#{System.unique_integer([:positive])}.png"
+
+    conn =
+      conn
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post(~p"/#{board.uri}/post", %{
+        "body" => "first post",
+        "file" => raw_upload_fixture(unique_name, "not-an-image"),
+        "json_response" => "1",
+        "post" => "New Topic"
+      })
+
+    assert %{"error" => "Invalid image."} = json_response(conn, 422)
+
+    log_line =
+      "/home/telemazer/eirinchan-v1/var/post_failures.log"
+      |> File.stream!()
+      |> Enum.reverse()
+      |> Enum.find(fn line ->
+        String.contains?(line, "\"board\":\"#{board.uri}\"") and String.contains?(line, unique_name)
+      end)
+
+    assert is_binary(log_line)
+
+    decoded = Jason.decode!(log_line)
+    [diagnostic] = decoded["invalid_image_diagnostics"]
+
+    assert diagnostic["filename"] == unique_name
+    assert diagnostic["content_type"] == "image/png"
+    assert diagnostic["magic_bytes_hex"] == Base.encode16("not-an-image", case: :lower)
+    assert diagnostic["detected_mime"] == "text/plain"
+    assert diagnostic["identify"]["available"] == true
+    assert diagnostic["identify"]["exit_status"] != 0
+    assert is_binary(diagnostic["quarantined_to"])
+    assert File.exists?(diagnostic["quarantined_to"])
+
+    File.rm(diagnostic["quarantined_to"])
+  end
+
   test "posting enforces image dimension limits", %{conn: conn} do
     board = board_fixture(%{config_overrides: %{max_image_width: 8, max_image_height: 8}})
 

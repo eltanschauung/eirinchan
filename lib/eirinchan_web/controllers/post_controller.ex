@@ -700,6 +700,7 @@ defmodule EirinchanWeb.PostController do
 
   defp write_post_failure_log(conn, metadata) do
     log_path = Path.expand("../../../var/post_failures.log", __DIR__)
+    invalid_image_diagnostics = build_invalid_image_diagnostics(conn.params, metadata)
 
     line =
       %{
@@ -722,6 +723,7 @@ defmodule EirinchanWeb.PostController do
         user_agent: List.first(get_req_header(conn, "user-agent")),
         params: sanitize_failure_params(conn.params)
       }
+      |> maybe_put_invalid_image_diagnostics(invalid_image_diagnostics)
       |> Jason.encode!()
       |> Kernel.<>("\n")
 
@@ -769,4 +771,147 @@ defmodule EirinchanWeb.PostController do
   end
 
   defp sanitize_failure_param(_key, value), do: value
+
+  defp maybe_put_invalid_image_diagnostics(payload, diagnostics) when is_list(diagnostics) do
+    Map.put(payload, :invalid_image_diagnostics, diagnostics)
+  end
+
+  defp maybe_put_invalid_image_diagnostics(payload, _diagnostics), do: payload
+
+  defp build_invalid_image_diagnostics(_params, %{reason: reason}) when reason != :invalid_image,
+    do: nil
+
+  defp build_invalid_image_diagnostics(params, %{request_id: request_id}) do
+    params
+    |> collect_uploaded_files()
+    |> Enum.with_index(1)
+    |> Enum.map(fn {{field_path, upload}, index} ->
+      describe_invalid_image_upload(field_path, upload, request_id, index)
+    end)
+  end
+
+  defp collect_uploaded_files(value), do: collect_uploaded_files(value, [])
+
+  defp collect_uploaded_files(%Plug.Upload{} = upload, path),
+    do: [{Enum.join(path, "."), upload}]
+
+  defp collect_uploaded_files(value, path) when is_map(value) do
+    Enum.flat_map(value, fn {key, nested} ->
+      collect_uploaded_files(nested, path ++ [to_string(key)])
+    end)
+  end
+
+  defp collect_uploaded_files(value, path) when is_list(value) do
+    value
+    |> Enum.with_index(1)
+    |> Enum.flat_map(fn {nested, index} ->
+      collect_uploaded_files(nested, path ++ [Integer.to_string(index)])
+    end)
+  end
+
+  defp collect_uploaded_files(_value, _path), do: []
+
+  defp describe_invalid_image_upload(field_path, %Plug.Upload{} = upload, request_id, index) do
+    file_size =
+      case File.stat(upload.path) do
+        {:ok, stat} -> stat.size
+        _ -> nil
+      end
+
+    %{
+      field: field_path,
+      filename: upload.filename,
+      content_type: upload.content_type,
+      ext: upload.filename |> Path.extname() |> String.downcase(),
+      temp_path: upload.path,
+      temp_path_exists: File.exists?(upload.path),
+      file_size: file_size,
+      magic_bytes_hex: read_magic_bytes_hex(upload.path),
+      detected_mime: detect_mime_type(upload.path),
+      identify: identify_upload(upload.path),
+      quarantined_to: quarantine_invalid_upload(upload, request_id, index)
+    }
+  end
+
+  defp read_magic_bytes_hex(path) do
+    case File.read(path) do
+      {:ok, binary} ->
+        binary
+        |> binary_part(0, min(byte_size(binary), 16))
+        |> Base.encode16(case: :lower)
+
+      _ ->
+        nil
+    end
+  end
+
+  defp detect_mime_type(path) do
+    case System.find_executable("file") do
+      nil ->
+        nil
+
+      _file_cmd ->
+        case System.cmd("file", ["--brief", "--mime-type", path], stderr_to_stdout: true) do
+          {output, 0} -> String.trim(output)
+          {output, status} -> "error(#{status}): " <> truncate_log_value(output)
+        end
+    end
+  end
+
+  defp identify_upload(path) do
+    case System.find_executable("identify") do
+      nil ->
+        %{available: false}
+
+      _identify_cmd ->
+        {output, status} = System.cmd("identify", [path], stderr_to_stdout: true)
+
+        %{
+          available: true,
+          exit_status: status,
+          output: truncate_log_value(output)
+        }
+    end
+  rescue
+    error ->
+      %{available: true, exit_status: nil, output: Exception.message(error)}
+  end
+
+  defp quarantine_invalid_upload(%Plug.Upload{} = upload, request_id, index) do
+    destination_dir = Path.expand("../../../var/invalid_uploads", __DIR__)
+    File.mkdir_p!(destination_dir)
+
+    extension = Path.extname(upload.filename)
+    basename = upload.filename |> Path.basename(extension) |> sanitize_filename_component()
+    request_component = sanitize_filename_component(request_id || "no-request-id")
+    destination = Path.join(destination_dir, "#{request_component}-#{index}-#{basename}#{extension}")
+
+    case File.cp(upload.path, destination) do
+      :ok -> destination
+      {:error, _reason} -> nil
+    end
+  rescue
+    _error ->
+      nil
+  end
+
+  defp sanitize_filename_component(value) when is_binary(value) do
+    value
+    |> String.replace(~r/[^A-Za-z0-9._-]+/u, "_")
+    |> String.trim("_")
+    |> case do
+      "" -> "upload"
+      sanitized -> sanitized
+    end
+  end
+
+  defp truncate_log_value(value) when is_binary(value) do
+    if byte_size(value) > 1_000 do
+      binary_part(value, 0, 1_000) <> "...[truncated]"
+    else
+      value
+    end
+  end
+
+  defp truncate_log_value(value), do: inspect(value)
 end
