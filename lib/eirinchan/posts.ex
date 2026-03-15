@@ -68,7 +68,6 @@ defmodule Eirinchan.Posts do
          {:ok, attrs} <- PostsUploadPreparation.prepare_uploads(attrs, config) do
       thread_param = blank_to_nil(Map.get(attrs, "thread"))
       op? = is_nil(thread_param)
-      noko = noko?(attrs["email"], config)
       now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
 
       with :ok <- PostsRequestGuards.validate_post_button(op?, attrs, config),
@@ -106,7 +105,7 @@ defmodule Eirinchan.Posts do
         _ = maybe_prune_threads(board, config, repo)
         _ = Antispam.log_post(board, attrs, request, repo: repo)
         _ = Build.rebuild_after_post(board, post, config: config, repo: repo)
-        {:ok, post, %{noko: noko}}
+        {:ok, post, %{noko: false}}
       end
     end
   end
@@ -870,14 +869,6 @@ defmodule Eirinchan.Posts do
           |> String.replace("</tinyboard>", "&lt;/tinyboard&gt;")
       end)
     end)
-  end
-
-  defp noko?(email, config) do
-    case String.downcase(email || "") do
-      "noko" -> true
-      "nonoko" -> false
-      _ -> config.always_noko
-    end
   end
 
   def replace_citations(board, post, repo) do

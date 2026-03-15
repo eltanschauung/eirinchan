@@ -31,7 +31,6 @@ defmodule EirinchanWeb.PostControllerTest do
       |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
       |> post(~p"/#{board.uri}/post", %{
         "name" => "anon",
-        "email" => "noko",
         "subject" => "launch",
         "body" => "second post",
         "post" => "New Topic"
@@ -58,7 +57,6 @@ defmodule EirinchanWeb.PostControllerTest do
       |> put_req_header("referer", referer)
       |> post(~p"/#{board.uri}/post", %{
         "thread" => Integer.to_string(PublicIds.public_id(thread)),
-        "email" => "noko",
         "body" => "reply body",
         "json_response" => "1",
         "post" => "New Reply"
@@ -70,7 +68,7 @@ defmodule EirinchanWeb.PostControllerTest do
              "id" => id,
              "thread_id" => ^thread_id,
              "redirect" => redirect,
-             "noko" => true,
+             "noko" => false,
              "watcher_count" => 1,
              "watcher_unread_count" => 0,
              "watcher_you_count" => 0
@@ -88,6 +86,47 @@ defmodule EirinchanWeb.PostControllerTest do
              get_resp_header(conn, "set-cookie"),
              &String.contains?(&1, "eirinchan_posted=#{encoded_cookie}")
            )
+  end
+
+  test "classic reply posting redirects back to the thread anchor", %{conn: conn} do
+    board = board_fixture(%{title: "Technology"})
+    thread = thread_fixture(board, %{body: "thread body"})
+
+    conn =
+      conn
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post(~p"/#{board.uri}/post", %{
+        "thread" => Integer.to_string(PublicIds.public_id(thread)),
+        "email" => "noko",
+        "body" => "reply body",
+        "post" => "New Reply"
+      })
+
+    redirect_path = redirected_to(conn)
+
+    assert redirect_path =~ ~r|/#{board.uri}/res/#{PublicIds.public_id(thread)}.*#p\d+|
+    assert conn |> recycle() |> get(redirect_path) |> html_response(200) =~ "reply body"
+  end
+
+  test "posting forms no longer expose noko or nonoko options", %{conn: conn} do
+    board = board_fixture(%{title: "Technology"})
+    thread = thread_fixture(board, %{body: "thread body"})
+
+    board_page =
+      conn
+      |> get("/#{board.uri}")
+      |> html_response(200)
+
+    thread_page =
+      conn
+      |> recycle()
+      |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html")
+      |> html_response(200)
+
+    refute board_page =~ ~s(value="noko")
+    refute board_page =~ ~s(value="nonoko")
+    refute thread_page =~ ~s(value="noko")
+    refute thread_page =~ ~s(value="nonoko")
   end
 
   test "json reply html renders server-side (You) markers without client ownership storage", %{
@@ -890,14 +929,13 @@ defmodule EirinchanWeb.PostControllerTest do
     assert %{"error" => "Duplicate file."} = json_response(duplicate_conn, 422)
   end
 
-  test "noko redirects use canonical slug thread paths when slugify is enabled", %{conn: conn} do
+  test "posting redirects use canonical slug thread paths when slugify is enabled", %{conn: conn} do
     board = board_fixture(%{config_overrides: %{slugify: true}})
 
     conn =
       conn
       |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
       |> post(~p"/#{board.uri}/post", %{
-        "email" => "noko",
         "subject" => "Slug redirect subject",
         "body" => "first post",
         "post" => "New Topic"
