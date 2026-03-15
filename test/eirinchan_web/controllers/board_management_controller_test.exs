@@ -432,6 +432,17 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
 
     thread = thread_fixture(board, %{body: "Opening body", subject: "Thread"})
     reply_fixture(board, thread, %{body: "Reply one"})
+    runtime_board = Eirinchan.Boards.BoardRecord.to_board(board)
+
+    board_config =
+      Eirinchan.Runtime.Config.compose(
+        nil,
+        Eirinchan.Settings.current_instance_config(),
+        board.config_overrides || %{},
+        board: runtime_board
+      )
+
+    noko50_path = Eirinchan.ThreadPaths.thread_path(board, thread, board_config, noko50: true)
 
     page =
       conn
@@ -440,12 +451,8 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
 
     assert page =~ ~s([Reply]</a>)
     assert page =~ ~s([Last 100 Posts])
-
-    assert page =~
-             ~s(<a href="/#{board.uri}/res/#{PublicIds.public_id(thread)}-thread+100.html">[Last 100 Posts]</a>)
-
     assert Regex.match?(
-             ~r/\[Reply\]<\/a>\s*<a href="\/#{board.uri}\/res\/#{PublicIds.public_id(thread)}-thread\+100\.html">\[Last 100 Posts\]<\/a>/,
+             ~r/\[Reply\]<\/a>\s*<a href="#{Regex.escape(noko50_path)}">\s*\[Last 100 Posts\]\s*<\/a>/,
              page
            )
   end
