@@ -2,7 +2,7 @@ defmodule EirinchanWeb.CacheControl do
   @moduledoc false
 
   @one_month 60 * 60 * 24 * 30
-  @one_week 60 * 60 * 24 * 7
+  @one_minute 60
   @ten_minutes 60 * 10
   @one_year 60 * 60 * 24 * 365
 
@@ -17,8 +17,8 @@ defmodule EirinchanWeb.CacheControl do
       ".jpg" -> public(@one_month)
       ".jpeg" -> public(@one_month)
       ".webp" -> public(@one_month)
-      ".css" -> public(@one_week)
-      ".js" -> public(@ten_minutes)
+      ".css" -> public(@one_minute)
+      ".js" -> public(@one_minute)
       ".svg" -> immutable(@one_year)
       ".ico" -> immutable(@one_year)
       ".txt" -> public(@ten_minutes)
