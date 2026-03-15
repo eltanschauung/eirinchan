@@ -37,8 +37,7 @@ $(window).ready(function() {
 	// Enable submit button if disabled (cache problem)
 	$('input[type="submit"]').removeAttr('disabled');
 	
-	var setup_form = function($form) {
-		$form.submit(function() {
+	var handle_form_submit = function() {
 			if (do_not_ajax)
 				return true;
 			var form = this;
@@ -222,8 +221,20 @@ $(window).ready(function() {
 									});
 								});
 							} else {
+								clearReplyFields();
 								resetSubmit();
-								document.location = window.location.pathname + window.location.search + '#' + post_response.id;
+								syncSeenForReply(post_response);
+								triggerAjaxAfterPost(post_response);
+								try {
+									if (history && history.replaceState) {
+										history.replaceState(null, document.title, window.location.pathname + window.location.search + '#' + post_response.id);
+									} else {
+										window.location.hash = post_response.id;
+									}
+								} catch (_e) {
+									window.location.hash = post_response.id;
+								}
+								alert(_('Reply posted. Refresh to see it.'));
 							}
 						} else {
 							triggerAjaxAfterPost(post_response)
@@ -259,11 +270,7 @@ $(window).ready(function() {
 			$submit.attr('disabled', true);
 			
 			return false;
-		});
 	};
-	setup_form($('form[name="post"]'));
-	$(window).on('quick-reply', function() {
-		$('form#quick-reply').off('submit');
-		setup_form($('form#quick-reply'));
-	});
+	$(document).off('submit.ajax_post', 'form[data-post-form]');
+	$(document).on('submit.ajax_post', 'form[data-post-form]', handle_form_submit);
 });
