@@ -2081,6 +2081,101 @@ defmodule Eirinchan.PostsTest do
              )
   end
 
+  test "create_post rejects IPs outside the ipaccess allowlist" do
+    board = board_fixture()
+
+    access_file =
+      Path.join(
+        System.tmp_dir!(),
+        "eirinchan-ipaccess-#{System.unique_integer([:positive])}.conf"
+      )
+
+    File.write!(access_file, "198.51.100.0/24\n")
+
+    config =
+      post_config(%{
+        ipaccess: true,
+        ipaccess_file: access_file
+      })
+
+    assert {:error, :ipaccess} =
+             Posts.create_post(
+               board,
+               %{"body" => "blocked by ipaccess", "post" => "New Topic"},
+               config: config,
+               request: %{
+                 referer: "http://example.test/#{board.uri}/index.html",
+                 remote_ip: {203, 0, 113, 9}
+               }
+             )
+  end
+
+  test "create_post bypasses ipaccess when the flag threshold is met" do
+    board = board_fixture()
+
+    access_file =
+      Path.join(
+        System.tmp_dir!(),
+        "eirinchan-ipaccess-bypass-#{System.unique_integer([:positive])}.conf"
+      )
+
+    File.write!(access_file, "198.51.100.0/24\n")
+
+    config =
+      post_config(%{
+        ipaccess: true,
+        ipaccess_file: access_file,
+        ip_nulling_flags: 8
+      })
+
+    assert {:ok, _thread, %{noko: false}} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "allowed by flag threshold",
+                 "post" => "New Topic",
+                 "user_flag" => "country,mokou"
+               },
+               config: config,
+               request: %{
+                 referer: "http://example.test/#{board.uri}/index.html",
+                 remote_ip: {203, 0, 113, 9}
+               }
+             )
+  end
+
+  test "create_post bypasses dnsbl when the flag threshold is met" do
+    board = board_fixture()
+
+    config =
+      post_config(%{
+        ip_nulling_flags: 8,
+        dnsbl: [["rbl.example", 4]],
+        error: %{dnsbl: "Your IP address is listed in %s."}
+      })
+
+    resolver = fn
+      "9.113.0.203.rbl.example" -> "127.0.0.4"
+      _ -> nil
+    end
+
+    assert {:ok, _thread, %{noko: false}} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "dnsbl bypassed",
+                 "post" => "New Topic",
+                 "user_flag" => "country,mokou"
+               },
+               config: config,
+               request: %{
+                 referer: "http://example.test/#{board.uri}/index.html",
+                 remote_ip: {203, 0, 113, 9},
+                 dnsbl_resolver: resolver
+               }
+             )
+  end
+
   test "reply bumping reorders threads unless the reply is sage" do
     board = board_fixture()
     config = post_config(board.config_overrides)

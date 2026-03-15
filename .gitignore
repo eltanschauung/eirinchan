@@ -49,3 +49,5 @@ thread_watcher_spec.md
 /access.conf
 /var/settings.json
 /var/install.json
+
+/var/access.conf

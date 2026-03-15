@@ -33,6 +33,7 @@ defmodule Eirinchan.Posts do
              | :invalid_post_mode
              | :invalid_referer
              | :invalid_embed
+             | :ipaccess
              | :dnsbl
              | :antispam
              | :too_many_threads
@@ -82,7 +83,8 @@ defmodule Eirinchan.Posts do
                board
              ),
            :ok <- PostsRequestGuards.validate_captcha(attrs, config, request, board, op?),
-           :ok <- PostsRequestGuards.validate_dnsbl(request, config),
+           :ok <- PostsRequestGuards.validate_ipaccess(attrs, request, config, board),
+           :ok <- PostsRequestGuards.validate_dnsbl(attrs, request, config),
            :ok <- PostsRequestGuards.validate_ban(request, board),
            :ok <- PostsRequestGuards.validate_board_lock(config, request, board),
            {:ok, thread} <- PostsThreadLookup.fetch_thread(board, thread_param, repo),
