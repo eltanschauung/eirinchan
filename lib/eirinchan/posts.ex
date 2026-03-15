@@ -554,13 +554,33 @@ defmodule Eirinchan.Posts do
   def list_catalog_page(%BoardRecord{} = board, page, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
     config = Keyword.get(opts, :config, Config.compose())
+    sort_by = normalize_catalog_sort(Keyword.get(opts, :sort_by, "bump:desc"))
+    search_term = normalize_catalog_search(Keyword.get(opts, :search, ""))
+
+    reply_counts_query =
+      from post in Post,
+        where: post.board_id == ^board.id and not is_nil(post.thread_id),
+        group_by: post.thread_id,
+        select: %{thread_id: post.thread_id, reply_count: count(post.id)}
+
+    base_query =
+      from post in Post,
+        where: post.board_id == ^board.id and is_nil(post.thread_id)
+
+    base_query =
+      if search_term == "" do
+        base_query
+      else
+        pattern = "%" <> search_term <> "%"
+
+        from post in base_query,
+          where:
+            ilike(fragment("COALESCE(?, '')", post.subject), ^pattern) or
+              ilike(fragment("COALESCE(?, '')", post.body), ^pattern)
+      end
 
     total_threads =
-      repo.aggregate(
-        from(post in Post, where: post.board_id == ^board.id and is_nil(post.thread_id)),
-        :count,
-        :id
-      )
+      repo.aggregate(base_query, :count, :id)
 
     page_size =
       if config.catalog_pagination do
@@ -581,14 +601,18 @@ defmodule Eirinchan.Posts do
     else
       offset = (page - 1) * page_size
 
+      thread_query =
+        from post in base_query,
+          left_join: reply_count in subquery(reply_counts_query),
+          on: reply_count.thread_id == post.id
+
+      thread_query =
+        thread_query
+        |> order_catalog_threads(sort_by)
+        |> then(fn query -> from q in query, limit: ^page_size, offset: ^offset end)
+
       threads =
-        repo.all(
-          from post in Post,
-            where: post.board_id == ^board.id and is_nil(post.thread_id),
-            order_by: [desc: post.sticky, desc_nulls_last: post.bump_at, desc: post.inserted_at],
-            limit: ^page_size,
-            offset: ^offset
-        )
+        repo.all(thread_query)
         |> repo.preload(:extra_files)
 
       summaries = build_thread_summaries(board, threads, config, repo, include_replies: false)
@@ -603,6 +627,35 @@ defmodule Eirinchan.Posts do
        }}
     end
   end
+
+  defp order_catalog_threads(query, "time:desc") do
+    from [post, _reply_count] in query,
+      order_by: [desc: post.sticky, desc: post.inserted_at, desc: post.id]
+  end
+
+  defp order_catalog_threads(query, "reply:desc") do
+    from [post, reply_count] in query,
+      order_by: [
+        desc: post.sticky,
+        desc: fragment("COALESCE(?, 0)", reply_count.reply_count),
+        desc_nulls_last: post.bump_at,
+        desc: post.inserted_at,
+        desc: post.id
+      ]
+  end
+
+  defp order_catalog_threads(query, _sort_by) do
+    from [post, _reply_count] in query,
+      order_by: [desc: post.sticky, desc_nulls_last: post.bump_at, desc: post.inserted_at, desc: post.id]
+  end
+
+  defp normalize_catalog_sort(value) when value in ["bump:desc", "time:desc", "reply:desc"],
+    do: value
+
+  defp normalize_catalog_sort(_value), do: "bump:desc"
+
+  defp normalize_catalog_search(value) when is_binary(value), do: String.trim(value)
+  defp normalize_catalog_search(_value), do: ""
 
   @spec list_threads_page(BoardRecord.t(), pos_integer(), keyword()) ::
           {:ok, map()} | {:error, :not_found}

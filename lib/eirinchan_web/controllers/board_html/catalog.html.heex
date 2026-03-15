@@ -246,11 +246,25 @@
   </div>
 </div>
 
+<span class="catalog_search">
+  [<a
+    id="catalog_search_button"
+    data-expanded={if @catalog_search_term != "", do: "1", else: nil}
+    style="text-decoration:none; cursor:pointer;"
+  ><%= if @catalog_search_term != "", do: "Close", else: "Search" %></a>]
+  <input
+    :if={@catalog_search_term != ""}
+    id="search_field"
+    style="border: inset 1px;"
+    autocomplete="off"
+    value={@catalog_search_term}
+  />
+</span>
 <span>Sort by: </span>
-<select id="sort_by" style="display: inline-block">
-  <option selected value="bump:desc">Bump order</option>
-  <option value="time:desc">Creation date</option>
-  <option value="reply:desc">Reply count</option>
+<select id="sort_by" data-catalog-base={@catalog_base_path} style="display: inline-block">
+  <option selected={@catalog_sort_by == "bump:desc"} value="bump:desc">Bump order</option>
+  <option selected={@catalog_sort_by == "time:desc"} value="time:desc">Creation date</option>
+  <option selected={@catalog_sort_by == "reply:desc"} value="reply:desc">Reply count</option>
 </select>
 <span> Image size: </span>
 <select id="image_size" style="display: inline-block">

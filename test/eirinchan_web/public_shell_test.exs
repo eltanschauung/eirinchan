@@ -34,8 +34,8 @@ defmodule EirinchanWeb.PublicShellTest do
              "/main.js",
              "/js/jquery.min.js",
              "/js/inline-expanding.js",
-             "/js/jquery.mixitup.min.js",
-             "/js/catalog.js"
+             "/js/catalog.js",
+             "/js/catalog-search.js"
            ]
   end
 
@@ -60,7 +60,6 @@ defmodule EirinchanWeb.PublicShellTest do
              "/js/jquery.min.js",
              "/js/auto-reload.js",
              "/js/catalog-search.js",
-             "/js/jquery.mixitup.min.js",
              "/js/catalog.js"
            ]
   end

@@ -53,7 +53,8 @@ defmodule EirinchanWeb.BoardController do
   def catalog(conn, params) do
     render_catalog_page(conn, 1,
       fragment?: fragment_request?(params),
-      fragment_md5?: fragment_md5_request?(params)
+      fragment_md5?: fragment_md5_request?(params),
+      params: params
     )
   end
 
@@ -72,7 +73,8 @@ defmodule EirinchanWeb.BoardController do
     if is_integer(page_num) and page_num > 1 do
       render_catalog_page(conn, page_num,
         fragment?: fragment_request?(conn.params),
-        fragment_md5?: fragment_md5_request?(conn.params)
+        fragment_md5?: fragment_md5_request?(conn.params),
+        params: conn.params
       )
     else
       send_resp(conn, :not_found, "Page not found")
@@ -83,10 +85,24 @@ defmodule EirinchanWeb.BoardController do
     board = conn.assigns.current_board
     config = conn.assigns.current_board_config
     boards = Boards.list_boards()
+    params = Keyword.get(opts, :params, %{})
+    catalog_sort_by = normalize_catalog_sort(Map.get(params, "sort_by"))
+    catalog_search_term = normalize_catalog_search(Map.get(params, "search"))
     _ = Build.ensure_indexes(board, config: config)
 
-    case Posts.list_catalog_page(board, page_num, config: config) do
+    case Posts.list_catalog_page(board, page_num,
+           config: config,
+           sort_by: catalog_sort_by,
+           search: catalog_search_term
+         ) do
       {:ok, page_data} ->
+        page_data =
+          Map.put(
+            page_data,
+            :pages,
+            build_catalog_pages(board, page_data.total_pages, config, catalog_sort_by, catalog_search_term)
+          )
+
         chrome = BoardChrome.for_board(board)
         thread_watch_state = thread_watch_state(conn, board)
 
@@ -107,6 +123,9 @@ defmodule EirinchanWeb.BoardController do
           board: board,
           board_title: board.title,
           page_data: page_data,
+          catalog_base_path: Eirinchan.ThreadPaths.catalog_page_path(board, 1, config),
+          catalog_sort_by: catalog_sort_by,
+          catalog_search_term: catalog_search_term,
           threads: page_data.threads,
           thread_watch_state: thread_watch_state,
           watcher_count: watcher_count,
@@ -179,6 +198,35 @@ defmodule EirinchanWeb.BoardController do
         send_resp(conn, :not_found, "Page not found")
     end
   end
+
+  defp build_catalog_pages(board, total_pages, config, sort_by, search_term) do
+    query =
+      []
+      |> maybe_put_catalog_query("sort_by", sort_by != "bump:desc", sort_by)
+      |> maybe_put_catalog_query("search", search_term != "", search_term)
+      |> URI.encode_query()
+
+    Enum.map(1..total_pages, fn num ->
+      base_link = Eirinchan.ThreadPaths.catalog_page_path(board, num, config)
+
+      %{
+        num: num,
+        link: if(query == "", do: base_link, else: base_link <> "?" <> query)
+      }
+    end)
+  end
+
+  defp maybe_put_catalog_query(query, _key, false, _value), do: query
+  defp maybe_put_catalog_query(query, _key, _condition, value) when value in [nil, ""], do: query
+  defp maybe_put_catalog_query(query, key, _condition, value), do: [{key, value} | query]
+
+  defp normalize_catalog_sort(value) when value in ["bump:desc", "time:desc", "reply:desc"],
+    do: value
+
+  defp normalize_catalog_sort(_value), do: "bump:desc"
+
+  defp normalize_catalog_search(value) when is_binary(value), do: String.trim(value)
+  defp normalize_catalog_search(_value), do: ""
 
   defp render_page(conn, page, opts \\ []) do
     board = conn.assigns.current_board
