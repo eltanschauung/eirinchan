@@ -57,10 +57,6 @@
           </div>
         </div>
       </div>
-      <form class="catalog-delete" action="/post.php" method="post" hidden>
-        <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
-        <input type="hidden" name="delete_post_id" value={post_public_id} />
-      </form>
     <% end %>
   <% end %>
 </div>
