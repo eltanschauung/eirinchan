@@ -257,12 +257,16 @@ body.active-catalog .catalog-nav-row .pages {
 }
 
 #watcher-link.has-unread {
-  opacity: 0;
+  opacity: 1;
 }
 
 #watcher-link.replies-quoting-you,
 .watcher-you-count.replies-quoting-you {
   color: red;
+}
+
+#watcher-link.replies-quoting-you {
+  opacity: 1;
 }
 
 .thread-top-controls {
