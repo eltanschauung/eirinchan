@@ -731,6 +731,8 @@
   function initPost(post) {
     if (!post) return;
 
+    syncBacklinksFromPost(post);
+
     if (typeof window.jQuery !== 'undefined') {
       window.jQuery(document).trigger('new_post', post);
     }
@@ -754,6 +756,61 @@
 
     if (typeof window.jQuery === 'undefined') return;
     window.jQuery(document).trigger('ajax_after_post', response);
+  }
+
+  function publicPostIdForNode(post) {
+    if (!post || !post.id) return null;
+
+    var match = post.id.match(/(?:reply_|thread_)?(\d+)$/);
+    return match ? match[1] : null;
+  }
+
+  function syncBacklinksFromPost(post) {
+    var sourceId = publicPostIdForNode(post);
+    if (!sourceId) return;
+
+    var body = post.querySelector('div.body');
+    if (!body) return;
+
+    var targetIds = [];
+
+    body.querySelectorAll('a[data-highlight-reply], a[href^="#"]').forEach(function (link) {
+      var targetId = link.getAttribute('data-highlight-reply') || (link.getAttribute('href') || '').replace(/^#/, '');
+
+      if (!/^\d+$/.test(targetId)) return;
+      if (targetId === sourceId) return;
+      if (targetIds.indexOf(targetId) !== -1) return;
+
+      targetIds.push(targetId);
+    });
+
+    targetIds.forEach(function (targetId) {
+      var targetPost =
+        document.getElementById(targetId) ||
+        document.getElementById('reply_' + targetId) ||
+        document.getElementById('thread_' + targetId);
+
+      if (!targetPost) return;
+
+      var intro = targetPost.querySelector('p.intro');
+      if (!intro) return;
+
+      var mentioned = intro.querySelector('span.mentioned');
+      if (!mentioned) {
+        mentioned = document.createElement('span');
+        mentioned.className = 'mentioned';
+        intro.appendChild(mentioned);
+      }
+
+      if (mentioned.querySelector('a.mentioned-' + sourceId)) return;
+
+      var backlink = document.createElement('a');
+      backlink.className = 'mentioned-' + sourceId;
+      backlink.setAttribute('data-highlight-reply', sourceId);
+      backlink.href = '#' + sourceId;
+      backlink.textContent = '>>' + sourceId;
+      mentioned.appendChild(backlink);
+    });
   }
 
   window._ = window._ || identity;
