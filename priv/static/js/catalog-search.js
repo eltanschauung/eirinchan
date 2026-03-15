@@ -1,80 +1,122 @@
-/*
- * catalog-search.js
- *   - Search and filters threads when on catalog view
- *   - Optional shortcuts 's' and 'esc' to open and close the search.
- *
- * Usage:
- *   $config['additional_javascript'][] = 'js/jquery.min.js';
- *   $config['additional_javascript'][] = 'js/comment-toolbar.js';
- */
 if (active_page == 'catalog') {
 	onReady(function() {
 		'use strict';
 
-		// 'true' = enable shortcuts
-		let useKeybinds = true;
+		var useKeybinds = true;
+		var delay = 400;
+		var timeoutHandle;
 
-		// trigger the search 400ms after last keystroke
-		let delay = 400;
-		let timeoutHandle;
-
-		// search and hide none matching threads
-		function filter(search_term) {
-			$('.replies').each(function () {
-				let subject = $(this).children('.intro').text().toLowerCase();
-				let comment = $(this).clone().children().remove(':lt(2)').end().text().trim().toLowerCase();
-				search_term = search_term.toLowerCase();
-
-				if (subject.indexOf(search_term) == -1 && comment.indexOf(search_term) == -1) {
-					$(this).parents('div[id="Grid"]>.mix').css('display', 'none');
-				} else {
-					$(this).parents('div[id="Grid"]>.mix').css('display', 'inline-block');
-				}
-			});
+		function catalogBase() {
+			var sort = document.getElementById('sort_by');
+			return sort && sort.dataset && sort.dataset.catalogBase ? sort.dataset.catalogBase : window.location.pathname;
 		}
 
-		function searchToggle() {
-			let button = $('#catalog_search_button');
+		function currentSortValue() {
+			var sort = document.getElementById('sort_by');
+			return sort ? (sort.value || 'bump:desc') : 'bump:desc';
+		}
 
-			if (!button.data('expanded')) {
-				button.data('expanded', '1');
-				button.text('Close');
-				$('.catalog_search').append(' <input id="search_field" style="border: inset 1px;">');
-				$('#search_field').focus();
-			} else {
-				button.removeData('expanded');
-				button.text('Search');
-				$('.catalog_search').children().last().remove();
-				$('div[id="Grid"]>.mix').each(function () { $(this).css('display', 'inline-block'); });
+		function currentSearchField() {
+			return document.getElementById('search_field');
+		}
+
+		function navigateCatalog(searchTerm) {
+			var url = new URL(catalogBase(), window.location.origin);
+			var sortBy = currentSortValue();
+			var trimmedSearch = (searchTerm || '').trim();
+
+			if (sortBy && sortBy !== 'bump:desc') {
+				url.searchParams.set('sort_by', sortBy);
+			}
+
+			if (trimmedSearch !== '') {
+				url.searchParams.set('search', trimmedSearch);
+			}
+
+			window.location.assign(url.toString());
+		}
+
+		function ensureField() {
+			var field = currentSearchField();
+			if (field) return field;
+
+			var container = document.querySelector('.catalog_search');
+			if (!container) return null;
+
+			field = document.createElement('input');
+			field.id = 'search_field';
+			field.autocomplete = 'off';
+			field.style.border = 'inset 1px';
+			container.appendChild(document.createTextNode(' '));
+			container.appendChild(field);
+			return field;
+		}
+
+		function closeSearch(clearSearch) {
+			var button = $('#catalog_search_button');
+			var field = currentSearchField();
+
+			button.removeData('expanded');
+			button.text('Search');
+
+			if (field) {
+				field.remove();
+			}
+
+			window.clearTimeout(timeoutHandle);
+
+			if (clearSearch) {
+				navigateCatalog('');
 			}
 		}
 
-		$('.threads').before('<span class="catalog_search">[<a id="catalog_search_button" style="text-decoration:none; cursor:pointer;"></a>]</span>');
-		$('#catalog_search_button').text('Search');
+		function openSearch() {
+			var button = $('#catalog_search_button');
+			var field = ensureField();
 
-		$('#catalog_search_button').on('click', searchToggle);
-		$('.catalog_search').on('keyup', 'input#search_field', function (e) {
+			button.data('expanded', '1');
+			button.text('Close');
+
+			if (field) {
+				field.focus();
+				field.setSelectionRange(field.value.length, field.value.length);
+			}
+		}
+
+		function searchToggle() {
+			if ($('#catalog_search_button').data('expanded')) {
+				closeSearch(true);
+			} else {
+				openSearch();
+			}
+		}
+
+		$('#catalog_search_button').on('click', function(e) {
+			e.preventDefault();
+			searchToggle();
+		});
+
+		$('.catalog_search').on('keyup', 'input#search_field', function(e) {
 			window.clearTimeout(timeoutHandle);
-			timeoutHandle = window.setTimeout(filter, 400, e.target.value);
+			timeoutHandle = window.setTimeout(navigateCatalog, delay, e.target.value);
 		});
 
 		if (useKeybinds) {
-			// 's'
-			$('body').on('keydown', function (e) {
+			$('body').on('keydown', function(e) {
 				if (e.which === 83 && e.target.tagName === 'BODY' && !(e.ctrlKey || e.altKey || e.shiftKey)) {
 					e.preventDefault();
-					if ($('#search_field').length !== 0) {
-						$('#search_field').focus();
+					if (currentSearchField()) {
+						currentSearchField().focus();
 					} else {
-						searchToggle();
+						openSearch();
 					}
 				}
 			});
-			// 'esc'
-			$('.catalog_search').on('keydown', 'input#search_field', function (e) {
+
+			$('.catalog_search').on('keydown', 'input#search_field', function(e) {
 				if (e.which === 27 && !(e.ctrlKey || e.altKey || e.shiftKey)) {
-					window.clearTimeout(timeoutHandle);
-					searchToggle();
+					e.preventDefault();
+					closeSearch(true);
 				}
 			});
 		}

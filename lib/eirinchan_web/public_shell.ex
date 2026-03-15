@@ -6,11 +6,12 @@ defmodule EirinchanWeb.PublicShell do
   alias Eirinchan.Settings
 
   @catalog_required_scripts [
-    "js/jquery.mixitup.min.js",
-    "js/catalog.js"
+    "js/catalog.js",
+    "js/catalog-search.js"
   ]
 
   @catalog_blocked_scripts MapSet.new([
+                           "js/jquery.mixitup.min.js",
                            "js/thread-stats.js",
                            "js/strftime.min.js",
                            "js/navarrows2.js",

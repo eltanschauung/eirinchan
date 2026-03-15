@@ -33,7 +33,9 @@ defmodule Eirinchan.PostsTest do
   alias Eirinchan.Posts
   alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Posts.Post
+  alias Eirinchan.Repo
   alias Eirinchan.Runtime.Config
+  import Ecto.Query
 
   defp post_config(board_overrides) do
     Config.compose(nil, %{}, board_overrides, request_host: "example.test")
@@ -243,6 +245,62 @@ defmodule Eirinchan.PostsTest do
     assert File.exists?(stored_path)
 
     assert File.exists?(Eirinchan.Uploads.filesystem_path(thread.thumb_path))
+  end
+
+  test "list_catalog_page sorts full catalog before pagination when sorting by replies" do
+    board =
+      board_fixture(%{
+        config_overrides: %{
+          catalog_pagination: true,
+          catalog_threads_per_page: 2
+        }
+      })
+
+    [thread_a, thread_b, thread_c, thread_d] =
+      Enum.map(["A", "B", "C", "D"], fn subject ->
+        thread_fixture(board, %{subject: subject, body: subject <> " body"})
+      end)
+
+    for _ <- 1..4, do: reply_fixture(board, thread_a, %{body: "reply"})
+    for _ <- 1..3, do: reply_fixture(board, thread_b, %{body: "reply"})
+    for _ <- 1..2, do: reply_fixture(board, thread_c, %{body: "reply"})
+    for _ <- 1..1, do: reply_fixture(board, thread_d, %{body: "reply"})
+
+    Repo.update_all(from(p in Post, where: p.id == ^thread_a.id), set: [bump_at: ~N[2026-01-01 00:00:00]])
+    Repo.update_all(from(p in Post, where: p.id == ^thread_b.id), set: [bump_at: ~N[2026-01-02 00:00:00]])
+    Repo.update_all(from(p in Post, where: p.id == ^thread_c.id), set: [bump_at: ~N[2026-01-03 00:00:00]])
+    Repo.update_all(from(p in Post, where: p.id == ^thread_d.id), set: [bump_at: ~N[2026-01-04 00:00:00]])
+
+    {:ok, page_data} =
+      Posts.list_catalog_page(board, 1,
+        config: post_config(board.config_overrides),
+        sort_by: "reply:desc"
+      )
+
+    assert Enum.map(page_data.threads, & &1.thread.subject) == ["A", "B"]
+  end
+
+  test "list_catalog_page filters catalog threads before pagination" do
+    board =
+      board_fixture(%{
+        config_overrides: %{
+          catalog_pagination: true,
+          catalog_threads_per_page: 2
+        }
+      })
+
+    alpha = thread_fixture(board, %{subject: "alpha", body: "matching body"})
+    _beta = thread_fixture(board, %{subject: "beta", body: "other"})
+    gamma = thread_fixture(board, %{subject: "gamma", body: "matching again"})
+
+    {:ok, page_data} =
+      Posts.list_catalog_page(board, 1,
+        config: post_config(board.config_overrides),
+        search: "matching"
+      )
+
+    assert Enum.map(page_data.threads, & &1.thread.id) == [gamma.id, alpha.id]
+    assert page_data.total_pages == 1
   end
 
   test "create_post keeps jpg thumbnails as jpg" do

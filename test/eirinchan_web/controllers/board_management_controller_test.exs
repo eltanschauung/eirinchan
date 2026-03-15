@@ -583,6 +583,33 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     refute second_page =~ "Second thread"
   end
 
+  test "catalog page preserves sort and search across pagination", %{conn: conn} do
+    :ok = Eirinchan.Themes.enable_page_theme("catalog")
+
+    board =
+      board_fixture(%{
+        config_overrides: %{
+          catalog_pagination: true,
+          catalog_threads_per_page: 2
+        }
+      })
+
+    for subject <- ["alpha one", "alpha two", "alpha three", "beta four"] do
+      thread_fixture(board, %{subject: subject, body: subject})
+    end
+
+    page =
+      conn
+      |> get("/#{board.uri}/catalog.html?sort_by=reply:desc&search=alpha")
+      |> html_response(200)
+
+    assert page =~ ~s(id="search_field")
+    assert page =~ ~s(value="alpha")
+    assert page =~ ~s(<option selected value="reply:desc">Reply count</option>)
+    assert page =~ ~s(href="/#{board.uri}/catalog/2.html)
+    assert page =~ "search=alpha"
+  end
+
   test "catalog page renders the distribution chrome shell", %{conn: conn} do
     :ok = Eirinchan.Themes.enable_page_theme("catalog")
     board = board_fixture(%{uri: "bant", title: "International Random"})
