@@ -12,7 +12,7 @@
   <input type="hidden" name="board" value={@board.uri} />
   <input type="hidden" name="thread" value={PostView.public_post_id(@summary.thread)} />
 
-  <table>
+  <table class="postForm">
     <tr>
       <th colspan="2">
         <span class="handle">
@@ -32,8 +32,6 @@
           <select name="email" autocomplete="off">
             <option value=""></option>
             <option value="sage">sage</option>
-            <option :if={!@config.always_noko} value="noko">noko</option>
-            <option :if={@config.always_noko} value="nonoko">nonoko</option>
           </select>
         <% else %>
           <input type="text" name="email" maxlength="40" autocomplete="off" placeholder="Email" />
@@ -82,25 +80,30 @@
       </td>
     </tr>
     <tr :if={@config.user_flag}>
-      <td colspan="2">
+      <td colspan="1">
         <input
           :if={@config.user_flag && @config.multiple_flags}
-          type="text"
+          type="user_flag"
           name="user_flag"
-          id="user_flag_quick_reply"
+          id="user_flag"
+          size="25"
+          maxlength="300"
+          style="float:left;"
           autocomplete="off"
           value={@config.default_user_flag}
         />
         <select
           :if={@config.user_flag && !@config.multiple_flags}
           name="user_flag"
-          id="user_flag_quick_reply"
+          id="user_flag"
         >
           <option value="">None</option>
           <%= for {flag, text} <- @config.user_flags do %>
             <option value={flag} selected={@config.default_user_flag == flag}><%= text %></option>
           <% end %>
         </select>
+      </td>
+      <td class="spoiler">
         <span class="quick-reply-spoiler">
           <input id="q-spoiler-image" name="spoiler" type="checkbox" value="1" />
           <label for="q-spoiler-image">Spoiler</label>

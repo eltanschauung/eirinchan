@@ -6,7 +6,6 @@ defmodule Eirinchan.Posts.Metadata do
     attrs =
       attrs
       |> normalize_post_identity(config)
-      |> normalize_noko_email()
       |> put_request_ip(request)
 
     with {:ok, attrs} <- normalize_post_tag(attrs, config, op?),
@@ -72,14 +71,6 @@ defmodule Eirinchan.Posts.Metadata do
 
   defp normalize_email(value),
     do: value |> String.trim() |> String.replace(" ", "%20") |> blank_to_nil()
-
-  defp normalize_noko_email(attrs) do
-    case String.downcase(attrs["email"] || "") do
-      "noko" -> Map.put(attrs, "email", nil)
-      "nonoko" -> Map.put(attrs, "email", nil)
-      _ -> attrs
-    end
-  end
 
   defp normalize_post_tag(attrs, %{allowed_tags: allowed_tags}, true) when is_map(allowed_tags) do
     case Map.get(attrs, "tag") do

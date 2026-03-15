@@ -126,12 +126,9 @@ defmodule EirinchanWeb.PostController do
         op? ->
           thread_redirect_path(board, post, thread_id, config)
 
-        meta.noko ->
+        true ->
           suffix = if post.thread_id, do: "#p#{PublicIds.public_id(post)}", else: ""
           "#{thread_redirect_path(board, post, thread_id, config)}#{suffix}"
-
-        true ->
-          "/#{board.uri}"
       end
 
     if params["json_response"] == "1" do
