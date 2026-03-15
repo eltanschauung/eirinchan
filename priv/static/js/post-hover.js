@@ -20,10 +20,19 @@ onReady(function() {
 		let link = $(this);
 		let id;
 		let matches;
+		let href = link.attr('href') || '';
+		let crossBoardMatch = href.match(/\/([^\/]+)\/res\/[^#?]+#(\d+)$/);
 
 		if (link.is('[data-thread]')) {
 			id = link.attr('data-thread');
-		} else if (matches = link.text().match(/^>>(?:>\/([^\/]+)\/)?(\d+)$/)) {
+		} else if (link.is('[data-highlight-reply]')) {
+			id = link.attr('data-highlight-reply');
+			matches = [];
+			if (crossBoardMatch) {
+				matches[1] = crossBoardMatch[1];
+				matches[2] = crossBoardMatch[2];
+			}
+		} else if (matches = link.text().trim().match(/^>>(?:>\/([^\/]+)\/)?(\d+)$/)) {
 			id = matches[2];
 		} else {
 			return;
@@ -46,7 +55,7 @@ onReady(function() {
 
 		if (link.is('[data-thread]')) {
 			parentboard = $('form[name="post"] input[name="board"]').val();
-		} else if (matches[1] !== undefined) {
+		} else if (matches && matches[1] !== undefined) {
 			board = matches[1];
 		}
 
@@ -90,7 +99,7 @@ onReady(function() {
 			if (post.length > 0) {
 				startHover($(this));
 			} else {
-				let url = link.attr('href').replace(/#.*$/, '');
+				let url = href.replace(/#.*$/, '');
 
 				if ($.inArray(url, dontFetchAgain) != -1) {
 					return;
