@@ -59,7 +59,7 @@ function banlist_init(url, my_boards) {
         name: selall + translate("IP address"),
         width: "220px",
         fmt: function(row) {
-          var pre = row.access ? "<input type='checkbox' class='unban'>" : "";
+          var pre = row.access ? "<input type='checkbox' class='unban' name='ban_ids[]' value='" + escapeHTML(row.id) + "'>" : "";
           var label = escapeHTML(row.mask);
 
           if (row.history_url) {
@@ -210,10 +210,17 @@ function banlist_init(url, my_boards) {
       $form.find(".hiddens").remove();
 
       $.each(selected, function(id, enabled) {
-        if (enabled) {
+        if (enabled && !$form.find("input.unban[value='" + id + "']").length) {
           $("<input type='hidden' name='ban_ids[]' class='hiddens'>").val(id).appendTo($form);
         }
       });
+
+      if (
+        !$form.find("input.unban:checked").length &&
+        !$form.find("input.hiddens[name='ban_ids[]']").length
+      ) {
+        return;
+      }
 
       form.submit();
     });
