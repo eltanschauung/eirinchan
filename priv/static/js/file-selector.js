@@ -188,36 +188,48 @@ function init_file_selector(max_images, root) {
   });
 
   var dragCounter = 0;
+  var dropTarget = $dropzoneWrap[0];
 
-  $dropzone.on('dragenter dragover dragleave drop', function(e) {
+  function cancelDragEvent(e) {
     e.stopPropagation();
     e.preventDefault();
-  });
+  }
 
-  $dropzone.on('dragenter', function() {
+  function onDragEnter(e) {
+    cancelDragEvent(e);
+
     if (dragCounter === 0) {
       $dropzone.addClass('dragover');
     }
     dragCounter++;
-  });
+  }
 
-  $dropzone.on('dragleave', function() {
+  function onDragLeave(e) {
+    cancelDragEvent(e);
     dragCounter--;
     if (dragCounter <= 0) {
       dragCounter = 0;
       $dropzone.removeClass('dragover');
     }
-  });
+  }
 
-  $dropzone.on('drop', function(e) {
+  function onDrop(e) {
+    cancelDragEvent(e);
     $dropzone.removeClass('dragover');
     dragCounter = 0;
 
-    var fileList = e.originalEvent.dataTransfer.files;
+    var fileList = e.dataTransfer.files;
     for (var i = 0; i < fileList.length; i++) {
       addFile(fileList[i]);
     }
+  }
+
+  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function(type) {
+    dropTarget.addEventListener(type, cancelDragEvent, true);
   });
+  dropTarget.addEventListener('dragenter', onDragEnter, true);
+  dropTarget.addEventListener('dragleave', onDragLeave, true);
+  dropTarget.addEventListener('drop', onDrop, true);
 
   $root.on('click', '.remove-btn', function(e) {
     e.stopPropagation();
