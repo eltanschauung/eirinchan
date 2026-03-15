@@ -1,6 +1,7 @@
 defmodule Eirinchan.Posts.RequestGuards do
   @moduledoc false
 
+  alias Eirinchan.AccessList
   alias Eirinchan.Bans
   alias Eirinchan.Captcha
   alias Eirinchan.DNSBL
@@ -40,8 +41,37 @@ defmodule Eirinchan.Posts.RequestGuards do
     end
   end
 
-  def validate_dnsbl(request, config) do
-    if Map.get(config, :use_dnsbl, true) do
+  def validate_ipaccess(attrs, request, config, board) do
+    cond do
+      moderator_board_access?(request, board) ->
+        :ok
+
+      not Map.get(config, :ipaccess, false) ->
+        :ok
+
+      ipaccess_bypass?(attrs, config) ->
+        :ok
+
+      AccessList.allowed_from_file?(
+        request[:remote_ip] || request["remote_ip"],
+        Map.get(config, :ipaccess_file, AccessList.default_path())
+      ) ->
+        :ok
+
+      true ->
+        {:error, :ipaccess}
+    end
+  end
+
+  def validate_dnsbl(attrs, request, config) do
+    cond do
+      not Map.get(config, :use_dnsbl, true) ->
+        :ok
+
+      ipaccess_bypass?(attrs, config) ->
+        :ok
+
+      true ->
       dnsbl_opts =
         case Map.get(request, :dnsbl_resolver) do
           resolver when is_function(resolver, 1) -> [resolver: resolver]
@@ -52,8 +82,6 @@ defmodule Eirinchan.Posts.RequestGuards do
         :ok -> :ok
         {:error, _name} -> {:error, :dnsbl}
       end
-    else
-      :ok
     end
   end
 
@@ -163,6 +191,26 @@ defmodule Eirinchan.Posts.RequestGuards do
   defp valid_post_button?(_value, _configured, _aliases), do: false
 
   defp request_moderator(request), do: request[:moderator] || request["moderator"]
+
+  defp ipaccess_bypass?(attrs, config) do
+    case Map.get(config, :ip_nulling_flags, 0) do
+      threshold when is_integer(threshold) and threshold > 0 ->
+        submitted_flag_length(attrs) >= threshold
+
+      _ ->
+        false
+    end
+  end
+
+  defp submitted_flag_length(attrs) when is_map(attrs) do
+    attrs
+    |> Map.get("user_flag", Map.get(attrs, "flags", ""))
+    |> to_string()
+    |> String.trim()
+    |> String.length()
+  end
+
+  defp submitted_flag_length(_attrs), do: 0
 
   defp moderator_board_access?(request, board) do
     case request_moderator(request) do

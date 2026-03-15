@@ -46,4 +46,19 @@ defmodule Eirinchan.AccessListTest do
     assert AccessList.allowed?({0x2001, 0x0DB8, 0xABCD, 0x1, 0, 0, 0, 1})
     refute AccessList.allowed?({203, 0, 113, 9})
   end
+
+  test "ip_matches_access_list accepts an access.conf path directly" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "eirinchan-access-direct-#{System.unique_integer([:positive])}.conf"
+      )
+
+    File.write!(path, """
+    198.51.100.0/24
+    """)
+
+    assert AccessList.ip_matches_access_list({198, 51, 100, 7}, path)
+    refute AccessList.ip_matches_access_list({203, 0, 113, 9}, path)
+  end
 end

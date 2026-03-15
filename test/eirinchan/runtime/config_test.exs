@@ -260,6 +260,7 @@ defmodule Eirinchan.Runtime.ConfigTest do
     assert config.dnsbl == [["rbl.efnetrbl.org", 4]]
     assert config.dnsbl_exceptions == ["127.0.0.1"]
     assert config.use_dnsbl == true
+    assert config.ipaccess == false
   end
 
   test "defaults GeoIP2 database path to the bundled MMDB" do
