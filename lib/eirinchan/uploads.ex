@@ -14,17 +14,14 @@ defmodule Eirinchan.Uploads do
     normalized_name = normalized_input_filename(upload.filename)
 
     with {:ok, binary} <- File.read(upload.path) do
-      ext =
-        normalized_name
-        |> Path.extname()
-        |> String.downcase()
-
+      ext = normalized_name |> Path.extname() |> String.downcase()
       file_type = detect_mime_type(upload.path, normalized_name)
-      media_metadata = maybe_media_metadata(upload.path, file_type, ext, config)
+      normalized_ext = normalized_media_extension(ext, file_type)
+      media_metadata = maybe_media_metadata(upload.path, file_type, normalized_ext, config)
 
       metadata = %{
         binary: binary,
-        ext: ext,
+        ext: normalized_ext,
         file_name: normalized_filename(normalized_name, config),
         file_size: byte_size(binary),
         file_type: file_type,
@@ -625,11 +622,13 @@ defmodule Eirinchan.Uploads do
   defp refresh_stored_metadata(path, metadata, config) do
     with {:ok, binary} <- File.read(path) do
       file_type = detect_mime_type(path, metadata.file_name)
-      media_metadata = maybe_media_metadata(path, file_type, metadata.ext, config)
+      normalized_ext = normalized_media_extension(metadata.ext, file_type)
+      media_metadata = maybe_media_metadata(path, file_type, normalized_ext, config)
 
       {:ok,
        metadata
        |> Map.put(:binary, binary)
+       |> Map.put(:ext, normalized_ext)
        |> Map.put(:file_size, byte_size(binary))
        |> Map.put(:file_type, file_type)
        |> Map.put(:file_md5, :crypto.hash(:md5, binary) |> Base.encode64())
@@ -1088,6 +1087,20 @@ defmodule Eirinchan.Uploads do
     scale = if scale > 1.0, do: 1.0, else: scale
     {max(trunc(width * scale), 1), max(trunc(height * scale), 1)}
   end
+
+  defp normalized_media_extension(ext, file_type) when is_binary(ext) and is_binary(file_type) do
+    case canonical_extension_for_file_type(file_type) do
+      canonical when canonical in @image_extensions and ext in @image_extensions -> canonical
+      _ -> ext
+    end
+  end
+
+  defp normalized_media_extension(ext, _file_type), do: ext
+
+  defp canonical_extension_for_file_type("image/jpeg"), do: ".jpg"
+  defp canonical_extension_for_file_type("image/png"), do: ".png"
+  defp canonical_extension_for_file_type("image/gif"), do: ".gif"
+  defp canonical_extension_for_file_type(_file_type), do: nil
 
   defp normalized_filename(filename, config) do
     original_ext = Path.extname(filename)
