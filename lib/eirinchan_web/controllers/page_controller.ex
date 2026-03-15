@@ -838,7 +838,17 @@ defmodule EirinchanWeb.PageController do
       token when is_binary(token) ->
         ThreadWatcher.list_watch_summaries(token)
         |> Enum.map(fn summary ->
-          Map.put(summary, :thread_path, thread_watcher_path(summary))
+          thread_path = thread_watcher_path(summary)
+
+          summary
+          |> Map.put(:thread_path, thread_path)
+          |> Map.put(
+            :you_unread_path,
+            if(is_integer(summary.you_unread_post_id),
+              do: thread_path <> "#" <> Integer.to_string(summary.you_unread_post_id),
+              else: thread_path
+            )
+          )
         end)
 
       _ ->

@@ -46,6 +46,7 @@ defmodule Eirinchan.ThreadWatcher do
       stats = thread_stats(thread_ids)
       unread = unread_counts(watches, thread_ids)
       you_unread = unread_you_counts(watches, thread_ids, browser_token)
+      you_unread_target = unread_you_targets(watches, thread_ids, browser_token)
 
       watches
       |> Enum.map(fn watch ->
@@ -70,7 +71,8 @@ defmodule Eirinchan.ThreadWatcher do
               last_post_id: stat.last_post_public_id,
               last_seen_post_id: public_post_id(watch.last_seen_post_id || watch.thread_id),
               unread_count: Map.get(unread, {watch.board_uri, watch.thread_id}, 0),
-              you_unread_count: Map.get(you_unread, {watch.board_uri, watch.thread_id}, 0)
+              you_unread_count: Map.get(you_unread, {watch.board_uri, watch.thread_id}, 0),
+              you_unread_post_id: Map.get(you_unread_target, {watch.board_uri, watch.thread_id})
             }
         end
       end)
@@ -278,6 +280,20 @@ defmodule Eirinchan.ThreadWatcher do
   end
 
   defp unread_you_counts(watches, thread_ids, browser_token) do
+    unread_you_posts(watches, thread_ids, browser_token)
+    |> Map.new(fn {key, post_ids} ->
+      {key, length(post_ids)}
+    end)
+  end
+
+  defp unread_you_targets(watches, thread_ids, browser_token) do
+    unread_you_posts(watches, thread_ids, browser_token)
+    |> Map.new(fn {key, post_ids} ->
+      {key, List.last(post_ids)}
+    end)
+  end
+
+  defp unread_you_posts(watches, thread_ids, browser_token) do
     min_seen =
       watches
       |> Enum.map(fn watch -> watch.last_seen_post_id || watch.thread_id end)
@@ -293,18 +309,24 @@ defmodule Eirinchan.ThreadWatcher do
         where: post.id in ^thread_ids or post.thread_id in ^thread_ids,
         where: post.id > ^min_seen,
         distinct: post.id,
-        select: {fragment("COALESCE(?, ?)", post.thread_id, post.id), post.id}
+        order_by: [asc: post.id],
+        select: {fragment("COALESCE(?, ?)", post.thread_id, post.id), post.id, post.public_id}
       )
       |> Repo.all()
-      |> Enum.group_by(fn {thread_id, _post_id} -> thread_id end, fn {_thread_id, post_id} ->
-        post_id
+      |> Enum.group_by(fn {thread_id, _post_id, _public_id} -> thread_id end, fn {_thread_id, post_id, public_id} ->
+        {post_id, public_id}
       end)
 
     watches
     |> Enum.map(fn watch ->
       seen = watch.last_seen_post_id || watch.thread_id
-      count = posts |> Map.get(watch.thread_id, []) |> Enum.count(&(&1 > seen))
-      {{watch.board_uri, watch.thread_id}, count}
+      public_ids =
+        posts
+        |> Map.get(watch.thread_id, [])
+        |> Enum.filter(fn {post_id, _public_id} -> post_id > seen end)
+        |> Enum.map(fn {_post_id, public_id} -> public_id end)
+
+      {{watch.board_uri, watch.thread_id}, public_ids}
     end)
     |> Map.new()
   end
