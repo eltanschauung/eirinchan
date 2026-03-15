@@ -111,6 +111,56 @@
     $postForm.find('th .handle').css('cursor', 'move');
   };
 
+  var copy_styles = function($source, $target, properties) {
+    if (!$source.length || !$target.length) return;
+
+    var computed = window.getComputedStyle($source[0]);
+    var css = {};
+
+    properties.forEach(function(property) {
+      css[property] = computed[property];
+    });
+
+    $target.css(css);
+  };
+
+  var sync_shell_theme = function($origPostForm, $postForm) {
+    var $dummyReply = $('<div class="post reply"></div>').appendTo($('body'));
+    var $table = $postForm.find('table.postForm').first();
+    var $sourceTable = $origPostForm.find('table.postForm').first();
+    var $sourceTh = $origPostForm.find('table.postForm th').first();
+    var $sourceDropzone = $origPostForm.find('.dropzone').first();
+    var $targetTh = $postForm.find('th');
+    var $targetDropzone = $postForm.find('.dropzone');
+
+    copy_styles($dummyReply, $table, [
+      'backgroundColor',
+      'borderStyle',
+      'borderWidth',
+      'borderColor',
+      'borderRadius',
+      'boxShadow'
+    ]);
+
+    copy_styles($sourceTable, $table, ['color']);
+    copy_styles($sourceTh, $targetTh, [
+      'backgroundColor',
+      'color',
+      'borderColor',
+      'borderStyle',
+      'borderWidth'
+    ]);
+    copy_styles($sourceDropzone, $targetDropzone, [
+      'backgroundColor',
+      'borderColor',
+      'borderStyle',
+      'borderWidth',
+      'color'
+    ]);
+
+    $dummyReply.remove();
+  };
+
   var show_quick_reply = function() {
     if ($('div.banner').length === 0) return;
     if ($('#quick-reply').length !== 0) return;
@@ -145,8 +195,13 @@
 
     init_drag($postForm);
     if (typeof init_file_selector !== 'undefined') {
-      init_file_selector(window.max_images || 1, $postForm);
+      var maxImages = parseInt($postForm.attr('data-max-images') || '1', 10);
+      if (isNaN(maxImages) || maxImages < 1) {
+        maxImages = 1;
+      }
+      init_file_selector(maxImages, $postForm);
     }
+    sync_shell_theme($origPostForm, $postForm);
 
     $postForm.show();
     $postForm.width($postForm.find('table').width());
@@ -169,8 +224,7 @@
       }
 
       $(window).on('stylesheet', function() {
-        // The quick reply shell is styled statically now; theme overrides
-        // update through normal stylesheet changes without runtime CSS injection.
+        sync_shell_theme($origPostForm, $postForm);
       });
     });
   };
