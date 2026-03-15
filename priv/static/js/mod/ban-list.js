@@ -47,7 +47,7 @@ function banlist_init(url, my_boards) {
         selected[drow.id] = $(this).prop("checked");
       });
 
-      if (drow.expires && drow.expires !== 0 && drow.expires < time()) {
+      if (drow.active === false || (drow.expires && drow.expires !== 0 && drow.expires < time())) {
         $(el).find("td").css("text-decoration", "line-through");
       }
     });
@@ -153,7 +153,10 @@ function banlist_init(url, my_boards) {
 
     function filter(row) {
       if ($("#only_mine").prop("checked") && ($.inArray(row.board, my_boards) === -1)) return false;
-      if ($("#only_not_expired").prop("checked") && row.expires && row.expires !== 0 && row.expires < time()) return false;
+      if ($("#only_not_expired").prop("checked")) {
+        if (row.active === false) return false;
+        if (row.expires && row.expires !== 0 && row.expires < time()) return false;
+      }
 
       if ($("#search").val()) {
         var terms = $("#search").val().split(" ");

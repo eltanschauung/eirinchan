@@ -2504,6 +2504,7 @@ defmodule EirinchanWeb.ManagePageController do
     %{
       id: ban.id,
       access: true,
+      active: ban.active,
       single_addr: exact_ip?,
       masked: false,
       mask: masked_ip,
