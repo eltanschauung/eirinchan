@@ -68,14 +68,13 @@ defmodule EirinchanWeb.SearchController do
       board: board,
       boards: boards,
       global_boardlist_groups: EirinchanWeb.PostView.boardlist_groups(boards),
-      current_moderator: conn.assigns[:current_moderator],
-      secure_manage_token: conn.assigns[:secure_manage_token],
       own_post_ids: own_post_ids,
       show_yous: ShowYous.enabled?(conn),
       results: results,
       result_count: length(results),
       board_chrome: EirinchanWeb.BoardChrome.default(config),
-      error: error
+      error: error,
+      result_config: config
     )
   end
 

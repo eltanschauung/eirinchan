@@ -27,6 +27,32 @@ defmodule EirinchanWeb.PublicShell do
                            "js/expand-video.js"
                          ])
 
+  @search_blocked_scripts MapSet.new([
+                          "js/thread-stats.js",
+                          "js/server-thread-watcher.js",
+                          "js/navarrows2.js",
+                          "js/quick-reply.js",
+                          "js/titlebar-notifications.js",
+                          "js/post-hover.js",
+                          "js/show-own-posts-options.js",
+                          "js/archive.js",
+                          "js/quick-post-controls.js",
+                          "js/filters.js",
+                          "js/hide-threads.js",
+                          "js/post-filter.js",
+                          "js/fix-report-delete-submit.js",
+                          "js/jquery.mixitup.min.js",
+                          "js/catalog.js",
+                          "js/catalog-search.js",
+                          "js/file-selector.js",
+                          "js/upload-selection.js",
+                          "js/save-user_flag.js",
+                          "js/ajax.js",
+                          "js/auto-reload.js",
+                          "js/expand-video.js",
+                          "js/webm-settings.js"
+                        ])
+
   def head_meta(active_page, opts \\ []) do
     config =
       Keyword.get(opts, :config) || Config.compose(nil, Settings.current_instance_config(), %{})
@@ -236,10 +262,19 @@ defmodule EirinchanWeb.PublicShell do
   defp maybe_add_catalog_scripts(scripts, _active_page), do: scripts
 
   defp maybe_filter_catalog_scripts(scripts, :catalog) do
-    Enum.reject(scripts, &MapSet.member?(@catalog_blocked_scripts, &1))
+    Enum.reject(scripts, &script_blocked?(&1, @catalog_blocked_scripts))
+  end
+
+  defp maybe_filter_catalog_scripts(scripts, :search) do
+    Enum.reject(scripts, &script_blocked?(&1, @search_blocked_scripts))
   end
 
   defp maybe_filter_catalog_scripts(scripts, _active_page), do: scripts
+
+  defp script_blocked?(script, blocked_set) when is_binary(script) do
+    normalized = String.trim_leading(script, "/")
+    MapSet.member?(blocked_set, normalized)
+  end
 
   defp additional_javascript_url(config, script) do
     allow_remote_script_urls = Map.get(config, :allow_remote_script_urls, false)
