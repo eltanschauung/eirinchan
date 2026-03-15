@@ -192,18 +192,9 @@ function banlist_init(url, my_boards) {
     });
     lt.set_filter(filter);
 
-    $(".banform").on("submit", function() { return false; });
-
     $("#unban").on("click", function(e) {
-      e.preventDefault();
-
       if (!confirm('Are you sure you want to unban the selected IPs?')) {
-        return;
-      }
-
-      var form = $form.get(0);
-
-      if (!form) {
+        e.preventDefault();
         return;
       }
 
@@ -219,10 +210,9 @@ function banlist_init(url, my_boards) {
         !$form.find("input.unban:checked").length &&
         !$form.find("input.hiddens[name='ban_ids[]']").length
       ) {
+        e.preventDefault();
         return;
       }
-
-      form.submit();
     });
 
     if (deviceType === 'desktop') {
