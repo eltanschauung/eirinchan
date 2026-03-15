@@ -577,6 +577,9 @@ $(document).ready(function(){
 				insertedPostIds.forEach(function(id){
 					var inserted = document.getElementById(id);
 					if (inserted) {
+						if (typeof window.syncBacklinksFromPost === 'function') {
+							window.syncBacklinksFromPost(inserted);
+						}
 						if (window.EirinchanFrontend && typeof window.EirinchanFrontend.initPost === 'function') {
 							window.EirinchanFrontend.initPost(inserted);
 						} else {

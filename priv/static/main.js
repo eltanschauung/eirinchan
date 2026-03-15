@@ -775,8 +775,10 @@
 
     var targetIds = [];
 
-    body.querySelectorAll('a[data-highlight-reply], a[href^="#"]').forEach(function (link) {
-      var targetId = link.getAttribute('data-highlight-reply') || (link.getAttribute('href') || '').replace(/^#/, '');
+    body.querySelectorAll('a[data-highlight-reply], a[href*="#"]').forEach(function (link) {
+      var href = link.getAttribute('href') || '';
+      var hrefMatch = href.match(/#(\d+)$/);
+      var targetId = link.getAttribute('data-highlight-reply') || (hrefMatch ? hrefMatch[1] : '');
 
       if (!/^\d+$/.test(targetId)) return;
       if (targetId === sourceId) return;
@@ -798,6 +800,7 @@
 
       var mentioned = intro.querySelector('span.mentioned');
       if (!mentioned) {
+        intro.appendChild(document.createTextNode(' '));
         mentioned = document.createElement('span');
         mentioned.className = 'mentioned';
         intro.appendChild(mentioned);
@@ -944,6 +947,7 @@
   window.highlightReply = window.highlightReply || highlightReply;
   window.citeReply = window.citeReply || citeReply;
   window.rememberStuff = window.rememberStuff || rememberStuff;
+  window.syncBacklinksFromPost = window.syncBacklinksFromPost || syncBacklinksFromPost;
   window.EirinchanFrontend =
     window.EirinchanFrontend ||
     {
