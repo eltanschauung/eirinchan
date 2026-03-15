@@ -61,7 +61,13 @@
                 quick_reply_thread={thread_public_id}
                 quote_mode={:navigate}
               />
-              <.backlinks post={thread} backlinks_map={@backlinks_map} />
+              <.backlinks
+                post={thread}
+                backlinks_map={@backlinks_map}
+                board={@board}
+                thread={thread}
+                config={@config}
+              />
               <%= for icon <- PostView.state_icons(thread, @config) do %>
                 <img class="icon" title={icon.title} src={icon.path} alt={icon.title} />
               <% end %>
@@ -128,7 +134,13 @@
                   quote_to={reply_public_id}
                   quote_mode={:navigate}
                 />
-                <.backlinks post={reply} backlinks_map={@backlinks_map} />
+                <.backlinks
+                  post={reply}
+                  backlinks_map={@backlinks_map}
+                  board={@board}
+                  thread={thread}
+                  config={@config}
+                />
               </p>
 
               <.files_block

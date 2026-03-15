@@ -153,16 +153,19 @@
       <td>
         <input
           :if={@config.user_flag && @config.multiple_flags}
-          type="text"
+          type="user_flag"
           name="user_flag"
-          id="user_flag_reply"
+          id="user_flag"
+          size="25"
+          maxlength="300"
+          style="float:left;"
           autocomplete="off"
           value={@config.default_user_flag}
         />
         <select
           :if={@config.user_flag && !@config.multiple_flags}
           name="user_flag"
-          id="user_flag_reply"
+          id="user_flag"
         >
           <option value="">None</option>
           <%= for {flag, text} <- @config.user_flags do %>
@@ -306,7 +309,13 @@
           }
           quote_to={PostView.public_post_id(post)}
         />
-        <.backlinks post={post} backlinks_map={@backlinks_map} />
+        <.backlinks
+          post={post}
+          backlinks_map={@backlinks_map}
+          board={@board}
+          thread={@summary.thread}
+          config={@config}
+        />
         <%= for icon <- PostView.state_icons(post, @config) do %>
           <img class="icon" title={icon.title} src={icon.path} alt={icon.title} />
         <% end %>
@@ -366,7 +375,13 @@
               quote_href={PostView.reply_path(@board, post, reply, @config, :quote)}
               quote_to={reply_public_id}
             />
-            <.backlinks post={reply} backlinks_map={@backlinks_map} />
+            <.backlinks
+              post={reply}
+              backlinks_map={@backlinks_map}
+              board={@board}
+              thread={@summary.thread}
+              config={@config}
+            />
           </p>
 
           <.files_block
