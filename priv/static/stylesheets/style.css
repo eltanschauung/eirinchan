@@ -1,4 +1,12 @@
 
+:root {
+  --post-menu-bg: #d9bfb7;
+  --post-menu-fg: inherit;
+  --post-menu-border: #666;
+  --post-menu-hover-bg: #ffe;
+  --post-menu-hover-fg: inherit;
+}
+
 body {
   background: #EEF2FF url('img/fade-blue.png') repeat-x 50% 0%;
   color: black;
@@ -1348,8 +1356,9 @@ div.boardlist a {
 }
 
 .post-menu ul {
-  background-color: #d9bfb7;
-  border: 1px solid #666;
+  background-color: var(--post-menu-bg);
+  border: 1px solid var(--post-menu-border);
+  color: var(--post-menu-fg);
   list-style: none;
   padding: 0;
   margin: 0;
@@ -1374,7 +1383,8 @@ div.boardlist a {
 }
 
 .post-menu li:hover {
-  background-color: #ffe;
+  background-color: var(--post-menu-hover-bg);
+  color: var(--post-menu-hover-fg);
 }
 
 .post-menu ul ul {

@@ -12,6 +12,12 @@
 
   --border: #3a4a42;
 
+  --post-menu-bg: var(--bg-main);
+  --post-menu-fg: var(--fg-primary);
+  --post-menu-border: var(--border);
+  --post-menu-hover-bg: var(--bg-hover);
+  --post-menu-hover-fg: var(--fg-primary);
+
   --radius: 6px;
   --transition: .15s ease-in-out;
 }
