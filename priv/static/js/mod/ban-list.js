@@ -194,20 +194,28 @@ function banlist_init(url, my_boards) {
 
     $(".banform").on("submit", function() { return false; });
 
-    $("#unban").on("click", function() {
+    $("#unban").on("click", function(e) {
+      e.preventDefault();
+
       if (!confirm('Are you sure you want to unban the selected IPs?')) {
         return;
       }
 
-      $(".banform .hiddens").remove();
+      var form = $form.get(0);
+
+      if (!form) {
+        return;
+      }
+
+      $form.find(".hiddens").remove();
 
       $.each(selected, function(id, enabled) {
         if (enabled) {
-          $("<input type='hidden' name='ban_ids[]' class='hiddens'>").val(id).appendTo(".banform");
+          $("<input type='hidden' name='ban_ids[]' class='hiddens'>").val(id).appendTo($form);
         }
       });
 
-      $(".banform").off("submit").submit();
+      form.submit();
     });
 
     if (deviceType === 'desktop') {
