@@ -765,6 +765,23 @@
     return match ? match[1] : null;
   }
 
+  function resolvePostNodeByPublicId(publicId) {
+    if (!publicId) return null;
+
+    var directNode = document.getElementById('reply_' + publicId) || document.getElementById('op_' + publicId);
+    if (directNode) return directNode;
+
+    var anchor = document.getElementById(String(publicId));
+    if (!anchor) return null;
+
+    return (
+      anchor.closest('.post') ||
+      anchor.parentElement &&
+        (anchor.parentElement.querySelector('.post.op') || anchor.parentElement.querySelector('.post.reply')) ||
+      null
+    );
+  }
+
   function syncBacklinksFromPost(post) {
     var sourceId = publicPostIdForNode(post);
     if (!sourceId) return;
@@ -788,10 +805,7 @@
     });
 
     targetIds.forEach(function (targetId) {
-      var targetPost =
-        document.getElementById(targetId) ||
-        document.getElementById('reply_' + targetId) ||
-        document.getElementById('thread_' + targetId);
+      var targetPost = resolvePostNodeByPublicId(targetId);
 
       if (!targetPost) return;
 
