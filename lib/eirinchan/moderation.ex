@@ -91,10 +91,24 @@ defmodule Eirinchan.Moderation do
 
       %ModUser{} = user ->
         if ModUser.verify_password(user, password) do
+          user = maybe_upgrade_legacy_password(user, password, repo)
           {:ok, touch_login(user, repo)}
         else
           {:error, :invalid_credentials}
         end
+    end
+  end
+
+  defp maybe_upgrade_legacy_password(%ModUser{} = user, password, repo) do
+    if ModUser.legacy_vichan_password?(user) do
+      {:ok, upgraded} =
+        user
+        |> ModUser.upgrade_legacy_password_changeset(password)
+        |> repo.update()
+
+      upgraded
+    else
+      user
     end
   end
 

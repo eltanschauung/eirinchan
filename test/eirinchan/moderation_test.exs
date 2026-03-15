@@ -20,6 +20,28 @@ defmodule Eirinchan.ModerationTest do
     assert {:error, :invalid_credentials} = Moderation.authenticate("admin", "wrong")
   end
 
+  test "authenticate accepts imported vichan passwords and upgrades them" do
+    {legacy_hash, 0} =
+      System.cmd("mkpasswd", ["--method=sha-512", "--rounds", "25000", "--salt", "testsalt", "secret123"])
+
+    {:ok, user} =
+      %Eirinchan.Moderation.ModUser{}
+      |> Ecto.Changeset.change(%{
+        username: "legacy_admin",
+        password_hash: String.trim(legacy_hash),
+        password_salt: "legacy:vichan:1",
+        role: "admin"
+      })
+      |> Repo.insert()
+
+    assert {:ok, authenticated} = Moderation.authenticate("legacy_admin", "secret123")
+    assert authenticated.id == user.id
+
+    upgraded = Repo.get!(Eirinchan.Moderation.ModUser, user.id)
+    refute Eirinchan.Moderation.ModUser.legacy_vichan_password?(upgraded)
+    assert Eirinchan.Moderation.ModUser.verify_password(upgraded, "secret123")
+  end
+
   test "board access is grant-based for non-admin moderators" do
     board = board_fixture()
     other_board = board_fixture()

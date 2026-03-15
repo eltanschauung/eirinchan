@@ -47,15 +47,54 @@ defmodule Eirinchan.Moderation.ModUser do
   end
 
   def verify_password(%__MODULE__{} = user, password) when is_binary(password) do
-    expected = hash_password(password, user.password_salt || "")
-    Plug.Crypto.secure_compare(user.password_hash || "", expected)
+    cond do
+      legacy_vichan_password?(user) ->
+        verify_legacy_vichan_password(user.password_hash || "", password)
+
+      true ->
+        expected = hash_password(password, user.password_salt || "")
+        Plug.Crypto.secure_compare(user.password_hash || "", expected)
+    end
   end
 
   def verify_password(_user, _password), do: false
 
+  def legacy_vichan_password?(%__MODULE__{password_salt: "legacy:vichan:" <> _}), do: true
+  def legacy_vichan_password?(_user), do: false
+
+  def upgrade_legacy_password_changeset(%__MODULE__{} = user, password) when is_binary(password) do
+    salt = generate_password_salt()
+    hash = hash_password(password, salt)
+    change(user, password_hash: hash, password_salt: salt)
+  end
+
   defp hash_password(password, salt) do
     :crypto.hash(:sha256, salt <> password)
     |> Base.encode16(case: :lower)
+  end
+
+  defp generate_password_salt do
+    :crypto.strong_rand_bytes(16) |> Base.encode16(case: :lower)
+  end
+
+  defp verify_legacy_vichan_password(stored_hash, password) do
+    case Regex.run(~r/^\$6\$(?:rounds=(\d+)\$)?([^$]+)\$[A-Za-z0-9.\/]+$/, stored_hash) do
+      [_, rounds, salt] ->
+        args =
+          ["--method=sha-512"] ++
+            if(rounds != "", do: ["--rounds", rounds], else: []) ++ ["--salt", salt, password]
+
+        case System.cmd("mkpasswd", args, stderr_to_stdout: true) do
+          {computed, 0} ->
+            Plug.Crypto.secure_compare(String.trim(computed), stored_hash)
+
+          _ ->
+            false
+        end
+
+      _ ->
+        false
+    end
   end
 
   defp normalize_string(nil), do: nil
