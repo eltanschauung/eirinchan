@@ -31,20 +31,20 @@ defmodule EirinchanWeb.SearchController do
 
     cond do
       not search_enabled?(config) ->
-        render_search(conn, query, board, boards, [], "Post search is disabled")
+        render_search(conn, query, board, boards, [], "Post search is disabled", config)
 
       query == "" or is_nil(board) ->
-        render_search(conn, query, board, boards, [], nil)
+        render_search(conn, query, board, boards, [], nil, config)
 
       public_search_rate_limited?(request, config) ->
-        render_search(conn, query, board, boards, [], "Wait a while before searching again, please.")
+        render_search(conn, query, board, boards, [], "Wait a while before searching again, please.", config)
 
       true ->
         _ = Antispam.log_search_query(query, request, board_id: board.id)
 
         case Posts.search_posts(board, query, limit: search_limit(config)) do
           {:query_too_broad, _posts} ->
-            render_search(conn, query, board, boards, [], "Query too broad.")
+            render_search(conn, query, board, boards, [], "Query too broad.", config)
 
           {:ok, posts} ->
             results =
@@ -52,12 +52,12 @@ defmodule EirinchanWeb.SearchController do
               |> Repo.preload(:board)
               |> build_search_results()
 
-            render_search(conn, query, board, boards, results, nil)
+            render_search(conn, query, board, boards, results, nil, config)
         end
     end
   end
 
-  defp render_search(conn, query, board, boards, results, error) do
+  defp render_search(conn, query, board, boards, results, error, config) do
     own_post_ids =
       results
       |> Enum.map(& &1.post)
@@ -74,6 +74,7 @@ defmodule EirinchanWeb.SearchController do
       show_yous: ShowYous.enabled?(conn),
       results: results,
       result_count: length(results),
+      board_chrome: EirinchanWeb.BoardChrome.default(config),
       error: error
     )
   end
@@ -106,10 +107,7 @@ defmodule EirinchanWeb.SearchController do
     |> assign(:extra_stylesheets, [])
     |> assign(:skip_app_stylesheet, true)
     |> assign(:skip_flash_group, true)
-    |> assign(:show_options_shell, false)
-    |> assign(:show_post_menu_shell, false)
     |> assign(:hide_theme_switcher, true)
-    |> assign(:hide_boardlist_admin_options, true)
   end
 
   defp board_from_param(nil, _boards), do: nil

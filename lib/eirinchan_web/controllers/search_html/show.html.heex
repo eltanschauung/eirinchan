@@ -61,10 +61,9 @@
   <% end %>
 <% end %>
 
-<%= if !(@error || @query != "") do %>
-  <hr />
+<%= if @board_chrome.show_footer do %>
+  <%= if !(@error || @query != "") do %>
+    <hr />
+  <% end %>
+  <EirinchanWeb.PostComponents.site_footer />
 <% end %>
-<footer>
-  <p class="unimportant" style="margin-top:20px;text-align:center;">We witches are not whale lol. I will never call 'whale' a Sukusuku though.</p>
-  <p class="unimportant" style="text-align:center;">All trademarks, copyrights, comments, and images on this page are owned by their respective parties because Gensokyo has laws</p>
-</footer>
