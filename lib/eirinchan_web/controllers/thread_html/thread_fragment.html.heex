@@ -27,7 +27,13 @@
           quote_href={PostView.reply_path(@board, @summary.thread, reply, @config, :quote)}
           quote_to={reply_public_id}
         />
-        <.backlinks post={reply} backlinks_map={@backlinks_map} />
+        <.backlinks
+          post={reply}
+          backlinks_map={@backlinks_map}
+          board={@board}
+          thread={@summary.thread}
+          config={@config}
+        />
       </p>
 
       <.files_block

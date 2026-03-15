@@ -303,6 +303,9 @@ defmodule EirinchanWeb.PostComponents do
 
   attr :post, :map, required: true
   attr :backlinks_map, :map, default: %{}
+  attr :board, :map, default: nil
+  attr :thread, :map, default: nil
+  attr :config, :map, default: nil
 
   def backlinks(assigns) do
     backlinks =
@@ -310,7 +313,10 @@ defmodule EirinchanWeb.PostComponents do
       |> PublicIds.public_id()
       |> then(&Map.get(assigns.backlinks_map || %{}, &1, []))
 
-    assigns = assign(assigns, :backlinks, backlinks)
+    assigns =
+      assigns
+      |> assign(:backlinks, backlinks)
+      |> assign(:backlink_base_href, backlink_base_href(assigns))
 
     ~H"""
     <span :if={@backlinks != []} class="mentioned">
@@ -318,7 +324,7 @@ defmodule EirinchanWeb.PostComponents do
         <a
           class={"mentioned-#{backlink_id}"}
           data-highlight-reply={backlink_id}
-          href={"##{backlink_id}"}
+          href={@backlink_base_href <> "##{backlink_id}"}
         >
           &gt;&gt;<%= backlink_id %>
         </a>
@@ -342,6 +348,13 @@ defmodule EirinchanWeb.PostComponents do
     |> to_iodata()
     |> IO.iodata_to_binary()
   end
+
+  defp backlink_base_href(%{board: board, thread: thread, config: config})
+       when not is_nil(board) and not is_nil(thread) and not is_nil(config) do
+    PostView.thread_path(board, thread, config)
+  end
+
+  defp backlink_base_href(_assigns), do: ""
 
   attr :board_uri, :string, required: true
   attr :thread_id, :integer, required: true
@@ -959,7 +972,13 @@ defmodule EirinchanWeb.PostComponents do
           quote_href={PostView.reply_path(@board, @thread, @post, @config, :quote)}
           quote_to={@public_post_id}
         />
-        <.backlinks post={@post} backlinks_map={@backlinks_map} />
+        <.backlinks
+          post={@post}
+          backlinks_map={@backlinks_map}
+          board={@board}
+          thread={@thread}
+          config={@config}
+        />
       </p>
       <.files_block
         post={@post}

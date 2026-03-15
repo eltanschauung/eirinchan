@@ -771,6 +771,7 @@
 
     var body = post.querySelector('div.body');
     if (!body) return;
+    var sourceHref = backlinkHrefForPost(post, sourceId);
 
     var targetIds = [];
 
@@ -807,10 +808,20 @@
       var backlink = document.createElement('a');
       backlink.className = 'mentioned-' + sourceId;
       backlink.setAttribute('data-highlight-reply', sourceId);
-      backlink.href = '#' + sourceId;
+      backlink.href = sourceHref;
       backlink.textContent = '>>' + sourceId;
       mentioned.appendChild(backlink);
     });
+  }
+
+  function backlinkHrefForPost(post, sourceId) {
+    var link = post.querySelector('a.post_no[href]');
+
+    if (link && link.getAttribute('href')) {
+      return link.getAttribute('href');
+    }
+
+    return '#' + sourceId;
   }
 
   window._ = window._ || identity;
