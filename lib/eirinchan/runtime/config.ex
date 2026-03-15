@@ -85,7 +85,11 @@ defmodule Eirinchan.Runtime.Config do
     max_threads_per_hour: 0,
     markup_urls: true,
     max_links: 20,
+    board_search: true,
     search_enabled: true,
+    search_limit: 100,
+    search_queries_per_minutes: [15, 2],
+    search_queries_per_minutes_all: [50, 2],
     search_allowed_boards: nil,
     search_disallowed_boards: [],
     search_query_limit_window: 60,
@@ -145,14 +149,14 @@ defmodule Eirinchan.Runtime.Config do
     youtube_js_html:
       "<div class=\"video-container\" data-video=\"$2\">" <>
         "<a href=\"https://youtu.be/$2\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"file\">" <>
-        "<img style=\"width:208px;height:auto;\" src=\"//img.youtube.com/vi/$2/0.jpg\" class=\"post-image yt-embed\"/>" <>
+        "<img style=\"width:208px;height:156px;object-fit:cover;display:block;\" src=\"https://img.youtube.com/vi/$2/0.jpg\" class=\"post-image yt-embed\" loading=\"eager\" decoding=\"async\"/>" <>
         "</a></div>",
     embedding: [
       [
         "/^https?:\\/\\/(\\w+\\.)?(?:youtube\\.com\\/watch\\?v=|youtu\\.be\\/)([a-zA-Z0-9\\-_]{10,11})(&.+)?$/i",
         "<div class=\"video-container\" data-video=\"$2\">" <>
           "<a href=\"https://youtu.be/$2\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"file\">" <>
-          "<img style=\"width:208px;height:auto;\" src=\"//img.youtube.com/vi/$2/0.jpg\" class=\"post-image yt-embed\"/>" <>
+          "<img style=\"width:208px;height:156px;object-fit:cover;display:block;\" src=\"https://img.youtube.com/vi/$2/0.jpg\" class=\"post-image yt-embed\" loading=\"eager\" decoding=\"async\"/>" <>
           "</a></div>"
       ]
     ],
@@ -313,7 +317,11 @@ defmodule Eirinchan.Runtime.Config do
     "maxThreadsPerHour" => :max_threads_per_hour,
     "markupUrls" => :markup_urls,
     "maxLinks" => :max_links,
+    "boardSearch" => :board_search,
     "searchEnabled" => :search_enabled,
+    "searchLimit" => :search_limit,
+    "searchQueriesPerMinutes" => :search_queries_per_minutes,
+    "searchQueriesPerMinutesAll" => :search_queries_per_minutes_all,
     "searchAllowedBoards" => :search_allowed_boards,
     "searchDisallowedBoards" => :search_disallowed_boards,
     "early404" => :early_404,

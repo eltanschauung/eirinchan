@@ -226,40 +226,48 @@
 <% else %>
   <hr />
 <% end %>
-<!-- Start Search Form -->
-<form style="display:inline;" action="/search.php" method="get">
-  <p class="board-search-row" style="margin: 8px;">
-    <span class="board-search-form-controls">
-      <input type="text" class="board-search-input" name="search" placeholder="Search" />
-      <input type="hidden" name="board" value={@board.uri} />
-      <input type="submit" value="Search" />
-    </span>
-    <span class="board-search-links">
-      <%= for link <- EirinchanWeb.BoardChrome.search_links(@board.uri, @config) do %>
-        <a style="text-decoration:none;" href={link.href}><%= link.label %></a>
-      <% end %>
-      <a
-        :if={is_binary(@config.archive_url) and @config.archive_url != ""}
-        style="text-decoration:none;"
-        href={@config.archive_url}
-      >
-        [Archive]
-      </a>
-      <span id="updater" class="board-live-updater">
-        <a
-          href="#"
-          id="update_thread"
-          title="This index page is updated automatically to display new posts."
-        >
-          [Live Page&nbsp;<span class="live-page-indicator" aria-hidden="true">⬤</span>]
-        </a>
-        <input type="checkbox" id="auto_update_status" checked hidden />
-        <span id="update_secs" hidden>5</span>
+<%= if @config.board_search && @config.search_enabled do %>
+  <!-- Start Search Form -->
+  <form style="display:inline;" action="/search.php" method="get">
+    <p class="board-search-row" style="margin: 8px;">
+      <span class="board-search-form-controls">
+        <input
+          type="text"
+          class="board-search-input"
+          style="max-width:40%;"
+          name="search"
+          placeholder="Search"
+        />
+        <input type="hidden" name="board" value={@board.uri} />
+        <input type="submit" value="Search" style="margin-right:4px;" />
       </span>
-    </span>
-  </p>
-</form>
-<!-- End Search Form -->
+      <span class="board-search-links">
+        <%= for link <- EirinchanWeb.BoardChrome.search_links(@board.uri, @config) do %>
+          <a style="text-decoration:none;" href={link.href}><%= link.label %></a>
+        <% end %>
+        <a
+          :if={is_binary(@config.archive_url) and @config.archive_url != ""}
+          style="text-decoration:none;"
+          href={@config.archive_url}
+        >
+          [Archive]
+        </a>
+        <span id="updater" class="board-live-updater">
+          <a
+            href="#"
+            id="update_thread"
+            title="This index page is updated automatically to display new posts."
+          >
+            [Live Page&nbsp;<span class="live-page-indicator" aria-hidden="true">⬤</span>]
+          </a>
+          <input type="checkbox" id="auto_update_status" checked hidden />
+          <span id="update_secs" hidden>5</span>
+        </span>
+      </span>
+    </p>
+  </form>
+  <!-- End Search Form -->
+<% end %>
 <p :if={@page_data.threads == []} class="unimportant">No threads yet.</p>
 
 <div id="board-refresh-target" data-fragment-md5={@fragment_md5}>

@@ -1,64 +1,45 @@
-<img class="board_image" data-random-banner="/b.php" src={EirinchanWeb.BannerAsset.banner_url(Eirinchan.Settings.current_instance_config())} style="width:300px;height:100px;cursor:pointer" alt="" />
-
 <header>
   <h1>Search</h1>
-  <div class="subtitle">Cross-board post search</div>
-  <.admin_shortcuts moderator={@current_moderator} />
+  <div class="subtitle"></div>
 </header>
 
-<%= if @global_message && @global_message != "" do %>
-  <div class="blotter"><%= raw(@global_message) %></div>
-<% end %>
-
-<div class="pages top">
-  [<a href={~p"/"}>Home</a>]
-  [<a href={~p"/news"}>News</a>]
-  <span :if={Eirinchan.Themes.page_theme_enabled?("catalog")}>
-    [<a href={~p"/catalog"}>Catalog</a>]
-  </span>
-  <span :if={Eirinchan.Themes.page_theme_enabled?("recent")}>
-    [<a href={~p"/recent"}>Recent</a>]
-  </span>
-  <%= for page <- @custom_pages do %>
-    [<a href={if page.slug == "flags", do: "/flags", else: "/pages/#{page.slug}"}><%= page.title %></a>]
-  <% end %>
-</div>
-
-<section class="public-panel search-panel">
-  <form action="/search.php" method="get" class="search-form">
+<div class="ban">
+  <h2>Search</h2>
+  <form style="display:inline" action="" method="get">
     <p>
+      <label style="display:inline" for="search">Phrase:</label>
+      <input id="search" name="search" type="text" size="40" value={@query} />
       <select name="board">
-        <option value="">All boards</option>
+        <option value="none">Select board&hellip;</option>
         <%= for board <- @boards do %>
-          <option value={board.uri} selected={@board && @board.uri == board.uri}>
-            /<%= board.uri %>/ - <%= board.title %>
-          </option>
+          <option value={board.uri} selected={@board && @board.uri == board.uri}>/<%= board.uri %>/</option>
         <% end %>
       </select>
-      <input type="text" name="search" value={@query} placeholder="Search query" />
       <input type="submit" value="Search" />
     </p>
   </form>
-
-  <p :if={@error} class="error"><%= @error %></p>
-</section>
-
-<section class="public-panel search-results-panel">
-  <p :if={@results != []} style="text-align:center">
-    Showing <%= @result_count %> result<%= if @result_count != 1, do: "s" %>.
+  <p style="font-size:8pt;margin:5px">
+    Search is case-insensitive and based on keywords. To match exact phrases, use "quotes". Use an asterisk (*) for wildcard.
   </p>
-  <%= if @results == [] do %>
-    <p>No results.</p>
+  <p style="font-size:8pt;margin:5px">
+    You may apply the following filters to your searches: <strong>id</strong>, <strong>thread</strong>, <strong>subject</strong>, and <strong>name</strong>. To apply a filter, simply add to your query, for example, <em>name:Anonymous</em> or <em>subject:"Some Thread"</em>. Wildcards cannot be used in filters.
+  </p>
+</div>
+
+<%= if @error || @query != "" do %>
+  <hr />
+  <%= if @error do %>
+    <p class="unimportant" style="text-align:center">(<%= @error %>)</p>
   <% else %>
-    <%= for group <- @grouped_results do %>
-      <fieldset style="margin-bottom:20px">
+    <%= if @results != [] do %>
+      <fieldset>
         <legend>
-          <%= length(group.results) %> result<%= if length(group.results) != 1, do: "s" %> in
-          <a href={"/#{group.board.uri}/index.html"}>
-            / <%= group.board.uri %> / - <%= group.board.title %>
+          <%= @result_count %> result<%= if @result_count != 1, do: "s" %> in
+          <a href={"/#{@board.uri}/index.html"}>
+            /<%= @board.uri %>/ - <%= @board.title %>
           </a>
         </legend>
-        <%= for result <- group.results do %>
+        <%= for result <- @results do %>
           <EirinchanWeb.ManagePageHTML.moderation_post
             post={result.post}
             board={result.board}
@@ -74,10 +55,16 @@
           <hr />
         <% end %>
       </fieldset>
+    <% else %>
+      <p style="text-align:center" class="unimportant">(No results.)</p>
     <% end %>
   <% end %>
-</section>
-
-<%= if @board_chrome.show_footer do %>
-  <EirinchanWeb.PostComponents.site_footer />
 <% end %>
+
+<%= if !(@error || @query != "") do %>
+  <hr />
+<% end %>
+<footer>
+  <p class="unimportant" style="margin-top:20px;text-align:center;">We witches are not whale lol. I will never call 'whale' a Sukusuku though.</p>
+  <p class="unimportant" style="text-align:center;">All trademarks, copyrights, comments, and images on this page are owned by their respective parties because Gensokyo has laws</p>
+</footer>
