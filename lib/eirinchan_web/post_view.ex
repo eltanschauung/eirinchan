@@ -1135,17 +1135,21 @@ defmodule EirinchanWeb.PostView do
   end
 
   defp cross_board_post_href(current_board, target_board_uri, post_id, config) do
-    case target_board_uri do
-      ^current_board.uri ->
-        resolve_post_href(current_board, post_id, config)
+      # 1. Assign the value to a simple variable first cobson
+      current_uri = current_board.uri
 
-      _ ->
-        case Boards.get_board_by_uri(target_board_uri) do
-          nil -> "/#{target_board_uri}/res/#{post_id}.html##{post_id}"
-          board -> resolve_post_href(board, post_id, config)
-        end
+      case target_board_uri do
+        # 2. Pin the simple variable here
+        ^current_uri ->
+          resolve_post_href(current_board, post_id, config)
+
+        _ ->
+          case Boards.get_board_by_uri(target_board_uri) do
+            nil -> "/#{target_board_uri}/res/#{post_id}.html##{post_id}"
+            board -> resolve_post_href(board, post_id, config)
+          end
+      end
     end
-  end
 
   defp resolve_post_href(board, post_id, config) do
     case Integer.parse(to_string(post_id)) do

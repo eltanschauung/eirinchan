@@ -16,6 +16,9 @@
 # If the VM crashes, it generates a dump, let's ignore it too.
 erl_crash.dump
 
+# This is old now
+retrospective_design_audit.md
+
 # Also ignore archive artifacts (built via "mix archive.build").
 *.ez
 
