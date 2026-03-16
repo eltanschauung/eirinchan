@@ -10,7 +10,7 @@ high-speed app. Uses PostgreSQL. Credit to Tinyboard, Vichan Devel and Fredrick 
 - Catalog pagination, updated catalog search js
 - Configurability to new themes such as a faq and flags page
 - Configurable multi flags system
-- IpAccessConf theme, a security system I developed
+- IpAccessConf theme, a security system based on only allowing certain subnets to post + a password page for having your subnet added
 - New themes from the bantculture community + Tomorrow
 - Live updates using md5 checksum values, including live catalog and index pages
 - Large amounts of standard Vichan js migrated downwards into PHP and Elixir
