@@ -15,3 +15,4 @@ high-speed app. Uses PostgreSQL. Credit to Tinyboard, Vichan Devel and Fredrick 
 - Live updates using md5 checksum values, including live catalog and index pages
 - Large amounts of standard Vichan js migrated downwards into PHP and Elixir
 - Embeds can be used alongside files
+- 4chanX inspired thread watcher mainly using backend functionality and minimal JS
