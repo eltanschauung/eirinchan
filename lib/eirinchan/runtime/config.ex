@@ -53,6 +53,9 @@ defmodule Eirinchan.Runtime.Config do
     timezone: "UTC",
     anonymous: "Anonymous",
     global_message: false,
+    footer: [
+      "All trademarks, copyrights, comments, and images on this page are owned by and are the responsibility of their respective parties."
+    ],
     news_blotter_entries: [],
     news_blotter_limit: 15,
     whalestickers: WhaleStickerDefaults.entries(),
