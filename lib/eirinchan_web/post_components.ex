@@ -4,6 +4,7 @@ defmodule EirinchanWeb.PostComponents do
   import Phoenix.HTML.Safe, only: [to_iodata: 1]
 
   alias Eirinchan.Posts.PublicIds
+  alias Eirinchan.Settings
   alias EirinchanWeb.{IpPresentation, PostView}
 
   attr :groups, :list, required: true
@@ -96,17 +97,49 @@ defmodule EirinchanWeb.PostComponents do
     """
   end
 
+  attr :entries, :list, default: nil
+
   def site_footer(assigns) do
+    assigns =
+      assign_new(assigns, :entries, fn ->
+        footer_entries()
+      end)
+
     ~H"""
     <footer>
       <p class="unimportant" style="margin-top:20px;text-align:center;">
         - Tinyboard + vichan 5.2.2 + <a href="https://github.com/username/eirinchan-v1">Eirinchan</a> -<br />
         Tinyboard Copyright &copy; 2010-2014 Tinyboard Development Group<br />
         vichan Copyright &copy; 2012-2026 vichan-devel<br />
-        All trademarks, copyrights, comments, and images on this page are owned by and are the responsibility of their respective parties.
       </p>
+      <p :for={entry <- @entries} class="unimportant" style="text-align:center;"><%= entry %></p>
     </footer>
     """
+  end
+
+  defp footer_entries do
+    Settings.current_instance_config()
+    |> Map.get(:footer, default_footer_entries())
+    |> case do
+      entries when is_list(entries) ->
+        entries
+        |> Enum.map(&to_string/1)
+        |> Enum.map(&String.trim/1)
+        |> Enum.reject(&(&1 == ""))
+
+      entry when is_binary(entry) ->
+        [String.trim(entry)]
+        |> Enum.reject(&(&1 == ""))
+
+      _ ->
+        default_footer_entries()
+    end
+  end
+
+  defp default_footer_entries do
+    [
+      "All trademarks, copyrights, comments, and images on this page are owned by and are the responsibility of their respective parties."
+    ]
   end
 
   def options_shell(assigns) do

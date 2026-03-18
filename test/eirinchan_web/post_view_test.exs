@@ -1,11 +1,12 @@
 defmodule EirinchanWeb.PostViewTest do
   use ExUnit.Case, async: true
+  require Phoenix.LiveViewTest
 
   alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.Posts.Post
   alias Eirinchan.Runtime.Config
+  alias EirinchanWeb.PostComponents
   alias EirinchanWeb.PostView
-
   test "template_assigns exposes the compatibility contract" do
     board = %BoardRecord{uri: "files", title: "Files"}
     post = %Post{id: 10, subject: "Upload thread"}
@@ -178,5 +179,15 @@ defmodule EirinchanWeb.PostViewTest do
 
     assert html =~ "&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;"
     refute html =~ ~s|""><script>|
+  end
+
+  test "site_footer renders configured footer entries" do
+    html =
+      Phoenix.LiveViewTest.render_component(&PostComponents.site_footer/1,
+        entries: ["Line one", "Line two"]
+      )
+
+    assert html =~ "Line one"
+    assert html =~ "Line two"
   end
 end

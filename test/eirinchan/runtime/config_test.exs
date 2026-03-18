@@ -213,6 +213,22 @@ defmodule Eirinchan.Runtime.ConfigTest do
     assert config.cycle_limit == 1000
   end
 
+  test "defaults footer to the vichan-style disclaimer list" do
+    config =
+      Config.compose(
+        %{
+          root: "/",
+          dir: %{img: "img/", thumb: "thumb/", res: "res/"}
+        },
+        %{},
+        %{}
+      )
+
+    assert config.footer == [
+             "All trademarks, copyrights, comments, and images on this page are owned by and are the responsibility of their respective parties."
+           ]
+  end
+
   test "builds default vichan flood filters when filters are unset" do
     config =
       Config.compose(
