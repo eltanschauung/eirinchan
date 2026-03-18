@@ -753,6 +753,44 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert page =~ ~s(href="#")
   end
 
+  test "announcement preview preserves bold, italics, and escaped newlines", %{conn: conn} do
+    original_path = Application.get_env(:eirinchan, :instance_config_path)
+
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "eirinchan-global-message-format-#{System.unique_integer([:positive])}.json"
+      )
+
+    File.rm(path)
+    Application.put_env(:eirinchan, :instance_config_path, path)
+
+    on_exit(fn ->
+      Application.put_env(:eirinchan, :instance_config_path, original_path)
+      File.rm(path)
+    end)
+
+    moderator = moderator_fixture(%{role: "admin"})
+
+    conn =
+      conn
+      |> login_moderator(moderator)
+      |> post("/manage/announcement/browser", %{
+        "editor" => "global_message",
+        "body" => "PPH: <b>7</b>\\n<i>italic</i>"
+      })
+
+    page =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> get("/manage/announcement/browser")
+      |> html_response(200)
+
+    assert page =~ "PPH: <b>7</b><br /><i>italic</i>"
+    assert page =~ ~s(<textarea name="body" rows="6">PPH: &lt;b&gt;7&lt;/b&gt;\\n&lt;i&gt;italic&lt;/i&gt;</textarea>)
+  end
+
   test "browser custom page management creates, updates, and deletes pages", %{conn: conn} do
     moderator = moderator_fixture(%{role: "admin"})
 

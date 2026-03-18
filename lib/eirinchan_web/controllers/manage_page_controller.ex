@@ -22,7 +22,7 @@ defmodule EirinchanWeb.ManagePageController do
   alias Eirinchan.Settings
   alias Eirinchan.Themes
   alias Eirinchan.WhaleStickers
-  alias EirinchanWeb.{HtmlSanitizer, ManageSecurity, ModerationAudit, PostView, RequestMeta}
+  alias EirinchanWeb.{ManageSecurity, ModerationAudit, PostView, RequestMeta}
 
   plug :assign_manage_shell
 
@@ -2232,7 +2232,7 @@ defmodule EirinchanWeb.ManagePageController do
 
   defp current_global_message_preview_html do
     current_global_message()
-    |> HtmlSanitizer.sanitize_fragment()
+    |> EirinchanWeb.Announcements.render_message_fragment()
   end
 
   defp global_message_history do

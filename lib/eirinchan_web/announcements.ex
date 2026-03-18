@@ -22,20 +22,29 @@ defmodule EirinchanWeb.Announcements do
         ""
 
       message ->
-        sanitized_message = HtmlSanitizer.sanitize_fragment(message)
+        rendered_message = render_message_fragment(message)
 
         if Keyword.get(opts, :surround_hr, false) do
           """
           <hr />
-          <div class="blotter">#{sanitized_message}</div>
+          <div class="blotter">#{rendered_message}</div>
           <hr />
           """
           |> String.trim()
         else
-          ~s(<div class="blotter">#{sanitized_message}</div>)
+          ~s(<div class="blotter">#{rendered_message}</div>)
         end
     end
   end
+
+  def render_message_fragment(message) when is_binary(message) do
+    message
+    |> HtmlSanitizer.sanitize_fragment()
+    |> String.replace("\\n", "<br />")
+    |> String.replace(~r/\r\n|\r|\n/, "<br />")
+  end
+
+  def render_message_fragment(other), do: render_message_fragment(to_string(other))
 
   defp expand_placeholders(message, opts) do
     if String.contains?(message, "{stats.posts_perhour}") do
