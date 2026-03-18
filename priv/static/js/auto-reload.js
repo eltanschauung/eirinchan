@@ -577,7 +577,19 @@ $(document).ready(function(){
 						insertedPostIds.push(id);
 					}
 				});
-				$('div.post:last').next().after(elementsToAppend);
+				if (elementsToAppend.length) {
+					var currentContainer = $('#thread-refresh-target');
+					var lastReply = currentContainer.children('div.post.reply:last');
+					var clearBreak = lastReply.next('br.clear');
+
+					if (clearBreak.length) {
+						clearBreak.after(elementsToAppend);
+					} else if (lastReply.length) {
+						lastReply.after(elementsToAppend);
+					} else {
+						currentContainer.append(elementsToAppend);
+					}
+				}
 				recheck_activated();
 				insertedPostIds.forEach(function(id){
 					var inserted = document.getElementById(id);
@@ -603,7 +615,9 @@ $(document).ready(function(){
 						$('#thread-return, #thread-return-top').attr('href', boardPagePath);
 					}
 				}
-				sync_thread_seen();
+				if (typeof window.sync_thread_seen === 'function') {
+					window.sync_thread_seen();
+				}
 				time_loaded = Date.now(); // interop with watch.js
 				
 				
