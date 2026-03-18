@@ -20,7 +20,7 @@ defmodule EirinchanWeb.UploadedFileController do
 
       if File.exists?(path) do
         conn
-        |> put_resp_header("cache-control", CacheControl.cache_control_for_path(path))
+        |> put_resp_header("cache-control", CacheControl.cache_control_for_upload_bucket(bucket))
         |> put_resp_content_type(MIME.from_path(path))
         |> send_file(200, path)
       else

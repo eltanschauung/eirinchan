@@ -27,6 +27,10 @@ defmodule EirinchanWeb.CacheControl do
     end
   end
 
+  def cache_control_for_upload_bucket("thumb"), do: immutable(@one_year)
+  def cache_control_for_upload_bucket("src"), do: public(@one_month)
+  def cache_control_for_upload_bucket(_bucket), do: public(@ten_minutes)
+
   defp public(seconds), do: "public, max-age=#{seconds}"
   defp immutable(seconds), do: "public, max-age=#{seconds}, immutable"
 end
