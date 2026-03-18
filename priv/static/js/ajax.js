@@ -85,6 +85,25 @@ $(window).ready(function() {
 				window.markWatchedThreadSeen(boardUri, threadId, post_response.id);
 			};
 
+			var syncThreadPageState = function(post_response) {
+				if (!is_reply_form || !post_response) {
+					return;
+				}
+
+				if (post_response.board_page_num) {
+					$('#thread_stats_page').text(post_response.board_page_num);
+				}
+
+				if (post_response.board_page_path) {
+					$('#thread-return, #thread-return-top').attr('href', post_response.board_page_path);
+					$('#thread-refresh-target').attr('data-board-page-path', post_response.board_page_path);
+				}
+
+				if (post_response.board_page_num) {
+					$('#thread-refresh-target').attr('data-board-page-num', post_response.board_page_num);
+				}
+			};
+
 
 			var clearReplyFields = function() {
 				$(form).find('input[name="subject"],input[name="file_url"],input[name="embed"],\
@@ -181,6 +200,7 @@ $(window).ready(function() {
 								clearReplyFields();
 								resetSubmit();
 								syncSeenForReply(post_response);
+								syncThreadPageState(post_response);
 								triggerAjaxAfterPost(post_response);
 
 								try {
@@ -224,6 +244,7 @@ $(window).ready(function() {
 								clearReplyFields();
 								resetSubmit();
 								syncSeenForReply(post_response);
+								syncThreadPageState(post_response);
 								triggerAjaxAfterPost(post_response);
 								try {
 									if (history && history.replaceState) {

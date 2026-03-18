@@ -207,7 +207,7 @@
     $postForm.width($postForm.find('table').width());
     $postForm.hide();
 
-    $(window).trigger('quick-reply');
+    $(window).trigger('quick-reply', [$postForm[0]]);
 
     $(window).ready(function() {
       if (settings.get('hide_at_top', true)) {

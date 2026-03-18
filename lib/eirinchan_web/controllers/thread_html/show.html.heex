@@ -17,7 +17,11 @@
 
 <div class="banner">
   Posting mode: Reply
-  <a class="unimportant" href={Eirinchan.ThreadPaths.board_page_path(@board, @page_num, @config)}>
+  <a
+    id="thread-return-top"
+    class="unimportant"
+    href={Eirinchan.ThreadPaths.board_page_path(@board, @page_num, @config)}
+  >
     [Return]
   </a>
   <a class="unimportant" href="#bottom">[Go to bottom]</a>
@@ -344,7 +348,12 @@
       />
     </div>
 
-    <div id="thread-refresh-target" data-fragment-md5={@fragment_md5}>
+    <div
+      id="thread-refresh-target"
+      data-fragment-md5={@fragment_md5}
+      data-board-page-num={@page_num}
+      data-board-page-path={Eirinchan.ThreadPaths.board_page_path(@board, @page_num, @config)}
+    >
       <%= for reply <- @summary.replies do %>
         <% reply_public_id = PostView.public_post_id(reply) %>
         <div class="post reply" id={"reply_#{reply_public_id}"}>

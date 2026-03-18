@@ -1,36 +1,63 @@
 function user_flag() {
-	var boardField = document.getElementsByName('board')[0];
-	if (!boardField) {
+	var selector = 'input[name="user_flag"], textarea[name="user_flag"], select[name="user_flag"]';
+
+	var resolveBoardValue = function(scope) {
+		var boardField = (scope || document).querySelector('[name="board"]');
+		return boardField ? boardField.value : null;
+	};
+
+	var storageKeyForScope = function(scope) {
+		var boardValue = resolveBoardValue(scope);
+		return boardValue ? "flag_" + boardValue : null;
+	};
+
+	var storedValueForScope = function(scope) {
+		var key = storageKeyForScope(scope);
+		if (!key) return null;
+
+		var item = window.localStorage.getItem(key);
+		if (item !== null) return item;
+
+		var field = (scope || document).querySelector(selector);
+		if (!field) return null;
+
+		var defaultFlag = (field.value || '').toString();
+		if (defaultFlag !== '') {
+			window.localStorage.setItem(key, defaultFlag);
+		}
+
+		return defaultFlag;
+	};
+
+	var applyStoredValue = function(scope) {
+		var value = storedValueForScope(scope);
+		if (value === null) return;
+
+		$(scope || document)
+			.find(selector)
+			.val(value);
+	};
+
+	if (!resolveBoardValue(document)) {
 		return;
 	}
 
-	var flagStorage = "flag_" + boardField.value;
-	var selector = 'input[name="user_flag"], textarea[name="user_flag"], select[name="user_flag"]';
 	var $field = $(selector).first();
 	if (!$field.length) {
 		return;
 	}
 
-	var defaultFlag = ($field.val() || '').toString();
-	var item = window.localStorage.getItem(flagStorage);
-	if (item === null) {
-		item = defaultFlag;
-		if (item !== '') {
-			window.localStorage.setItem(flagStorage, item);
-		}
-	}
-
-	if (item !== null) {
-		$field.val(item);
-	}
+	applyStoredValue(document);
 
 	$(document).on('change input', selector, function() {
-		window.localStorage.setItem(flagStorage, $(this).val());
+		var key = storageKeyForScope($(this).closest('form')[0] || document);
+		if (!key) return;
+		window.localStorage.setItem(key, $(this).val());
 	});
 
-	$(window).on('quick-reply', function() {
-		var value = $(selector).first().val();
-		$('form#quick-reply input[name="user_flag"], form#quick-reply textarea[name="user_flag"], form#quick-reply select[name="user_flag"]').val(value);
+	$(window).on('quick-reply', function(_event, formNode) {
+		var scope = formNode || document.getElementById('quick-reply') || document;
+		applyStoredValue(scope);
 	});
 }
 if (active_page == 'thread' || active_page == 'index') {

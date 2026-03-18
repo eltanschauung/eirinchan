@@ -132,10 +132,19 @@ defmodule EirinchanWeb.PostController do
       end
 
     if params["json_response"] == "1" do
+      {board_page_num, board_page_path} =
+        if post.thread_id do
+          current_thread_page_state(board, thread_id, config)
+        else
+          {1, "/#{board.uri}"}
+        end
+
       payload = %{
         id: PublicIds.public_id(post),
         thread_id: public_thread_id,
         redirect: redirect_path,
+        board_page_num: board_page_num,
+        board_page_path: board_page_path,
         noko: meta.noko,
         fragment_kind: if(post.thread_id, do: "reply", else: "thread"),
         watcher_count: watcher_metrics.watcher_count,
@@ -502,6 +511,18 @@ defmodule EirinchanWeb.PostController do
       {:ok, thread} -> PublicIds.public_id(thread)
       _ -> internal_thread_id
     end
+  end
+
+  defp current_thread_page_state(board, internal_thread_id, config) do
+    public_id = public_thread_id(board, internal_thread_id)
+
+    page_num =
+      case Posts.find_thread_page(board, public_id, config: config) do
+        {:ok, value} -> value
+        {:error, :not_found} -> 1
+      end
+
+    {page_num, ThreadPaths.board_page_path(board, page_num, config)}
   end
 
   defp error_status(:thread_not_found), do: :not_found
