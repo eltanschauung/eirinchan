@@ -97,13 +97,10 @@ defmodule EirinchanWeb.PostView do
   def thread_path(board, post, config), do: ThreadPaths.thread_path(board, post, config)
 
   def thread_summary_path(board, %{thread: %Post{} = thread} = summary, config) do
-    noko50? =
-      case Map.fetch(summary, :has_noko50) do
-        {:ok, value} -> value
-        :error -> Map.get(summary, :reply_count, 0) >= Map.get(config, :noko50_min, 0)
-      end
-
-    ThreadPaths.thread_path(board, thread, config, noko50: noko50?)
+    ThreadPaths.preferred_thread_path(board, thread, config,
+      has_noko50: Map.get(summary, :has_noko50),
+      reply_count: Map.get(summary, :reply_count, 0)
+    )
   end
 
   def public_post_id(post), do: PublicIds.public_id(post)

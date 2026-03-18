@@ -396,9 +396,29 @@ defmodule EirinchanWeb.PageControllerTest do
     assert redirected_to(conn) == "/flags"
   end
 
+  test "GET /banners renders the banner picker page", %{conn: conn} do
+    moderator_fixture()
+
+    page =
+      conn
+      |> get("/banners")
+      |> html_response(200)
+
+    assert page =~ "<h1>Banners</h1>"
+    assert page =~ ~s(data-flag-page)
+    assert page =~ ~s(data-flag-storage-key="flag_bant")
+    assert page =~ ~s(src="/static/banners/)
+    assert page =~ "Submit more at"
+  end
+
   test "renders watcher page with watched threads", %{conn: conn} do
     moderator_fixture()
-    board = Eirinchan.BoardsFixtures.board_fixture(%{uri: "watchtest", title: "Watch Test"})
+    board =
+      Eirinchan.BoardsFixtures.board_fixture(%{
+        uri: "watchtest",
+        title: "Watch Test",
+        config_overrides: %{noko50_min: 0}
+      })
     thread = Eirinchan.PostsFixtures.thread_fixture(board, %{body: "watch body"})
     token = "token-1234567890123456"
 
@@ -416,6 +436,8 @@ defmodule EirinchanWeb.PageControllerTest do
     assert body =~ "Thread Watcher"
     assert body =~ "/watchtest/ - Opening subject"
     assert body =~ "[Unwatch]"
+    refute body =~ ~s(href="/watchtest/res/#{PublicIds.public_id(thread)}.html")
+    assert body =~ ~s(href="/watchtest/res/#{PublicIds.public_id(thread)}+50.html")
   end
 
   test "renders watcher unread counts", %{conn: conn} do

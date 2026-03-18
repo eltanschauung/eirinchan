@@ -541,6 +541,16 @@
     return true;
   }
 
+  function applyHashHighlight() {
+    if (
+      window.location.hash &&
+      window.location.hash.indexOf('#q') !== 0 &&
+      typeof window.highlightReply === 'function'
+    ) {
+      window.highlightReply(window.location.hash.substring(1));
+    }
+  }
+
   function citeReply(id, withLink) {
     try {
       var textarea = document.getElementById('body');
@@ -986,13 +996,7 @@
       initFlagPage();
       seedPostControlsPassword();
 
-      if (
-        window.location.hash &&
-        window.location.hash.indexOf('#q') !== 0 &&
-        typeof window.highlightReply === 'function'
-      ) {
-        window.highlightReply(window.location.hash.substring(1));
-      }
+      applyHashHighlight();
 
       processQuotedHash();
     };
@@ -1004,6 +1008,12 @@
   });
 
   window.addEventListener('load', function () {
+    applyHashHighlight();
+    processQuotedHash();
+  });
+
+  window.addEventListener('hashchange', function () {
+    applyHashHighlight();
     processQuotedHash();
   });
 

@@ -252,6 +252,7 @@ defmodule EirinchanWeb.Router do
     get "/formatting", PageController, :formatting
     get "/flag", PageController, :legacy_flags
     get "/flags", PageController, :flags
+    get "/banners", PageController, :banners
 
     get "/news", PageController, :news
     get "/catalog", PageController, :catalog
