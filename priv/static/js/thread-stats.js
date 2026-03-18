@@ -18,7 +18,7 @@ $(document).ready(function(){
 	thread_id = thread_id[thread_id.length -1].split('+')[0].split('-')[0].split('.')[0];
 
 	function update_thread_stats(){
-		var replies = $('#thread_'+ thread_id +' > div.post.reply:not(.post-hover):not(.inline)');
+		var replies = $('#thread_'+ thread_id +' div.post.reply:not(.post-hover):not(.inline)');
 
 		$('#thread_stats_posts').text(replies.length);
 		$('#thread_stats_images').text(replies.filter(function(){

@@ -13,11 +13,16 @@
  *
  */
 
-$(document).ready(function(){
-	if($('span.omitted').length == 0)
-		return; // nothing to expand
+window.EirinchanInitExpand = function(root) {
+	var $root = root ? $(root) : $(document);
+	if($root.find('span.omitted').length == 0)
+		return;
 
 	var do_expand = function() {
+		if ($(this).find('a').length) {
+			return;
+		}
+
 		$(this)
 			.html($(this).text().replace(_("Click reply to view."), '<a href="javascript:void(0)">'+_("Click to expand")+'</a>.'))
 			.find('a').click(window.expand_fun = function() {
@@ -59,11 +64,15 @@ $(document).ready(function(){
 			});
 	}
 
-	$('div.post.op span.omitted').each(do_expand);
+	$root.find('div.post.op span.omitted').each(do_expand);
+};
+
+$(document).ready(function(){
+	window.EirinchanInitExpand(document);
 
 	$(document).on("new_post", function(e, post) {
 		if (!$(post).hasClass("reply")) {
-			$(post).find('div.post.op span.omitted').each(do_expand);
+			window.EirinchanInitExpand(post);
 		}
 	});
 });

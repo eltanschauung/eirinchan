@@ -500,6 +500,10 @@ $(document).ready(function(){
 					}
 				});
 
+				if (typeof window.EirinchanInitExpand === 'function') {
+					window.EirinchanInitExpand(replacement);
+				}
+
 				if (loaded_posts > 0) {
 					new_posts += loaded_posts;
 					update_title();
@@ -557,6 +561,8 @@ $(document).ready(function(){
 					var currentContainer = document.getElementById('thread-refresh-target');
 					if (currentContainer) {
 						currentContainer.dataset.fragmentMd5 = replacement.dataset.fragmentMd5;
+						currentContainer.dataset.boardPageNum = replacement.dataset.boardPageNum || '';
+						currentContainer.dataset.boardPagePath = replacement.dataset.boardPagePath || '';
 					}
 				}
 				$(replacement || data).find('div.post.reply').each(function() {
@@ -587,6 +593,17 @@ $(document).ready(function(){
 						}
 					}
 				});
+
+				if (replacement && replacement.dataset) {
+					var boardPageNum = replacement.dataset.boardPageNum || '';
+					var boardPagePath = replacement.dataset.boardPagePath || '';
+					if (boardPageNum) {
+						$('#thread_stats_page').text(boardPageNum);
+					}
+					if (boardPagePath) {
+						$('#thread-return, #thread-return-top').attr('href', boardPagePath);
+					}
+				}
 				sync_thread_seen();
 				time_loaded = Date.now(); // interop with watch.js
 				
