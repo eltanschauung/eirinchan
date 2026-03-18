@@ -503,6 +503,9 @@ $(document).ready(function(){
 				if (typeof window.EirinchanInitExpand === 'function') {
 					window.EirinchanInitExpand(replacement);
 				}
+				if (window.EirinchanFrontend && typeof window.EirinchanFrontend.ensureAdminShortcuts === 'function') {
+					window.EirinchanFrontend.ensureAdminShortcuts();
+				}
 
 				if (loaded_posts > 0) {
 					new_posts += loaded_posts;
@@ -603,6 +606,9 @@ $(document).ready(function(){
 					if (boardPagePath) {
 						$('#thread-return, #thread-return-top').attr('href', boardPagePath);
 					}
+				}
+				if (window.EirinchanFrontend && typeof window.EirinchanFrontend.ensureAdminShortcuts === 'function') {
+					window.EirinchanFrontend.ensureAdminShortcuts();
 				}
 				sync_thread_seen();
 				time_loaded = Date.now(); // interop with watch.js

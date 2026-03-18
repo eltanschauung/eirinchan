@@ -30,6 +30,7 @@ defmodule Eirinchan.PostsTest do
 
   alias Eirinchan.Antispam
   alias Eirinchan.Build
+  alias Eirinchan.ModerationLog
   alias Eirinchan.Posts
   alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Posts.Post
@@ -896,6 +897,43 @@ defmodule Eirinchan.PostsTest do
       )
 
     assert {:ok, _thread} = Posts.get_post(board, PublicIds.public_id(old_thread))
+  end
+
+  test "create_post logs early-404 thread deletions to the moderation log" do
+    board =
+      board_fixture(%{
+        config_overrides: %{
+          early_404: true,
+          early_404_page: 1,
+          early_404_replies: 2,
+          threads_per_page: 1,
+          max_pages: 5
+        }
+      })
+
+    config = post_config(board.config_overrides)
+
+    {:ok, old_thread, _meta} =
+      Posts.create_post(
+        board,
+        %{"body" => "old", "post" => "New Topic"},
+        config: config,
+        request: post_request(board.uri)
+      )
+
+    {:ok, new_thread, _meta} =
+      Posts.create_post(
+        board,
+        %{"body" => "new", "post" => "New Topic"},
+        config: config,
+        request: post_request(board.uri)
+      )
+
+    assert ModerationLog.list_recent_entries_by_text(
+             "Automatically deleting thread ##{PublicIds.public_id(old_thread)} due to new thread ##{PublicIds.public_id(new_thread)}",
+             board_uri: board.uri,
+             limit: 1
+           ) != []
   end
 
   test "create_post prunes overflow threads when max pages are exceeded" do
