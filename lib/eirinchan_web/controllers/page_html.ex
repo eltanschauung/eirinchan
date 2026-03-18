@@ -12,14 +12,14 @@ defmodule EirinchanWeb.PageHTML do
     ~H"""
     <div class="watcher-page">
       <%= if @watch_summaries == [] do %>
-        <div class="post reply watcher-entry">
+        <div class="watcher-entry">
           <p class="body">No watched threads yet.</p>
         </div>
       <% else %>
         <div class="watcher-list">
           <%= for watch <- @watch_summaries do %>
-            <div class="thread watcher-thread">
-              <div class={["post reply watcher-entry", watch.unread_count > 0 && "has-unread"]}>
+            <div class="watcher-thread">
+              <div class={["watcher-entry", watch.unread_count > 0 && "has-unread"]}>
                 <p class="intro">
                   <a href={watch.thread_path}>
                   /<%= watch.board_uri %>/ - <%= watch.subject || watch.excerpt ||
