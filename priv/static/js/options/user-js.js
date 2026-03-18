@@ -27,25 +27,17 @@ var submit = $("<input type='button' value='"+_("Update custom Javascript")+"'>"
   left: 5, right: 5
 }).click(function() {
   localStorage.user_js = textarea.val();
-  document.location.reload();
+  apply_js();
 }).appendTo(tab.content);
 
 var apply_js = function() {
-  var proc = function() {
-    $('.user-js').remove();
-    $('script')
-      .last()
-      .after($("<script></script>")
-        .addClass("user-js")
-        .text(localStorage.user_js)
-      );
+  if (!localStorage.user_js) {
+    return;
   }
 
-  if (/immediate()/.test(localStorage.user_js)) {
-    proc(); // Apply the script immediately
-  }
-  else {
-    $(proc); // Apply the script when the page fully loads
+  if (!window.__userJsCspWarned) {
+    console.warn("User JS is disabled by the current Content Security Policy and will not run.");
+    window.__userJsCspWarned = true;
   }
 };
 
