@@ -1305,6 +1305,10 @@ defmodule EirinchanWeb.PostView do
     |> safe_to_string()
   end
 
+  defp human_file_size(size) when is_integer(size) and size >= 1_073_741_824 do
+    "#{Float.round(size / 1_073_741_824, 1)} GB"
+  end
+
   defp human_file_size(size) when is_integer(size) and size >= 1_048_576 do
     "#{Float.round(size / 1_048_576, 2)} MB"
   end
