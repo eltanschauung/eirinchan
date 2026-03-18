@@ -7,6 +7,12 @@
 (function() {
   var settings = new script_settings('quick-reply');
 
+  var get_live_quick_reply = function() {
+    return $('form#quick-reply').filter(function() {
+      return $(this).closest('template').length === 0;
+    }).first();
+  };
+
   var restore_body_owner = function($origPostForm, $postForm) {
     $postForm.find('textarea[name="body"]').removeAttr('id');
     $origPostForm.find('textarea[name="body"]').attr('id', 'body');
@@ -163,7 +169,11 @@
 
   var show_quick_reply = function() {
     if ($('div.banner').length === 0) return;
-    if (document.body && document.body.querySelector('form#quick-reply')) return;
+
+    var $existingPostForm = get_live_quick_reply();
+    if ($existingPostForm.length) {
+      return $existingPostForm;
+    }
 
     var template = document.getElementById('quick-reply-template');
     if (!template) return;
@@ -227,12 +237,25 @@
         sync_shell_theme($origPostForm, $postForm);
       });
     });
+
+    return $postForm;
   };
 
   $(window).on('cite', function(e, id, with_link) {
     if ($(this).width() <= 400) return;
 
-    show_quick_reply();
+    var $postForm = show_quick_reply();
+    var $origPostForm = $('form[name="post"]:first');
+
+    if ($postForm && $postForm.length) {
+      activate_quick_reply_body($origPostForm, $postForm);
+
+      if (settings.get('hide_at_top', true)) {
+        $postForm.stop(true, true).fadeIn(100);
+      } else {
+        $postForm.show();
+      }
+    }
 
     if (with_link) {
       $(document).ready(function() {
@@ -290,6 +313,20 @@
     }
 
     e.preventDefault();
+    var $postForm = show_quick_reply();
+    var $origPostForm = $('form[name="post"]:first');
+
+    if ($postForm && $postForm.length) {
+      activate_quick_reply_body($origPostForm, $postForm);
+      $postForm.stop(true, true).fadeIn(100);
+      $postForm.find('textarea[name="body"]').trigger('focus');
+    }
+  });
+
+  $(window).ready(function() {
+    if ($(window).width() <= 400) return;
+    if ($('div.banner').length === 0) return;
+
     show_quick_reply();
   });
 })();
