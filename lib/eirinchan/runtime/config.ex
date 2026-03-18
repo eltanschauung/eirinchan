@@ -135,7 +135,7 @@ defmodule Eirinchan.Runtime.Config do
     image_hard_limit: 0,
     spoiler_images: true,
     spoiler_image: "static/spoiler_skillet.png",
-    cycle_limit: 250,
+    cycle_limit: 1000,
     always_noko: false,
     secure_trip_salt: ")(*&^%$#@!98765432190zyxwvutsrqponmlkjihgfedcba",
     custom_tripcode: %{},

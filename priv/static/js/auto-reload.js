@@ -524,6 +524,9 @@ $(document).ready(function(){
 				if (typeof window.bind_image_hover === 'function') {
 					window.bind_image_hover(replacement);
 				}
+				if (typeof window.bind_inline_expanding === 'function') {
+					window.bind_inline_expanding(replacement);
+				}
 				if (loaded_posts > 0) {
 					new_posts += loaded_posts;
 					update_title();

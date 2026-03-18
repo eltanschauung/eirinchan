@@ -199,6 +199,20 @@ defmodule Eirinchan.Runtime.ConfigTest do
     assert config.search_query_global_limit_count == 0
   end
 
+  test "defaults cycle_limit to the vichan value" do
+    config =
+      Config.compose(
+        %{
+          root: "/",
+          dir: %{img: "img/", thumb: "thumb/", res: "res/"}
+        },
+        %{},
+        %{}
+      )
+
+    assert config.cycle_limit == 1000
+  end
+
   test "builds default vichan flood filters when filters are unset" do
     config =
       Config.compose(

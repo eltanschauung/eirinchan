@@ -67,7 +67,8 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ ~s(src="/main.js)
     assert page =~ ~s(id="options_handler")
     assert page =~ ~s(id="style-select")
-    assert page =~ "We witches are not whale lol."
+    assert page =~ "Tinyboard + vichan 5.2.2 +"
+    assert page =~ ~s(href="https://github.com/eltanschauung/eirinchan-v1")
 
     expected_total_posts =
       Repo.one(

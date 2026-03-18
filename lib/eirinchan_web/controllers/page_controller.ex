@@ -11,6 +11,7 @@ defmodule EirinchanWeb.PageController do
   alias Eirinchan.Installation
   alias Eirinchan.News
   alias Eirinchan.Posts
+  alias Eirinchan.Stats
   alias Eirinchan.ThreadWatcher
   alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.Posts.{Post, PostFile, PublicIds}
@@ -522,6 +523,8 @@ defmodule EirinchanWeb.PageController do
         :id
       )
 
+    posts_perhour = Stats.posts_perhour(board_ids)
+
     posters_week =
       Repo.one(
         from post in Post,
@@ -550,6 +553,7 @@ defmodule EirinchanWeb.PageController do
     %{
       total_posts: number_with_delimiters(total_posts),
       unique_posters: number_with_delimiters(unique_posters),
+      posts_perhour: number_with_delimiters(posts_perhour),
       posts_week: number_with_delimiters(posts_week),
       posters_week: number_with_delimiters(posters_week),
       active_content: PostView.file_size_text(%{file_size: primary_bytes + extra_bytes})

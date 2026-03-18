@@ -37,6 +37,7 @@ defmodule EirinchanWeb.SearchHTML do
               post_href={PostView.thread_path(@board, @post, @config) <> "##{@public_post_id}"}
               quote_href={PostView.reply_path(@board, @post, @post, @config, :quote)}
               quote_to={@public_post_id}
+              quote_mode={:navigate}
             />
             <%= for icon <- PostView.state_icons(@post, @config) do %>
               <img class="icon" title={icon.title} src={icon.path} alt={icon.title} />
@@ -71,6 +72,7 @@ defmodule EirinchanWeb.SearchHTML do
             post_href={PostView.thread_path(@board, @thread, @config) <> "##{@public_post_id}"}
             quote_href={PostView.reply_path(@board, @thread, @post, @config, :quote)}
             quote_to={@public_post_id}
+            quote_mode={:navigate}
           />
         </p>
 
