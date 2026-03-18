@@ -77,7 +77,8 @@ defmodule EirinchanWeb.ThreadController do
             current_moderator: conn.assigns[:current_moderator],
             secure_manage_token: conn.assigns[:secure_manage_token],
             config: config,
-            global_message_html: Announcements.global_message_html(config, surround_hr: true),
+            global_message_html:
+              Announcements.global_message_html(config, surround_hr: true, board: board),
             page_num: page_num,
             boards: boards,
             board_chrome: chrome,

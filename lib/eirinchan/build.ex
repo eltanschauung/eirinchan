@@ -415,7 +415,7 @@ defmodule Eirinchan.Build do
 
   defp render_index(board, page_data, config) do
     boardlist = render_boardlist(Boards.list_boards())
-    blotter = render_index_blotter(config)
+    blotter = render_index_blotter(board, config)
 
     items =
       Enum.map_join(page_data.threads, "\n", fn summary ->
@@ -457,10 +457,10 @@ defmodule Eirinchan.Build do
     """
   end
 
-  defp render_index_blotter(config) do
+  defp render_index_blotter(board, config) do
     [
       Announcements.news_blotter_html(config),
-      Announcements.global_message_html(config, surround_hr: true)
+      Announcements.global_message_html(config, surround_hr: true, board: board)
     ]
     |> Enum.reject(&(&1 == ""))
     |> Enum.join("\n")
