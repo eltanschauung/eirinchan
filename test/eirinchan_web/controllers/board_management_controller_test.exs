@@ -325,6 +325,21 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     assert blotter_pos < search_pos
   end
 
+  test "board page resolves stats placeholders in global message", %{conn: conn} do
+    :ok = Eirinchan.Settings.persist_instance_config(%{global_message: "PPH: {stats.posts_perhour}"})
+    board = board_fixture(%{uri: "pphtest", title: "PPH Test"})
+    thread = thread_fixture(board)
+    _reply = reply_fixture(board, thread)
+
+    response =
+      conn
+      |> get(~p"/#{board.uri}")
+      |> html_response(200)
+
+    assert response =~ ~s(<div class="blotter">PPH: 2</div>)
+    refute response =~ "{stats.posts_perhour}"
+  end
+
   test "board pages honor explicit post form row toggles", %{conn: conn} do
     board =
       board_fixture(%{

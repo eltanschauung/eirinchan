@@ -138,7 +138,8 @@ defmodule EirinchanWeb.BoardController do
           secure_manage_token: conn.assigns[:secure_manage_token],
           config: config,
           news_blotter_html: Announcements.news_blotter_html(config),
-          global_message_html: Announcements.global_message_html(config, surround_hr: true),
+          global_message_html:
+            Announcements.global_message_html(config, surround_hr: true, board: board),
           boards: boards,
           board_chrome: chrome,
           global_boardlist_groups:
@@ -270,7 +271,8 @@ defmodule EirinchanWeb.BoardController do
           mobile_client?: conn.assigns[:mobile_client?] || false,
           config: config,
           news_blotter_html: Announcements.news_blotter_html(config),
-          global_message_html: Announcements.global_message_html(config, surround_hr: true),
+          global_message_html:
+            Announcements.global_message_html(config, surround_hr: true, board: board),
           boards: boards,
           board_chrome: chrome,
           global_boardlist_groups:
