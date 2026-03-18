@@ -13,12 +13,7 @@
 </header>
 
 <div class="ban flag-page-shell">
-  <div
-    id="content"
-    style="text-align:center;margin-top:2em;margin-bottom:2em;"
-    data-flag-page
-    data-flag-storage-key={"flag_" <> if(@primary_board, do: @primary_board.uri, else: "bant")}
-  >
+  <div id="content" style="text-align:center;margin-top:2em;margin-bottom:2em;">
     <span class="rotate"><p1>Wow, this website is cool!</p1></span>
 
     <div class="center-container">
@@ -35,24 +30,6 @@
       </p1>
       <br /><br />
     </div>
-
-    <div id="exampleBox" class="flag-page-controls">
-      <div class="postblock">Flags</div>
-      <input
-        name="user_flag"
-        type="text"
-        maxlength="300"
-        autocomplete="off"
-        id="user_flag"
-      />
-      <div id="buttons">
-        <button type="button" id="applyButton">Apply</button>
-        <button type="button" id="clearButton">Clear</button>
-      </div>
-    </div>
-
-    <br />
-    <p><i>Tip:</i> You can click the banners.</p>
   </div>
 </div>
 

@@ -24,6 +24,22 @@
 auto_reload_enabled = true; // for watch.js to interop
 
 $(document).ready(function(){
+	var livePageCookieName = 'live_page_auto_update';
+	var readLivePageCookie = function() {
+		var match = document.cookie.match(new RegExp('(?:^|; )' + livePageCookieName + '=([^;]*)'));
+		if (!match) {
+			return true;
+		}
+
+		return decodeURIComponent(match[1]) !== '0';
+	};
+
+	var writeLivePageCookie = function(enabled) {
+		document.cookie =
+			livePageCookieName + '=' + encodeURIComponent(enabled ? '1' : '0') +
+			'; path=/; max-age=' + (60 * 60 * 24 * 365);
+	};
+
 	var is_thread_page = $('div.banner').length != 0 && $(".post.op").length == 1;
 	var is_catalog_page = $('body').hasClass('active-catalog') && $('#Grid').length == 1;
 	var is_board_page = $('body').hasClass('active-index') && !is_thread_page && !is_catalog_page && $('#board-refresh-target').length == 1;
@@ -100,6 +116,8 @@ $(document).ready(function(){
 	
 
 	$('#auto_update_status').change(function() {
+		writeLivePageCookie($("#auto_update_status").is(':checked'));
+
 		if($("#auto_update_status").is(':checked')) {
 			auto_update(poll_interval_mindelay);
 		} else {
@@ -687,6 +705,8 @@ $(document).ready(function(){
 		checkbox.trigger('change');
 		return false;
 	});
+
+	$('#auto_update_status').prop('checked', readLivePageCookie());
 
 	update_live_button_state();
 

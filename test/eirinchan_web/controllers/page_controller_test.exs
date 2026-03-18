@@ -1,9 +1,12 @@
 defmodule EirinchanWeb.PageControllerTest do
   use EirinchanWeb.ConnCase
+  import Ecto.Query
 
+  alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.Posts.PublicIds
   alias Eirinchan.ThreadWatcher
   alias Eirinchan.PostOwnership
+  alias Eirinchan.Repo
 
   setup do
     original_path = Application.get_env(:eirinchan, :instance_config_path)
@@ -25,11 +28,23 @@ defmodule EirinchanWeb.PageControllerTest do
     :ok
   end
 
+  defp with_delimiters(value) when is_integer(value) do
+    value
+    |> Integer.to_string()
+    |> String.reverse()
+    |> String.replace(~r/(.{3})(?=.)/, "\\1,")
+    |> String.reverse()
+  end
+
   test "GET /", %{conn: conn} do
     moderator_fixture()
     board = board_fixture(%{uri: "tech", title: "Technology"})
+    board_two = board_fixture(%{uri: "qa", title: "Question & Answer"})
     thread = thread_fixture(board, %{subject: "Opening", body: "Alpha bravo charlie delta"})
     reply_fixture(board, thread, %{body: "Recent reply body"})
+
+    Repo.update_all(from(b in BoardRecord, where: b.id == ^board.id), set: [next_public_post_id: 336_961])
+    Repo.update_all(from(b in BoardRecord, where: b.id == ^board_two.id), set: [next_public_post_id: 25])
 
     conn = get(conn, ~p"/")
     page = html_response(conn, 200)
@@ -53,6 +68,14 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ ~s(id="options_handler")
     assert page =~ ~s(id="style-select")
     assert page =~ "We witches are not whale lol."
+
+    expected_total_posts =
+      Repo.one(
+        from board in BoardRecord,
+          select: coalesce(sum(fragment("GREATEST(COALESCE(?, 1) - 1, 0)", board.next_public_post_id)), 0)
+      )
+
+    assert page =~ "Total posts: #{with_delimiters(expected_total_posts)}"
   end
 
   test "GET / recent links prefer noko50 threads when available", %{conn: conn} do
@@ -405,10 +428,10 @@ defmodule EirinchanWeb.PageControllerTest do
       |> html_response(200)
 
     assert page =~ "<h1>Banners</h1>"
-    assert page =~ ~s(data-flag-page)
-    assert page =~ ~s(data-flag-storage-key="flag_bant")
     assert page =~ ~s(src="/static/banners/)
     assert page =~ "Submit more at"
+    refute page =~ ~s(id="exampleBox")
+    refute page =~ ~s(data-flag-page)
   end
 
   test "renders watcher page with watched threads", %{conn: conn} do

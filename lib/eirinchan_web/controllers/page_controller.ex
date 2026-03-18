@@ -12,6 +12,7 @@ defmodule EirinchanWeb.PageController do
   alias Eirinchan.News
   alias Eirinchan.Posts
   alias Eirinchan.ThreadWatcher
+  alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.Posts.{Post, PostFile, PublicIds}
   alias Eirinchan.Repo
   alias Eirinchan.Runtime.Config
@@ -501,7 +502,11 @@ defmodule EirinchanWeb.PageController do
     week_cutoff = DateTime.utc_now() |> DateTime.add(-7 * 24 * 60 * 60, :second)
 
     total_posts =
-      Repo.aggregate(from(post in Post, where: post.board_id in ^board_ids), :count, :id)
+      Repo.one(
+        from board in BoardRecord,
+          where: board.id in ^board_ids,
+          select: coalesce(sum(fragment("GREATEST(COALESCE(?, 1) - 1, 0)", board.next_public_post_id)), 0)
+      ) || 0
 
     unique_posters =
       Repo.one(
