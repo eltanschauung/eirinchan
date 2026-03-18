@@ -25,6 +25,7 @@ defmodule Eirinchan.Posts do
   alias Eirinchan.Repo
   alias Eirinchan.Runtime.Config
   alias Eirinchan.Uploads
+  alias Eirinchan.ModerationLog
 
   @spec create_post(BoardRecord.t(), map(), keyword()) ::
           {:ok, Post.t(), map()}
@@ -106,7 +107,7 @@ defmodule Eirinchan.Posts do
                maybe_cycle_thread(board, thread, config, repo)
                :ok
              end) do
-        _ = maybe_prune_threads(board, config, repo)
+        _ = maybe_prune_threads(board, post, config, repo)
         _ = Antispam.log_post(board, attrs, request, repo: repo)
         _ = Build.rebuild_after_post(board, post, config: config, repo: repo)
         {:ok, post, %{noko: false}}
@@ -237,15 +238,36 @@ defmodule Eirinchan.Posts do
     end
   end
 
-  defp maybe_prune_threads(board, config, repo) do
-    PostsPruning.prune(board, config, repo, fn thread_id ->
-      _ =
-        case get_post_by_internal_id(board, thread_id, repo: repo) do
-          {:ok, thread} -> moderate_delete_post(board, PublicIds.public_id(thread), repo: repo, config: config)
-          _ -> :ok
-        end
+  defp maybe_prune_threads(board, new_post, config, repo) do
+    PostsPruning.prune(board, config, repo, fn thread_id, reason ->
+      case get_post_by_internal_id(board, thread_id, repo: repo) do
+        {:ok, thread} ->
+          _ = maybe_log_early_404(board, thread, new_post, reason)
+          moderate_delete_post(board, PublicIds.public_id(thread), repo: repo, config: config)
+
+        _ ->
+          :ok
+      end
     end)
   end
+
+  defp maybe_log_early_404(_board, _thread, _new_post, {:early_404, reply_count})
+       when not is_integer(reply_count),
+       do: :ok
+
+  defp maybe_log_early_404(board, thread, new_post, {:early_404, reply_count}) do
+    if not is_nil(new_post.thread_id) do
+      :ok
+    else
+    ModerationLog.log_action(%{
+      board_uri: board.uri,
+      text:
+        "Automatically deleting thread ##{PublicIds.public_id(thread)} due to new thread ##{PublicIds.public_id(new_post)} (early 404 is set, ##{PublicIds.public_id(thread)} had #{reply_count} replies)"
+    })
+    end
+  end
+
+  defp maybe_log_early_404(_board, _thread, _new_post, _reason), do: :ok
 
   @spec update_post(BoardRecord.t(), String.t() | integer(), map(), keyword()) ::
           {:ok, Post.t()} | {:error, :not_found | Ecto.Changeset.t() | :cite_insert_failed}

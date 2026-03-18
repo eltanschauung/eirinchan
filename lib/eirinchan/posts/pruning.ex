@@ -6,8 +6,14 @@ defmodule Eirinchan.Posts.Pruning do
   alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.Posts.Post
 
-  @spec prune(BoardRecord.t(), map(), module(), (integer() -> any())) :: :ok
+  @spec prune(BoardRecord.t(), map(), module(), function()) :: :ok
   def prune(%BoardRecord{} = board, config, repo, delete_thread_fun) when is_function(delete_thread_fun, 1) do
+    prune_overflow_threads(board, config, repo, delete_thread_fun)
+    prune_early_404_threads(board, config, repo, delete_thread_fun)
+    :ok
+  end
+
+  def prune(%BoardRecord{} = board, config, repo, delete_thread_fun) when is_function(delete_thread_fun, 2) do
     prune_overflow_threads(board, config, repo, delete_thread_fun)
     prune_early_404_threads(board, config, repo, delete_thread_fun)
     :ok
@@ -24,7 +30,9 @@ defmodule Eirinchan.Posts.Pruning do
           offset: ^max_threads,
           select: post.id
       )
-      |> Enum.each(delete_thread_fun)
+      |> Enum.each(fn thread_id ->
+        invoke_delete(delete_thread_fun, thread_id, :overflow)
+      end)
     end
   end
 
@@ -52,7 +60,7 @@ defmodule Eirinchan.Posts.Pruning do
         if(config.early_404_staged, do: {config.early_404_page, 0}, else: {1, 0}),
         fn row, {page, iter} ->
           if row.reply_count < page * config.early_404_replies do
-            delete_thread_fun.(row.thread_id)
+            invoke_delete(delete_thread_fun, row.thread_id, {:early_404, row.reply_count})
           end
 
           if config.early_404_staged do
@@ -72,4 +80,11 @@ defmodule Eirinchan.Posts.Pruning do
   end
 
   defp prune_early_404_threads(_board, _config, _repo, _delete_thread_fun), do: :ok
+
+  defp invoke_delete(delete_thread_fun, thread_id, reason) do
+    case :erlang.fun_info(delete_thread_fun, :arity) do
+      {:arity, 2} -> delete_thread_fun.(thread_id, reason)
+      _ -> delete_thread_fun.(thread_id)
+    end
+  end
 end

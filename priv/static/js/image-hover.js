@@ -120,6 +120,11 @@ function initImageHover() { //Pashe, influenced by tux, et al, WTFPL
 
 function imageHoverStart(e) { //Pashe, anonish, WTFPL
 	var hoverImage = $("#chx_hoverImage");
+	var $this = $(this);
+
+	if ($this.hasClass('yt-embed') || $this.closest('.video-container').length) {
+		return;
+	}
 	
 	if (hoverImage.length) {
 		if (getSetting("imageHoverFollowCursor")) {
@@ -128,9 +133,7 @@ function imageHoverStart(e) { //Pashe, anonish, WTFPL
 		
 		return;
 	}
-	
-	var $this = $(this);
-	
+
 	var fullUrl = resolveFullImageUrl($this);
 
 	if (isOnCatalog() && fullUrl && !isImage(getFileExtension(fullUrl))) {

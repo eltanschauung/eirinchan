@@ -188,7 +188,7 @@ function init_file_selector(max_images, root) {
   });
 
   var dragCounter = 0;
-  var dropTarget = $dropzoneWrap[0];
+  var dropTarget = $root[0];
 
   function cancelDragEvent(e) {
     e.stopPropagation();
