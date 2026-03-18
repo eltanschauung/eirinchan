@@ -21,6 +21,7 @@ defmodule EirinchanWeb.PageController do
   alias EirinchanWeb.HtmlSanitizer
   alias EirinchanWeb.PostView
   alias EirinchanWeb.PublicShell
+  alias Eirinchan.ThreadPaths
 
   def home(conn, _params) do
     if Installation.setup_required?() do
@@ -107,6 +108,22 @@ defmodule EirinchanWeb.PageController do
       else
         send_resp(conn, :not_found, "Page not found")
       end
+    end
+  end
+
+  def banners(conn, _params) do
+    if Installation.setup_required?() do
+      redirect(conn, to: ~p"/setup")
+    else
+      render(
+        conn,
+        :banners,
+        Keyword.merge(
+          public_page_assigns(conn, "active-page", "banners"),
+          layout: false,
+          banner_assets: banner_assets()
+        )
+      )
     end
   end
 
@@ -594,8 +611,10 @@ defmodule EirinchanWeb.PageController do
     |> Enum.map(fn post ->
       thread = post.thread || post
       config = board_config(post.board)
-      has_noko50 = Map.get(reply_counts, thread.id, 0) >= config.noko50_min
-      {thread.id, Eirinchan.ThreadPaths.thread_path(post.board, thread, config, noko50: has_noko50)}
+      {thread.id,
+       ThreadPaths.preferred_thread_path(post.board, thread, config,
+         reply_count: Map.get(reply_counts, thread.id, 0)
+       )}
     end)
     |> Map.new()
   end
@@ -823,22 +842,28 @@ defmodule EirinchanWeb.PageController do
     |> Phoenix.HTML.safe_to_string()
   end
 
-  defp thread_watcher_path(summary) do
-    base = "/#{summary.board_uri}/res/#{summary.thread_id}"
+  defp thread_watcher_path(summary, board_configs) do
+    config = Map.get(board_configs, summary.board_uri, Settings.current_instance_config())
 
-    if is_binary(summary.slug) and summary.slug != "" do
-      base <> "-" <> summary.slug <> ".html"
-    else
-      base <> ".html"
-    end
+    ThreadPaths.preferred_thread_path_from_public_id(
+      summary.board_uri,
+      summary.thread_id,
+      summary.slug,
+      config,
+      post_count: summary.post_count
+    )
   end
 
   defp watcher_summaries(conn) do
     case conn.assigns[:browser_token] do
       token when is_binary(token) ->
+        board_configs =
+          Boards.list_boards()
+          |> Map.new(fn board -> {board.uri, board_config(board)} end)
+
         ThreadWatcher.list_watch_summaries(token)
         |> Enum.map(fn summary ->
-          thread_path = thread_watcher_path(summary)
+          thread_path = thread_watcher_path(summary, board_configs)
 
           summary
           |> Map.put(:thread_path, thread_path)
@@ -854,6 +879,18 @@ defmodule EirinchanWeb.PageController do
       _ ->
         []
     end
+  end
+
+  defp banner_assets do
+    Path.join(:code.priv_dir(:eirinchan), "static/static/banners")
+    |> File.ls!()
+    |> Enum.sort()
+    |> Enum.map(fn filename ->
+      %{
+        name: Path.rootname(filename),
+        url: "/static/banners/#{filename}"
+      }
+    end)
   end
 
   defp watcher_metrics(conn) do

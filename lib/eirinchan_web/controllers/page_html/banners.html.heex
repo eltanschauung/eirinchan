@@ -1,0 +1,61 @@
+<img
+  :if={@primary_board && @primary_board.uri == "bant"}
+  class="board_image"
+  data-random-banner="/b.php"
+  src={EirinchanWeb.BannerAsset.banner_url(Eirinchan.Settings.current_instance_config())}
+  style="width:300px;height:100px;cursor:pointer"
+  alt=""
+/>
+
+<header>
+  <h1>Banners</h1>
+  <div class="subtitle"></div>
+</header>
+
+<div class="ban flag-page-shell">
+  <div
+    id="content"
+    style="text-align:center;margin-top:2em;margin-bottom:2em;"
+    data-flag-page
+    data-flag-storage-key={"flag_" <> if(@primary_board, do: @primary_board.uri, else: "bant")}
+  >
+    <span class="rotate"><p1>Wow, this website is cool!</p1></span>
+
+    <div class="center-container">
+      <div class="image-canvas">
+        <%= for asset <- @banner_assets do %>
+          <img src={asset.url} alt={asset.name} title={asset.name} />
+        <% end %>
+      </div>
+    </div>
+
+    <div id="blotter" class="flag-page-blotter">
+      <p1>
+        Submit more at <a href="/j3/res/776.html">>>/j3/776</a>
+      </p1>
+      <br /><br />
+    </div>
+
+    <div id="exampleBox" class="flag-page-controls">
+      <div class="postblock">Flags</div>
+      <input
+        name="user_flag"
+        type="text"
+        maxlength="300"
+        autocomplete="off"
+        id="user_flag"
+      />
+      <div id="buttons">
+        <button type="button" id="applyButton">Apply</button>
+        <button type="button" id="clearButton">Clear</button>
+      </div>
+    </div>
+
+    <br />
+    <p><i>Tip:</i> You can click the banners.</p>
+  </div>
+</div>
+
+<%= if @board_chrome.show_footer do %>
+  <EirinchanWeb.PostComponents.site_footer />
+<% end %>

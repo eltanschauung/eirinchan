@@ -19,7 +19,21 @@ defmodule Eirinchan.ThreadPaths do
 
   @spec thread_filename(Post.t(), map(), keyword()) :: String.t()
   def thread_filename(%Post{slug: slug} = thread, config, opts \\ []) do
-    public_id = PublicIds.public_id(thread)
+    thread_filename_from_public_id(PublicIds.public_id(thread), slug, config, opts)
+  end
+
+  @spec legacy_thread_filename(Post.t(), map()) :: String.t()
+  def legacy_thread_filename(%Post{} = thread, config) do
+    String.replace(config.file_page, "%d", Integer.to_string(PublicIds.public_id(thread)))
+  end
+
+  @spec thread_path(BoardRecord.t(), Post.t(), map(), keyword()) :: String.t()
+  def thread_path(%BoardRecord{uri: board_uri}, %Post{} = thread, config, opts \\ []) do
+    thread_path_from_public_id(board_uri, PublicIds.public_id(thread), thread.slug, config, opts)
+  end
+
+  @spec thread_filename_from_public_id(integer(), String.t() | nil, map(), keyword()) :: String.t()
+  def thread_filename_from_public_id(public_id, slug, config, opts \\ []) when is_integer(public_id) do
     noko50? = Keyword.get(opts, :noko50, false)
 
     template =
@@ -34,14 +48,46 @@ defmodule Eirinchan.ThreadPaths do
     |> String.replace("%s", slug || "")
   end
 
-  @spec legacy_thread_filename(Post.t(), map()) :: String.t()
-  def legacy_thread_filename(%Post{} = thread, config) do
-    String.replace(config.file_page, "%d", Integer.to_string(PublicIds.public_id(thread)))
+  @spec thread_path_from_public_id(String.t(), integer(), String.t() | nil, map(), keyword()) ::
+          String.t()
+  def thread_path_from_public_id(board_uri, public_id, slug, config, opts \\ [])
+      when is_binary(board_uri) and is_integer(public_id) do
+    "/#{board_uri}/#{config.dir.res}#{thread_filename_from_public_id(public_id, slug, config, opts)}"
   end
 
-  @spec thread_path(BoardRecord.t(), Post.t(), map(), keyword()) :: String.t()
-  def thread_path(%BoardRecord{uri: board_uri}, %Post{} = thread, config, opts \\ []) do
-    "/#{board_uri}/#{config.dir.res}#{thread_filename(thread, config, opts)}"
+  @spec preferred_thread_path(BoardRecord.t(), Post.t(), map(), keyword()) :: String.t()
+  def preferred_thread_path(%BoardRecord{} = board, %Post{} = thread, config, opts \\ []) do
+    thread_path(board, thread, config, noko50: noko50?(config, opts))
+  end
+
+  @spec preferred_thread_path_from_public_id(
+          String.t(),
+          integer(),
+          String.t() | nil,
+          map(),
+          keyword()
+        ) ::
+          String.t()
+  def preferred_thread_path_from_public_id(board_uri, public_id, slug, config, opts \\ [])
+      when is_binary(board_uri) and is_integer(public_id) do
+    thread_path_from_public_id(board_uri, public_id, slug, config, noko50: noko50?(config, opts))
+  end
+
+  @spec noko50?(map(), keyword()) :: boolean()
+  def noko50?(config, opts \\ []) do
+    cond do
+      is_boolean(opts[:has_noko50]) ->
+        opts[:has_noko50]
+
+      is_integer(opts[:reply_count]) ->
+        opts[:reply_count] >= Map.get(config, :noko50_min, 0)
+
+      is_integer(opts[:post_count]) ->
+        max(opts[:post_count] - 1, 0) >= Map.get(config, :noko50_min, 0)
+
+      true ->
+        false
+    end
   end
 
   @spec board_page_path(BoardRecord.t(), pos_integer(), map()) :: String.t()
