@@ -74,7 +74,7 @@ function setupVideo(thumb, url) {
 			thumb.parentNode.insertBefore(videoContainer, thumb.nextSibling);
 
 			// Keep native mobile control gestures local to the video player.
-			["click", "touchstart", "touchmove", "touchend"].forEach(function(eventName) {
+			["click", "touchstart", "touchmove", "touchend", "pointerdown", "pointermove", "pointerup", "pointercancel", "mousedown", "mouseup"].forEach(function(eventName) {
 				video.addEventListener(eventName, function(e) {
 					e.stopPropagation();
 				}, false);
@@ -268,13 +268,13 @@ function setupVideo(thumb, url) {
 function setupVideosIn(element) {
 	let thumbs = element.querySelectorAll("a.file");
 	for (let i = 0; i < thumbs.length; i++) {
-		if (/\.webm$|\.mp4$/.test(thumbs[i].pathname)) {
+		if (/\.webm$|\.mp4$|\.mp3$|\.wav$|\.mov$|\.flac$/i.test(thumbs[i].pathname)) {
 			setupVideo(thumbs[i], thumbs[i].href);
 		} else {
 			let m = thumbs[i].search.match(/\bv=([^&]*)/);
 			if (m != null) {
 				let url = decodeURIComponent(m[1]);
-				if (/\.webm$|\.mp4$/.test(url)) {
+				if (/\.webm$|\.mp4$|\.mp3$|\.wav$|\.mov$|\.flac$/i.test(url)) {
 					setupVideo(thumbs[i], url);
 				}
 			}
