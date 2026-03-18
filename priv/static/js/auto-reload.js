@@ -521,6 +521,9 @@ $(document).ready(function(){
 				if (typeof window.EirinchanInitExpand === 'function') {
 					window.EirinchanInitExpand(replacement);
 				}
+				if (typeof window.bind_image_hover === 'function') {
+					window.bind_image_hover(replacement);
+				}
 				if (loaded_posts > 0) {
 					new_posts += loaded_posts;
 					update_title();

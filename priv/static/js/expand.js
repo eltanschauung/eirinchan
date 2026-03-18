@@ -15,7 +15,12 @@
 
 window.EirinchanInitExpand = function(root) {
 	var $root = root ? $(root) : $(document);
-	if($root.find('span.omitted').length == 0)
+	var $omitted = $root.is('span.omitted') ? $root : $root.find('span.omitted');
+	$omitted = $omitted.filter(function() {
+		return $(this).closest('[id^="thread_"]').length > 0 && !$(this).hasClass('hide-expanded');
+	});
+
+	if($omitted.length == 0)
 		return;
 
 	var do_expand = function() {
@@ -52,19 +57,24 @@ window.EirinchanInitExpand = function(root) {
 
 						thread.find("span.omitted").css('display', 'none');
 
+						var insertionPoint = thread.children('span.omitted').last();
+						if (!insertionPoint.length) {
+							insertionPoint = thread.find('.op div.body').last();
+						}
+
 						$('<span class="omitted hide-expanded"><a href="javascript:void(0)">' + _('Hide expanded replies') + '</a>.</span>')
-							.insertAfter(thread.find('.op div.body, .op span.omitted').last())
+							.insertAfter(insertionPoint)
 							.click(function() {
 								thread.find('.expanded').remove();
-								$(this).parent().find(".omitted:not(.hide-expanded)").css('display', '');
-								$(this).parent().find(".hide-expanded").remove();
+								thread.find(".omitted:not(.hide-expanded)").css('display', '');
+								thread.find(".hide-expanded").remove();
 							});
 					}
 				});
 			});
 	}
 
-	$root.find('div.post.op span.omitted').each(do_expand);
+	$omitted.each(do_expand);
 };
 
 $(document).ready(function(){
