@@ -16,30 +16,6 @@
     return isNaN(parsed) ? fallback : parsed;
   }
 
-  var adminShortcutsTemplate = null;
-
-  function cacheAdminShortcutsTemplate() {
-    if (adminShortcutsTemplate) return;
-
-    var current = document.querySelector('.admin-shortcuts');
-    if (!current) return;
-
-    adminShortcutsTemplate = current.cloneNode(true);
-  }
-
-  function ensureAdminShortcuts() {
-    cacheAdminShortcutsTemplate();
-
-    if (!document.body || !document.body.classList.contains('is-moderator')) return;
-    if (document.querySelector('.admin-shortcuts')) return;
-    if (!adminShortcutsTemplate) return;
-
-    var header = document.querySelector('header');
-    if (!header) return;
-
-    header.appendChild(adminShortcutsTemplate.cloneNode(true));
-  }
-
   function appendStyleChooser() {
     if (document.querySelector('div.styles') || document.getElementById('style-select')) return;
 
@@ -996,8 +972,7 @@
     {
       initPost: initPost,
       initPosts: initPosts,
-      afterPostSuccess: afterPostSuccess,
-      ensureAdminShortcuts: ensureAdminShortcuts
+      afterPostSuccess: afterPostSuccess
     };
   window.ready =
     window.ready ||
@@ -1007,7 +982,6 @@
       window.initStyleChooser();
       restoreSavedStyle();
       bindRandomBanners();
-      ensureAdminShortcuts();
       initPostForms();
       initFlagPage();
       seedPostControlsPassword();
