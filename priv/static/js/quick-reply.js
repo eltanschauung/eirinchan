@@ -163,7 +163,7 @@
 
   var show_quick_reply = function() {
     if ($('div.banner').length === 0) return;
-    if ($('#quick-reply').length !== 0) return;
+    if (document.body && document.body.querySelector('form#quick-reply')) return;
 
     var template = document.getElementById('quick-reply-template');
     if (!template) return;
