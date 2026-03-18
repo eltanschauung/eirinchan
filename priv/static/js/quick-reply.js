@@ -283,4 +283,13 @@
       }
     });
   }
+
+  $(document).on('click.quickReplyLink', '#link-quick-reply', function(e) {
+    if ($(window).width() <= 400) {
+      return;
+    }
+
+    e.preventDefault();
+    show_quick_reply();
+  });
 })();
