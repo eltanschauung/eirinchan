@@ -79,6 +79,16 @@
 
       var highlightLink = event.target.closest('a[data-highlight-reply]');
       if (highlightLink) {
+        var highlightUrl = highlightLink.href ? new URL(highlightLink.href, window.location.href) : null;
+
+        if (
+          highlightUrl &&
+          (highlightUrl.origin !== window.location.origin ||
+            highlightUrl.pathname !== window.location.pathname)
+        ) {
+          return;
+        }
+
         if (typeof window.highlightReply === 'function') {
           window.highlightReply(highlightLink.getAttribute('data-highlight-reply'));
         }

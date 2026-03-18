@@ -15,6 +15,25 @@
 $(document).ready(function(){
 	'use strict';
 
+	function bindInlineExpand(root) {
+		var $root = root ? $(root) : $(document);
+		var $threads;
+
+		if ($root.is('div[id^="thread_"]')) {
+			$threads = $root;
+		} else {
+			$threads = $root.find('div[id^="thread_"]');
+
+			if (!$threads.length) {
+				$threads = $root.closest('div[id^="thread_"]');
+			}
+		}
+
+		$threads.each(function() {
+			inline_expand_post.call(this);
+		});
+	}
+
 	function thumbElement(link) {
 		return link.querySelector('canvas.post-image, img.post-image');
 	}
@@ -231,11 +250,12 @@ $(document).ready(function(){
 	}
 
 	if (window.jQuery) {
-		$('div[id^="thread_"]').each(inline_expand_post);
+		window.bind_inline_expanding = bindInlineExpand;
+		bindInlineExpand(document.body);
 
 		// allow to work with auto-reload.js, etc.
 		$(document).on('new_post', function(e, post) {
-			inline_expand_post.call(post);
+			bindInlineExpand(post);
 		});
 	} else {
 		inline_expand_post.call(document);
