@@ -22,7 +22,7 @@ defmodule EirinchanWeb.ManagePageController do
   alias Eirinchan.Themes
   alias Eirinchan.WhaleStickers
   alias EirinchanWeb.{BoardRuntime, BrowserEntries}
-  alias EirinchanWeb.{ManageSecurity, ModerationAudit, PostView, RequestMeta}
+  alias EirinchanWeb.{ManageSecurity, ModerationAudit, ModeratorPermissions, PostView, RequestMeta}
 
   plug :assign_manage_shell
 
@@ -75,7 +75,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def noticeboard(conn, params) do
-    with {:ok, moderator} <- ensure_moderator(conn) do
+    with {:ok, moderator} <- ensure_permission(conn, :noticeboard) do
       config = Settings.current_instance_config()
       page = positive_integer_param(params["page"], 1)
       per_page = positive_integer_param(Map.get(config, :noticeboard_page, 50), Noticeboard.page_size_default())
@@ -92,8 +92,8 @@ defmodule EirinchanWeb.ManagePageController do
           page: page,
           page_count: Noticeboard.page_count(total_entries, per_page),
           error: nil,
-          can_post_noticeboard?: moderator.role in ["admin", "mod"],
-          can_delete_noticeboard?: moderator.role == "admin"
+          can_post_noticeboard?: can_post_noticeboard?(moderator),
+          can_delete_noticeboard?: can_delete_noticeboard?(moderator)
         )
       end
     else
@@ -103,7 +103,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def create_noticeboard(conn, params) do
-    with {:ok, moderator} <- ensure_noticeboard_poster(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :noticeboard_post),
          {:ok, entry} <-
            Noticeboard.create_entry(%{
              subject: params["subject"],
@@ -136,7 +136,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def delete_noticeboard(conn, %{"id" => id, "token" => token}) do
-    with {:ok, moderator} <- ensure_admin(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :noticeboard_delete),
          {:ok, entry_id} <- verify_noticeboard_delete_token(token),
          true <- Integer.to_string(entry_id) == to_string(id),
          %Noticeboard.Entry{} = entry <- Noticeboard.get_entry(id),
@@ -165,7 +165,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def moderation_log(conn, params) do
-    with {:ok, moderator} <- ensure_admin(conn) do
+    with {:ok, moderator} <- ensure_permission(conn, :modlog) do
       page = positive_integer_param(params["page"], 1)
       username = normalize_filter(params["username"])
       board_uri = normalize_filter(params["board"])
@@ -200,7 +200,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def bans(conn, params) do
-    with {:ok, moderator} <- ensure_moderator(conn) do
+    with {:ok, moderator} <- ensure_permission(conn, :view_banlist) do
       boards = Moderation.list_accessible_boards(moderator)
       filters = ban_list_filters(params, moderator)
 
@@ -228,7 +228,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def bans_json(conn, _params) do
-    with {:ok, moderator} <- ensure_moderator(conn) do
+    with {:ok, moderator} <- ensure_permission(conn, :view_banlist) do
       boards = Moderation.list_accessible_boards(moderator)
       board_ids = Enum.map(boards, & &1.id)
       boards_by_id = Map.new(boards, &{&1.id, &1})
@@ -247,7 +247,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def update_bans(conn, params) do
-    with {:ok, moderator} <- ensure_moderator(conn) do
+    with {:ok, moderator} <- ensure_permission(conn, :unban) do
       case params["action"] do
         "filter" ->
           filters = ban_list_filters(params, moderator)
@@ -296,7 +296,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def ban_browser(conn, %{"id" => id}) do
-    with {:ok, moderator} <- ensure_moderator(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :view_banlist),
          {:ok, ban} <- load_accessible_ban(id, moderator) do
       render(conn, :ban,
         moderator: moderator,
@@ -318,7 +318,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def update_ban_browser(conn, %{"id" => id} = params) do
-    with {:ok, moderator} <- ensure_moderator(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :unban),
          {:ok, ban} <- load_accessible_ban(id, moderator),
          {:ok, target_board_id} <- target_ban_board_id(moderator, params["board"]),
          {:ok, _ban} <-
@@ -350,7 +350,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def delete_ban_browser(conn, %{"id" => id}) do
-    with {:ok, moderator} <- ensure_moderator(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :unban),
          {:ok, ban} <- load_accessible_ban(id, moderator),
          {:ok, _ban} <- Bans.update_ban(ban, %{active: false}) do
       ModerationAudit.log(conn, "Removed ban ##{ban.id}", moderator: moderator)
@@ -580,7 +580,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def feedback(conn, _params) do
-    with {:ok, moderator} <- ensure_moderator(conn) do
+    with {:ok, moderator} <- ensure_permission(conn, :feedback) do
       render(conn, :feedback,
         moderator: moderator,
         feedback:
@@ -598,7 +598,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def create_message(conn, params) do
-    with {:ok, moderator} <- ensure_moderator(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :create_pm),
          {:ok, _message} <-
            Moderation.send_message(moderator, %{
              recipient_id: params["recipient_id"],
@@ -713,7 +713,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def themes(conn, _params) do
-    with {:ok, moderator} <- ensure_admin(conn) do
+    with {:ok, moderator} <- ensure_permission(conn, :themes) do
       render(conn, :themes,
         moderator: moderator,
         themes: Themes.all_themes(),
@@ -729,7 +729,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def users(conn, _params) do
-    with {:ok, moderator} <- ensure_admin(conn) do
+    with {:ok, moderator} <- ensure_permission(conn, :manageusers) do
       users = manage_users()
 
       render(conn, :users,
@@ -748,7 +748,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def new_user(conn, _params) do
-    with {:ok, moderator} <- ensure_admin(conn) do
+    with {:ok, moderator} <- ensure_permission(conn, :createusers) do
       render(conn, :user,
         user_form_assigns(%{
           moderator: moderator,
@@ -775,7 +775,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def create_user_browser(conn, params) do
-    with {:ok, moderator} <- ensure_admin(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :createusers),
          {:ok, user} <-
            Moderation.create_user(%{
              username: Map.get(params, "username"),
@@ -815,9 +815,9 @@ defmodule EirinchanWeb.ManagePageController do
           error: nil,
           new: false,
           action: "/manage/users/browser/#{user.id}",
-          can_manage_user?: moderator.role == "admin",
-          can_edit_password?: moderator.role == "admin" or moderator.id == user.id,
-          can_delete_user?: moderator.role == "admin"
+          can_manage_user?: can_manage_user?(moderator),
+          can_edit_password?: can_edit_password?(moderator, user),
+          can_delete_user?: can_delete_user?(moderator, false)
         })
       )
     else
@@ -837,7 +837,7 @@ defmodule EirinchanWeb.ManagePageController do
          %Moderation.ModUser{} = user <- Moderation.get_user(id, preload: [board_accesses: :board]) do
       cond do
         params["delete"] in ["1", "true", "on"] ->
-          if moderator.role != "admin" do
+          if not ModeratorPermissions.allowed?(moderator, :deleteusers) do
             render_users_error(conn, "Administrator access required.", :forbidden)
           else
             {:ok, _deleted} = Moderation.delete_user(user)
@@ -856,7 +856,7 @@ defmodule EirinchanWeb.ManagePageController do
             end
           end
 
-        moderator.role == "admin" ->
+        ModeratorPermissions.allowed?(moderator, :editusers) ->
           with {:ok, updated} <-
                  Moderation.update_user(user, %{
                    username: Map.get(params, "username"),
@@ -881,7 +881,7 @@ defmodule EirinchanWeb.ManagePageController do
               )
           end
 
-        moderator.id == user.id ->
+        moderator.id == user.id and ModeratorPermissions.allowed?(moderator, :change_password) ->
           with {:ok, updated} <-
                  Moderation.update_user(user, %{
                    username: user.username,
@@ -1075,7 +1075,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def update_blotter(conn, params) do
-    with {:ok, moderator} <- ensure_news_editor(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :news),
          {:ok, _config} <- persist_announcement_editor(params) do
       action =
         case params["editor"] do
@@ -1102,7 +1102,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def delete_announcement(conn, _params) do
-    with {:ok, moderator} <- ensure_news_editor(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :news_delete),
          {:ok, _config} <- update_global_message("") do
       ModerationAudit.log(conn, "Removed global message", moderator: moderator)
 
@@ -1119,7 +1119,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def pages(conn, _params) do
-    with {:ok, moderator} <- ensure_moderator(conn) do
+    with {:ok, moderator} <- ensure_permission(conn, :edit_pages) do
       render(conn, :pages,
         moderator: moderator,
         pages: CustomPages.list_pages(),
@@ -1131,7 +1131,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def create_page(conn, %{"slug" => slug, "title" => title, "body" => body}) do
-    with {:ok, moderator} <- ensure_news_editor(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :edit_pages),
          {:ok, _page} <-
            CustomPages.create_page(%{
              slug: slug,
@@ -1157,7 +1157,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def update_page(conn, %{"id" => id, "slug" => slug, "title" => title, "body" => body}) do
-    with {:ok, moderator} <- ensure_news_editor(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :edit_pages),
          %CustomPages.Page{} = page <- load_custom_page(id),
          {:ok, _page} <- CustomPages.update_page(page, %{slug: slug, title: title, body: body}) do
       ModerationAudit.log(conn, "Updated custom page /#{slug}", moderator: moderator)
@@ -1181,7 +1181,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def delete_page(conn, %{"id" => id}) do
-    with {:ok, moderator} <- ensure_news_editor(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :edit_pages),
          %CustomPages.Page{} = page <- load_custom_page(id),
          {:ok, _page} <- CustomPages.delete_page(page) do
       ModerationAudit.log(conn, "Deleted custom page /#{page.slug}", moderator: moderator)
@@ -1202,7 +1202,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def recent_posts(conn, params) do
-    with {:ok, moderator} <- ensure_moderator(conn) do
+    with {:ok, moderator} <- ensure_permission(conn, :recent) do
       boards = Moderation.list_accessible_boards(moderator)
       board_filter = params["board"]
 
@@ -1261,7 +1261,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def reports(conn, params) do
-    with {:ok, moderator} <- ensure_moderator(conn) do
+    with {:ok, moderator} <- ensure_permission(conn, :reports) do
       case Map.get(params, "uri") do
         nil ->
           render(conn, :reports,
@@ -1288,7 +1288,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def ip_history(conn, %{"ip" => ip} = params) do
-    with {:ok, moderator} <- ensure_moderator(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :show_ip_global),
          true <- PostView.can_view_ip?(moderator),
          {:ok, decoded_ip} <- decode_ip_param(ip) do
       boards = Moderation.list_accessible_boards(moderator)
@@ -1327,7 +1327,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def board_ip_history(conn, %{"uri" => uri, "ip" => ip} = params) do
-    with {:ok, moderator} <- ensure_moderator(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :show_ip),
          {:ok, board} <- load_accessible_board(moderator, uri),
          true <- PostView.can_view_ip?(moderator, board),
          {:ok, decoded_ip} <- decode_ip_param(ip) do
@@ -1371,7 +1371,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def create_ip_note(conn, %{"uri" => uri, "ip" => ip, "body" => body}) do
-    with {:ok, moderator} <- ensure_moderator(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :view_notes),
          {:ok, board} <- load_accessible_board(moderator, uri),
          true <- PostView.can_view_ip?(moderator, board),
          {:ok, decoded_ip} <- decode_ip_param(ip),
@@ -1411,7 +1411,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def create_global_ip_note(conn, %{"ip" => ip, "body" => body}) do
-    with {:ok, moderator} <- ensure_moderator(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :view_notes),
          true <- PostView.can_view_ip?(moderator),
          {:ok, decoded_ip} <- decode_ip_param(ip),
          {:ok, _note} <-
@@ -1442,7 +1442,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def update_ip_note(conn, %{"uri" => uri, "ip" => ip, "id" => id, "body" => body}) do
-    with {:ok, moderator} <- ensure_moderator(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :view_notes),
          {:ok, board} <- load_accessible_board(moderator, uri),
          true <- PostView.can_view_ip?(moderator, board),
          {:ok, decoded_ip} <- decode_ip_param(ip),
@@ -1478,7 +1478,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def delete_ip_note(conn, %{"uri" => uri, "ip" => ip, "id" => id}) do
-    with {:ok, moderator} <- ensure_moderator(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :remove_notes),
          {:ok, board} <- load_accessible_board(moderator, uri),
          true <- PostView.can_view_ip?(moderator, board),
          {:ok, decoded_ip} <- decode_ip_param(ip),
@@ -1511,7 +1511,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def delete_global_ip_note(conn, %{"ip" => ip, "id" => id}) do
-    with {:ok, moderator} <- ensure_moderator(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :remove_notes),
          true <- PostView.can_view_ip?(moderator),
          {:ok, decoded_ip} <- decode_ip_param(ip),
          {:ok, note} <- load_global_note(id, decoded_ip, moderator),
@@ -1539,7 +1539,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def create_ip_ban(conn, %{"ip" => ip} = params) do
-    with {:ok, moderator} <- ensure_moderator(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :ban),
          true <- PostView.can_view_ip?(moderator),
          {:ok, decoded_ip} <- decode_ip_param(ip),
          {:ok, target_board_id} <- target_ban_board_id(moderator, params["board"]),
@@ -1578,7 +1578,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def update_ip_ban(conn, %{"ip" => ip, "id" => id} = params) do
-    with {:ok, moderator} <- ensure_moderator(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :ban),
          true <- PostView.can_view_ip?(moderator),
          {:ok, decoded_ip} <- decode_ip_param(ip),
          {:ok, ban} <- load_accessible_ban(id, moderator),
@@ -1620,7 +1620,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def delete_ip_ban(conn, %{"ip" => ip, "id" => id}) do
-    with {:ok, moderator} <- ensure_moderator(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :unban),
          true <- PostView.can_view_ip?(moderator),
          {:ok, decoded_ip} <- decode_ip_param(ip),
          {:ok, ban} <- load_accessible_ban(id, moderator),
@@ -1651,7 +1651,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def create_board_ip_ban(conn, %{"uri" => uri, "ip" => ip} = params) do
-    with {:ok, moderator} <- ensure_moderator(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :ban),
          {:ok, board} <- load_accessible_board(moderator, uri),
          true <- PostView.can_view_ip?(moderator, board),
          {:ok, decoded_ip} <- decode_ip_param(ip),
@@ -1695,7 +1695,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def update_board_ip_ban(conn, %{"uri" => uri, "ip" => ip, "id" => id} = params) do
-    with {:ok, moderator} <- ensure_moderator(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :ban),
          {:ok, board} <- load_accessible_board(moderator, uri),
          true <- PostView.can_view_ip?(moderator, board),
          {:ok, decoded_ip} <- decode_ip_param(ip),
@@ -1739,7 +1739,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def delete_board_ip_ban(conn, %{"uri" => uri, "ip" => ip, "id" => id}) do
-    with {:ok, moderator} <- ensure_moderator(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :unban),
          {:ok, board} <- load_accessible_board(moderator, uri),
          true <- PostView.can_view_ip?(moderator, board),
          {:ok, decoded_ip} <- decode_ip_param(ip),
@@ -1837,7 +1837,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def dismiss_report(conn, %{"id" => id} = params) do
-    with {:ok, moderator} <- ensure_moderator(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :report_dismiss),
          report when not is_nil(report) <- Reports.get_report(id),
          :ok <- authorize_report(moderator, report),
          {:ok, _report} <- Reports.dismiss_report(report.board, id) do
@@ -1865,7 +1865,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def dismiss_reports_for_post(conn, %{"post_id" => post_id} = params) do
-    with {:ok, moderator} <- ensure_moderator(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :report_dismiss_post),
          report when not is_nil(report) <- accessible_report_for_post(moderator, post_id),
          {:ok, _count} <- Reports.dismiss_reports_for_post(report.board, post_id) do
       ModerationAudit.log(conn, "Dismissed reports for post No. #{post_id}",
@@ -1889,7 +1889,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def dismiss_reports_for_ip(conn, %{"report_id" => report_id} = params) do
-    with {:ok, moderator} <- ensure_moderator(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :report_dismiss_ip),
          report when not is_nil(report) <- Reports.get_report(report_id),
          :ok <- authorize_report(moderator, report),
          {:ok, _count} <-
@@ -2006,9 +2006,8 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def edit_post(conn, %{"uri" => uri, "post_id" => post_id}) do
-    with {:ok, moderator} <- ensure_moderator(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :editpost),
          {:ok, board} <- load_accessible_board(moderator, uri),
-         true <- moderator.role == "admin",
          {:ok, post} <- Eirinchan.Posts.get_post(board, post_id) do
       render(conn, :edit_post,
         moderator: moderator,
@@ -2020,9 +2019,6 @@ defmodule EirinchanWeb.ManagePageController do
       {:error, :unauthorized} ->
         redirect(conn, to: ~p"/manage/login")
 
-      false ->
-        render_dashboard_error(conn, "Administrator access required.", %{}, :forbidden)
-
       {:error, :forbidden} ->
         render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
 
@@ -2032,9 +2028,8 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def update_post_browser(conn, %{"uri" => uri, "post_id" => post_id} = params) do
-    with {:ok, moderator} <- ensure_moderator(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :editpost),
          {:ok, board} <- load_accessible_board(moderator, uri),
-         true <- moderator.role == "admin",
          {:ok, post} <-
            Eirinchan.Posts.update_post(
              board,
@@ -2054,9 +2049,6 @@ defmodule EirinchanWeb.ManagePageController do
       {:error, :unauthorized} ->
         redirect(conn, to: ~p"/manage/login")
 
-      false ->
-        render_dashboard_error(conn, "Administrator access required.", %{}, :forbidden)
-
       {:error, :forbidden} ->
         render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
 
@@ -2069,7 +2061,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def move_thread_form(conn, %{"uri" => uri, "thread_id" => thread_id}) do
-    with {:ok, moderator} <- ensure_moderator(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :move),
          {:ok, board} <- load_accessible_board(moderator, uri),
          {:ok, thread} <- Eirinchan.Posts.get_post(board, thread_id),
          true <- is_nil(thread.thread_id) do
@@ -2096,7 +2088,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def move_reply_form(conn, %{"uri" => uri, "post_id" => post_id}) do
-    with {:ok, moderator} <- ensure_moderator(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :move),
          {:ok, board} <- load_accessible_board(moderator, uri),
          {:ok, post} <- Eirinchan.Posts.get_post(board, post_id),
          false <- is_nil(post.thread_id) do
@@ -2127,7 +2119,7 @@ defmodule EirinchanWeb.ManagePageController do
         "thread_id" => thread_id,
         "target_board_uri" => target_uri
       }) do
-    with {:ok, moderator} <- ensure_moderator(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :move),
          {:ok, source_board} <- load_accessible_board(moderator, uri),
          {:ok, target_board} <- load_accessible_board(moderator, target_uri),
          {:ok, moved_thread} <-
@@ -2181,7 +2173,7 @@ defmodule EirinchanWeb.ManagePageController do
           "target_thread_id" => target_thread_id
         }
       ) do
-    with {:ok, moderator} <- ensure_moderator(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :move),
          {:ok, source_board} <- load_accessible_board(moderator, uri),
          {:ok, target_board} <- load_accessible_board(moderator, target_uri),
          {:ok, moved_reply} <-
@@ -2232,7 +2224,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def ban_appeals(conn, params) do
-    with {:ok, moderator} <- ensure_moderator(conn) do
+    with {:ok, moderator} <- ensure_permission(conn, :view_ban_appeals) do
       case Map.get(params, "uri") do
         nil ->
           render(conn, :ban_appeals,
@@ -2252,7 +2244,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def resolve_ban_appeal(conn, %{"id" => id} = params) do
-    with {:ok, moderator} <- ensure_moderator(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :ban_appeals),
          appeal when not is_nil(appeal) <- Bans.get_appeal(id),
          :ok <- authorize_appeal(moderator, appeal),
          {:ok, _appeal} <-
@@ -2368,9 +2360,9 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def rebuild_board(conn, %{"uri" => uri}) do
-    with {:ok, moderator} <- ensure_moderator(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :rebuild),
          board when not is_nil(board) <- Boards.get_board_by_uri(uri),
-         true <- Moderation.board_access?(moderator, board) or moderator.role == "admin" do
+         true <- Moderation.board_access?(moderator, board) or ModeratorPermissions.allowed?(moderator, :rebuild) do
       config = effective_board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
 
       _result =
@@ -2442,23 +2434,49 @@ defmodule EirinchanWeb.ManagePageController do
   defp ensure_moderator(%Plug.Conn{assigns: %{current_moderator: moderator}}),
     do: {:ok, moderator}
 
+  defp ensure_permission(conn, permission) do
+    with {:ok, moderator} <- ensure_moderator(conn) do
+      if ModeratorPermissions.allowed?(moderator, permission) do
+        {:ok, moderator}
+      else
+        {:error, :forbidden}
+      end
+    end
+  end
+
   defp ensure_admin(conn) do
     with {:ok, moderator} <- ensure_moderator(conn) do
-      if moderator.role == "admin", do: {:ok, moderator}, else: {:error, :forbidden}
+      if ModeratorPermissions.rank(moderator) >= ModeratorPermissions.rank("admin") do
+        {:ok, moderator}
+      else
+        {:error, :forbidden}
+      end
     end
   end
 
-  defp ensure_noticeboard_poster(conn) do
-    with {:ok, moderator} <- ensure_moderator(conn) do
-      if moderator.role in ["admin", "mod"], do: {:ok, moderator}, else: {:error, :forbidden}
-    end
+  defp can_manage_user?(moderator), do: ModeratorPermissions.allowed?(moderator, :editusers)
+  defp can_edit_password?(moderator, nil), do: ModeratorPermissions.allowed?(moderator, :change_password)
+
+  defp can_edit_password?(moderator, user) do
+    ModeratorPermissions.allowed?(moderator, :editusers) or
+      (moderator && user && moderator.id == user.id &&
+         ModeratorPermissions.allowed?(moderator, :change_password))
   end
 
-  defp ensure_news_editor(conn) do
-    with {:ok, moderator} <- ensure_moderator(conn) do
-      if moderator.role in ["admin", "mod"], do: {:ok, moderator}, else: {:error, :forbidden}
-    end
-  end
+  defp can_delete_user?(moderator, new?), do: !new? and ModeratorPermissions.allowed?(moderator, :deleteusers)
+  defp can_create_board?(moderator), do: ModeratorPermissions.allowed?(moderator, :newboard)
+  defp can_manage_board?(moderator), do: ModeratorPermissions.allowed?(moderator, :manageboards)
+  defp can_manage_users?(moderator), do: ModeratorPermissions.allowed?(moderator, :manageusers)
+  defp can_manage_themes?(moderator), do: ModeratorPermissions.allowed?(moderator, :themes)
+  defp can_manage_news?(moderator), do: ModeratorPermissions.allowed?(moderator, :news)
+  defp can_edit_pages?(moderator), do: ModeratorPermissions.allowed?(moderator, :edit_pages)
+  defp can_view_log?(moderator), do: ModeratorPermissions.allowed?(moderator, :modlog)
+  defp can_view_recent?(moderator), do: ModeratorPermissions.allowed?(moderator, :recent)
+  defp can_manage_boardlist?(moderator), do: ModeratorPermissions.allowed?(moderator, :manageboards)
+  defp can_manage_dnsbl?(moderator), do: ModeratorPermissions.allowed?(moderator, :manageboards)
+  defp can_manage_stickers?(moderator), do: ModeratorPermissions.allowed?(moderator, :themes)
+  defp can_post_noticeboard?(moderator), do: ModeratorPermissions.allowed?(moderator, :noticeboard_post)
+  defp can_delete_noticeboard?(moderator), do: ModeratorPermissions.allowed?(moderator, :noticeboard_delete)
 
   defp stringify(params), do: Enum.into(params, %{}, fn {k, v} -> {to_string(k), v} end)
 
@@ -2511,8 +2529,8 @@ defmodule EirinchanWeb.ManagePageController do
       page: page,
       page_count: Noticeboard.page_count(total_entries, per_page),
       error: message,
-      can_post_noticeboard?: moderator && moderator.role in ["admin", "mod"],
-      can_delete_noticeboard?: moderator && moderator.role == "admin"
+      can_post_noticeboard?: can_post_noticeboard?(moderator),
+      can_delete_noticeboard?: can_delete_noticeboard?(moderator)
     )
   end
 
@@ -2580,6 +2598,17 @@ defmodule EirinchanWeb.ManagePageController do
       %{
         moderator: moderator,
         boards: Moderation.list_accessible_boards(moderator),
+        can_view_recent?: can_view_recent?(moderator),
+        can_view_log?: can_view_log?(moderator),
+        can_manage_boardlist?: can_manage_boardlist?(moderator),
+        can_manage_dnsbl?: can_manage_dnsbl?(moderator),
+        can_manage_stickers?: can_manage_stickers?(moderator),
+        can_manage_users?: can_manage_users?(moderator),
+        can_manage_themes?: can_manage_themes?(moderator),
+        can_manage_news?: can_manage_news?(moderator),
+        can_edit_pages?: can_edit_pages?(moderator),
+        can_create_board?: can_create_board?(moderator),
+        can_manage_board?: can_manage_board?(moderator),
         report_count: accessible_report_count(moderator),
         appeal_count: accessible_appeal_count(moderator),
         feedback_count: Feedback.unread_count(),
@@ -2744,9 +2773,9 @@ defmodule EirinchanWeb.ManagePageController do
         error: message,
         new: new?,
         action: if(new?, do: "/manage/users/browser/new", else: "/manage/users/browser/#{id}"),
-        can_manage_user?: moderator && moderator.role == "admin",
-        can_edit_password?: moderator && (moderator.role == "admin" or (user && moderator.id == user.id)),
-        can_delete_user?: moderator && moderator.role == "admin" and not new?
+        can_manage_user?: can_manage_user?(moderator),
+        can_edit_password?: can_edit_password?(moderator, user),
+        can_delete_user?: can_delete_user?(moderator, new?)
       })
     )
   end
@@ -3395,10 +3424,11 @@ defmodule EirinchanWeb.ManagePageController do
   defp ensure_user_editor(conn, id) do
     with {:ok, moderator} <- ensure_moderator(conn) do
       cond do
-        moderator.role == "admin" ->
+        ModeratorPermissions.allowed?(moderator, :editusers) ->
           {:ok, moderator}
 
-        Integer.to_string(moderator.id) == String.trim(to_string(id)) ->
+        Integer.to_string(moderator.id) == String.trim(to_string(id)) &&
+            ModeratorPermissions.allowed?(moderator, :change_password) ->
           {:ok, moderator}
 
         true ->
@@ -3408,7 +3438,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   defp update_user_role_browser(conn, id, direction) do
-    with {:ok, moderator} <- ensure_admin(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :promoteusers),
          %Moderation.ModUser{} = user <- Moderation.get_user(id),
          {:ok, updated} <- Moderation.update_user(user, %{role: next_user_role(user.role, direction)}) do
       ModerationAudit.log(conn, role_change_log_text(direction, updated.username), moderator: moderator)

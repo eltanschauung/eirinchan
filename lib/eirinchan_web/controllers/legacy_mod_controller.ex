@@ -8,7 +8,7 @@ defmodule EirinchanWeb.LegacyModController do
   alias Eirinchan.Moderation
   alias Eirinchan.Posts
   alias Eirinchan.Reports
-  alias EirinchanWeb.{BoardRuntime, ManageSecurity, ModerationAudit}
+  alias EirinchanWeb.{BoardRuntime, ManageSecurity, ModerationAudit, ModeratorPermissions}
   alias EirinchanWeb.PostView
 
   def show(conn, _params) do
@@ -83,7 +83,7 @@ defmodule EirinchanWeb.LegacyModController do
 
   defp dispatch_board_action(conn, [uri, "deletefile", post_id, file_index, token]) do
     with {:ok, moderator, board} <- authorized_board(conn, uri),
-         :ok <- require_role(moderator, 10),
+         :ok <- require_permission(moderator, :deletefile),
          :ok <- verify_action_token(conn, "#{uri}/deletefile/#{post_id}/#{file_index}", token),
          {:ok, post} <- Posts.get_post(board, post_id),
          {:ok, _updated_post} <-
@@ -105,7 +105,7 @@ defmodule EirinchanWeb.LegacyModController do
 
   defp dispatch_board_action(conn, [uri, "spoiler", post_id, file_index, token]) do
     with {:ok, moderator, board} <- authorized_board(conn, uri),
-         :ok <- require_role(moderator, 10),
+         :ok <- require_permission(moderator, :spoilerimage),
          :ok <- verify_action_token(conn, "#{uri}/spoiler/#{post_id}/#{file_index}", token),
          {:ok, post} <- Posts.get_post(board, post_id),
          {:ok, _updated_post} <-
@@ -127,7 +127,7 @@ defmodule EirinchanWeb.LegacyModController do
 
   defp dispatch_board_action(conn, [uri, "deletebyip", post_id, token]) do
     with {:ok, moderator, board} <- authorized_board(conn, uri),
-         :ok <- require_role(moderator, 20),
+         :ok <- require_permission(moderator, :deletebyip),
          :ok <- verify_action_token(conn, "#{uri}/deletebyip/#{post_id}", token),
          {:ok, post} <- Posts.get_post(board, post_id),
          {:ok, _result} <-
@@ -147,7 +147,7 @@ defmodule EirinchanWeb.LegacyModController do
 
   defp dispatch_board_action(conn, [uri, "deletebyip", post_id, "global", token]) do
     with {:ok, moderator, board} <- authorized_board(conn, uri),
-         :ok <- require_role(moderator, 30),
+         :ok <- require_permission(moderator, :deletebyip_global),
          :ok <- verify_action_token(conn, "#{uri}/deletebyip/#{post_id}/global", token),
          {:ok, post} <- Posts.get_post(board, post_id),
          {:ok, _result} <-
@@ -173,7 +173,7 @@ defmodule EirinchanWeb.LegacyModController do
 
   defp dispatch_board_action(conn, [uri, "ban24", post_id, token]) do
     with {:ok, moderator, board} <- authorized_board(conn, uri),
-         :ok <- require_role(moderator, 30),
+         :ok <- require_permission(moderator, :show_ip_global),
          :ok <- verify_action_token(conn, "#{uri}/ban24/#{post_id}", token),
          {:ok, post} <- Posts.get_post(board, post_id),
          true <- is_binary(post.ip_subnet) and post.ip_subnet != "",
@@ -214,7 +214,7 @@ defmodule EirinchanWeb.LegacyModController do
               "uncycle"
             ] do
     with {:ok, moderator, board} <- authorized_board(conn, uri),
-         :ok <- require_role(moderator, 20),
+         :ok <- require_thread_action_permission(moderator, action),
          :ok <- verify_action_token(conn, "#{uri}/#{action}/#{post_id}", token),
          {:ok, _thread} <-
            update_thread_action(
@@ -236,7 +236,7 @@ defmodule EirinchanWeb.LegacyModController do
 
   defp dispatch_board_action(conn, [uri, "ban", post_id]) do
     with {:ok, moderator, _board} <- authorized_board(conn, uri),
-         :ok <- require_role(moderator, 20) do
+         :ok <- require_permission(moderator, :ban) do
       redirect(conn, to: "/manage/boards/#{uri}/posts/#{post_id}/ban/browser")
     else
       error -> legacy_error(conn, error)
@@ -245,7 +245,7 @@ defmodule EirinchanWeb.LegacyModController do
 
   defp dispatch_board_action(conn, [uri, "ban&delete", post_id]) do
     with {:ok, moderator, _board} <- authorized_board(conn, uri),
-         :ok <- require_role(moderator, 20) do
+         :ok <- require_permission(moderator, :bandelete) do
       redirect(conn, to: "/manage/boards/#{uri}/posts/#{post_id}/ban/browser?delete=1")
     else
       error -> legacy_error(conn, error)
@@ -254,7 +254,7 @@ defmodule EirinchanWeb.LegacyModController do
 
   defp dispatch_board_action(conn, [uri, "move", thread_id]) do
     with {:ok, moderator, board} <- authorized_board(conn, uri),
-         :ok <- require_role(moderator, 20),
+         :ok <- require_permission(moderator, :move),
          {:ok, thread} <- Posts.get_post(board, thread_id),
          true <- is_nil(thread.thread_id) do
       redirect(conn, to: "/manage/boards/#{uri}/threads/#{thread_id}/move/browser")
@@ -266,7 +266,7 @@ defmodule EirinchanWeb.LegacyModController do
 
   defp dispatch_board_action(conn, [uri, "move_reply", post_id]) do
     with {:ok, moderator, board} <- authorized_board(conn, uri),
-         :ok <- require_role(moderator, 20),
+         :ok <- require_permission(moderator, :move),
          {:ok, post} <- Posts.get_post(board, post_id),
          false <- is_nil(post.thread_id) do
       redirect(conn, to: "/manage/boards/#{uri}/posts/#{post_id}/move/browser")
@@ -278,7 +278,7 @@ defmodule EirinchanWeb.LegacyModController do
 
   defp dispatch_board_action(conn, [uri, "edit", post_id]) do
     with {:ok, moderator, _board} <- authorized_board(conn, uri),
-         :ok <- require_role(moderator, 30) do
+         :ok <- require_permission(moderator, :editpost) do
       redirect(conn, to: "/manage/boards/#{uri}/posts/#{post_id}/edit/browser")
     else
       error -> legacy_error(conn, error)
@@ -364,7 +364,7 @@ defmodule EirinchanWeb.LegacyModController do
 
   defp dispatch_feedback_action(conn, [feedback_id, "delete", token]) do
     with {:ok, moderator} <- authorized_moderator(conn),
-         :ok <- require_role(moderator, 10),
+         :ok <- require_permission(moderator, :feedback_delete),
          :ok <- verify_action_token(conn, "feedback/#{feedback_id}/delete", token),
          {:ok, _feedback} <- Eirinchan.Feedback.delete_feedback(feedback_id) do
       redirect(conn, to: "/manage/feedback/browser")
@@ -375,7 +375,7 @@ defmodule EirinchanWeb.LegacyModController do
 
   defp dispatch_feedback_action(conn, [feedback_id, "mark_read", token]) do
     with {:ok, moderator} <- authorized_moderator(conn),
-         :ok <- require_role(moderator, 10),
+         :ok <- require_permission(moderator, :feedback_mark_read),
          :ok <- verify_action_token(conn, "feedback/#{feedback_id}/mark_read", token),
          {:ok, _feedback} <- Eirinchan.Feedback.mark_read(feedback_id) do
       redirect(conn, to: "/manage/feedback/browser")
@@ -409,10 +409,25 @@ defmodule EirinchanWeb.LegacyModController do
   defp authorized_moderator(%Plug.Conn{assigns: %{current_moderator: moderator}}),
     do: {:ok, moderator}
 
-  defp require_role(%{role: "admin"}, _level), do: :ok
-  defp require_role(%{role: "mod"}, level) when level <= 20, do: :ok
-  defp require_role(%{role: "janitor"}, level) when level <= 10, do: :ok
-  defp require_role(_, _), do: {:error, :forbidden}
+  defp require_permission(moderator, permission) do
+    if ModeratorPermissions.allowed?(moderator, permission), do: :ok, else: {:error, :forbidden}
+  end
+
+  defp require_thread_action_permission(moderator, action) do
+    permission =
+      case action do
+        "sticky" -> :sticky
+        "unsticky" -> :sticky
+        "lock" -> :lock
+        "unlock" -> :lock
+        "bumplock" -> :bumplock
+        "bumpunlock" -> :bumplock
+        "cycle" -> :cycle
+        "uncycle" -> :cycle
+      end
+
+    require_permission(moderator, permission)
+  end
 
   defp verify_action_token(conn, path, token) do
     if ManageSecurity.valid_action_token?(conn.assigns[:secure_manage_token], path, token) do

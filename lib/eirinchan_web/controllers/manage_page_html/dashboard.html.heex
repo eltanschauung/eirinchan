@@ -12,7 +12,7 @@
   <ul>
     <li><a href={~p"/"}>Home</a></li>
     <li><a href={Eirinchan.Themes.overboard_path()}>Overboard</a></li>
-    <li><a href={~p"/manage/recent-posts/browser"}>Recent posts</a></li>
+    <li :if={@can_view_recent?}><a href={~p"/manage/recent-posts/browser"}>Recent posts</a></li>
     <li><a href={~p"/manage/messages/browser"}>PM inbox (<%= @unread_messages %> unread)</a></li>
     <li>
       <form action={~p"/manage/logout/browser"} method="post" class="inline-form">
@@ -31,29 +31,29 @@
     <li><a href={~p"/manage/feedback/browser"}>Feedback (<%= @feedback_count %>)</a></li>
     <li><a href={~p"/manage/ban-appeals/browser"}>Ban appeals (<%= @appeal_count %>)</a></li>
     <li><a href={~p"/manage/bans/browser"}>Ban list</a></li>
-    <li :if={@moderator.role == "admin"}>
+    <li :if={@can_view_log?}>
       <a href={~p"/manage/log/browser"}>Moderation log</a>
     </li>
-    <li :if={@moderator.role == "admin"}>
+    <li :if={@can_manage_board?}>
       <a href={~p"/manage/config/browser"}>Instance configuration</a>
     </li>
-    <li :if={@moderator.role == "admin"}>
+    <li :if={@can_manage_boardlist?}>
       <a href={~p"/manage/boardlist/browser"}>Boardlist Configuration</a>
     </li>
-    <li :if={@moderator.role == "admin"}>
+    <li :if={@can_manage_dnsbl?}>
       <a href={~p"/manage/dnsbl/browser"}>DNSBL Configuration</a>
     </li>
-    <li :if={@moderator.role == "admin"}>
+    <li :if={@can_manage_stickers?}>
       <a href={~p"/manage/stickers/browser"}>Configure stickers</a>
     </li>
-    <li :if={@moderator.role == "admin"}>
+    <li :if={@can_manage_users?}>
       <a href={~p"/manage/users/browser"}>Manage users</a>
     </li>
-    <li :if={@moderator.role == "admin"}>
+    <li :if={@can_manage_themes?}>
       <a href={~p"/manage/themes/browser"}>Manage themes</a>
     </li>
-    <li><a href={~p"/manage/announcement/browser"}>Announcements</a></li>
-    <li><a href={~p"/manage/pages/browser"}>Global static pages</a></li>
+    <li :if={@can_manage_news?}><a href={~p"/manage/announcement/browser"}>Announcements</a></li>
+    <li :if={@can_edit_pages?}><a href={~p"/manage/pages/browser"}>Global static pages</a></li>
   </ul>
 </fieldset>
 
@@ -70,11 +70,11 @@
           <%= if board.subtitle do %>
             <small>- <%= board.subtitle %></small>
           <% end %>
-          <small>
+          <small :if={@can_manage_board?}>
             [<a href={"/manage/boards/#{board.uri}/config/browser"}>config</a>]
           </small>
 
-          <div class="mod-board-actions">
+          <div :if={@can_manage_board?} class="mod-board-actions">
             <form
               action={"/manage/boards/#{board.uri}/browser/rebuild"}
               method="post"
@@ -85,7 +85,7 @@
             </form>
           </div>
 
-          <div :if={@moderator.role == "admin"} class="mod-board-editor">
+          <div :if={@can_manage_board?} class="mod-board-editor">
             <form
               action={"/manage/boards/#{board.uri}/browser"}
               method="post"
@@ -148,7 +148,7 @@
       </ul>
     </li>
     <li><a href={~p"/manage/noticeboard"}>View all noticeboard entries</a></li>
-    <li><a href={~p"/manage/announcement/browser"}>News</a></li>
+    <li :if={@can_manage_news?}><a href={~p"/manage/announcement/browser"}>News</a></li>
     <li>
       <a href={~p"/manage/messages/browser"}>
         PM inbox <%= if @unread_messages > 0, do: raw("<strong>"), else: "" %>(<%= @unread_messages %> unread)<%= if @unread_messages > 0, do: raw("</strong>"), else: "" %>
@@ -175,7 +175,7 @@
   </ul>
 </fieldset>
 
-<fieldset :if={@moderator.role == "admin"}>
+<fieldset :if={@can_create_board?}>
   <legend>Create new board</legend>
   <p :if={@error} class="error"><%= @error %></p>
 
