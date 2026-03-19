@@ -8,6 +8,7 @@ defmodule EirinchanWeb.Router do
     plug EirinchanWeb.Plugs.FetchBrowserTimezone
     plug EirinchanWeb.Plugs.DetectMobileClient
     plug EirinchanWeb.Plugs.FetchBrowserToken
+    plug EirinchanWeb.Plugs.TrackBrowserPresence
     plug EirinchanWeb.Plugs.FetchCurrentModerator
     plug EirinchanWeb.Plugs.FetchTheme
     plug EirinchanWeb.Plugs.FetchSiteAssets

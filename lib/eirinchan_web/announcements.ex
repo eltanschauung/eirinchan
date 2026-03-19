@@ -47,11 +47,9 @@ defmodule EirinchanWeb.Announcements do
   def render_message_fragment(other), do: render_message_fragment(to_string(other))
 
   defp expand_placeholders(message, opts) do
-    if String.contains?(message, "{stats.posts_perhour}") do
-      String.replace(message, "{stats.posts_perhour}", posts_perhour_placeholder(opts))
-    else
-      message
-    end
+    message
+    |> maybe_replace_posts_perhour(opts)
+    |> maybe_replace_users_10minutes()
   end
 
   defp posts_perhour_placeholder(opts) do
@@ -68,6 +66,22 @@ defmodule EirinchanWeb.Announcements do
 
       true ->
         "{stats.posts_perhour}"
+    end
+  end
+
+  defp maybe_replace_posts_perhour(message, opts) do
+    if String.contains?(message, "{stats.posts_perhour}") do
+      String.replace(message, "{stats.posts_perhour}", posts_perhour_placeholder(opts))
+    else
+      message
+    end
+  end
+
+  defp maybe_replace_users_10minutes(message) do
+    if String.contains?(message, "{stats.users_10minutes}") do
+      String.replace(message, "{stats.users_10minutes}", Stats.users_10minutes() |> Integer.to_string())
+    else
+      message
     end
   end
 end

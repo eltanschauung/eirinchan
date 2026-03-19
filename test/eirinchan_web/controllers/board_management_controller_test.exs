@@ -340,6 +340,21 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     refute response =~ "{stats.posts_perhour}"
   end
 
+  test "board page resolves users_10minutes placeholder in global message", %{conn: conn} do
+    :ets.delete_all_objects(:eirinchan_browser_presence)
+    :ok = Eirinchan.Settings.persist_instance_config(%{global_message: "Users: {stats.users_10minutes}"})
+    board = board_fixture(%{uri: "user10test", title: "User 10 Test"})
+
+    response =
+      conn
+      |> put_req_cookie("browser_token", "token-1234567890123456")
+      |> get(~p"/#{board.uri}")
+      |> html_response(200)
+
+    assert response =~ "Users: 1"
+    refute response =~ "{stats.users_10minutes}"
+  end
+
   test "board pages honor explicit post form row toggles", %{conn: conn} do
     board =
       board_fixture(%{
