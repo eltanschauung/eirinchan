@@ -1099,7 +1099,7 @@ div.boardlist a {
 }
 
 #thread-links > a {
-  padding-left: none;
+  padding-left: 0;
   padding-right: 10px;
 }
 
@@ -1176,7 +1176,7 @@ div.boardlist a {
   -webkit-box-sizing: border-box;
   -moz-box-sizing: border-box;
   font-size: 10pt;
-  resize: vertical horizontal;
+  resize: both;
 }
 
 #quick-reply input,
