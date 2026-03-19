@@ -10,36 +10,58 @@
   function initAnnouncementEditor() {
     var addButton = document.getElementById('blotter-add-row');
     var rows = document.getElementById('blotter-rows');
-    if (!addButton || !rows || addButton.dataset.bound === 'true') return;
+    var form = rows ? rows.closest('form') : null;
+    if (!addButton || !rows || !form || addButton.dataset.bound === 'true') return;
+
+    function renumberRows() {
+      Array.prototype.forEach.call(rows.querySelectorAll('tr'), function (row, index) {
+        var dateInput = row.querySelector('input[name$="[date]"]');
+        var messageInput = row.querySelector('textarea[name$="[message]"]');
+
+        if (dateInput) {
+          dateInput.name = 'entries[' + index + '][date]';
+        }
+
+        if (messageInput) {
+          messageInput.name = 'entries[' + index + '][message]';
+        }
+      });
+
+      rows.setAttribute('data-next-index', String(rows.querySelectorAll('tr').length));
+    }
+
+    function buildRow(index) {
+      var row = document.createElement('tr');
+      row.innerHTML =
+        '<td><input type="text" name="entries[' +
+        index +
+        '][date]"></td>' +
+        '<td><textarea name="entries[' +
+        index +
+        '][message]" rows="3"></textarea></td>';
+      return row;
+    }
 
     addButton.addEventListener('click', function (event) {
       event.preventDefault();
-      var index = parseInt(rows.getAttribute('data-next-index') || '0', 10);
-      if (isNaN(index)) index = 0;
+      var row = buildRow(0);
 
-      var row = document.createElement('tr');
-      var dateCell = document.createElement('td');
-      var dateInput = document.createElement('input');
-      dateInput.type = 'text';
-      dateInput.name = 'entries[' + index + '][date]';
-      dateCell.appendChild(dateInput);
-
-      var messageCell = document.createElement('td');
-      var messageInput = document.createElement('textarea');
-      messageInput.name = 'entries[' + index + '][message]';
-      messageInput.rows = 3;
-      messageCell.appendChild(messageInput);
-
-      row.appendChild(dateCell);
-      row.appendChild(messageCell);
-      if (rows.firstChild) {
-        rows.insertBefore(row, rows.firstChild);
+      if (rows.firstElementChild) {
+        rows.insertBefore(row, rows.firstElementChild);
       } else {
         rows.appendChild(row);
       }
-      rows.setAttribute('data-next-index', String(index + 1));
+
+      renumberRows();
+
+      var firstInput = row.querySelector('input, textarea');
+      if (firstInput) {
+        firstInput.focus();
+      }
     });
 
+    form.addEventListener('submit', renumberRows);
+    renumberRows();
     addButton.dataset.bound = 'true';
   }
 

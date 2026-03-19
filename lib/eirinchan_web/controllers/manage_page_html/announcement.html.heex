@@ -48,6 +48,12 @@
     <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
     <input type="hidden" name="editor" value="news_blotter" />
 
+    <label>
+      <span>Button Label</span>
+      <input type="text" name="button_label" value={@button_label} />
+    </label>
+    <p class="unimportant">Use <code>{date}</code> to insert the latest blotter date.</p>
+
     <table class="mod-form-table compact" style="margin-top: 1em;">
       <tr>
         <th>Date</th>
