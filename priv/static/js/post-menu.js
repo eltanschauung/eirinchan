@@ -85,29 +85,62 @@ var Item = function (itemId, text, title) {
 	if (typeof title != 'undefined') this.title = title;
 };
 
+function isTransparentColor(value) {
+	return !value || value === 'transparent' || value === 'rgba(0, 0, 0, 0)' || value === 'rgba(0,0,0,0)';
+}
+
+function cssVariableValue(node, name) {
+	while (node && node.nodeType === 1) {
+		var value = window.getComputedStyle(node).getPropertyValue(name);
+		if (value && $.trim(value)) {
+			return $.trim(value);
+		}
+		node = node.parentElement;
+	}
+
+	var rootValue = window.getComputedStyle(document.documentElement).getPropertyValue(name);
+	return rootValue ? $.trim(rootValue) : '';
+}
+
+function resolveMenuBackground($trigger, $post) {
+	var sampled = '';
+
+	if ($post && $post.length) {
+		sampled = $post.css('background-color');
+		if (!isTransparentColor(sampled)) {
+			return sampled;
+		}
+	}
+
+	var triggerNode = $trigger && $trigger.length ? $trigger[0] : null;
+	var themedFallback = cssVariableValue(triggerNode || document.body, '--fg-primary');
+	if (themedFallback) {
+		return themedFallback;
+	}
+
+	return '';
+}
+
 function buildMenu(e) {
 	var pos = $(e.target).offset();
 	var i, length;
 	var $menu = $('#post-menu-root');
-	var $post = $(e.target).closest('.post.reply');
+	var $target = $(e.target);
+	var $post = $target.closest('.post.reply, .post.op, .post');
+	var menuBackground = '';
 
 	if (!$menu.length) {
 		$menu = $('<div id="post-menu-root" class="post-menu hidden" hidden></div>').appendTo('body');
 	}
 
 	if (!$post.length && e.target.dataset.postTarget) {
-		$post = $('#' + e.target.dataset.postTarget).closest('.post.reply');
+		$post = $('#' + e.target.dataset.postTarget).closest('.post.reply, .post.op, .post');
 	}
 
 	$menu.empty().append(mainMenu.list_items());
-
-	if ($post.length) {
-		$menu.css('--post-menu-bg-local', $post.css('background-color'));
-		$menu.children('ul').css('background-color', $post.css('background-color'));
-	} else {
-		$menu.css('--post-menu-bg-local', '');
-		$menu.children('ul').css('background-color', '');
-	}
+	menuBackground = resolveMenuBackground($target, $post);
+	$menu.css('--post-menu-bg-local', menuBackground);
+	$menu.children('ul').css('background-color', menuBackground);
 
 	//  execute registered click handlers
 	length = onclick_callbacks.length;
