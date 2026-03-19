@@ -316,6 +316,31 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ board.uri
   end
 
+  test "configurable overboard uri redirects /ukko and renders at configured path", %{conn: conn} do
+    moderator_fixture()
+    board = board_fixture(%{uri: "okuutest#{System.unique_integer([:positive])}", title: "Okuu"})
+    thread_fixture(board, %{subject: "Configured ukko", body: "Cross-board body"})
+
+    assert {:ok, _theme} =
+             Eirinchan.Themes.install_theme("ukko", %{
+               "uri" => "okuu",
+               "title" => "Okuu",
+               "subtitle" => "Cross-board thread index"
+             })
+
+    redirect_conn = get(conn, "/ukko")
+    assert redirected_to(redirect_conn) == "/okuu"
+
+    page =
+      build_conn()
+      |> get("/okuu")
+      |> html_response(200)
+
+    assert page =~ "Okuu"
+    assert page =~ "Configured ukko"
+    assert page =~ board.uri
+  end
+
   test "GET /recent renders recent posts across boards", %{conn: conn} do
     moderator_fixture()
     board = board_fixture(%{uri: "tea#{System.unique_integer([:positive])}", title: "Tea"})

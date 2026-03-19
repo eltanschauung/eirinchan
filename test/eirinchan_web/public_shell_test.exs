@@ -113,7 +113,24 @@ defmodule EirinchanWeb.PublicShellTest do
              "/js/runtime-config.js",
              "/main.js",
              "/js/bundle-public-core.js",
-             "/js/bundle-public-catalog.js"
+           "/js/bundle-public-catalog.js"
+           ]
+  end
+
+  test "compile mode normalizes string page names to the correct bundle" do
+    config = %{
+      root: "/",
+      url_javascript: "/main.js",
+      additional_javascript: ["js/jquery.min.js", "js/catalog-search.js", "js/auto-reload.js"],
+      additional_javascript_url: "/",
+      additional_javascript_compile: true
+    }
+
+    assert PublicShell.javascript_urls("ukko", config) == [
+             "/js/runtime-config.js",
+             "/main.js",
+             "/js/bundle-public-core.js",
+             "/js/bundle-public-index.js"
            ]
   end
 

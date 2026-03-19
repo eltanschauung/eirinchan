@@ -1,6 +1,5 @@
 defmodule EirinchanWeb.ManagePageController do
   use EirinchanWeb, :controller
-  import Ecto.Query, only: [from: 2]
 
   alias Eirinchan.Boardlist
   alias Eirinchan.Boards
@@ -15,13 +14,13 @@ defmodule EirinchanWeb.ManagePageController do
   alias Eirinchan.Moderation
   alias Eirinchan.ModerationLog
   alias Eirinchan.Noticeboard
-  alias Eirinchan.Posts.Post
   alias Eirinchan.Reports
   alias Eirinchan.Repo
   alias Eirinchan.Runtime.Config
   alias Eirinchan.Settings
   alias Eirinchan.Themes
   alias Eirinchan.WhaleStickers
+  alias EirinchanWeb.BrowserEntries
   alias EirinchanWeb.{ManageSecurity, ModerationAudit, PostView, RequestMeta}
 
   plug :assign_manage_shell
@@ -2669,17 +2668,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   defp ip_history_post_groups(posts, boards, host) do
-    entries =
-      posts
-      |> Repo.preload([:board, :extra_files])
-      |> recent_post_entries(boards, host)
-
-    entries
-    |> Enum.group_by(& &1.board.id)
-    |> Enum.sort_by(fn {board_id, _entries} -> board_id end)
-    |> Enum.map(fn {_board_id, grouped_entries} ->
-      %{board: hd(grouped_entries).board, entries: grouped_entries}
-    end)
+    BrowserEntries.grouped_post_entries(posts, boards, host)
   end
 
   defp ip_history_logs(decoded_ip, board_ids, board_uri \\ nil) do
@@ -2803,48 +2792,26 @@ defmodule EirinchanWeb.ManagePageController do
   defp accessible_appeal_count(moderator), do: moderator |> accessible_appeals() |> length()
 
   defp recent_post_entries(posts, boards, host) do
-    posts = Repo.preload(posts, :extra_files)
-
-    thread_ids =
-      posts
-      |> Enum.map(&(&1.thread_id || &1.id))
-      |> Enum.uniq()
-
-    thread_map =
-      Repo.all(from post in Post, where: post.id in ^thread_ids)
-      |> Repo.preload(:extra_files)
-      |> Map.new(&{&1.id, &1})
-
-    config_by_board = config_map(boards, host)
-
-    Enum.map(posts, fn post ->
-      board = post.board
-      thread = Map.get(thread_map, post.thread_id || post.id, post)
-
-      %{
-        post: post,
-        board: board,
-        thread: thread,
-        config: Map.fetch!(config_by_board, board.id)
-      }
-    end)
+    BrowserEntries.post_entries(posts, boards, host)
   end
 
   defp report_entries(reports, boards, host, session_token, moderator) do
     reports = Repo.preload(reports, [:board, post: [:extra_files], thread: [:extra_files]])
-    config_by_board = config_map(boards, host)
+    entries =
+      reports
+      |> Enum.map(& &1.post)
+      |> BrowserEntries.post_entries(boards, host)
 
-    Enum.map(reports, fn report ->
-      board = report.board
-      post = report.post
-      thread = report.thread || post
+    Enum.zip(reports, entries)
+    |> Enum.map(fn {report, entry} ->
+      board = entry.board
 
       %{
         report: report,
         board: board,
-        post: post,
-        thread: thread,
-        config: Map.fetch!(config_by_board, board.id),
+        post: entry.post,
+        thread: entry.thread,
+        config: entry.config,
         displayed_ip:
           if(PostView.can_view_ip?(moderator, board),
             do: EirinchanWeb.IpPresentation.display_ip(report.ip, moderator),

@@ -103,6 +103,11 @@ defmodule EirinchanWeb.JsBundles do
                      "js/expand-swf.js"
                    ])
 
+  def bundle_keys_for("thread"), do: bundle_keys_for(:thread)
+  def bundle_keys_for("index"), do: bundle_keys_for(:index)
+  def bundle_keys_for("ukko"), do: bundle_keys_for(:ukko)
+  def bundle_keys_for("catalog"), do: bundle_keys_for(:catalog)
+  def bundle_keys_for("search"), do: bundle_keys_for(:search)
   def bundle_keys_for(:thread), do: [:core, :thread]
   def bundle_keys_for(:index), do: [:core, :index]
   def bundle_keys_for(:ukko), do: [:core, :index]

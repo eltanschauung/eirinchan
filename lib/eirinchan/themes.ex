@@ -214,6 +214,21 @@ defmodule Eirinchan.Themes do
 
   def page_theme_enabled?(_name), do: false
 
+  def overboard_uri do
+    "ukko"
+    |> theme_settings()
+    |> Map.get("uri", "ukko")
+    |> normalize_page_uri("ukko")
+  end
+
+  def overboard_path, do: "/" <> overboard_uri()
+
+  def overboard_matches_uri?(uri) when is_binary(uri) do
+    page_theme_enabled?("ukko") and normalize_page_uri(uri, "") == overboard_uri()
+  end
+
+  def overboard_matches_uri?(_uri), do: false
+
   def theme_settings(name) when is_binary(name) do
     case theme(name) do
       nil -> %{}
@@ -457,6 +472,13 @@ defmodule Eirinchan.Themes do
   end
 
   defp normalize_settings(_theme, _params), do: %{}
+
+  defp normalize_page_uri(value, default) do
+    case value |> to_string() |> String.trim() |> String.trim("/") do
+      "" -> default
+      normalized -> normalized
+    end
+  end
 
   defp faq_theme_settings(theme) do
     base = normalize_settings(theme, Map.get(installed_theme_settings_map(), theme.name, %{}))

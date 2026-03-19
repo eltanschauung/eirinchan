@@ -1,33 +1,157 @@
 <header>
-  <h1>Ukko</h1>
-  <div class="subtitle"><%= @board_chrome.subtitle || "Cross-board thread index" %></div>
-  <.admin_shortcuts moderator={@current_moderator} />
+  <h1><%= @overboard_title %></h1>
+  <div class="subtitle">
+    <%= @overboard_subtitle %>
+    <p :if={@current_moderator}><a href="/manage">Return to dashboard</a></p>
+  </div>
 </header>
 
-<section class="public-panel">
-  <%= if @threads == [] do %>
-    <p>No board threads yet.</p>
-  <% else %>
-    <%= for %{board: board, summary: summary} <- @threads do %>
-      <article id={"ukko-#{EirinchanWeb.PostView.public_post_id(summary.thread)}"} class="news-entry">
-        <h2><a href={"/#{board.uri}"}>/<%= board.uri %>/</a></h2>
-        <h3>
-          <a href={"/#{board.uri}/res/#{EirinchanWeb.PostView.public_post_id(summary.thread)}.html"}>
-            <%= summary.thread.subject || "Untitled" %>
-          </a>
-        </h3>
-        <.summary_body
-          class="body"
-          post={summary.thread}
+<%= if @threads == [] do %>
+  <div class="ban">
+    <p style="text-align:center" class="unimportant">(No threads to display.)</p>
+  </div>
+<% else %>
+  <%= for %{board: board, config: config, summary: summary} <- @threads do %>
+    <% thread = summary.thread %>
+    <% thread_public_id = EirinchanWeb.PostView.public_post_id(thread) %>
+    <% watch = @thread_watch_state_by_board |> Map.get(board.uri, %{}) |> Map.get(thread_public_id, %{watched: false, unread_count: 0}) %>
+    <h2><a href={"/#{board.uri}"}>/<%= board.uri %>/</a></h2>
+    <div
+      class="thread"
+      id={"thread_#{thread_public_id}"}
+      data-board={board.uri}
+      data-board-uri={board.uri}
+      data-thread-id={thread_public_id}
+      data-watch-url={"/watcher/#{board.uri}/#{thread_public_id}"}
+      data-unwatch-url={"/watcher/#{board.uri}/#{thread_public_id}"}
+      data-watched={to_string(watch.watched)}
+    >
+      <.files_block
+        :if={EirinchanWeb.PostView.media_entries(thread, config) != []}
+        post={thread}
+        config={config}
+        op?={true}
+        board={board}
+      />
+
+      <div
+        class="post op"
+        id={"op_#{thread_public_id}"}
+        {case EirinchanWeb.PostView.post_container_style(thread) do
+          nil -> []
+          style -> [style: style]
+        end}
+      >
+        <p class="intro">
+          <span class="thread-top-controls">
+            <a class="hide-thread-link" href="javascript:void(0)" title="Hide thread">[–]</a>
+            <a
+              href="javascript:;"
+              class={["watch-thread-link", watch.watched && "watched"]}
+              title={if watch.watched, do: "Unwatch Thread", else: "Watch Thread"}
+              data-thread-watch
+              data-board-uri={board.uri}
+              data-thread-id={thread_public_id}
+              data-watch-url={"/watcher/#{board.uri}/#{thread_public_id}"}
+              data-unwatch-url={"/watcher/#{board.uri}/#{thread_public_id}"}
+              data-watched={to_string(watch.watched)}
+            ></a>
+          </span>
+          <label>
+            <.post_identity
+              post={thread}
+              config={config}
+              board={board}
+              moderator={@current_moderator}
+              own={@show_yous and MapSet.member?(@own_post_ids, thread_public_id)}
+            />
+          </label>
+          <.post_number_links
+            post_id={thread_public_id}
+            post_href={EirinchanWeb.PostView.thread_path(board, thread, config) <> "##{thread_public_id}"}
+            quote_href={EirinchanWeb.PostView.reply_path(board, thread, thread, config, :quote)}
+            quote_to={thread_public_id}
+            quote_mode={:navigate}
+          />
+          <.backlinks
+            post={thread}
+            backlinks_map={@backlinks_map}
+            board={board}
+            thread={thread}
+            config={config}
+          />
+          <%= for icon <- EirinchanWeb.PostView.state_icons(thread, config) do %>
+            <img class="icon" title={icon.title} src={icon.path} alt={icon.title} />
+          <% end %>
+          <a href={EirinchanWeb.PostView.thread_path(board, thread, config)}>[Reply]</a>
+          <%= if summary.has_noko50 do %>
+            <a href={Eirinchan.ThreadPaths.thread_path(board, thread, config, noko50: true)}>
+              [Last <%= summary.last_count %> Posts]
+            </a>
+          <% end %>
+        </p>
+
+        <.body_container
+          post={thread}
           board={board}
-          thread={summary.thread}
-          config={%{fileboard: false}}
+          thread={thread}
+          config={config}
+          op?={true}
+          hide_fileboard={true}
+          own_post_ids={@own_post_ids}
+          show_yous={@show_yous}
         />
-      </article>
-      <hr />
-    <% end %>
+      </div>
+
+      <span :if={EirinchanWeb.PostView.omitted_text(summary)} class="omitted">
+        <%= EirinchanWeb.PostView.omitted_text(summary) %>
+      </span>
+
+      <%= for reply <- summary.replies do %>
+        <% reply_public_id = EirinchanWeb.PostView.public_post_id(reply) %>
+        <div class="post reply" id={"reply_#{reply_public_id}"}>
+          <p class="intro">
+            <a id={to_string(reply_public_id)} class="post_anchor"></a>
+            <.post_identity
+              post={reply}
+              config={config}
+              board={board}
+              moderator={@current_moderator}
+              own={@show_yous and MapSet.member?(@own_post_ids, reply_public_id)}
+            />
+            <.post_number_links
+              post_id={reply_public_id}
+              post_href={EirinchanWeb.PostView.thread_path(board, thread, config) <> "##{reply_public_id}"}
+              quote_href={EirinchanWeb.PostView.reply_path(board, thread, reply, config, :quote)}
+              quote_to={reply_public_id}
+              quote_mode={:navigate}
+            />
+            <.backlinks
+              post={reply}
+              backlinks_map={@backlinks_map}
+              board={board}
+              thread={thread}
+              config={config}
+            />
+          </p>
+
+          <.files_block post={reply} config={config} board={board} />
+          <.body_container
+            post={reply}
+            board={board}
+            thread={thread}
+            config={config}
+            own_post_ids={@own_post_ids}
+            show_yous={@show_yous}
+          />
+        </div>
+        <br />
+      <% end %>
+      <br class="clear" />
+    </div>
+    <hr />
   <% end %>
-</section>
+<% end %>
 
 <%= if @board_chrome.show_footer do %>
   <EirinchanWeb.PostComponents.site_footer />
