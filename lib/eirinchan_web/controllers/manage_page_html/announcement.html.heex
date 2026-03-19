@@ -47,10 +47,6 @@
   <form action={~p"/manage/announcement/browser"} method="post">
     <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
     <input type="hidden" name="editor" value="news_blotter" />
-    <label>
-      <span>Entry limit</span>
-      <input type="number" name="limit" min="1" max="50" value={@limit} />
-    </label>
 
     <table class="mod-form-table compact" style="margin-top: 1em;">
       <tr>
@@ -71,7 +67,7 @@
       </tbody>
     </table>
 
-    <p class="unimportant">Entries are rendered in the order listed (most recent first). Maximum 50 entries.</p>
+    <p class="unimportant">Entries are rendered in the order listed (most recent first). Maximum <%= @limit %> entries.</p>
 
     <div class="mod-form-actions">
       <button type="submit">Save news blotter</button>
