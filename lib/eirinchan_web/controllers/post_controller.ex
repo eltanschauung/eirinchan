@@ -3,6 +3,7 @@ defmodule EirinchanWeb.PostController do
 
   require Logger
 
+  alias Eirinchan.Antispam
   alias Eirinchan.Bans
   alias Eirinchan.LogSystem
   alias Eirinchan.PostOwnership
@@ -33,10 +34,12 @@ defmodule EirinchanWeb.PostController do
 
     case branch(params) do
       :report ->
-        case Reports.create_report(board, params, remote_ip: RequestMeta.effective_remote_ip(conn)) do
-          {:ok, report} ->
-            respond_reported(conn, board, report, params)
-
+        with :ok <- Antispam.check_public_action(board, :report, params, request, config),
+             {:ok, report} <-
+               Reports.create_report(board, params, remote_ip: RequestMeta.effective_remote_ip(conn)) do
+          _ = Antispam.log_public_action(board, :report, params, request)
+          respond_reported(conn, board, report, params)
+        else
           {:error, reason} when is_atom(reason) ->
             respond_error(
               conn,
@@ -53,20 +56,36 @@ defmodule EirinchanWeb.PostController do
       :delete ->
         delete_file_only = delete_file_only?(params)
 
-        delete_action =
-          if delete_file_only?(params) do
-            Posts.delete_post_files(board, params["delete_post_id"], config: config)
-          else
-            Posts.delete_post(board, params["delete_post_id"], params["password"], config: config)
+        with :ok <- Antispam.check_public_action(board, :delete, params, request, config) do
+          delete_action =
+            if delete_file_only do
+              Posts.delete_post_files(board, params["delete_post_id"], config: config)
+            else
+              Posts.delete_post(board, params["delete_post_id"], params["password"], config: config)
+            end
+
+          case delete_action do
+            {:ok, result} when delete_file_only ->
+              _ = Antispam.log_public_action(board, :delete, params, request)
+              respond_deleted_file(conn, board, result, params)
+
+            {:ok, result} ->
+              _ = Antispam.log_public_action(board, :delete, params, request)
+              respond_deleted(conn, board, result, params)
+
+            {:error, reason} when is_atom(reason) ->
+              respond_error(
+                conn,
+                reason,
+                error_status(reason),
+                error_message(reason, config),
+                config
+              )
+
+            {:error, %Ecto.Changeset{} = changeset} ->
+              respond_changeset_error(conn, changeset)
           end
-
-        case delete_action do
-          {:ok, result} when delete_file_only ->
-            respond_deleted_file(conn, board, result, params)
-
-          {:ok, result} ->
-            respond_deleted(conn, board, result, params)
-
+        else
           {:error, reason} when is_atom(reason) ->
             respond_error(
               conn,
@@ -75,9 +94,6 @@ defmodule EirinchanWeb.PostController do
               error_message(reason, config),
               config
             )
-
-          {:error, %Ecto.Changeset{} = changeset} ->
-            respond_changeset_error(conn, changeset)
         end
 
       :appeal ->

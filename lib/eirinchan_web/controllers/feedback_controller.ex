@@ -1,9 +1,12 @@
 defmodule EirinchanWeb.FeedbackController do
   use EirinchanWeb, :controller
 
+  alias Eirinchan.Antispam
   alias Eirinchan.Boards
   alias Eirinchan.CustomPages
   alias Eirinchan.Feedback
+  alias Eirinchan.Runtime.Config
+  alias Eirinchan.Settings
   alias Eirinchan.ThreadWatcher
   alias EirinchanWeb.BoardChrome
   alias EirinchanWeb.HtmlSanitizer
@@ -22,31 +25,81 @@ defmodule EirinchanWeb.FeedbackController do
   end
 
   def create(conn, params) do
-    case Feedback.create_feedback(params, remote_ip: RequestMeta.effective_remote_ip(conn)) do
-      {:ok, entry} ->
-        if params["json_response"] == "1" do
-          json(conn, %{feedback_id: entry.id, status: "ok"})
-        else
-          redirect(conn, to: "/feedback")
-        end
+    request = %{remote_ip: RequestMeta.effective_remote_ip(conn)}
+    config =
+      Settings.current_instance_config()
+      |> Config.deep_merge(Application.get_env(:eirinchan, :search_overrides, %{}))
+      |> then(&Config.compose(nil, &1, %{}))
 
-      {:error, %Ecto.Changeset{} = changeset} ->
-        if params["json_response"] == "1" do
-          conn
-          |> put_status(:unprocessable_entity)
-          |> json(%{errors: translate_errors(changeset)})
-        else
-          conn
-          |> put_status(:unprocessable_entity)
-          |> render(:show,
-            errors: translate_errors(changeset),
-            params: params,
-            boards: Boards.list_boards(),
-            global_message: current_global_message(),
-            custom_pages: CustomPages.list_pages(),
-            board_chrome: BoardChrome.for_board(%{uri: "bant"})
-          )
-        end
+    if feedback_rate_limited?(request, config) do
+      message = "Wait a while before searching again, please."
+
+      if params["json_response"] == "1" do
+        conn
+        |> put_status(:too_many_requests)
+        |> json(%{error: message})
+      else
+        conn
+        |> put_status(:too_many_requests)
+        |> render(:show,
+          errors: %{"rate_limit" => [message]},
+          params: params,
+          boards: Boards.list_boards(),
+          global_message: current_global_message(),
+          custom_pages: CustomPages.list_pages(),
+          board_chrome: BoardChrome.for_board(%{uri: "bant"})
+        )
+      end
+    else
+      _ = Antispam.log_search_query("feedback", request)
+
+      case Feedback.create_feedback(params, remote_ip: RequestMeta.effective_remote_ip(conn)) do
+        {:ok, entry} ->
+          if params["json_response"] == "1" do
+            json(conn, %{feedback_id: entry.id, status: "ok"})
+          else
+            redirect(conn, to: "/feedback")
+          end
+
+        {:error, %Ecto.Changeset{} = changeset} ->
+          if params["json_response"] == "1" do
+            conn
+            |> put_status(:unprocessable_entity)
+            |> json(%{errors: translate_errors(changeset)})
+          else
+            conn
+            |> put_status(:unprocessable_entity)
+            |> render(:show,
+              errors: translate_errors(changeset),
+              params: params,
+              boards: Boards.list_boards(),
+              global_message: current_global_message(),
+              custom_pages: CustomPages.list_pages(),
+              board_chrome: BoardChrome.for_board(%{uri: "bant"})
+            )
+          end
+      end
+    end
+  end
+
+  defp feedback_rate_limited?(request, config) do
+    {per_ip_count, per_ip_minutes} = search_limit_tuple(config, :search_queries_per_minutes, 15, 2)
+    {global_count, global_minutes} = search_limit_tuple(config, :search_queries_per_minutes_all, 50, 2)
+
+    Antispam.public_search_rate_limited?(
+      request,
+      per_ip_count: per_ip_count,
+      per_ip_window_seconds: per_ip_minutes * 60,
+      global_count: global_count,
+      global_window_seconds: global_minutes * 60
+    )
+  end
+
+  defp search_limit_tuple(config, key, default_count, default_minutes) do
+    case Map.get(config, key) do
+      [count, minutes] when is_integer(count) and is_integer(minutes) -> {count, minutes}
+      {count, minutes} when is_integer(count) and is_integer(minutes) -> {count, minutes}
+      _ -> {default_count, default_minutes}
     end
   end
 
