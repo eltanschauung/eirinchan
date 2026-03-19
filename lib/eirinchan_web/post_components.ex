@@ -630,6 +630,13 @@ defmodule EirinchanWeb.PostComponents do
         style={@thumb_style}
         alt=""
       />
+      <img
+        :if={@expandable_image?}
+        class="full-image"
+        data-full-image-src={@file.file_path}
+        style="display:none"
+        alt="Fullsized image"
+      />
     </a>
     """
   end
