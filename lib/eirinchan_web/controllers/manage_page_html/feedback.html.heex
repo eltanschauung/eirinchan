@@ -1,11 +1,8 @@
-<section>
-  <h1>Feedback (<%= @unread_count %>)</h1>
-  <p><a href={~p"/manage"}>Back to Manage</a></p>
-</section>
+<.page_header title={"Feedback (#{@unread_count})"} back_href={~p"/manage"} back_label="Back to Manage" />
 
 <section>
   <%= if @feedback == [] do %>
-    <p style="text-align:center" class="unimportant">(There is no feedback.)</p>
+    <.empty_notice text="There is no feedback." />
   <% else %>
     <%= for entry <- @feedback do %>
       <div class="report">

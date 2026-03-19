@@ -1,9 +1,4 @@
-<header>
-  <h1>Noticeboard</h1>
-  <div class="subtitle">
-    <p><a href={~p"/manage"}>Return to dashboard</a></p>
-  </div>
-</header>
+<.page_header title="Noticeboard" back_href={~p"/manage"} back_label="Return to dashboard" />
 
 <.flash_group flash={@flash} />
 <p :if={@error} class="error"><%= @error %></p>

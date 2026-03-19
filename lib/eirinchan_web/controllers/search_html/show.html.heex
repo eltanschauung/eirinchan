@@ -1,7 +1,4 @@
-<header>
-  <h1>Search</h1>
-  <div class="subtitle"></div>
-</header>
+<.page_header title="Search" />
 
 <div class="ban">
   <h2>Search</h2>
@@ -52,7 +49,7 @@
         <% end %>
       </fieldset>
     <% else %>
-      <p style="text-align:center" class="unimportant">(No results.)</p>
+      <.empty_notice text="No results." />
     <% end %>
   <% end %>
 <% end %>

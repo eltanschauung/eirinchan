@@ -1,6 +1,7 @@
 defmodule EirinchanWeb.ManagePageHTML do
   use EirinchanWeb, :html
   import EirinchanWeb.BrowserPostComponents
+  import EirinchanWeb.BrowserPageComponents
 
   alias Eirinchan.Noticeboard.Entry, as: NoticeboardEntry
   alias EirinchanWeb.PostView

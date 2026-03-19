@@ -1,12 +1,9 @@
 <.flash_group flash={@flash} />
-<section>
-  <h1>Report queue (<%= length(@entries) %>)</h1>
-  <p><a href={~p"/manage"}>Back to Manage</a></p>
-</section>
+<.page_header title={"Report queue (#{length(@entries)})"} back_href={~p"/manage"} back_label="Back to Manage" />
 
 <section>
   <%= if @entries == [] do %>
-    <p>No open reports.</p>
+    <.empty_notice text="No open reports." class_name="" centered={false} parenthesize={false} />
   <% else %>
     <%= for entry <- @entries do %>
       <div class="report">
