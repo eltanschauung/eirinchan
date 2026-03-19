@@ -2,7 +2,9 @@ defmodule EirinchanWeb.PostControllerTest do
   use EirinchanWeb.ConnCase, async: true
 
   import ExUnit.CaptureLog
+  alias Eirinchan.Posts.Post
   alias Eirinchan.Posts.PublicIds
+  alias Eirinchan.Repo
   alias Eirinchan.ThreadWatcher
 
   test "classic posting redirects OP creation to the thread page", %{conn: conn} do
@@ -84,8 +86,31 @@ defmodule EirinchanWeb.PostControllerTest do
 
     assert Enum.any?(
              get_resp_header(conn, "set-cookie"),
-             &String.contains?(&1, "eirinchan_posted=#{encoded_cookie}")
+           &String.contains?(&1, "eirinchan_posted=#{encoded_cookie}")
            )
+  end
+
+  test "posting falls back to password cookie when the submitted password is blank", %{conn: conn} do
+    board = board_fixture(%{title: "Technology"})
+
+    conn =
+      conn
+      |> put_req_cookie("password", "cookiepw")
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post(~p"/#{board.uri}/post", %{
+        "subject" => "cookie password",
+        "body" => "first post",
+        "password" => "",
+        "post" => "New Topic"
+      })
+
+    thread_path = redirected_to(conn)
+    [public_id] = Regex.run(~r{/res/(\d+)}, thread_path, capture: :all_but_first)
+
+    post =
+      Repo.get_by!(Post, board_id: board.id, public_id: String.to_integer(public_id))
+
+    assert post.password == "cookiepw"
   end
 
   test "classic reply posting redirects back to the thread anchor", %{conn: conn} do
