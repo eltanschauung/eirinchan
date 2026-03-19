@@ -274,74 +274,6 @@ $(document).ready(function(){
 });
 /* End js/inline-expanding.js */
 
-/* Begin js/save-user_flag.js */
-function user_flag() {
-	var selector = 'input[name="user_flag"], textarea[name="user_flag"], select[name="user_flag"]';
-
-	var resolveBoardValue = function(scope) {
-		var boardField = (scope || document).querySelector('[name="board"]');
-		return boardField ? boardField.value : null;
-	};
-
-	var storageKeyForScope = function(scope) {
-		var boardValue = resolveBoardValue(scope);
-		return boardValue ? "flag_" + boardValue : null;
-	};
-
-	var storedValueForScope = function(scope) {
-		var key = storageKeyForScope(scope);
-		if (!key) return null;
-
-		var item = window.localStorage.getItem(key);
-		if (item !== null) return item;
-
-		var field = (scope || document).querySelector(selector);
-		if (!field) return null;
-
-		var defaultFlag = (field.value || '').toString();
-		if (defaultFlag !== '') {
-			window.localStorage.setItem(key, defaultFlag);
-		}
-
-		return defaultFlag;
-	};
-
-	var applyStoredValue = function(scope) {
-		var value = storedValueForScope(scope);
-		if (value === null) return;
-
-		$(scope || document)
-			.find(selector)
-			.val(value);
-	};
-
-	if (!resolveBoardValue(document)) {
-		return;
-	}
-
-	var $field = $(selector).first();
-	if (!$field.length) {
-		return;
-	}
-
-	applyStoredValue(document);
-
-	$(document).on('change input', selector, function() {
-		var key = storageKeyForScope($(this).closest('form')[0] || document);
-		if (!key) return;
-		window.localStorage.setItem(key, $(this).val());
-	});
-
-	$(window).on('quick-reply', function(_event, formNode) {
-		var scope = formNode || document.getElementById('quick-reply') || document;
-		applyStoredValue(scope);
-	});
-}
-if (active_page == 'thread' || active_page == 'index') {
-	$(document).ready(user_flag);
-}
-/* End js/save-user_flag.js */
-
 /* Begin js/strftime.min.js */
 (function(){function i(c,a,b){return g(c,a,b)}function g(c,a,b,j){j=j||{};a&&!n(a)&&(b=a,a=void 0);a=a||new Date;b=b||o;b.formats=b.formats||{};var i=a.getTime(),h=j.timezone,e=typeof h;if(j.utc||e=="number"||e=="string")a=p(a);if(h){if(e=="string")var k=h[0]=="-"?-1:1,q=parseInt(h.slice(1,3),10),r=parseInt(h.slice(3,5),10),h=k*60*q+r;e&&(a=new Date(a.getTime()+h*6E4))}return c.replace(/%([-_0]?.)/g,function(c,e){var d;if(e.length==2){d=e[0];if(d=="-")d="";else if(d=="_")d=" ";else if(d=="0")d="0";
 else return c;e=e[1]}switch(e){case "A":return b.days[a.getDay()];case "a":return b.shortDays[a.getDay()];case "B":return b.months[a.getMonth()];case "b":return b.shortMonths[a.getMonth()];case "C":return f(Math.floor(a.getFullYear()/100),d);case "D":return g(b.formats.D||"%m/%d/%y",a,b);case "d":return f(a.getDate(),d);case "e":return a.getDate();case "F":return g(b.formats.F||"%Y-%m-%d",a,b);case "H":return f(a.getHours(),d);case "h":return b.shortMonths[a.getMonth()];case "I":return f(l(a),d);
@@ -1307,7 +1239,30 @@ $(document).ready(function(){
       'boxShadow'
     ]);
 
-    copy_styles($sourceTable, $table, ['color']);
+    copy_styles($dummyReply, $postForm, [
+      'backgroundColor',
+      'borderStyle',
+      'borderWidth',
+      'borderColor',
+      'borderRadius',
+      'boxShadow'
+    ]);
+
+    copy_styles($sourceTable, $table, [
+      'background',
+      'backgroundColor',
+      'backgroundImage',
+      'backgroundPosition',
+      'backgroundRepeat',
+      'backgroundSize',
+      'backgroundAttachment',
+      'borderStyle',
+      'borderWidth',
+      'borderColor',
+      'borderRadius',
+      'boxShadow',
+      'color'
+    ]);
     copy_styles($sourceTh, $targetTh, [
       'backgroundColor',
       'color',
