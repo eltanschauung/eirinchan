@@ -1,13 +1,7 @@
 <% post = @summary.thread %>
 <% template = PostView.template_assigns(@board, post, @config) %>
 <a id="top"></a>
-<img
-  class="board_image"
-  data-random-banner="/b.php"
-  src={EirinchanWeb.BannerAsset.banner_url(Eirinchan.Settings.current_instance_config())}
-  style="width:300px;height:100px;cursor:pointer"
-  alt=""
-/>
+<.board_banner />
 
 <header>
   <h1><%= PostView.board_heading(@board) %></h1>

@@ -4,15 +4,14 @@ defmodule EirinchanWeb.BuildManagementController do
   alias Eirinchan.Boards
   alias Eirinchan.Build
   alias Eirinchan.Moderation
-  alias Eirinchan.Runtime.Config
-  alias Eirinchan.Settings
+  alias EirinchanWeb.BoardRuntime
 
   action_fallback EirinchanWeb.FallbackController
 
   def create(conn, %{"uri" => uri}) do
     with board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          :ok <- authorize_board(conn, board) do
-      config = board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
+      config = board_config(board, conn)
 
       result =
         case config.generation_strategy do
@@ -45,13 +44,7 @@ defmodule EirinchanWeb.BuildManagementController do
     end
   end
 
-  defp board_config(board_record, request_host) do
-    Config.compose(
-      nil,
-      Settings.current_instance_config(),
-      Config.normalize_override_keys(board_record.config_overrides || %{}),
-      board: Eirinchan.Boards.BoardRecord.to_board(board_record),
-      request_host: request_host
-    )
+  defp board_config(board_record, conn) do
+    BoardRuntime.board_config(board_record, conn)
   end
 end

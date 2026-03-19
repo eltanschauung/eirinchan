@@ -20,7 +20,7 @@ defmodule EirinchanWeb.ManagePageController do
   alias Eirinchan.Settings
   alias Eirinchan.Themes
   alias Eirinchan.WhaleStickers
-  alias EirinchanWeb.BrowserEntries
+  alias EirinchanWeb.{BoardRuntime, BrowserEntries}
   alias EirinchanWeb.{ManageSecurity, ModerationAudit, PostView, RequestMeta}
 
   plug :assign_manage_shell
@@ -2759,7 +2759,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   defp config_map(boards, host) do
-    Map.new(boards, fn board -> {board.id, effective_board_config(board, host)} end)
+    BoardRuntime.config_map(boards, host)
   end
 
   defp accessible_reports(%{role: "admin"}), do: Reports.list_reports()
@@ -2903,10 +2903,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   defp effective_board_config(board_record, request_host) do
-    Config.compose(nil, Settings.current_instance_config(), board_record.config_overrides || %{},
-      board: Eirinchan.Boards.BoardRecord.to_board(board_record),
-      request_host: request_host
-    )
+    BoardRuntime.board_config(board_record, request_host)
   end
 
   defp parse_config_json(raw_json) when is_binary(raw_json) do

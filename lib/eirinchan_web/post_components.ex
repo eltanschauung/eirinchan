@@ -5,7 +5,7 @@ defmodule EirinchanWeb.PostComponents do
 
   alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Settings
-  alias EirinchanWeb.{IpPresentation, PostView}
+  alias EirinchanWeb.{BannerAsset, IpPresentation, PostView}
 
   attr :groups, :list, required: true
   attr :class_name, :string, default: "boardlist"
@@ -331,6 +331,25 @@ defmodule EirinchanWeb.PostComponents do
   def reply_post_button(assigns) do
     ~H"""
     <a href="#" class="post-btn" title="Post menu" data-post-target={@post_target}>▶</a>
+    """
+  end
+
+  attr :show, :boolean, default: true
+  attr :random_banner, :string, default: "/b.php"
+  attr :class_name, :string, default: "board_image"
+  attr :style, :string, default: "width:300px;height:100px;cursor:pointer"
+  attr :alt, :string, default: ""
+
+  def board_banner(assigns) do
+    ~H"""
+    <img
+      :if={@show}
+      class={@class_name}
+      data-random-banner={@random_banner}
+      src={BannerAsset.banner_url(Settings.current_instance_config())}
+      style={@style}
+      alt={@alt}
+    />
     """
   end
 

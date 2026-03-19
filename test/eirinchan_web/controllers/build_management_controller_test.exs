@@ -4,6 +4,7 @@ defmodule EirinchanWeb.BuildManagementControllerTest do
   alias Eirinchan.Build
   alias Eirinchan.BuildQueue
   alias Eirinchan.Posts
+  alias Eirinchan.ThreadPaths
   alias Eirinchan.Runtime.Config
 
   test "rebuild route processes deferred build jobs for a board", %{conn: conn} do
@@ -26,7 +27,7 @@ defmodule EirinchanWeb.BuildManagementControllerTest do
              )
 
     board_dir = Path.join(Build.board_root(), board.uri)
-    thread_path = Path.join([board_dir, config.dir.res, "#{thread.id}.html"])
+    thread_path = Path.join([board_dir, config.dir.res, ThreadPaths.thread_filename(thread, config)])
     index_path = Path.join(board_dir, config.file_index)
 
     refute File.exists?(thread_path)

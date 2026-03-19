@@ -2,13 +2,11 @@ defmodule EirinchanWeb.PostManagementController do
   use EirinchanWeb, :controller
 
   alias Eirinchan.Boards
-  alias Eirinchan.Boards.{Board, BoardRecord}
+  alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.Moderation
   alias Eirinchan.Posts
   alias Eirinchan.Repo
-  alias Eirinchan.Runtime.Config
-  alias Eirinchan.Settings
-  alias EirinchanWeb.{ModerationAudit, PostView}
+  alias EirinchanWeb.{BoardRuntime, ModerationAudit, PostView}
 
   action_fallback EirinchanWeb.FallbackController
 
@@ -31,7 +29,7 @@ defmodule EirinchanWeb.PostManagementController do
              board,
              post_id,
              Map.take(params, ["name", "email", "subject", "body"]),
-             config: board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
+             config: board_config(board, conn)
            ) do
       ModerationAudit.log(conn, "Edited post No. #{PostView.public_post_id(post)}", board: board)
       render(conn, :show, post: preload_management_post(post))
@@ -46,7 +44,7 @@ defmodule EirinchanWeb.PostManagementController do
          :ok <- authorize_board(conn, board),
          {:ok, result} <-
            Posts.moderate_delete_post(board, post_id,
-             config: board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
+             config: board_config(board, conn)
            ) do
       ModerationAudit.log(conn, "Deleted post No. #{post_id}", board: board)
       json(conn, %{data: result})
@@ -99,10 +97,8 @@ defmodule EirinchanWeb.PostManagementController do
              post_id,
              target_board,
              target_thread_id,
-             source_config:
-               board_config(source_board, EirinchanWeb.RequestMeta.request_host(conn)),
-             target_config:
-               board_config(target_board, EirinchanWeb.RequestMeta.request_host(conn))
+             source_config: board_config(source_board, conn),
+             target_config: board_config(target_board, conn)
            ) do
       ModerationAudit.log(
         conn,
@@ -125,7 +121,7 @@ defmodule EirinchanWeb.PostManagementController do
   end
 
   defp delete_file_target(board, post_id, params, conn) do
-    config = board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
+    config = board_config(board, conn)
 
     case Map.get(params, "file_index") do
       nil ->
@@ -137,7 +133,7 @@ defmodule EirinchanWeb.PostManagementController do
   end
 
   defp spoiler_target(board, post_id, params, conn) do
-    config = board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
+    config = board_config(board, conn)
 
     case Map.get(params, "file_index") do
       nil ->
@@ -152,15 +148,7 @@ defmodule EirinchanWeb.PostManagementController do
     Repo.preload(post, [:thread, :extra_files])
   end
 
-  defp board_config(%BoardRecord{} = board_record, request_host) do
-    board =
-      board_record
-      |> BoardRecord.to_board()
-      |> Board.with_runtime_paths(Config.compose(nil, Settings.current_instance_config(), %{}))
-
-    Config.compose(nil, Settings.current_instance_config(), board_record.config_overrides,
-      board: board,
-      request_host: request_host
-    )
+  defp board_config(%BoardRecord{} = board_record, conn) do
+    BoardRuntime.board_config(board_record, conn, runtime_paths?: true)
   end
 end

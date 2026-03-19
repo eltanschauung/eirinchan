@@ -6,8 +6,8 @@ defmodule EirinchanWeb.BrowserEntries do
   alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.Posts.Post
   alias Eirinchan.Repo
-  alias Eirinchan.Runtime.Config
   alias Eirinchan.Settings
+  alias EirinchanWeb.BoardRuntime
 
   @spec post_entries([Post.t()], [BoardRecord.t()] | map(), String.t() | nil, keyword()) :: [map()]
   def post_entries(posts, boards, request_host, opts \\ []) when is_list(posts) do
@@ -110,16 +110,9 @@ defmodule EirinchanWeb.BrowserEntries do
   end
 
   defp build_config_map(board_map, request_host) do
-    Map.new(board_map, fn {board_id, board} ->
-      {board_id, effective_board_config(board, request_host)}
-    end)
-  end
-
-  defp effective_board_config(board_record, request_host) do
-    Config.compose(nil, Settings.current_instance_config(), board_record.config_overrides || %{},
-      board: BoardRecord.to_board(board_record),
-      request_host: request_host
-    )
+    board_map
+    |> Map.values()
+    |> BoardRuntime.config_map(request_host, instance_config: Settings.current_instance_config())
   end
 
   defp ensure_post_preloads(posts, repo) do
