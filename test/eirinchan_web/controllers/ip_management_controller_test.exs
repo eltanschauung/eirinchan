@@ -1,6 +1,7 @@
 defmodule EirinchanWeb.IpManagementControllerTest do
   use EirinchanWeb.ConnCase, async: false
 
+  alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Repo
 
   test "board and global ip views expose posts and notes", %{conn: conn} do
@@ -40,7 +41,7 @@ defmodule EirinchanWeb.IpManagementControllerTest do
       assert %{"data" => %{"ip" => "198.51.100.4", "posts" => posts, "notes" => notes}} =
                json_response(board_view, 200)
 
-      assert Enum.map(posts, & &1["id"]) == [thread.id]
+      assert Enum.map(posts, & &1["id"]) == [PublicIds.public_id(thread)]
       assert Enum.map(notes, & &1["body"]) == ["Watch this IP"]
 
       global_view =
@@ -51,7 +52,10 @@ defmodule EirinchanWeb.IpManagementControllerTest do
         |> get("/manage/ip/198.51.100.4")
 
       assert %{"data" => %{"posts" => global_posts}} = json_response(global_view, 200)
-      assert Enum.map(global_posts, & &1["id"]) == [other_thread.id, thread.id]
+      assert Enum.map(global_posts, & &1["id"]) == [
+               PublicIds.public_id(other_thread),
+               PublicIds.public_id(thread)
+             ]
     end)
   end
 

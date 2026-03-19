@@ -1,7 +1,7 @@
 <%= if @error do %>
   <h2 style="text-align:center"><%= @error %></h2>
 <% end %>
-<img class="board_image" data-random-banner="/b.php" src={EirinchanWeb.BannerAsset.banner_url(Eirinchan.Settings.current_instance_config())} style="width:300px;height:100px;cursor:pointer" alt="" />
+<.board_banner />
 <form action={~p"/manage/login/browser"} method="post" class="mod-login-form">
   <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
   <table style="margin-top:25px;">

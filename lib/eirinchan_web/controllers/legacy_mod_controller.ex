@@ -8,9 +8,7 @@ defmodule EirinchanWeb.LegacyModController do
   alias Eirinchan.Moderation
   alias Eirinchan.Posts
   alias Eirinchan.Reports
-  alias Eirinchan.Runtime.Config
-  alias Eirinchan.Settings
-  alias EirinchanWeb.{ManageSecurity, ModerationAudit}
+  alias EirinchanWeb.{BoardRuntime, ManageSecurity, ModerationAudit}
   alias EirinchanWeb.PostView
 
   def show(conn, _params) do
@@ -74,7 +72,7 @@ defmodule EirinchanWeb.LegacyModController do
          :ok <- verify_action_token(conn, "#{uri}/delete/#{post_id}", token),
          {:ok, _result} <-
            Posts.moderate_delete_post(board, post_id,
-             config: board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
+             config: board_config(board, conn)
            ) do
       ModerationAudit.log(conn, "Deleted post No. #{post_id}", moderator: moderator, board: board)
       redirect(conn, to: "/#{uri}")
@@ -90,7 +88,7 @@ defmodule EirinchanWeb.LegacyModController do
          {:ok, post} <- Posts.get_post(board, post_id),
          {:ok, _updated_post} <-
            Posts.delete_post_file(board, post_id, file_index,
-             config: board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
+             config: board_config(board, conn)
            ) do
       ModerationAudit.log(conn, "Deleted file from post No. #{PostView.public_post_id(post)}",
         moderator: moderator,
@@ -98,7 +96,7 @@ defmodule EirinchanWeb.LegacyModController do
       )
 
       redirect(conn,
-        to: thread_destination(board, post, EirinchanWeb.RequestMeta.request_host(conn))
+        to: thread_destination(board, post, BoardRuntime.request_host(conn))
       )
     else
       error -> legacy_error(conn, error)
@@ -112,7 +110,7 @@ defmodule EirinchanWeb.LegacyModController do
          {:ok, post} <- Posts.get_post(board, post_id),
          {:ok, _updated_post} <-
            Posts.spoilerize_post_file(board, post_id, file_index,
-             config: board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
+             config: board_config(board, conn)
            ) do
       ModerationAudit.log(conn, "Spoilered file on post No. #{PostView.public_post_id(post)}",
         moderator: moderator,
@@ -120,7 +118,7 @@ defmodule EirinchanWeb.LegacyModController do
       )
 
       redirect(conn,
-        to: thread_destination(board, post, EirinchanWeb.RequestMeta.request_host(conn))
+        to: thread_destination(board, post, BoardRuntime.request_host(conn))
       )
     else
       error -> legacy_error(conn, error)
@@ -134,7 +132,7 @@ defmodule EirinchanWeb.LegacyModController do
          {:ok, post} <- Posts.get_post(board, post_id),
          {:ok, _result} <-
            Posts.moderate_delete_posts_by_ip(board, post.ip_subnet,
-             config: board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
+             config: board_config(board, conn)
            ) do
       ModerationAudit.log(conn, "Deleted posts by IP #{display_ip_for_log(post.ip_subnet)}",
         moderator: moderator,
@@ -159,7 +157,7 @@ defmodule EirinchanWeb.LegacyModController do
              config_by_board:
                config_map(
                  Moderation.list_accessible_boards(moderator),
-                EirinchanWeb.RequestMeta.request_host(conn)
+                 conn
               )
            ) do
       ModerationAudit.log(conn, "Deleted posts across boards by IP #{display_ip_for_log(post.ip_subnet)}",
@@ -223,7 +221,7 @@ defmodule EirinchanWeb.LegacyModController do
              board,
              post_id,
              action,
-             EirinchanWeb.RequestMeta.request_host(conn)
+             BoardRuntime.request_host(conn)
            ) do
       ModerationAudit.log(conn, "#{humanize_thread_action(action)} thread No. #{post_id}",
         moderator: moderator,
@@ -458,8 +456,8 @@ defmodule EirinchanWeb.LegacyModController do
   defp legacy_error(conn, false), do: send_resp(conn, :forbidden, "Forbidden")
   defp legacy_error(conn, _), do: send_resp(conn, :unprocessable_entity, "Unprocessable action")
 
-  defp config_map(boards, host) do
-    Map.new(boards, fn board -> {board.id, board_config(board, host)} end)
+  defp config_map(boards, conn) do
+    BoardRuntime.config_map(boards, conn)
   end
 
   defp thread_destination(board, post, host) do
@@ -473,10 +471,7 @@ defmodule EirinchanWeb.LegacyModController do
     _ -> "/#{board.uri}"
   end
 
-  defp board_config(board_record, request_host) do
-    Config.compose(nil, Settings.current_instance_config(), board_record.config_overrides,
-      board: Eirinchan.Boards.BoardRecord.to_board(board_record),
-      request_host: request_host
-    )
+  defp board_config(board_record, conn) do
+    BoardRuntime.board_config(board_record, conn)
   end
 end

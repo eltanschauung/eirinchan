@@ -5,8 +5,7 @@ defmodule EirinchanWeb.IpManagementController do
   alias Eirinchan.IpCrypt
   alias Eirinchan.Posts
   alias Eirinchan.Moderation
-  alias EirinchanWeb.PostView
-  alias EirinchanWeb.ModerationAudit
+  alias EirinchanWeb.{BoardRuntime, ModerationAudit, PostView}
 
   action_fallback EirinchanWeb.FallbackController
 
@@ -104,7 +103,7 @@ defmodule EirinchanWeb.IpManagementController do
            Moderation.list_accessible_boards(conn.assigns.current_moderator)
            |> then(
              &Posts.moderate_delete_posts_by_ip(&1, decoded_ip,
-               config_by_board: config_map(&1, EirinchanWeb.RequestMeta.request_host(conn))
+               config_by_board: config_map(&1, conn)
              )
            ) do
       ModerationAudit.log(conn, "Deleted posts by IP #{IpCrypt.cloak_ip(decoded_ip)}")
@@ -122,7 +121,7 @@ defmodule EirinchanWeb.IpManagementController do
          :ok <- authorize_ip_view(conn, board),
          {:ok, result} <-
            Posts.moderate_delete_posts_by_ip(board, decoded_ip,
-             config: board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
+             config: board_config(board, conn)
            ) do
       ModerationAudit.log(conn, "Deleted board posts by IP #{IpCrypt.cloak_ip(decoded_ip)}",
         board: board
@@ -165,17 +164,11 @@ defmodule EirinchanWeb.IpManagementController do
     end
   end
 
-  defp config_map(boards, host) do
-    Map.new(boards, fn board -> {board.id, board_config(board, host)} end)
+  defp config_map(boards, conn) do
+    BoardRuntime.config_map(boards, conn)
   end
 
-  defp board_config(board_record, request_host) do
-    Eirinchan.Runtime.Config.compose(
-      nil,
-      Eirinchan.Settings.current_instance_config(),
-      board_record.config_overrides,
-      board: Eirinchan.Boards.BoardRecord.to_board(board_record),
-      request_host: request_host
-    )
+  defp board_config(board_record, conn) do
+    BoardRuntime.board_config(board_record, conn)
   end
 end

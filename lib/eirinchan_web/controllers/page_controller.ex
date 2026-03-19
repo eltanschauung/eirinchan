@@ -13,13 +13,11 @@ defmodule EirinchanWeb.PageController do
   alias Eirinchan.Posts
   alias Eirinchan.Stats
   alias Eirinchan.ThreadWatcher
-  alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.Posts.{Post, PostFile, PublicIds}
   alias Eirinchan.Repo
-  alias Eirinchan.Runtime.Config
   alias Eirinchan.Settings
   alias Eirinchan.Themes
-  alias EirinchanWeb.BoardChrome
+  alias EirinchanWeb.{BoardChrome, BoardRuntime}
   alias EirinchanWeb.HtmlSanitizer
   alias EirinchanWeb.PostView
   alias EirinchanWeb.PublicControllerHelpers
@@ -875,9 +873,7 @@ defmodule EirinchanWeb.PageController do
   defp maybe_add_path(paths, false, _path), do: paths
 
   defp board_config(%BoardRecord{} = board) do
-    Config.compose(nil, Settings.current_instance_config(), board.config_overrides || %{},
-      board: BoardRecord.to_board(board)
-    )
+    BoardRuntime.board_config(board, nil)
   end
 
   defp overboard_thread_limit(settings) do
