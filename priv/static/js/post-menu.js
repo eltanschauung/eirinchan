@@ -89,12 +89,23 @@ function buildMenu(e) {
 	var pos = $(e.target).offset();
 	var i, length;
 	var $menu = $('#post-menu-root');
+	var $post = $(e.target).closest('.post.reply');
 
 	if (!$menu.length) {
 		$menu = $('<div id="post-menu-root" class="post-menu hidden" hidden></div>').appendTo('body');
 	}
 
+	if (!$post.length && e.target.dataset.postTarget) {
+		$post = $('#' + e.target.dataset.postTarget).closest('.post.reply');
+	}
+
 	$menu.empty().append(mainMenu.list_items());
+
+	if ($post.length) {
+		$menu.css('--post-menu-bg-local', $post.css('background-color'));
+	} else {
+		$menu.css('--post-menu-bg-local', '');
+	}
 
 	//  execute registered click handlers
 	length = onclick_callbacks.length;
