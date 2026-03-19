@@ -1,4 +1,6 @@
 (function () {
+  var runtime = window.EirinchanRuntime || {};
+
   function identity(value) {
     return value;
   }
@@ -11,10 +13,51 @@
     }
   }
 
-  function parseInteger(value, fallback) {
-    var parsed = parseInt(value, 10);
-    return isNaN(parsed) ? fallback : parsed;
-  }
+  var parseInteger =
+    runtime.parseInteger ||
+    function (value, fallback) {
+      var parsed = parseInt(value, 10);
+      return isNaN(parsed) ? fallback : parsed;
+    };
+
+  var readCookie =
+    runtime.readCookie ||
+    function (cookieName, fallback) {
+      var match = document.cookie.match('(?:^|; )' + cookieName + '=([^;]*)');
+      return match ? decodeURIComponent(match[1]) : fallback;
+    };
+
+  var writeCookie =
+    runtime.writeCookie ||
+    function (name, value, options) {
+      var settings = options || {};
+      var cookie =
+        String(name) +
+        '=' +
+        encodeURIComponent(value == null ? '' : String(value)) +
+        '; path=' +
+        (settings.path || '/');
+
+      if (typeof settings.maxAge === 'number') {
+        cookie += '; max-age=' + settings.maxAge;
+      }
+
+      if (settings.sameSite) {
+        cookie += '; samesite=' + settings.sameSite;
+      }
+
+      document.cookie = cookie;
+    };
+
+  var removeCookie =
+    runtime.removeCookie ||
+    function (name, options) {
+      writeCookie(name, '', {
+        path: (options && options.path) || '/',
+        maxAge: 0,
+        sameSite: (options && options.sameSite) || 'lax'
+      });
+    };
 
   function appendStyleChooser() {
     if (document.querySelector('div.styles') || document.getElementById('style-select')) return;
@@ -239,8 +282,7 @@
   }
 
   function cookieThemeName() {
-    var match = document.cookie.match('(?:^|; )theme=([^;]*)');
-    return match ? decodeURIComponent(match[1]) : null;
+    return readCookie('theme', null);
   }
 
   function getBoardStyleSelections() {
@@ -261,11 +303,11 @@
     } catch (_error) {
     }
 
-    document.cookie =
-      'board_themes=' +
-      encodeURIComponent(JSON.stringify(choices)) +
-      '; path=/; max-age=' +
-      60 * 60 * 24 * 365;
+    writeCookie('board_themes', JSON.stringify(choices), {
+      path: '/',
+      maxAge: 60 * 60 * 24 * 365,
+      sameSite: 'lax'
+    });
   }
 
   function basename(path) {
@@ -414,12 +456,9 @@
     var normalized = typeof value === 'string' ? value : '';
 
     if (normalized) {
-      document.cookie =
-        'password=' +
-        encodeURIComponent(normalized) +
-        '; path=/; max-age=31536000; samesite=lax';
+      writeCookie('password', normalized, { path: '/', maxAge: 31536000, sameSite: 'lax' });
     } else {
-      document.cookie = 'password=; Max-Age=0; path=/; samesite=lax';
+      removeCookie('password', { path: '/', sameSite: 'lax' });
     }
   }
 
@@ -681,7 +720,7 @@
     } catch (_error) {
     }
 
-    document.cookie = cookieName + "=;expires=0;path=/;";
+    removeCookie(cookieName, { path: '/', sameSite: 'lax' });
     return saved;
   }
 
@@ -789,13 +828,42 @@
     Array.prototype.forEach.call(posts, initPost);
   }
 
-  function afterPostSuccess(response) {
+  function afterPostSuccess(response, form) {
     if (!response) return;
 
     clearCurrentBodyDraft();
 
     if (typeof window.jQuery === 'undefined') return;
-    window.jQuery(document).trigger('ajax_after_post', response);
+    window.jQuery(document).trigger('ajax_after_post', [response, form]);
+  }
+
+  function dispatchNewPost(post) {
+    if (!post) return;
+
+    if (window.EirinchanFrontend && typeof window.EirinchanFrontend.initPost === 'function') {
+      window.EirinchanFrontend.initPost(post);
+      return;
+    }
+
+    if (typeof window.jQuery !== 'undefined') {
+      window.jQuery(document).trigger('new_post', post);
+    }
+  }
+
+  function dispatchAjaxAfterPostSuccess(response, form) {
+    if (!response) return;
+
+    if (
+      window.EirinchanFrontend &&
+      typeof window.EirinchanFrontend.afterPostSuccess === 'function'
+    ) {
+      window.EirinchanFrontend.afterPostSuccess(response, form);
+      return;
+    }
+
+    if (typeof window.jQuery !== 'undefined') {
+      window.jQuery(document).trigger('ajax_after_post', [response, form]);
+    }
   }
 
   function publicPostIdForNode(post) {
@@ -966,8 +1034,11 @@
         }
 
         if (styleName) {
-          document.cookie =
-            'theme=' + encodeURIComponent(styleName) + '; path=/; max-age=' + 60 * 60 * 24 * 365;
+          writeCookie('theme', styleName, {
+            path: '/',
+            maxAge: 60 * 60 * 24 * 365,
+            sameSite: 'lax'
+          });
         }
       }
 
@@ -989,11 +1060,7 @@
   window.showAlert = window.showAlert || showAlert;
   window.generatePassword = window.generatePassword || generatePassword;
   window.getCookie =
-    window.getCookie ||
-    function (cookieName) {
-      var match = document.cookie.match('(?:^|; )' + cookieName + '=([^;]*)');
-      return match ? decodeURIComponent(match[1]) : null;
-    };
+    window.getCookie || readCookie;
   window.get_cookie = window.get_cookie || window.getCookie;
   window.do_boardlist = window.do_boardlist || function () {};
   window.dopost = window.dopost || doPost;
@@ -1002,13 +1069,15 @@
   window.citeReply = window.citeReply || citeReply;
   window.rememberStuff = window.rememberStuff || rememberStuff;
   window.syncBacklinksFromPost = window.syncBacklinksFromPost || syncBacklinksFromPost;
-  window.EirinchanFrontend =
-    window.EirinchanFrontend ||
-    {
-      initPost: initPost,
-      initPosts: initPosts,
-      afterPostSuccess: afterPostSuccess
-    };
+  window.EirinchanFrontend = window.EirinchanFrontend || {};
+  window.EirinchanFrontend.initPost = window.EirinchanFrontend.initPost || initPost;
+  window.EirinchanFrontend.initPosts = window.EirinchanFrontend.initPosts || initPosts;
+  window.EirinchanFrontend.afterPostSuccess =
+    window.EirinchanFrontend.afterPostSuccess || afterPostSuccess;
+  window.EirinchanFrontend.dispatchNewPost =
+    window.EirinchanFrontend.dispatchNewPost || dispatchNewPost;
+  window.EirinchanFrontend.dispatchAjaxAfterPostSuccess =
+    window.EirinchanFrontend.dispatchAjaxAfterPostSuccess || dispatchAjaxAfterPostSuccess;
   window.ready =
     window.ready ||
     function () {

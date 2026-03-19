@@ -4,20 +4,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
         }
 
-        var readCookie = function(name) {
+        var runtime = window.EirinchanRuntime || {};
+        var readCookie = runtime.readCookie || function(name, fallback) {
                 var match = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '=([^;]*)'));
-                return match ? decodeURIComponent(match[1]) : null;
+                return match ? decodeURIComponent(match[1]) : fallback;
+        };
+        var writeCookie = runtime.writeCookie || function(name, value) {
+                document.cookie = name + '=' + encodeURIComponent(value) + '; path=/; max-age=31536000; samesite=lax';
         };
 
         Options.extend_tab('general', '<label id="add-nav-arrows"><input type="checkbox">' + _('Display navigation arrows') + '</label>');
 
-        var enabled = readCookie('navarrows');
+        var enabled = readCookie('navarrows', null);
         enabled = enabled !== 'false';
         $('#add-nav-arrows>input').prop('checked', enabled);
 
         $('#add-nav-arrows>input').on('click', function() {
                 var value = $('#add-nav-arrows>input').is(':checked') ? 'true' : 'false';
-                document.cookie = 'navarrows=' + value + '; path=/; max-age=31536000; samesite=lax';
+                writeCookie('navarrows', value, { path: '/', maxAge: 31536000, sameSite: 'lax' });
                 location.reload();
         });
 })};

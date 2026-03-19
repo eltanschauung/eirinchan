@@ -1,4 +1,8 @@
 (function () {
+  function escapeCookieName(name) {
+    return String(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
   function metaContent(name) {
     var node = document.querySelector('meta[name="' + name + '"]');
     return node ? node.getAttribute('content') || '' : '';
@@ -26,6 +30,43 @@
     return isNaN(parsed) ? fallback : parsed;
   }
 
+  function readCookie(name, fallback) {
+    var match = document.cookie.match(new RegExp('(?:^|; )' + escapeCookieName(name) + '=([^;]*)'));
+    return match ? decodeURIComponent(match[1]) : fallback;
+  }
+
+  function writeCookie(name, value, options) {
+    var cookie = String(name) + '=' + encodeURIComponent(value == null ? '' : String(value));
+    var settings = options || {};
+    var path = settings.path || '/';
+
+    cookie += '; path=' + path;
+
+    if (typeof settings.maxAge === 'number') {
+      cookie += '; max-age=' + settings.maxAge;
+    }
+
+    if (settings.sameSite) {
+      cookie += '; samesite=' + settings.sameSite;
+    }
+
+    if (settings.secure) {
+      cookie += '; secure';
+    }
+
+    document.cookie = cookie;
+  }
+
+  function removeCookie(name, options) {
+    var settings = options || {};
+    writeCookie(name, '', {
+      path: settings.path || '/',
+      maxAge: 0,
+      sameSite: settings.sameSite || 'lax',
+      secure: !!settings.secure
+    });
+  }
+
   function syncTimezoneCookies() {
     try {
       var timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -34,17 +75,25 @@
       var currentOffset = parseInteger(metaContent('eirinchan:browser-timezone-offset'), 0);
 
       if (timezone && timezone !== currentTimezone) {
-        document.cookie =
-          'timezone=' + encodeURIComponent(timezone) + '; path=/; max-age=31536000; samesite=lax';
+        writeCookie('timezone', timezone, { path: '/', maxAge: 31536000, sameSite: 'lax' });
       }
 
       if (!isNaN(offset) && offset !== currentOffset) {
-        document.cookie =
-          'timezone_offset=' + offset + '; path=/; max-age=31536000; samesite=lax';
+        writeCookie('timezone_offset', offset, { path: '/', maxAge: 31536000, sameSite: 'lax' });
       }
     } catch (_error) {
     }
   }
+
+  window.EirinchanRuntime = window.EirinchanRuntime || {};
+  window.EirinchanRuntime.metaContent = metaContent;
+  window.EirinchanRuntime.parseJsonMeta = parseJsonMeta;
+  window.EirinchanRuntime.parseBoolean = parseBoolean;
+  window.EirinchanRuntime.parseInteger = parseInteger;
+  window.EirinchanRuntime.readCookie = readCookie;
+  window.EirinchanRuntime.writeCookie = writeCookie;
+  window.EirinchanRuntime.removeCookie = removeCookie;
+  window.EirinchanRuntime.syncTimezoneCookies = syncTimezoneCookies;
 
   if (typeof window.active_page === 'undefined') {
     window.active_page = metaContent('eirinchan:active-page') || '';

@@ -15,6 +15,10 @@
 var tab = Options.add_tab("general", "home", _("General"));
 
 $(function(){
+  var runtime = window.EirinchanRuntime || {};
+  var removeCookie = runtime.removeCookie || function(name) {
+    document.cookie = name + "=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  };
   var prefBox = $("#general-preferences");
   if (!prefBox.length) {
     prefBox = $("<div id='general-preferences'></div>").appendTo(tab.content);
@@ -52,8 +56,8 @@ $(function(){
   $("#options-storage-erase").off("click.optionsGeneral").on("click.optionsGeneral", function() {
     if (confirm(_("Are you sure you want to erase your storage? This involves your hidden threads, watched threads, post password and many more."))) {
       localStorage.clear();
-      document.cookie = "theme=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-      document.cookie = "board_themes=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      removeCookie("theme", { path: '/', sameSite: 'lax' });
+      removeCookie("board_themes", { path: '/', sameSite: 'lax' });
       document.location.reload();
     }
   });
