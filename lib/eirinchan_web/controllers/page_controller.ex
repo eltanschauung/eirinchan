@@ -514,6 +514,7 @@ defmodule EirinchanWeb.PageController do
       )
 
     posts_perhour = Stats.posts_perhour(board_ids)
+    users_10minutes = Stats.users_10minutes()
 
     posters_week =
       Repo.one(
@@ -544,6 +545,7 @@ defmodule EirinchanWeb.PageController do
       total_posts: number_with_delimiters(total_posts),
       unique_posters: number_with_delimiters(unique_posters),
       posts_perhour: number_with_delimiters(posts_perhour),
+      users_10minutes: number_with_delimiters(users_10minutes),
       posts_week: number_with_delimiters(posts_week),
       posters_week: number_with_delimiters(posters_week),
       active_content: PostView.file_size_text(%{file_size: primary_bytes + extra_bytes})

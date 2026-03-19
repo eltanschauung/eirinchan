@@ -4,6 +4,7 @@ defmodule Eirinchan.Stats do
   import Ecto.Query
 
   alias Eirinchan.Boards.BoardRecord
+  alias Eirinchan.BrowserPresence
   alias Eirinchan.Posts.Post
   alias Eirinchan.Repo
 
@@ -22,5 +23,10 @@ defmodule Eirinchan.Stats do
       :count,
       :id
     ) || 0
+  end
+
+  @spec users_10minutes() :: integer()
+  def users_10minutes do
+    BrowserPresence.users_10minutes()
   end
 end
