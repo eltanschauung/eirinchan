@@ -590,6 +590,19 @@ initImageHover();
 onReady(function() {
 	let dontFetchAgain = [];
 	let hoverTargets = 'div.body a:not([rel="nofollow"]), p.intro span.mentioned a';
+	let hoverSelector = function(board, id, includeThread) {
+		let selectors = [
+			'[data-board="' + board + '"] div.post#reply_' + id,
+			'[data-board="' + board + '"] div.post#op_' + id
+		];
+
+		if (includeThread) {
+			selectors.push('[data-board="' + board + '"] div#thread_' + id);
+		}
+
+		return selectors.join(', ');
+	};
+
 	initHover = function() {
 		let link = $(this);
 		let id;
@@ -669,7 +682,7 @@ onReady(function() {
 				}
 			};
 
-			post = $('[data-board="' + board + '"] div.post#reply_' + id + ', [data-board="' + board + '"]div#thread_' + id);
+			post = $(hoverSelector(board, id, link.is('[data-thread]')));
 			if (post.length > 0) {
 				startHover($(this));
 			} else {
@@ -702,7 +715,7 @@ onReady(function() {
 							$(data).find('div[id^="thread_"]').hide().attr('data-cached', 'yes').prependTo('form[name="postcontrols"]');
 						}
 
-						post = $('[data-board="' + board + '"] div.post#reply_' + id + ', [data-board="' + board + '"]div#thread_' + id);
+						post = $(hoverSelector(board, id, link.is('[data-thread]')));
 
 						if (hovering && post.length > 0) {
 							startHover(link);
