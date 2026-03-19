@@ -410,6 +410,19 @@
     return pass;
   }
 
+  function syncPasswordCookie(value) {
+    var normalized = typeof value === 'string' ? value : '';
+
+    if (normalized) {
+      document.cookie =
+        'password=' +
+        encodeURIComponent(normalized) +
+        '; path=/; max-age=31536000; samesite=lax';
+    } else {
+      document.cookie = 'password=; Max-Age=0; path=/; samesite=lax';
+    }
+  }
+
   function currentPostForm() {
     return document.forms.post || document.querySelector('form[name="post"]');
   }
@@ -481,6 +494,7 @@
 
     if (form.elements["password"]) {
       localStorage.password = form.elements["password"].value;
+      syncPasswordCookie(form.elements["password"].value);
     }
 
     if (form.elements["email"]) {
@@ -734,6 +748,7 @@
       }
 
       form.password.value = localStorage.password;
+      syncPasswordCookie(localStorage.password);
     }
 
     if (localStorage.name && form.elements["name"]) {

@@ -18,7 +18,7 @@ defmodule EirinchanWeb.PostController do
   plug EirinchanWeb.Plugs.LoadBoard
 
   def create(conn, params) do
-    params = normalize_legacy_params(params)
+    params = normalize_legacy_params(conn, params)
     board = conn.assigns.current_board
     config = conn.assigns.current_board_config
 
@@ -364,22 +364,26 @@ defmodule EirinchanWeb.PostController do
     end
   end
 
-  defp normalize_legacy_params(params) do
+  defp normalize_legacy_params(conn, params) do
     params
-    |> put_legacy_password()
+    |> put_legacy_password(conn)
     |> put_legacy_selected_checkbox_id()
     |> put_legacy_action_id()
     |> put_legacy_report_id()
   end
 
-  defp put_legacy_password(%{"password" => password} = params)
+  defp put_legacy_password(%{"password" => password} = params, _conn)
        when is_binary(password) and password != "",
        do: params
 
-  defp put_legacy_password(params) do
+  defp put_legacy_password(params, conn) do
     case params["pwd"] do
       value when is_binary(value) and value != "" -> Map.put(params, "password", value)
-      _ -> params
+      _ ->
+        case conn.req_cookies["password"] do
+          value when is_binary(value) and value != "" -> Map.put(params, "password", value)
+          _ -> params
+        end
     end
   end
 
