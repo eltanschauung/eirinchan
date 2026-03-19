@@ -2359,8 +2359,19 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   defp current_global_message_preview_html do
-    current_global_message()
-    |> EirinchanWeb.Announcements.render_message_fragment()
+    config = Settings.current_instance_config()
+
+    config
+    |> EirinchanWeb.Announcements.global_message(board_ids: preview_board_ids())
+    |> case do
+      nil -> ""
+      message -> EirinchanWeb.Announcements.render_message_fragment(message)
+    end
+  end
+
+  defp preview_board_ids do
+    Boards.list_boards()
+    |> Enum.map(& &1.id)
   end
 
   defp global_message_history do
