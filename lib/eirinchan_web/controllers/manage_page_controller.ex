@@ -11,6 +11,7 @@ defmodule EirinchanWeb.ManagePageController do
   alias Eirinchan.IpCrypt
   alias Eirinchan.FlagsConfig
   alias Eirinchan.Installation
+  alias Eirinchan.ManageLoginThrottle
   alias Eirinchan.Moderation
   alias Eirinchan.ModerationLog
   alias Eirinchan.Noticeboard
@@ -39,26 +40,28 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def create_session(conn, %{"username" => username, "password" => password}) do
-    case Moderation.authenticate(username, password) do
-      {:ok, moderator} ->
-        secure_token = ManageSecurity.generate_token()
-        session_fingerprint = ManageSecurity.session_fingerprint(moderator)
-        login_ip = ManageSecurity.ip_fingerprint(RequestMeta.effective_remote_ip(conn))
-        ModerationAudit.log(conn, "Logged in", moderator: moderator)
+    config = Settings.current_instance_config()
+    remote_ip = RequestMeta.effective_remote_ip(conn)
 
-        conn
-        |> configure_session(renew: true)
-        |> clear_session()
-        |> put_session(:moderator_user_id, moderator.id)
-        |> put_session(:secure_manage_token, secure_token)
-        |> put_session(:moderator_session_fingerprint, session_fingerprint)
-        |> put_session(:moderator_login_ip, login_ip)
-        |> redirect(to: ~p"/manage")
+    case ManageLoginThrottle.allowed?(username, remote_ip, config) do
+      :ok ->
+        case Moderation.authenticate(username, password) do
+          {:ok, moderator} ->
+            ManageLoginThrottle.clear(username, remote_ip)
+            ModerationAudit.log(conn, "Logged in", moderator: moderator)
 
-      {:error, :invalid_credentials} ->
+            conn
+            |> establish_moderator_session(moderator, remote_ip)
+            |> redirect(to: ~p"/manage")
+
+          {:error, :invalid_credentials} ->
+            handle_failed_browser_login(conn, username, remote_ip, config)
+        end
+
+      {:error, _retry_after} ->
         conn
-        |> put_status(:unauthorized)
-        |> render(:login, error: "Invalid credentials.", username: username)
+        |> put_status(:too_many_requests)
+        |> render(:login, error: "Too many login attempts. Try again later.", username: username)
     end
   end
 
@@ -2198,6 +2201,37 @@ defmodule EirinchanWeb.ManagePageController do
     |> clear_session()
     |> configure_session(drop: true)
     |> redirect(to: ~p"/manage/login")
+  end
+
+  defp establish_moderator_session(conn, moderator, remote_ip) do
+    secure_token = ManageSecurity.generate_token()
+    session_fingerprint = ManageSecurity.session_fingerprint(moderator)
+    login_ip = ManageSecurity.ip_fingerprint(remote_ip)
+    issued_at = ManageSecurity.current_session_issued_at()
+
+    conn
+    |> configure_session(renew: true)
+    |> clear_session()
+    |> put_session(:moderator_user_id, moderator.id)
+    |> put_session(:secure_manage_token, secure_token)
+    |> put_session(:moderator_session_fingerprint, session_fingerprint)
+    |> put_session(:moderator_login_ip, login_ip)
+    |> put_session(:moderator_session_issued_at, issued_at)
+    |> put_session(:moderator_session_last_seen_at, issued_at)
+  end
+
+  defp handle_failed_browser_login(conn, username, remote_ip, config) do
+    case ManageLoginThrottle.record_failure(username, remote_ip, config) do
+      {:error, _retry_after} ->
+        conn
+        |> put_status(:too_many_requests)
+        |> render(:login, error: "Too many login attempts. Try again later.", username: username)
+
+      :ok ->
+        conn
+        |> put_status(:unauthorized)
+        |> render(:login, error: "Invalid credentials.", username: username)
+    end
   end
 
   defp ensure_moderator(%Plug.Conn{assigns: %{current_moderator: nil}}),
