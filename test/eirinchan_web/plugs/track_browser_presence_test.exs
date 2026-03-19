@@ -30,4 +30,16 @@ defmodule EirinchanWeb.Plugs.TrackBrowserPresenceTest do
 
     assert [] == :ets.lookup(:eirinchan_browser_presence, "token-1234567890123456")
   end
+
+  test "skips crawler user agents", %{conn: conn} do
+    _conn =
+      conn
+      |> Map.put(:method, "GET")
+      |> Map.put(:request_path, "/bant/")
+      |> Plug.Conn.put_req_header("user-agent", "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)")
+      |> Plug.Conn.assign(:browser_token, "token-1234567890123456")
+      |> TrackBrowserPresence.call([])
+
+    assert [] == :ets.lookup(:eirinchan_browser_presence, "token-1234567890123456")
+  end
 end
