@@ -314,13 +314,7 @@ defmodule EirinchanWeb.PostComponents do
 
   def post_number_links(assigns) do
     ~H"""
-    &nbsp;<a
-      class="post_no"
-      id={"post_no_#{@post_id}"}
-      data-highlight-reply={@post_id}
-      href={@post_href}
-    >No.</a>
-    <a
+    &nbsp;<a class="post_no" id={"post_no_#{@post_id}"} data-highlight-reply={@post_id} href={@post_href}>No.</a><a
       class="post_no"
       data-cite-reply={@post_id}
       data-cite-mode={quote_mode_value(@quote_mode)}
@@ -328,9 +322,7 @@ defmodule EirinchanWeb.PostComponents do
       data-quote-to={@quote_to}
       data-quick-reply-thread={@quick_reply_thread}
       {@attrs}
-    >
-      <%= @post_id %>
-    </a>
+    ><%= @post_id %></a>
     """
   end
 
