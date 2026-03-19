@@ -844,6 +844,11 @@ defmodule EirinchanWeb.ManagePageController do
     |> assign(:hide_theme_switcher, true)
   end
 
+  defp append_manage_custom_javascript(conn, urls) when is_list(urls) do
+    existing = conn.assigns[:custom_javascript_urls] || []
+    assign(conn, :custom_javascript_urls, existing ++ urls)
+  end
+
   def blotter(conn, _params) do
     with {:ok, moderator} <- ensure_moderator(conn) do
       config = Settings.current_instance_config()
@@ -1032,7 +1037,7 @@ defmodule EirinchanWeb.ManagePageController do
         end
 
       conn
-      |> assign(:javascript_urls, ["/js/mod/recent-posts.js"])
+      |> append_manage_custom_javascript(["/js/mod/recent-posts.js"])
       |> render(:recent_posts,
         moderator: moderator,
         boards: boards,

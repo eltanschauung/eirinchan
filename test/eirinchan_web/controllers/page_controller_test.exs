@@ -436,7 +436,9 @@ defmodule EirinchanWeb.PageControllerTest do
     refute page_one =~ "Second overboard page"
     assert page_one =~ ~s(data-overboard-pages)
     assert page_one =~ ~s(data-next-link="/ukko/2.html")
+    assert page_one =~ ~s(src="/main.js")
     assert page_one =~ ~s(name="delete_#{PublicIds.public_id(first_thread)}")
+    assert page_one =~ ~s(data-secure-href="/mod.php?/#{board.uri}/delete/#{PublicIds.public_id(first_thread)}/)
     assert page_one =~ ~s(class="controls op")
 
     page_two =
