@@ -130,7 +130,8 @@ defmodule EirinchanWeb.PublicShellTest do
              "/js/runtime-config.js",
              "/main.js",
              "/js/bundle-public-core.js",
-             "/js/bundle-public-index.js"
+             "/js/bundle-public-index.js",
+             "/js/bundle-public-ukko.js"
            ]
   end
 

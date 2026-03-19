@@ -252,33 +252,49 @@ defmodule EirinchanWeb.PageController do
 
   def board_flag_legacy(conn, %{"board" => _uri}), do: redirect(conn, to: ~p"/flags")
 
-  def render_overboard(conn) do
+  def render_overboard(conn, page \\ 1) do
     settings = Themes.theme_settings("ukko")
     boards = Boards.list_boards()
-    threads = overboard_threads(settings, boards)
-    posts = Enum.flat_map(threads, fn %{summary: summary} -> [summary.thread | summary.replies] end)
+    case overboard_threads(settings, boards, page) do
+      {:ok, overboard_page} ->
+        threads = overboard_page.threads
+        posts = Enum.flat_map(threads, fn %{summary: summary} -> [summary.thread | summary.replies] end)
 
-    conn
-    |> put_view(EirinchanWeb.PageHTML)
-    |> render(
-      :ukko,
-      Keyword.merge(
-        public_page_assigns(conn, "active-page", "ukko"),
-        layout: false,
-        page_title: "#{Themes.overboard_uri()} - #{overboard_title(settings)}",
-        body_class: PublicControllerHelpers.moderator_body_class(conn, "active-page"),
-        threads: threads,
-        overboard_uri: Themes.overboard_uri(),
-        overboard_title: overboard_title(settings),
-        overboard_subtitle: overboard_subtitle(settings),
-        own_post_ids: ShowYous.owned_post_ids(conn, posts),
-        show_yous: ShowYous.enabled?(conn),
-        backlinks_map: Posts.backlinks_map_for_posts(posts),
-        thread_watch_state_by_board: overboard_thread_watch_state(conn, threads),
-        current_moderator: conn.assigns[:current_moderator],
-        secure_manage_token: conn.assigns[:secure_manage_token]
-      )
-    )
+        conn
+        |> put_view(EirinchanWeb.PageHTML)
+        |> render(
+          :ukko,
+          Keyword.merge(
+            public_page_assigns(conn, "active-page", "ukko"),
+            layout: false,
+            page_title: "#{Themes.overboard_uri()} - #{overboard_title(settings)}",
+            body_class: PublicControllerHelpers.moderator_body_class(conn, "active-page"),
+            threads: threads,
+            overboard_uri: Themes.overboard_uri(),
+            overboard_title: overboard_title(settings),
+            overboard_subtitle: overboard_subtitle(settings),
+            overboard_page_data: %{
+              page: overboard_page.page,
+              total_pages: overboard_page.total_pages,
+              pages: build_overboard_pages(overboard_page.total_pages)
+            },
+            overboard_next_page:
+              if(overboard_page.page < overboard_page.total_pages,
+                do: overboard_page_link(overboard_page.page + 1),
+                else: nil
+              ),
+            own_post_ids: ShowYous.owned_post_ids(conn, posts),
+            show_yous: ShowYous.enabled?(conn),
+            backlinks_map: Posts.backlinks_map_for_posts(posts),
+            thread_watch_state_by_board: overboard_thread_watch_state(conn, threads),
+            current_moderator: conn.assigns[:current_moderator],
+            secure_manage_token: conn.assigns[:secure_manage_token]
+          )
+        )
+
+      {:error, :not_found} ->
+        send_resp(conn, :not_found, "Page not found")
+    end
   end
 
   def board_flag(conn, %{"board" => uri}) do
@@ -803,13 +819,13 @@ defmodule EirinchanWeb.PageController do
     end)
   end
 
-  defp overboard_threads(settings, boards) do
+  defp overboard_threads(settings, boards, page) do
     config_by_board =
       boards
       |> Enum.map(fn board -> {board.id, board_config(board)} end)
       |> Map.new()
 
-    Posts.list_overboard_threads(boards,
+    Posts.list_overboard_page(boards, page,
       config_by_board: config_by_board,
       exclude: overboard_excluded_boards(settings),
       thread_limit: overboard_thread_limit(settings)
@@ -911,6 +927,18 @@ defmodule EirinchanWeb.PageController do
       {board_uri, PublicControllerHelpers.thread_watch_state(conn, board_uri)}
     end)
   end
+
+  defp build_overboard_pages(total_pages) do
+    for num <- 1..total_pages do
+      %{
+        num: num,
+        link: overboard_page_link(num)
+      }
+    end
+  end
+
+  defp overboard_page_link(1), do: Themes.overboard_path()
+  defp overboard_page_link(page), do: "#{Themes.overboard_path()}/#{page}.html"
 
   defp html_escape(value) do
     value

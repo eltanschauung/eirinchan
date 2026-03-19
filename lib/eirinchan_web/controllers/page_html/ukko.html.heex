@@ -11,11 +11,13 @@
     <p style="text-align:center" class="unimportant">(No threads to display.)</p>
   </div>
 <% else %>
+  <div id="overboard-thread-list">
   <%= for %{board: board, config: config, summary: summary} <- @threads do %>
     <% thread = summary.thread %>
     <% thread_public_id = EirinchanWeb.PostView.public_post_id(thread) %>
     <% watch = @thread_watch_state_by_board |> Map.get(board.uri, %{}) |> Map.get(thread_public_id, %{watched: false, unread_count: 0}) %>
-    <small class="unimportant overboard-board-label">/<%= board.uri %>/</small>
+    <div class="overboard-thread-block" data-board={board.uri} data-thread-id={thread_public_id}>
+    <small class="unimportant2 overboard-board-label">/<%= board.uri %>/</small>
     <div
       class="thread"
       id={"thread_#{thread_public_id}"}
@@ -57,7 +59,14 @@
               data-watched={to_string(watch.watched)}
             ></a>
           </span>
-          <label>
+          <input
+            :if={@current_moderator}
+            type="checkbox"
+            class="delete"
+            name={"delete_#{thread_public_id}"}
+            id={"delete_#{thread_public_id}"}
+          />
+          <label :if={@current_moderator} for={"delete_#{thread_public_id}"}>
             <.post_identity
               post={thread}
               config={config}
@@ -66,6 +75,14 @@
               own={@show_yous and MapSet.member?(@own_post_ids, thread_public_id)}
             />
           </label>
+          <.post_identity
+            :if={!@current_moderator}
+            post={thread}
+            config={config}
+            board={board}
+            moderator={@current_moderator}
+            own={@show_yous and MapSet.member?(@own_post_ids, thread_public_id)}
+          />
           <.post_number_links
             post_id={thread_public_id}
             post_href={EirinchanWeb.PostView.thread_path(board, thread, config) <> "##{thread_public_id}"}
@@ -89,6 +106,13 @@
               [Last <%= summary.last_count %> Posts]
             </a>
           <% end %>
+          <.post_controls
+            :if={@current_moderator}
+            post={thread}
+            board={board}
+            moderator={@current_moderator}
+            secure_manage_token={@secure_manage_token}
+          />
         </p>
 
         <.body_container
@@ -112,7 +136,25 @@
         <div class="post reply" id={"reply_#{reply_public_id}"}>
           <p class="intro">
             <a id={to_string(reply_public_id)} class="post_anchor"></a>
+            <input
+              :if={@current_moderator}
+              type="checkbox"
+              class="delete"
+              name={"delete_#{reply_public_id}"}
+              id={"delete_#{reply_public_id}"}
+            />
+            <.reply_post_button :if={@current_moderator} post_target={"reply_#{reply_public_id}"} />
+            <label :if={@current_moderator} for={"delete_#{reply_public_id}"}>
+              <.post_identity
+                post={reply}
+                config={config}
+                board={board}
+                moderator={@current_moderator}
+                own={@show_yous and MapSet.member?(@own_post_ids, reply_public_id)}
+              />
+            </label>
             <.post_identity
+              :if={!@current_moderator}
               post={reply}
               config={config}
               board={board}
@@ -136,6 +178,13 @@
           </p>
 
           <.files_block post={reply} config={config} board={board} />
+          <.post_controls
+            :if={@current_moderator}
+            post={reply}
+            board={board}
+            moderator={@current_moderator}
+            secure_manage_token={@secure_manage_token}
+          />
           <.body_container
             post={reply}
             board={board}
@@ -149,9 +198,26 @@
       <% end %>
       <br class="clear" />
     </div>
+    </div>
     <hr />
   <% end %>
+  </div>
 <% end %>
+
+<div
+  :if={@overboard_page_data.total_pages > 1}
+  class="pages"
+  data-overboard-pages
+  data-next-link={@overboard_next_page}
+>
+  <%= for page <- @overboard_page_data.pages do %>
+    <%= if page.num == @overboard_page_data.page do %>
+      [<a class="selected"><%= page.num %></a>]
+    <% else %>
+      [<a href={page.link}><%= page.num %></a>]
+    <% end %>
+  <% end %>
+</div>
 
 <%= if @board_chrome.show_footer do %>
   <EirinchanWeb.PostComponents.site_footer />

@@ -361,7 +361,7 @@ defmodule EirinchanWeb.PageControllerTest do
       |> get("/ukko")
       |> html_response(200)
 
-    assert page =~ ~s(class="unimportant overboard-board-label">/#{board.uri}/</small>)
+    assert page =~ ~s(class="unimportant2 overboard-board-label">/#{board.uri}/</small>)
     refute page =~ ~s(<h2><a href="/#{board.uri}">/#{board.uri}/</a></h2>)
 
     {saged_index, _} = :binary.match(page, "Saged latest")
@@ -392,6 +392,42 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ "Okuu"
     assert page =~ "Configured ukko"
     assert page =~ board.uri
+  end
+
+  test "overboard paginates and shows moderation controls for signed-in staff", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+    board = board_fixture(%{uri: "pages#{System.unique_integer([:positive])}", title: "Pages"})
+    second_thread = thread_fixture(board, %{subject: "Second overboard page", body: "two"})
+    first_thread = thread_fixture(board, %{subject: "First overboard page", body: "one"})
+
+    assert {:ok, _theme} =
+             Eirinchan.Themes.install_theme("ukko", %{
+               "thread_limit" => "1"
+             })
+
+    page_one =
+      conn
+      |> login_moderator(moderator)
+      |> get("/ukko")
+      |> html_response(200)
+
+    assert page_one =~ "First overboard page"
+    refute page_one =~ "Second overboard page"
+    assert page_one =~ ~s(data-overboard-pages)
+    assert page_one =~ ~s(data-next-link="/ukko/2.html")
+    assert page_one =~ ~s(name="delete_#{PublicIds.public_id(first_thread)}")
+    assert page_one =~ ~s(class="controls op")
+
+    page_two =
+      build_conn()
+      |> login_moderator(moderator)
+      |> get("/ukko/2.html")
+      |> html_response(200)
+
+    assert page_two =~ "Second overboard page"
+    refute page_two =~ "First overboard page"
+    assert page_two =~ ~s([<a class="selected">2</a>])
+    assert page_two =~ ~s(name="delete_#{PublicIds.public_id(second_thread)}")
   end
 
   test "GET /recent renders recent posts across boards", %{conn: conn} do
