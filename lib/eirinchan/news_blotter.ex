@@ -11,7 +11,7 @@ defmodule Eirinchan.NewsBlotter do
     |> List.wrap()
     |> Enum.map(&normalize_entry/1)
     |> Enum.filter(& &1)
-    |> apply_limit(Map.get(config, :news_blotter_limit, Map.get(config, "news_blotter_limit", 15)))
+    |> apply_limit(Map.get(config, :news_blotter_limit, Map.get(config, "news_blotter_limit", 100)))
   end
 
   def render_html(config) when is_map(config) do

@@ -713,6 +713,37 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     refute persisted =~ "\"global_message\":\"Important notice updated\""
   end
 
+  test "announcement editor uses configured blotter limit without editable limit field", %{
+    conn: conn
+  } do
+    original_path = Application.get_env(:eirinchan, :instance_config_path)
+
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "eirinchan-announcement-limit-#{System.unique_integer([:positive])}.json"
+      )
+
+    File.write!(path, "{}")
+    Application.put_env(:eirinchan, :instance_config_path, path)
+
+    on_exit(fn ->
+      Application.put_env(:eirinchan, :instance_config_path, original_path)
+      File.rm(path)
+    end)
+
+    moderator = moderator_fixture(%{role: "admin"})
+
+    page =
+      conn
+      |> login_moderator(moderator)
+      |> get("/manage/announcement/browser")
+      |> html_response(200)
+
+    assert page =~ "Maximum 100 entries."
+    refute page =~ ~s(name="limit")
+  end
+
   test "announcement preview sanitizes dangerous global message html", %{conn: conn} do
     original_path = Application.get_env(:eirinchan, :instance_config_path)
 

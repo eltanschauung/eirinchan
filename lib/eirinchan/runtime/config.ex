@@ -57,7 +57,7 @@ defmodule Eirinchan.Runtime.Config do
       "All trademarks, copyrights, comments, and images on this page are owned by and are the responsibility of their respective parties."
     ],
     news_blotter_entries: [],
-    news_blotter_limit: 15,
+    news_blotter_limit: 100,
     whalestickers: WhaleStickerDefaults.entries(),
     banners: [],
     allow_roll: false,
@@ -442,7 +442,7 @@ defmodule Eirinchan.Runtime.Config do
     config
     |> Map.put_new(:global_message, false)
     |> Map.put_new(:news_blotter_entries, [])
-    |> Map.put_new(:news_blotter_limit, 15)
+    |> Map.put_new(:news_blotter_limit, 100)
     |> ensure_default_filters()
     |> Map.put_new(:post_url, path_join(config.root, config.file_post))
     |> ensure_geoip_defaults()

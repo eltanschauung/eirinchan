@@ -32,7 +32,11 @@
 
       row.appendChild(dateCell);
       row.appendChild(messageCell);
-      rows.appendChild(row);
+      if (rows.firstChild) {
+        rows.insertBefore(row, rows.firstChild);
+      } else {
+        rows.appendChild(row);
+      }
       rows.setAttribute('data-next-index', String(index + 1));
     });
 

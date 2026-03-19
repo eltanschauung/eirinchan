@@ -780,7 +780,7 @@ defmodule EirinchanWeb.ManagePageController do
         global_message_preview_html: current_global_message_preview_html(),
         history: global_message_history(),
         entries: Eirinchan.NewsBlotter.entries(config),
-        limit: max_blotter_limit(Map.get(config, :news_blotter_limit, 15)),
+        limit: max_blotter_limit(Map.get(config, :news_blotter_limit, 100)),
         blotter_preview_html: EirinchanWeb.Announcements.news_blotter_html(config),
         error: nil
       )
@@ -2195,7 +2195,7 @@ defmodule EirinchanWeb.ManagePageController do
       global_message_preview_html: current_global_message_preview_html(),
       history: global_message_history(),
       entries: Eirinchan.NewsBlotter.entries(config),
-      limit: max_blotter_limit(Map.get(config, :news_blotter_limit, 15)),
+      limit: max_blotter_limit(Map.get(config, :news_blotter_limit, 100)),
       blotter_preview_html: EirinchanWeb.Announcements.news_blotter_html(config),
       error: message
     )
@@ -2208,7 +2208,7 @@ defmodule EirinchanWeb.ManagePageController do
   defp persist_announcement_editor(%{"editor" => "news_blotter"} = params) do
     config = Settings.current_instance_config()
     entries = parse_blotter_entries(params)
-    limit = parse_blotter_limit(params)
+    limit = max_blotter_limit(Map.get(config, :news_blotter_limit, 100))
 
     updated =
       config
@@ -2264,15 +2264,6 @@ defmodule EirinchanWeb.ManagePageController do
     end
   end
 
-  defp parse_blotter_limit(%{"limit" => limit}) when is_binary(limit) do
-    case Integer.parse(String.trim(limit)) do
-      {value, ""} when value > 0 -> max_blotter_limit(value)
-      _ -> 15
-    end
-  end
-
-  defp parse_blotter_limit(_params), do: 15
-
   defp parse_blotter_entries(%{"entries" => entries}) when is_map(entries) do
     entries
     |> Enum.map(fn {index, value} -> {parse_index(index), value} end)
@@ -2302,11 +2293,11 @@ defmodule EirinchanWeb.ManagePageController do
 
   defp parse_index(_index), do: 0
 
-  defp max_blotter_limit(value \\ 50)
+  defp max_blotter_limit(value \\ 100)
 
-  defp max_blotter_limit(value) when is_integer(value) and value > 50, do: 50
+  defp max_blotter_limit(value) when is_integer(value) and value > 100, do: 100
   defp max_blotter_limit(value) when is_integer(value) and value > 0, do: value
-  defp max_blotter_limit(_value), do: 50
+  defp max_blotter_limit(_value), do: 100
 
   defp render_pages_error(conn, message, status \\ :forbidden) do
     conn
