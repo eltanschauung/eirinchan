@@ -45,11 +45,7 @@
     <%= for entry <- @entries do %>
       <div class="post-wrapper" data-board={entry.board.uri}>
         <hr />
-        <a
-          class="eita-link"
-          id={"eita-#{entry.board.uri}-#{EirinchanWeb.PostView.public_post_id(entry.thread)}"}
-          href={EirinchanWeb.PostView.thread_path(entry.board, entry.thread, entry.config) <> "##{EirinchanWeb.PostView.public_post_id(entry.post)}"}
-        >/ <%= entry.board.uri %> /<%= EirinchanWeb.PostView.public_post_id(entry.post) %></a><br />
+        <.browser_entry_link board={entry.board} post={entry.post} thread={entry.thread} config={entry.config} /><br />
         <.moderation_post
           post={entry.post}
           board={entry.board}

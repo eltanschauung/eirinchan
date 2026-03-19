@@ -316,6 +316,59 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ board.uri
   end
 
+  test "GET /ukko orders threads by recent sage activity and uses plain board labels", %{conn: conn} do
+    moderator_fixture()
+    board = board_fixture(%{uri: "sage#{System.unique_integer([:positive])}", title: "Sage"})
+
+    saged_thread = thread_fixture(board, %{subject: "Saged latest", body: "sage body"})
+    bumped_thread = thread_fixture(board, %{subject: "Bumped older", body: "bump body"})
+
+    old_time = ~U[2026-03-19 14:00:00Z]
+    mid_time = ~U[2026-03-19 15:00:00Z]
+    late_time = ~U[2026-03-19 16:00:00Z]
+
+    Repo.update_all(from(p in Eirinchan.Posts.Post, where: p.id == ^saged_thread.id),
+      set: [inserted_at: old_time, bump_at: old_time]
+    )
+
+    Repo.update_all(from(p in Eirinchan.Posts.Post, where: p.id == ^bumped_thread.id),
+      set: [inserted_at: mid_time, bump_at: mid_time]
+    )
+
+    {:ok, _reply, _meta} =
+      Eirinchan.Posts.create_post(
+        board,
+        %{
+          "thread" => Integer.to_string(PublicIds.public_id(saged_thread)),
+          "email" => "sage",
+          "body" => "latest sage reply",
+          "post" => "New Reply"
+        },
+        config: Eirinchan.Runtime.Config.compose(nil, %{}, board.config_overrides),
+        request: %{referer: "http://example.test/#{board.uri}/index.html"}
+      )
+
+    Repo.update_all(
+      from(
+        p in Eirinchan.Posts.Post,
+        where: p.thread_id == ^saged_thread.id and p.email == "sage"
+      ),
+      set: [inserted_at: late_time]
+    )
+
+    page =
+      conn
+      |> get("/ukko")
+      |> html_response(200)
+
+    assert page =~ ~s(class="unimportant overboard-board-label">/#{board.uri}/</small>)
+    refute page =~ ~s(<h2><a href="/#{board.uri}">/#{board.uri}/</a></h2>)
+
+    {saged_index, _} = :binary.match(page, "Saged latest")
+    {bumped_index, _} = :binary.match(page, "Bumped older")
+    assert saged_index < bumped_index
+  end
+
   test "configurable overboard uri redirects /ukko and renders at configured path", %{conn: conn} do
     moderator_fixture()
     board = board_fixture(%{uri: "okuutest#{System.unique_integer([:positive])}", title: "Okuu"})

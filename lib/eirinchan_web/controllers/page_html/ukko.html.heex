@@ -15,7 +15,7 @@
     <% thread = summary.thread %>
     <% thread_public_id = EirinchanWeb.PostView.public_post_id(thread) %>
     <% watch = @thread_watch_state_by_board |> Map.get(board.uri, %{}) |> Map.get(thread_public_id, %{watched: false, unread_count: 0}) %>
-    <h2><a href={"/#{board.uri}"}>/<%= board.uri %>/</a></h2>
+    <small class="unimportant overboard-board-label">/<%= board.uri %>/</small>
     <div
       class="thread"
       id={"thread_#{thread_public_id}"}
