@@ -124,6 +124,7 @@ defmodule Eirinchan.LiveVichanImport do
 
         :ok =
           rewrite_imported_citations(
+            board,
             grouped |> Map.values() |> List.flatten(),
             merged.post_map,
             repo
@@ -232,8 +233,12 @@ defmodule Eirinchan.LiveVichanImport do
               {legacy_reply["id"], existing_reply}
             end)
 
-          {:ok,
-           Map.merge(%{legacy_thread_id => existing_op, op["id"] => existing_op}, reply_map)}
+          post_map =
+            Map.merge(%{legacy_thread_id => existing_op, op["id"] => existing_op}, reply_map)
+
+          :ok = backfill_legacy_import_ids(post_map, legacy_thread_id, op, replies, repo)
+
+          {:ok, post_map}
         else
           :error
         end
@@ -305,6 +310,7 @@ defmodule Eirinchan.LiveVichanImport do
         slug: blank_to_nil(legacy_row["slug"]),
         ip_subnet: nil,
         public_id: public_id,
+        legacy_import_id: legacy_row["id"],
         inserted_at: inserted_at,
         updated_at: inserted_at
       }
@@ -505,19 +511,22 @@ defmodule Eirinchan.LiveVichanImport do
     end
   end
 
-  defp rewrite_imported_citations(rows, post_map, repo) do
+  @doc false
+  def rewrite_imported_citations(%BoardRecord{} = board, rows, post_map, repo \\ Repo) do
+    cite_post_map = citation_post_map(board, rows, post_map, repo)
+
     Enum.each(rows, fn row ->
       new_post = Map.fetch!(post_map, row["id"])
       original_body = row["body_nomarkup"] || row["body"] || ""
       {clean_body, _codes, _alts} = extract_body_and_flags(original_body)
-      rewritten = remap_cites(clean_body, post_map)
+      rewritten = remap_cites(clean_body, cite_post_map)
 
       repo.update_all(from(post in Post, where: post.id == ^new_post.id), set: [body: rewritten])
 
       extract_cited_ids(clean_body)
       |> Enum.uniq()
       |> Enum.each(fn legacy_target_id ->
-        case Map.get(post_map, legacy_target_id) do
+        case Map.get(cite_post_map, legacy_target_id) do
           %Post{} = target_post ->
             now = now_usec()
 
@@ -551,6 +560,54 @@ defmodule Eirinchan.LiveVichanImport do
             :ok
         end
       end)
+    end)
+
+    :ok
+  end
+
+  defp citation_post_map(%BoardRecord{} = board, rows, post_map, repo) do
+    missing_ids =
+      rows
+      |> Enum.flat_map(fn row ->
+        (row["body_nomarkup"] || row["body"] || "")
+        |> extract_body_and_flags()
+        |> elem(0)
+        |> extract_cited_ids()
+      end)
+      |> Enum.uniq()
+      |> Enum.reject(&Map.has_key?(post_map, &1))
+
+    if missing_ids == [] do
+      post_map
+    else
+      imported_posts =
+        repo.all(
+          from post in Post,
+            where: post.board_id == ^board.id and post.legacy_import_id in ^missing_ids
+        )
+        |> Map.new(fn post -> {post.legacy_import_id, post} end)
+
+      Map.merge(imported_posts, post_map)
+    end
+  end
+
+  defp backfill_legacy_import_ids(post_map, legacy_thread_id, op, replies, repo) do
+    updates =
+      [{legacy_thread_id, legacy_thread_id}, {op["id"], op["id"]}]
+      |> Enum.concat(Enum.map(replies, &{&1["id"], &1["id"]}))
+      |> Enum.uniq()
+
+    Enum.each(updates, fn {post_map_key, legacy_id} ->
+      case Map.fetch(post_map, post_map_key) do
+        {:ok, %Post{id: post_id}} ->
+          repo.update_all(
+            from(post in Post, where: post.id == ^post_id and is_nil(post.legacy_import_id)),
+            set: [legacy_import_id: legacy_id]
+          )
+
+        :error ->
+          :ok
+      end
     end)
 
     :ok
