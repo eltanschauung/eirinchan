@@ -6,7 +6,12 @@
     var form = trigger && trigger.closest('form');
     var field = (form && form.querySelector('input[name="_csrf_token"]')) ||
       document.querySelector('input[name="_csrf_token"]');
-    return field ? field.value : null;
+    if (field) {
+      return field.value;
+    }
+
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') : null;
   };
 
   var setWatcherCount = function(count, youCount, unreadCount) {
@@ -37,8 +42,13 @@
     }
   };
 
-  var syncWatchLinks = function(threadId, watched) {
+  var syncWatchLinks = function(boardUri, threadId, watched) {
     var selector = '[data-thread-watch][data-thread-id="' + threadId + '"]';
+
+    if (boardUri) {
+      selector += '[data-board-uri="' + boardUri + '"]';
+    }
+
     document.querySelectorAll(selector).forEach(function(link) {
       link.dataset.watched = watched ? 'true' : 'false';
       if (link.classList.contains('watch-thread-link')) {
@@ -49,7 +59,13 @@
       }
     });
 
-    document.querySelectorAll('.thread[data-thread-id="' + threadId + '"]').forEach(function(thread) {
+    var threadSelector = '.thread[data-thread-id="' + threadId + '"]';
+
+    if (boardUri) {
+      threadSelector += '[data-board-uri="' + boardUri + '"]';
+    }
+
+    document.querySelectorAll(threadSelector).forEach(function(thread) {
       thread.dataset.watched = watched ? 'true' : 'false';
     });
   };
@@ -195,7 +211,7 @@
       if (!response.ok) throw new Error('watch request failed');
       return response.json();
     }).then(function(payload) {
-      syncWatchLinks(payload.thread_id, !!payload.watched);
+      syncWatchLinks(payload.board, payload.thread_id, !!payload.watched);
       if (typeof payload.watcher_count === 'number') {
         setWatcherCount(payload.watcher_count, payload.watcher_you_count, payload.watcher_unread_count);
       }

@@ -369,6 +369,27 @@ defmodule EirinchanWeb.PageControllerTest do
     assert saged_index < bumped_index
   end
 
+  test "GET /ukko uses shared browser post hooks for watcher and post controls", %{conn: conn} do
+    moderator_fixture()
+    board = board_fixture(%{uri: "hooks#{System.unique_integer([:positive])}", title: "Hooks"})
+    thread = thread_fixture(board, %{subject: "Hooks thread", body: "opening"})
+    reply = reply_fixture(board, thread, %{body: "reply body"})
+
+    page =
+      conn
+      |> get("/ukko")
+      |> html_response(200)
+
+    assert page =~ ~s(form name="postcontrols" action="/post.php" method="post" hidden)
+
+    assert page =~
+             ~s(data-thread-watch data-board-uri="#{board.uri}" data-thread-id="#{PublicIds.public_id(thread)}")
+
+    assert page =~ ~s(class="thread-top-controls")
+    assert page =~ ~s(class="post-btn" title="Post menu" data-post-target="op_#{PublicIds.public_id(thread)}")
+    assert page =~ ~s(class="post-btn" title="Post menu" data-post-target="reply_#{PublicIds.public_id(reply)}")
+  end
+
   test "configurable overboard uri redirects /ukko and renders at configured path", %{conn: conn} do
     moderator_fixture()
     board = board_fixture(%{uri: "okuutest#{System.unique_integer([:positive])}", title: "Okuu"})
