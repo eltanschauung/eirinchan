@@ -1020,7 +1020,8 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       |> html_response(200)
 
     assert page =~ "Recent Posts"
-    assert page =~ ~s(<script type="text/javascript" src="/js/mod/recent-posts.js")
+    assert page =~ ~s(src="/main.js")
+    assert page =~ ~s(src="/js/mod/recent-posts.js")
     assert page =~ ~s(class="post-wrapper")
     assert page =~ ~s(class="eita-link")
     assert page =~ ~s(class="thread")
@@ -1031,6 +1032,40 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert page =~ Integer.to_string(PublicIds.public_id(matching_post))
     assert page =~ "green leaf"
     refute page =~ ~s(id="op_#{other_post.id}")
+  end
+
+  test "browser recent posts page preserves manage shell JS for secure file controls", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+    board = board_fixture(%{uri: "recentfiles#{System.unique_integer([:positive])}", title: "Recent Files"})
+
+    create_conn =
+      conn
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post("/#{board.uri}/post", %{
+        "body" => "file thread",
+        "files" => [
+          upload_fixture("first.png", "first"),
+          upload_fixture("second.gif", "second")
+        ],
+        "json_response" => "1",
+        "post" => "New Topic"
+      })
+
+    assert %{"id" => thread_id} = json_response(create_conn, 200)
+    assert {:ok, thread} = Eirinchan.Posts.get_post(board, thread_id)
+    public_id = PublicIds.public_id(thread)
+
+    page =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> get("/manage/recent-posts/browser", %{"board" => board.uri, "limit" => "25"})
+      |> html_response(200)
+
+    assert page =~ ~s(src="/main.js")
+    assert page =~ ~s(src="/js/mod/recent-posts.js")
+    assert page =~ ~s(data-secure-href="/mod.php?/#{board.uri}/deletefile/#{public_id}/1/)
+    assert page =~ ~s(data-secure-href="/mod.php?/#{board.uri}/spoiler/#{public_id}/1/)
   end
 
   test "browser dashboard exposes global report queue and ban appeals management", %{conn: conn} do
