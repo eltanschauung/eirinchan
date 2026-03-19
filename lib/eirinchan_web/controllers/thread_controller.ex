@@ -10,6 +10,7 @@ defmodule EirinchanWeb.ThreadController do
   alias EirinchanWeb.Announcements
   alias EirinchanWeb.BoardChrome
   alias EirinchanWeb.PostView
+  alias EirinchanWeb.PublicControllerHelpers
   alias EirinchanWeb.PublicShell
   alias EirinchanWeb.ShowYous
 
@@ -43,7 +44,8 @@ defmodule EirinchanWeb.ThreadController do
             end
 
           backlinks_map = Posts.backlinks_map_for_posts([summary.thread | summary.replies])
-          thread_watch = thread_watch(conn, board, PublicIds.public_id(summary.thread))
+          thread_watch =
+            PublicControllerHelpers.thread_watch(conn, board.uri, PublicIds.public_id(summary.thread))
           _ = maybe_mark_thread_seen(conn, board, summary)
 
           %{
@@ -51,13 +53,13 @@ defmodule EirinchanWeb.ThreadController do
             watcher_unread_count: watcher_unread_count,
             watcher_you_count: watcher_you_count
           } =
-            watcher_metrics(conn)
+            PublicControllerHelpers.watcher_metrics(conn)
 
           own_post_ids = ShowYous.owned_post_ids(conn, [summary.thread | summary.replies])
           show_yous = ShowYous.enabled?(conn)
 
-          fragment? = fragment_request?(conn.params)
-          fragment_md5? = fragment_md5_request?(conn.params)
+          fragment? = PublicControllerHelpers.fragment_request?(conn.params)
+          fragment_md5? = PublicControllerHelpers.fragment_md5_request?(conn.params)
 
           render_assigns = [
             layout: false,
@@ -91,8 +93,8 @@ defmodule EirinchanWeb.ThreadController do
             show_nav_arrows_page: true,
             viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",
             base_stylesheet: "/stylesheets/style.css",
-            body_class: board_body_class(conn),
-            body_data_stylesheet: board_data_stylesheet(conn),
+            body_class: PublicControllerHelpers.moderator_body_class(conn, "active-thread"),
+            body_data_stylesheet: PublicControllerHelpers.data_stylesheet(conn),
             head_meta:
               PublicShell.head_meta("thread",
                 board_name: board.uri,
@@ -109,9 +111,9 @@ defmodule EirinchanWeb.ThreadController do
             head_extra_meta_tags: PublicShell.thread_meta(board, summary.thread, config),
             eager_javascript_urls: PublicShell.eager_javascript_urls(:thread, config),
             javascript_urls: PublicShell.javascript_urls(:thread, config),
-            primary_stylesheet: board_primary_stylesheet(conn),
+            primary_stylesheet: PublicControllerHelpers.primary_stylesheet(conn),
             primary_stylesheet_id: "stylesheet",
-            extra_stylesheets: board_extra_stylesheets(board),
+            extra_stylesheets: PublicControllerHelpers.extra_stylesheets(),
             hide_theme_switcher: true,
             skip_app_stylesheet: true
           ]
@@ -127,7 +129,7 @@ defmodule EirinchanWeb.ThreadController do
           render_assigns = Keyword.put(render_assigns, :quick_reply_html, quick_reply_html)
 
           fragment_md5 =
-            render_fragment_md5(
+            PublicControllerHelpers.render_fragment_md5(
               EirinchanWeb.ThreadHTML,
               :thread_fragment,
               render_assigns,
@@ -171,15 +173,6 @@ defmodule EirinchanWeb.ThreadController do
     {id, noko50?}
   end
 
-  defp fragment_request?(%{"fragment" => value}) when value in ["1", "true", "yes"], do: true
-  defp fragment_request?(_params), do: false
-
-  defp fragment_md5_request?(%{"fragment" => "md5"}), do: true
-  defp fragment_md5_request?(_params), do: false
-
-  defp render_fragment_md5(view, template, assigns, cache_key),
-    do: EirinchanWeb.FragmentHash.md5(view, template, assigns, cache_key: cache_key)
-
   defp fragment_cache_key(board, summary, assigns) do
     {
       :thread_fragment_md5,
@@ -187,55 +180,8 @@ defmodule EirinchanWeb.ThreadController do
       summary.thread.id,
       summary.last_modified,
       length(summary.replies),
-      dynamic_fragment_stamp(assigns)
+      PublicControllerHelpers.dynamic_fragment_stamp(assigns, :thread_watch)
     }
-  end
-
-  defp dynamic_fragment_stamp(assigns) do
-    {
-      own_post_ids_stamp(Keyword.get(assigns, :own_post_ids, MapSet.new())),
-      Keyword.get(assigns, :show_yous, false),
-      :erlang.phash2(Keyword.get(assigns, :thread_watch, %{})),
-      moderator_stamp(Keyword.get(assigns, :current_moderator)),
-      Keyword.get(assigns, :secure_manage_token),
-      Keyword.get(assigns, :mobile_client?, false)
-    }
-  end
-
-  defp own_post_ids_stamp(%MapSet{} = ids), do: ids |> MapSet.to_list() |> Enum.sort() |> :erlang.phash2()
-  defp own_post_ids_stamp(ids) when is_list(ids), do: ids |> Enum.sort() |> :erlang.phash2()
-  defp own_post_ids_stamp(_ids), do: 0
-
-  defp moderator_stamp(nil), do: nil
-  defp moderator_stamp(moderator), do: {moderator.id, moderator.role}
-
-  defp board_body_class(conn) do
-    moderator_class =
-      if conn.assigns[:current_moderator], do: "is-moderator", else: "is-not-moderator"
-
-    "8chan vichan #{moderator_class} active-thread"
-  end
-
-  defp board_data_stylesheet(conn) do
-    board_primary_stylesheet(conn)
-    |> Path.basename()
-  end
-
-  defp board_primary_stylesheet(conn),
-    do: conn.assigns[:theme_stylesheet] || "/stylesheets/yotsuba.css"
-
-  defp board_extra_stylesheets(_board),
-    do: ["/stylesheets/eirinchan-public.css", "/stylesheets/eirinchan-bant.css"]
-
-  defp thread_watch(conn, board, thread_id) do
-    case conn.assigns[:browser_token] do
-      token when is_binary(token) ->
-        ThreadWatcher.watch_state_for_board(token, board.uri)
-        |> Map.get(thread_id, %{watched: false, unread_count: 0, last_seen_post_id: thread_id})
-
-      _ ->
-        %{watched: false, unread_count: 0, last_seen_post_id: thread_id}
-    end
   end
 
   defp maybe_mark_thread_seen(conn, board, summary) do
@@ -250,13 +196,6 @@ defmodule EirinchanWeb.ThreadController do
 
       _ ->
         :ok
-    end
-  end
-
-  defp watcher_metrics(conn) do
-    case conn.assigns[:browser_token] do
-      token when is_binary(token) -> ThreadWatcher.watch_metrics(token)
-      _ -> %{watcher_count: 0, watcher_unread_count: 0, watcher_you_count: 0}
     end
   end
 

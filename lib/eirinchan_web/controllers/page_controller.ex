@@ -22,6 +22,7 @@ defmodule EirinchanWeb.PageController do
   alias EirinchanWeb.BoardChrome
   alias EirinchanWeb.HtmlSanitizer
   alias EirinchanWeb.PostView
+  alias EirinchanWeb.PublicControllerHelpers
   alias EirinchanWeb.PublicShell
   alias Eirinchan.ThreadPaths
 
@@ -277,7 +278,7 @@ defmodule EirinchanWeb.PageController do
       watcher_count: watcher_count,
       watcher_unread_count: watcher_unread_count,
       watcher_you_count: watcher_you_count
-    } = watcher_metrics(conn)
+    } = PublicControllerHelpers.watcher_metrics(conn)
 
     [
       boards: boards,
@@ -291,7 +292,7 @@ defmodule EirinchanWeb.PageController do
       viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",
       base_stylesheet: "/stylesheets/style.css",
       body_class: public_body_class(page_kind),
-      body_data_stylesheet: public_data_stylesheet(conn),
+      body_data_stylesheet: PublicControllerHelpers.data_stylesheet(conn),
       watcher_count: watcher_count,
       watcher_unread_count: watcher_unread_count,
       watcher_you_count: watcher_you_count,
@@ -307,9 +308,9 @@ defmodule EirinchanWeb.PageController do
           watcher_you_count: watcher_you_count
         ),
       javascript_urls: PublicShell.javascript_urls(active_page),
-      primary_stylesheet: public_primary_stylesheet(conn),
+      primary_stylesheet: PublicControllerHelpers.primary_stylesheet(conn),
       primary_stylesheet_id: "stylesheet",
-      extra_stylesheets: public_extra_stylesheets(primary_board),
+      extra_stylesheets: PublicControllerHelpers.extra_stylesheets(),
       hide_theme_switcher: true,
       skip_app_stylesheet: true
     ]
@@ -319,17 +320,6 @@ defmodule EirinchanWeb.PageController do
     do: "8chan vichan is-not-moderator theme-catalog active-catalog"
 
   defp public_body_class(page_kind), do: "8chan vichan is-not-moderator #{page_kind}"
-
-  defp public_data_stylesheet(conn) do
-    public_primary_stylesheet(conn)
-    |> Path.basename()
-  end
-
-  defp public_primary_stylesheet(conn),
-    do: conn.assigns[:theme_stylesheet] || "/stylesheets/yotsuba.css"
-
-  defp public_extra_stylesheets(_board),
-    do: ["/stylesheets/eirinchan-public.css", "/stylesheets/eirinchan-bant.css"]
 
   defp current_global_message do
     case Settings.current_instance_config() |> Map.get(:global_message) do
@@ -440,7 +430,7 @@ defmodule EirinchanWeb.PageController do
       watcher_count: watcher_count,
       watcher_unread_count: watcher_unread_count,
       watcher_you_count: watcher_you_count
-    } = watcher_metrics(conn)
+    } = PublicControllerHelpers.watcher_metrics(conn)
 
     [
       boards: boards,
@@ -451,7 +441,7 @@ defmodule EirinchanWeb.PageController do
       viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",
       base_stylesheet: "/stylesheets/style.css",
       body_class: nil,
-      body_data_stylesheet: public_data_stylesheet(conn),
+      body_data_stylesheet: PublicControllerHelpers.data_stylesheet(conn),
       watcher_count: watcher_count,
       watcher_unread_count: watcher_unread_count,
       watcher_you_count: watcher_you_count,
@@ -467,7 +457,7 @@ defmodule EirinchanWeb.PageController do
           watcher_you_count: watcher_you_count
         ),
       javascript_urls: PublicShell.javascript_urls(active_page),
-      primary_stylesheet: public_primary_stylesheet(conn),
+      primary_stylesheet: PublicControllerHelpers.primary_stylesheet(conn),
       primary_stylesheet_id: "stylesheet",
       extra_stylesheets: ["/recent.css"],
       hide_theme_switcher: true,
@@ -902,10 +892,4 @@ defmodule EirinchanWeb.PageController do
     end)
   end
 
-  defp watcher_metrics(conn) do
-    case conn.assigns[:browser_token] do
-      token when is_binary(token) -> ThreadWatcher.watch_metrics(token)
-      _ -> %{watcher_count: 0, watcher_unread_count: 0, watcher_you_count: 0}
-    end
-  end
 end
