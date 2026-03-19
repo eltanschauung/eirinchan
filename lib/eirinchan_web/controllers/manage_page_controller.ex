@@ -780,6 +780,7 @@ defmodule EirinchanWeb.ManagePageController do
         global_message_preview_html: current_global_message_preview_html(),
         history: global_message_history(),
         entries: Eirinchan.NewsBlotter.entries(config),
+        button_label: Eirinchan.NewsBlotter.button_label(config),
         limit: max_blotter_limit(Map.get(config, :news_blotter_limit, 100)),
         blotter_preview_html: EirinchanWeb.Announcements.news_blotter_html(config),
         error: nil
@@ -2195,6 +2196,7 @@ defmodule EirinchanWeb.ManagePageController do
       global_message_preview_html: current_global_message_preview_html(),
       history: global_message_history(),
       entries: Eirinchan.NewsBlotter.entries(config),
+      button_label: Eirinchan.NewsBlotter.button_label(config),
       limit: max_blotter_limit(Map.get(config, :news_blotter_limit, 100)),
       blotter_preview_html: EirinchanWeb.Announcements.news_blotter_html(config),
       error: message
@@ -2209,11 +2211,21 @@ defmodule EirinchanWeb.ManagePageController do
     config = Settings.current_instance_config()
     entries = parse_blotter_entries(params)
     limit = max_blotter_limit(Map.get(config, :news_blotter_limit, 100))
+    button_label =
+      params
+      |> Map.get("button_label", Eirinchan.NewsBlotter.button_label(config))
+      |> to_string()
+      |> String.trim()
+      |> case do
+        "" -> "View News - {date}"
+        value -> value
+      end
 
     updated =
       config
       |> Map.put(:news_blotter_entries, entries)
       |> Map.put(:news_blotter_limit, limit)
+      |> Map.put(:news_blotter_button_label, button_label)
 
     case Settings.persist_instance_config(updated) do
       :ok -> {:ok, updated}

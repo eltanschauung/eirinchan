@@ -229,6 +229,20 @@ defmodule Eirinchan.Runtime.ConfigTest do
            ]
   end
 
+  test "defaults news blotter button label to a date placeholder template" do
+    config =
+      Config.compose(
+        %{
+          root: "/",
+          dir: %{img: "img/", thumb: "thumb/", res: "res/"}
+        },
+        %{},
+        %{}
+      )
+
+    assert config.news_blotter_button_label == "View News - {date}"
+  end
+
   test "builds default vichan flood filters when filters are unset" do
     config =
       Config.compose(

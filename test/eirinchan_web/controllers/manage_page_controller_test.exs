@@ -744,6 +744,53 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     refute page =~ ~s(name="limit")
   end
 
+  test "announcement editor preserves blotter row order and button label template", %{conn: conn} do
+    original_path = Application.get_env(:eirinchan, :instance_config_path)
+
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "eirinchan-announcement-blotter-#{System.unique_integer([:positive])}.json"
+      )
+
+    File.write!(path, "{}")
+    Application.put_env(:eirinchan, :instance_config_path, path)
+
+    on_exit(fn ->
+      Application.put_env(:eirinchan, :instance_config_path, original_path)
+      File.rm(path)
+    end)
+
+    moderator = moderator_fixture(%{role: "admin"})
+
+    conn =
+      conn
+      |> login_moderator(moderator)
+      |> post("/manage/announcement/browser", %{
+        "editor" => "news_blotter",
+        "button_label" => "View News - {date}",
+        "entries" => %{
+          "0" => %{"date" => "03/19/2026", "message" => "Newest"},
+          "1" => %{"date" => "03/10/26", "message" => "Older"}
+        }
+      })
+
+    assert redirected_to(conn) == "/manage/announcement/browser"
+
+    page =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> get("/manage/announcement/browser")
+      |> html_response(200)
+
+    assert page =~ ~s(name="button_label" value="View News - {date}")
+    assert page =~ "[View News - 03/19/2026]"
+    assert page =~ "Newest"
+    assert page =~ "Older"
+    assert page =~ ~r/03\/19\/2026.*03\/10\/26/s
+  end
+
   test "announcement preview sanitizes dangerous global message html", %{conn: conn} do
     original_path = Application.get_env(:eirinchan, :instance_config_path)
 

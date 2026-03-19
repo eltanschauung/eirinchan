@@ -14,6 +14,20 @@ defmodule Eirinchan.NewsBlotter do
     |> apply_limit(Map.get(config, :news_blotter_limit, Map.get(config, "news_blotter_limit", 100)))
   end
 
+  def button_label(config) when is_map(config) do
+    config
+    |> Map.get(
+      :news_blotter_button_label,
+      Map.get(config, "news_blotter_button_label", "View News - {date}")
+    )
+    |> to_string()
+    |> String.trim()
+    |> case do
+      "" -> "View News - {date}"
+      value -> value
+    end
+  end
+
   def render_html(config) when is_map(config) do
     entries = entries(config)
 
@@ -27,6 +41,11 @@ defmodule Eirinchan.NewsBlotter do
           |> List.first()
           |> Map.get(:date, "")
 
+        button_label =
+          config
+          |> button_label()
+          |> String.replace("{date}", latest_date)
+
         rows =
           entries
           |> Enum.map(fn %{date: date, message: message} ->
@@ -36,7 +55,7 @@ defmodule Eirinchan.NewsBlotter do
 
         """
         <div id=\"blotterContainer\" style=\"text-align: center;\">
-          <div class=\"news-button\" data-toggle-news role=\"button\" tabindex=\"0\">[View News - #{escape(latest_date)}]</div>
+          <div class=\"news-button\" data-toggle-news role=\"button\" tabindex=\"0\">[#{escape(button_label)}]</div>
           <hr style=\"width: 100%; max-width: 500px;\">
           <div class=\"news-blotter\" style=\"width: 100%; max-width: 400px; margin: 0 auto;\">
             <h1 style=\"font-size: 16pt; letter-spacing: -1px;\">PSA Blotter</h1>
