@@ -38,6 +38,21 @@ $(document).ready(function(){
 
 	var fields_to_hide = 'div.file,div.post,div.video-container,video,iframe,img:not(.unanimated),canvas,p.fileinfo,a.hide-thread-link,div.new-posts,br';
 
+	var restoreInlineImageState = function(thread_container) {
+		thread_container.find('img.full-image').each(function() {
+			var $img = $(this);
+			var $link = $img.closest('a[data-inline-expandable="true"]');
+			var expanded = $link.data('expanded') === 'true';
+
+			if (!expanded) {
+				$img.hide();
+				if (!$img.attr('src')) {
+					$img.removeAttr('src');
+				}
+			}
+		});
+	};
+
 	var do_hide_threads = function() {
 		var id = $(this).children('p.intro').children('a.post_no:eq(1)').text();
 		var thread_container = $(this).parent();
@@ -70,6 +85,7 @@ $(document).ready(function(){
 						store_data();
 						thread_container.find(fields_to_hide).show();
 						thread_container.find(".hidden").hide();
+						restoreInlineImageState(thread_container);
 						$(this).remove();
 						hidden_div.remove();
 					});
@@ -88,6 +104,7 @@ $(document).ready(function(){
 		$('.thread').each(function() {
 			var thread_container = $(this);
 			thread_container.find(fields_to_hide).show();
+			restoreInlineImageState(thread_container);
 			thread_container.find('.unhide-thread-link').remove();
 			thread_container.find('p.intro.thread-hidden').remove();
 			thread_container.find('.thread-hidden').removeClass('thread-hidden');
