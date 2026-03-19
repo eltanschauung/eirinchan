@@ -91,6 +91,10 @@ defmodule EirinchanWeb.Router do
     get "/announcement/browser", ManagePageController, :blotter
     post "/announcement/browser", ManagePageController, :update_blotter
     delete "/announcement/browser", ManagePageController, :delete_announcement
+    get "/noticeboard", ManagePageController, :noticeboard
+    post "/noticeboard", ManagePageController, :create_noticeboard
+    delete "/noticeboard/delete/:id/:token", ManagePageController, :delete_noticeboard
+    get "/noticeboard/:page", ManagePageController, :noticeboard
     get "/bans/browser", ManagePageController, :bans
     get "/bans/browser.json", ManagePageController, :bans_json
     post "/bans/browser", ManagePageController, :update_bans

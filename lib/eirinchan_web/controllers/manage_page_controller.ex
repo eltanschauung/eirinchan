@@ -14,7 +14,7 @@ defmodule EirinchanWeb.ManagePageController do
   alias Eirinchan.Installation
   alias Eirinchan.Moderation
   alias Eirinchan.ModerationLog
-  alias Eirinchan.News
+  alias Eirinchan.Noticeboard
   alias Eirinchan.Posts.Post
   alias Eirinchan.Reports
   alias Eirinchan.Repo
@@ -65,25 +65,100 @@ defmodule EirinchanWeb.ManagePageController do
 
   def dashboard(conn, _params) do
     with {:ok, moderator} <- ensure_moderator(conn) do
-      render(conn, :dashboard,
-        moderator: moderator,
-        boards: Moderation.list_accessible_boards(moderator),
-        report_count: accessible_report_count(moderator),
-        appeal_count: accessible_appeal_count(moderator),
-        feedback_count: Feedback.unread_count(),
-        unread_messages: Moderation.count_unread_messages(moderator),
-        news_blotter_entry_count:
-          Settings.current_instance_config()
-          |> Eirinchan.NewsBlotter.entries()
-          |> length(),
-        custom_pages: CustomPages.list_pages(),
-        news_entries: News.list_entries(limit: 10),
-        error: nil,
-        params: %{"uri" => nil, "title" => nil, "subtitle" => nil}
-      )
+      render(conn, :dashboard, dashboard_assigns(moderator))
     else
       {:error, :unauthorized} ->
         redirect(conn, to: ~p"/manage/login")
+    end
+  end
+
+  def noticeboard(conn, params) do
+    with {:ok, moderator} <- ensure_moderator(conn) do
+      config = Settings.current_instance_config()
+      page = positive_integer_param(params["page"], 1)
+      per_page = positive_integer_param(Map.get(config, :noticeboard_page, 50), Noticeboard.page_size_default())
+      entries = Noticeboard.list_entries(page: page, per_page: per_page)
+      total_entries = Noticeboard.count_entries()
+
+      if entries == [] and page > 1 do
+        render_noticeboard_error(conn, moderator, "Noticeboard page not found.", page, :not_found)
+      else
+        render(conn, :noticeboard,
+          moderator: moderator,
+          noticeboard: entries,
+          count: total_entries,
+          page: page,
+          page_count: Noticeboard.page_count(total_entries, per_page),
+          error: nil,
+          can_post_noticeboard?: moderator.role in ["admin", "mod"],
+          can_delete_noticeboard?: moderator.role == "admin"
+        )
+      end
+    else
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+    end
+  end
+
+  def create_noticeboard(conn, params) do
+    with {:ok, moderator} <- ensure_noticeboard_poster(conn),
+         {:ok, entry} <-
+           Noticeboard.create_entry(%{
+             subject: params["subject"],
+             body: params["body"],
+             author_name: moderator.username,
+             mod_user_id: moderator.id,
+             posted_at: NaiveDateTime.local_now() |> NaiveDateTime.truncate(:second)
+           }) do
+      ModerationAudit.log(conn, "Posted a noticeboard entry", moderator: moderator)
+
+      conn
+      |> put_flash(:info, "Noticeboard entry posted.")
+      |> redirect(to: ~p"/manage/noticeboard" <> "##{entry.id}")
+    else
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      {:error, :forbidden} ->
+        render_dashboard_error(conn, "Moderator access required.", %{}, :forbidden)
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        render_noticeboard_error(
+          conn,
+          conn.assigns[:current_moderator],
+          format_changeset(changeset),
+          1,
+          :unprocessable_entity
+        )
+    end
+  end
+
+  def delete_noticeboard(conn, %{"id" => id, "token" => token}) do
+    with {:ok, moderator} <- ensure_admin(conn),
+         {:ok, entry_id} <- verify_noticeboard_delete_token(token),
+         true <- Integer.to_string(entry_id) == to_string(id),
+         %Noticeboard.Entry{} = entry <- Noticeboard.get_entry(id),
+         {:ok, _entry} <- Noticeboard.delete_entry(entry) do
+      ModerationAudit.log(conn, "Deleted a noticeboard entry", moderator: moderator)
+
+      conn
+      |> put_flash(:info, "Noticeboard entry deleted.")
+      |> redirect(to: ~p"/manage/noticeboard")
+    else
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      {:error, :forbidden} ->
+        render_dashboard_error(conn, "Administrator access required.", %{}, :forbidden)
+
+      {:error, :invalid_token} ->
+        render_dashboard_error(conn, "Invalid noticeboard delete token.", %{}, :forbidden)
+
+      false ->
+        render_dashboard_error(conn, "Invalid noticeboard delete token.", %{}, :forbidden)
+
+      nil ->
+        render_dashboard_error(conn, "Noticeboard entry not found.", %{}, :not_found)
     end
   end
 
@@ -2002,39 +2077,23 @@ defmodule EirinchanWeb.ManagePageController do
       {:error, :forbidden} ->
         conn
         |> put_status(:forbidden)
-        |> render(:dashboard,
-          moderator: conn.assigns[:current_moderator],
-          boards: Moderation.list_accessible_boards(conn.assigns[:current_moderator]),
-          report_count: accessible_report_count(conn.assigns[:current_moderator]),
-          appeal_count: accessible_appeal_count(conn.assigns[:current_moderator]),
-          unread_messages: Moderation.count_unread_messages(conn.assigns[:current_moderator]),
-          news_blotter_entry_count:
-            Settings.current_instance_config()
-            |> Eirinchan.NewsBlotter.entries()
-            |> length(),
-          custom_pages: CustomPages.list_pages(),
-          news_entries: News.list_entries(limit: 10),
-          error: "Administrator access required.",
-          params: Map.take(stringify(params), ["uri", "title", "subtitle"])
+        |> render(
+          :dashboard,
+          dashboard_assigns(conn.assigns[:current_moderator], %{
+            error: "Administrator access required.",
+            params: Map.take(stringify(params), ["uri", "title", "subtitle"])
+          })
         )
 
       {:error, %Ecto.Changeset{} = changeset} ->
         conn
         |> put_status(:unprocessable_entity)
-        |> render(:dashboard,
-          moderator: conn.assigns.current_moderator,
-          boards: Moderation.list_accessible_boards(conn.assigns.current_moderator),
-          report_count: accessible_report_count(conn.assigns.current_moderator),
-          appeal_count: accessible_appeal_count(conn.assigns.current_moderator),
-          unread_messages: Moderation.count_unread_messages(conn.assigns.current_moderator),
-          news_blotter_entry_count:
-            Settings.current_instance_config()
-            |> Eirinchan.NewsBlotter.entries()
-            |> length(),
-          custom_pages: CustomPages.list_pages(),
-          news_entries: News.list_entries(limit: 10),
-          error: format_changeset(changeset),
-          params: Map.take(stringify(params), ["uri", "title", "subtitle"])
+        |> render(
+          :dashboard,
+          dashboard_assigns(conn.assigns.current_moderator, %{
+            error: format_changeset(changeset),
+            params: Map.take(stringify(params), ["uri", "title", "subtitle"])
+          })
         )
     end
   end
@@ -2134,6 +2193,12 @@ defmodule EirinchanWeb.ManagePageController do
     end
   end
 
+  defp ensure_noticeboard_poster(conn) do
+    with {:ok, moderator} <- ensure_moderator(conn) do
+      if moderator.role in ["admin", "mod"], do: {:ok, moderator}, else: {:error, :forbidden}
+    end
+  end
+
   defp ensure_news_editor(conn) do
     with {:ok, moderator} <- ensure_moderator(conn) do
       if moderator.role in ["admin", "mod"], do: {:ok, moderator}, else: {:error, :forbidden}
@@ -2167,21 +2232,32 @@ defmodule EirinchanWeb.ManagePageController do
   defp render_dashboard_error(conn, message, params, status \\ :forbidden) do
     conn
     |> put_status(status)
-    |> render(:dashboard,
-      moderator: conn.assigns[:current_moderator],
-      boards: Moderation.list_accessible_boards(conn.assigns[:current_moderator]),
-      report_count: accessible_report_count(conn.assigns[:current_moderator]),
-      appeal_count: accessible_appeal_count(conn.assigns[:current_moderator]),
-      feedback_count: Feedback.unread_count(),
-      unread_messages: Moderation.count_unread_messages(conn.assigns[:current_moderator]),
-      news_blotter_entry_count:
-        Settings.current_instance_config()
-        |> Eirinchan.NewsBlotter.entries()
-        |> length(),
-      custom_pages: CustomPages.list_pages(),
-      news_entries: News.list_entries(limit: 10),
+    |> render(
+      :dashboard,
+      dashboard_assigns(conn.assigns[:current_moderator], %{
+        error: message,
+        params: Map.take(stringify(params), ["uri", "title", "subtitle"])
+      })
+    )
+  end
+
+  defp render_noticeboard_error(conn, moderator, message, page, status) do
+    config = Settings.current_instance_config()
+    per_page = positive_integer_param(Map.get(config, :noticeboard_page, 50), Noticeboard.page_size_default())
+    entries = Noticeboard.list_entries(page: page, per_page: per_page)
+    total_entries = Noticeboard.count_entries()
+
+    conn
+    |> put_status(status)
+    |> render(:noticeboard,
+      moderator: moderator,
+      noticeboard: entries,
+      count: total_entries,
+      page: page,
+      page_count: Noticeboard.page_count(total_entries, per_page),
       error: message,
-      params: Map.take(stringify(params), ["uri", "title", "subtitle"])
+      can_post_noticeboard?: moderator && moderator.role in ["admin", "mod"],
+      can_delete_noticeboard?: moderator && moderator.role == "admin"
     )
   end
 
@@ -2239,6 +2315,46 @@ defmodule EirinchanWeb.ManagePageController do
     case Settings.current_instance_config() |> Map.get(:global_message) do
       value when is_binary(value) -> value
       _ -> ""
+    end
+  end
+
+  defp dashboard_assigns(moderator, overrides \\ %{}) do
+    config = Settings.current_instance_config()
+
+    Map.merge(
+      %{
+        moderator: moderator,
+        boards: Moderation.list_accessible_boards(moderator),
+        report_count: accessible_report_count(moderator),
+        appeal_count: accessible_appeal_count(moderator),
+        feedback_count: Feedback.unread_count(),
+        unread_messages: Moderation.count_unread_messages(moderator),
+        noticeboard_entries:
+          Noticeboard.dashboard_entries(
+            limit:
+              positive_integer_param(
+                Map.get(config, :noticeboard_dashboard, 5),
+                Noticeboard.dashboard_size_default()
+              )
+          ),
+        custom_pages: CustomPages.list_pages(),
+        error: nil,
+        params: %{"uri" => nil, "title" => nil, "subtitle" => nil}
+      },
+      overrides
+    )
+  end
+
+  defp verify_noticeboard_delete_token(token) do
+    case Phoenix.Token.verify(EirinchanWeb.Endpoint, "noticeboard-delete", token, max_age: 60 * 60 * 24 * 30) do
+      {:ok, value} ->
+        case Integer.parse(value) do
+          {id, ""} -> {:ok, id}
+          _ -> {:error, :invalid_token}
+        end
+
+      _ ->
+        {:error, :invalid_token}
     end
   end
 

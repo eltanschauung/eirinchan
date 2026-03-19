@@ -1,0 +1,83 @@
+<header>
+  <h1>Noticeboard</h1>
+  <div class="subtitle">
+    <p><a href={~p"/manage"}>Return to dashboard</a></p>
+  </div>
+</header>
+
+<.flash_group flash={@flash} />
+<p :if={@error} class="error"><%= @error %></p>
+
+<%= if @can_post_noticeboard? do %>
+  <fieldset>
+    <legend>New post</legend>
+    <form style="margin:0" action={~p"/manage/noticeboard"} method="post">
+      <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+      <table>
+        <tbody>
+          <tr>
+            <th>Name</th>
+            <td><%= @moderator.username %></td>
+          </tr>
+          <tr>
+            <th><label for="subject">Subject</label></th>
+            <td><input type="text" size="55" name="subject" id="subject" /></td>
+          </tr>
+          <tr>
+            <th>Body</th>
+            <td><textarea name="body" style="width:100%;height:100px"></textarea></td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="text-align:center">
+        <input type="submit" value="Post to noticeboard" />
+      </p>
+    </form>
+  </fieldset>
+<% end %>
+
+<%= for entry <- @noticeboard do %>
+  <div class="ban">
+    <%= if @can_delete_noticeboard? do %>
+      <span style="float:right;padding:2px">
+        <a
+          class="unimportant"
+          href={~p"/manage/noticeboard/delete/#{entry.id}/#{EirinchanWeb.ManagePageHTML.noticeboard_delete_token(entry)}"}
+          data-submit-form={"noticeboard-delete-#{entry.id}"}
+        >[delete]</a>
+        <form
+          id={"noticeboard-delete-#{entry.id}"}
+          action={~p"/manage/noticeboard/delete/#{entry.id}/#{EirinchanWeb.ManagePageHTML.noticeboard_delete_token(entry)}"}
+          method="post"
+          class="inline-form"
+          hidden
+        >
+          <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+          <input type="hidden" name="_method" value="delete" />
+        </form>
+      </span>
+    <% end %>
+    <h2 id={to_string(entry.id)}>
+      <small class="unimportant">
+        <a href={"##{entry.id}"}>#</a>
+      </small>
+      <%= if entry.subject && entry.subject != "" do %>
+        <%= entry.subject %>
+      <% else %>
+        <em>no subject</em>
+      <% end %>
+      <small class="unimportant">
+        — by <%= entry.author_name || "deleted?" %> at <%= Eirinchan.Noticeboard.formatted_timestamp(entry) %>
+      </small>
+    </h2>
+    <p><%= raw(entry.body_html) %></p>
+  </div>
+<% end %>
+
+<%= if @page_count > 1 do %>
+  <p class="unimportant" style="text-align:center;word-wrap:break-word">
+    <%= for page_no <- 1..@page_count do %>
+      <a href={EirinchanWeb.ManagePageHTML.noticeboard_page_path(page_no)}>[<%= page_no %>]</a>
+    <% end %>
+  </p>
+<% end %>

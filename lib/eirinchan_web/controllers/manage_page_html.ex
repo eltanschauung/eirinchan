@@ -1,6 +1,7 @@
 defmodule EirinchanWeb.ManagePageHTML do
   use EirinchanWeb, :html
 
+  alias Eirinchan.Noticeboard.Entry, as: NoticeboardEntry
   alias EirinchanWeb.PostView
 
   embed_templates "manage_page_html/*"
@@ -139,4 +140,11 @@ defmodule EirinchanWeb.ManagePageHTML do
     <% end %>
     """
   end
+
+  def noticeboard_delete_token(%NoticeboardEntry{id: id}) do
+    Phoenix.Token.sign(EirinchanWeb.Endpoint, "noticeboard-delete", Integer.to_string(id))
+  end
+
+  def noticeboard_page_path(1), do: "/manage/noticeboard"
+  def noticeboard_page_path(page_no) when is_integer(page_no) and page_no > 1, do: "/manage/noticeboard/#{page_no}"
 end

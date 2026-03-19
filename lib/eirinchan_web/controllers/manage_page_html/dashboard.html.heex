@@ -5,6 +5,8 @@
   </div>
 </header>
 
+<p :if={@error} class="error"><%= @error %></p>
+
 <fieldset>
   <legend>User account</legend>
   <ul>
@@ -123,13 +125,32 @@
 <fieldset>
   <legend>Messages</legend>
   <ul>
-    <li :if={(@news_blotter_entry_count || 0) > 0}>
-      News blotter active with <%= @news_blotter_entry_count %> entr<%= if @news_blotter_entry_count == 1, do: "y", else: "ies" %>.
+    <li :if={@noticeboard_entries != []}>
+      Noticeboard:
+      <ul>
+        <%= for entry <- @noticeboard_entries do %>
+          <li>
+            <a href={~p"/manage/noticeboard" <> "##{entry.id}"}>
+              <%= if entry.subject && entry.subject != "" do %>
+                <%= entry.subject %>
+              <% else %>
+                <em>no subject</em>
+              <% end %>
+            </a>
+            <small class="unimportant">
+              — by <%= entry.author_name || "deleted?" %> at <%= Eirinchan.Noticeboard.formatted_timestamp(entry) %>
+            </small>
+          </li>
+        <% end %>
+      </ul>
     </li>
-    <li :if={(@news_blotter_entry_count || 0) == 0}>No news blotter entries are active.</li>
-    <%= for entry <- @news_entries do %>
-      <li><strong><%= entry.title %></strong>: <%= entry.body %></li>
-    <% end %>
+    <li><a href={~p"/manage/noticeboard"}>View all noticeboard entries</a></li>
+    <li><a href={~p"/manage/announcement/browser"}>News</a></li>
+    <li>
+      <a href={~p"/manage/messages/browser"}>
+        PM inbox <%= if @unread_messages > 0, do: raw("<strong>"), else: "" %>(<%= @unread_messages %> unread)<%= if @unread_messages > 0, do: raw("</strong>"), else: "" %>
+      </a>
+    </li>
   </ul>
 </fieldset>
 

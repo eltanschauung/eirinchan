@@ -6,6 +6,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
   alias Eirinchan.Feedback
   alias Eirinchan.Moderation
   alias Eirinchan.ModerationLog
+  alias Eirinchan.Noticeboard
   alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Repo
 
@@ -1359,6 +1360,109 @@ defmodule EirinchanWeb.ManagePageControllerTest do
 
     assert sender_page =~ "Handled"
     assert sender_page =~ recipient.username
+  end
+
+  test "dashboard messages fieldset shows noticeboard preview and links", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin", username: "admin"})
+
+    {:ok, entry_one} =
+      Noticeboard.create_entry(%{
+        subject: "How 2 Janny",
+        body_html: "1. Delete spam",
+        author_name: "admin",
+        mod_user_id: moderator.id,
+        posted_at: ~N[2024-02-09 19:17:33]
+      })
+
+    {:ok, entry_two} =
+      Noticeboard.create_entry(%{
+        subject: "Advertising",
+        body_html: "Only advertise to 4chan.",
+        author_name: "admin",
+        mod_user_id: moderator.id,
+        posted_at: ~N[2024-02-09 19:17:41]
+      })
+
+    page =
+      conn
+      |> login_moderator(moderator)
+      |> get("/manage")
+      |> html_response(200)
+
+    assert page =~ "Messages"
+    assert page =~ "Noticeboard:"
+    assert page =~ ~s(href="/manage/noticeboard##{entry_two.id}")
+    assert page =~ "Advertising"
+    assert page =~ ~s(href="/manage/noticeboard##{entry_one.id}")
+    assert page =~ "How 2 Janny"
+    assert page =~ ~s(href="/manage/noticeboard")
+    assert page =~ "View all noticeboard entries"
+    assert page =~ ~s(href="/manage/announcement/browser")
+    assert page =~ "PM inbox (0 unread)"
+  end
+
+  test "noticeboard page renders old-vichan style entries and admin can delete them", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin", username: "admin"})
+
+    {:ok, entry} =
+      Noticeboard.create_entry(%{
+        subject: "Advertising",
+        body_html: "Only advertise to 4chan.<br>Not elsewhere.",
+        author_name: "admin",
+        mod_user_id: moderator.id,
+        posted_at: ~N[2024-02-09 19:17:41]
+      })
+
+    page =
+      conn
+      |> login_moderator(moderator)
+      |> get("/manage/noticeboard")
+      |> html_response(200)
+
+    assert page =~ "<h1>Noticeboard</h1>"
+    assert page =~ "Post to noticeboard"
+    assert page =~ "Advertising"
+    assert page =~ "Only advertise to 4chan."
+    assert page =~ ~s(id="#{entry.id}")
+    assert page =~ "[delete]"
+
+    token = EirinchanWeb.ManagePageHTML.noticeboard_delete_token(entry)
+
+    conn =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> delete("/manage/noticeboard/delete/#{entry.id}/#{token}")
+
+    assert redirected_to(conn) == "/manage/noticeboard"
+    assert is_nil(Noticeboard.get_entry(entry.id))
+  end
+
+  test "mods can post noticeboard entries and janitors cannot", %{conn: conn} do
+    mod = moderator_fixture(%{role: "mod", username: "moduser"})
+    janitor = moderator_fixture(%{role: "janitor", username: "janitor"})
+
+    conn =
+      conn
+      |> login_moderator(mod)
+      |> post("/manage/noticeboard", %{
+        "subject" => "Heads up",
+        "body" => "Check reports"
+      })
+
+    assert redirected_to(conn) =~ "/manage/noticeboard#"
+    assert [%Noticeboard.Entry{subject: "Heads up", author_name: "moduser"} | _] = Noticeboard.list_entries()
+
+    denied =
+      conn
+      |> recycle()
+      |> login_moderator(janitor)
+      |> post("/manage/noticeboard", %{
+        "subject" => "Nope",
+        "body" => "Should fail"
+      })
+
+    assert html_response(denied, 403) =~ "Moderator access required."
   end
 
   test "browser edit post page matches vichan form structure and updates posts", %{conn: conn} do
