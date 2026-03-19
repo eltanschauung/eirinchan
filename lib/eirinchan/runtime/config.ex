@@ -110,7 +110,7 @@ defmodule Eirinchan.Runtime.Config do
     force_body: false,
     force_body_op: true,
     force_image_op: false,
-    max_body: 1_800,
+    max_body: 2_000,
     maximum_lines: 100,
     max_images: 1,
     field_disable_name: false,
