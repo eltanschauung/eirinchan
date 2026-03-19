@@ -100,10 +100,13 @@ defmodule EirinchanWeb.PostComponents do
   attr :entries, :list, default: nil
 
   def site_footer(assigns) do
-    assigns =
-      assign_new(assigns, :entries, fn ->
-        footer_entries()
-      end)
+    entries =
+      case assigns[:entries] do
+        nil -> configured_footer_entries()
+        value -> normalize_footer_entries(value)
+      end
+
+    assigns = assign(assigns, :entries, entries)
 
     ~H"""
     <footer>
@@ -117,10 +120,14 @@ defmodule EirinchanWeb.PostComponents do
     """
   end
 
-  defp footer_entries do
+  defp configured_footer_entries do
     Settings.current_instance_config()
     |> Map.get(:footer, default_footer_entries())
-    |> case do
+    |> normalize_footer_entries()
+  end
+
+  defp normalize_footer_entries(entries) do
+    case entries do
       entries when is_list(entries) ->
         entries
         |> Enum.map(&to_string/1)
@@ -532,13 +539,17 @@ defmodule EirinchanWeb.PostComponents do
       end}
     >
       <p :if={!@deleted_file?} class="fileinfo">
-        File: <a href={@file.file_path}><%= PostView.stored_file_name(@file) %></a>
-        <span>
-          (<%= PostView.file_size_text(@file) %>
-          <%= if PostView.file_dimensions(@file) do %>
-            , <%= PostView.file_dimensions(@file) %>
-          <% end %>, <span class="postfilename" title={PostView.original_file_name(@file)}><%= PostView.display_file_name(@file, @config) %></span>)
+        <span class="postfilename" title={PostView.original_file_name(@file)}>
+          <%= PostView.display_file_name(@file, @config) %>
         </span>
+        <a
+          href={@file.file_path}
+          download={PostView.original_file_name(@file) || PostView.stored_file_name(@file)}
+          class="fa fa-download download-button"
+          title="Download"
+          aria-label="Download"
+        ></a>
+        <span>(<%= PostView.file_inline_details_text(@file) %>)</span>
         <span :if={@video_file?} class="video-loop-controls" data-video-loop-controls>
           <span class="video-loop-control" data-video-loop-mode="once">[play once]</span>
           <span class="video-loop-control active" data-video-loop-mode="loop">[loop]</span>

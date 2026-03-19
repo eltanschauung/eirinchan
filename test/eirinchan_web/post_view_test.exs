@@ -181,6 +181,12 @@ defmodule EirinchanWeb.PostViewTest do
     refute html =~ ~s|""><script>|
   end
 
+  test "file_inline_details_text uses the inline file format" do
+    file = %{file_size: 3481, image_width: 979, image_height: 199}
+
+    assert PostView.file_inline_details_text(file) == "3.4 KB , 979x199"
+  end
+
   test "site_footer renders configured footer entries" do
     html =
       Phoenix.LiveViewTest.render_component(&PostComponents.site_footer/1,

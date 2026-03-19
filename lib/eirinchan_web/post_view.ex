@@ -595,6 +595,12 @@ defmodule EirinchanWeb.PostView do
     Enum.join(parts, ", ")
   end
 
+  def file_inline_details_text(file) do
+    [human_file_size(file.file_size), dimensions(file)]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" , ")
+  end
+
   def thumb_style(file, config, opts \\ []) do
     op? = Keyword.get(opts, :op?, false)
     max_width = if op?, do: config.thumb_op_width, else: config.thumb_width
