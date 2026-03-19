@@ -754,10 +754,9 @@ defmodule Eirinchan.Uploads do
   end
 
   defp first_frame_path(path) when is_binary(path) do
-    if String.downcase(Path.extname(path)) == ".gif" do
-      path <> "[0]"
-    else
-      path
+    case String.downcase(Path.extname(path)) do
+      ext when ext in [".gif", ".webp"] -> path <> "[0]"
+      _ -> path
     end
   end
 
