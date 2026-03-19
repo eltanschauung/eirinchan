@@ -3,7 +3,7 @@ defmodule Eirinchan.Posts do
   Minimal posting pipeline for OP and reply creation.
   """
 
-  import Ecto.Query, only: [from: 2]
+  import Ecto.Query, only: [from: 2, subquery: 1]
 
   alias Eirinchan.Antispam
   alias Eirinchan.Build
@@ -575,6 +575,16 @@ defmodule Eirinchan.Posts do
 
   @spec list_overboard_threads([BoardRecord.t()], keyword()) :: [%{board: BoardRecord.t(), config: map(), summary: map()}]
   def list_overboard_threads(boards, opts \\ []) when is_list(boards) do
+    case list_overboard_page(boards, 1, opts) do
+      {:ok, page} -> page.threads
+      {:error, :not_found} -> []
+    end
+  end
+
+  @spec list_overboard_page([BoardRecord.t()], pos_integer(), keyword()) ::
+          {:ok, %{threads: [map()], page: pos_integer(), total_pages: pos_integer(), total_threads: non_neg_integer()}}
+          | {:error, :not_found}
+  def list_overboard_page(boards, page, opts \\ []) when is_list(boards) and is_integer(page) do
     repo = Keyword.get(opts, :repo, Repo)
     config_by_board = Keyword.get(opts, :config_by_board, %{})
     excluded = Keyword.get(opts, :exclude, []) |> MapSet.new()
@@ -588,7 +598,7 @@ defmodule Eirinchan.Posts do
     board_ids = Map.keys(board_map)
 
     if board_ids == [] or thread_limit == 0 do
-      []
+      {:ok, %{threads: [], page: 1, total_pages: 1, total_threads: 0}}
     else
       activity_query =
         from thread in Post,
@@ -608,13 +618,28 @@ defmodule Eirinchan.Posts do
               )
           }
 
+      total_threads =
+        repo.one(from activity in subquery(activity_query), select: count(activity.id)) || 0
+
+      total_pages =
+        case total_threads do
+          0 -> 1
+          count -> div(count + thread_limit - 1, thread_limit)
+        end
+
+      if page < 1 or page > total_pages do
+        {:error, :not_found}
+      else
+        offset = (page - 1) * thread_limit
+
       threads =
         repo.all(
           from post in Post,
             join: activity in subquery(activity_query),
             on: activity.id == post.id,
             order_by: [desc: activity.activity_at, desc: post.inserted_at, desc: post.id],
-            limit: ^thread_limit
+            limit: ^thread_limit,
+            offset: ^offset
         )
         |> repo.preload([:board, :extra_files])
 
@@ -630,15 +655,23 @@ defmodule Eirinchan.Posts do
         end)
         |> Map.new()
 
-      Enum.map(threads, fn thread ->
-        board = Map.fetch!(board_map, thread.board_id)
+        {:ok,
+         %{
+           threads:
+             Enum.map(threads, fn thread ->
+               board = Map.fetch!(board_map, thread.board_id)
 
-        %{
-          board: board,
-          config: Map.fetch!(config_by_board, board.id),
-          summary: Map.fetch!(summaries_by_thread_id, thread.id)
-        }
-      end)
+               %{
+                 board: board,
+                 config: Map.fetch!(config_by_board, board.id),
+                 summary: Map.fetch!(summaries_by_thread_id, thread.id)
+               }
+             end),
+           page: page,
+           total_pages: total_pages,
+           total_threads: total_threads
+         }}
+      end
     end
   end
 

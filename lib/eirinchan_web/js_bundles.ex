@@ -87,6 +87,9 @@ defmodule EirinchanWeb.JsBundles do
       "js/catalog.js",
       "js/catalog-search.js"
     ],
+    ukko: [
+      "js/overboard.js"
+    ],
     search: [
       "js/inline-expanding.js",
       "js/expand.js",
@@ -110,7 +113,7 @@ defmodule EirinchanWeb.JsBundles do
   def bundle_keys_for("search"), do: bundle_keys_for(:search)
   def bundle_keys_for(:thread), do: [:core, :thread]
   def bundle_keys_for(:index), do: [:core, :index]
-  def bundle_keys_for(:ukko), do: [:core, :index]
+  def bundle_keys_for(:ukko), do: [:core, :index, :ukko]
   def bundle_keys_for(:catalog), do: [:core, :catalog]
   def bundle_keys_for(:search), do: [:core, :search]
   def bundle_keys_for(_active_page), do: [:core, :default]

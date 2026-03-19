@@ -1,0 +1,122 @@
+(function () {
+  var parser = new DOMParser();
+  var loading = false;
+  var timer = null;
+
+  function activePage() {
+    var meta = document.querySelector('meta[name="eirinchan:active-page"]');
+    return meta ? meta.getAttribute('content') : '';
+  }
+
+  function pagesRoot() {
+    return document.querySelector('[data-overboard-pages]');
+  }
+
+  function threadListRoot() {
+    return document.getElementById('overboard-thread-list');
+  }
+
+  function nextLink() {
+    var root = pagesRoot();
+    return root ? root.getAttribute('data-next-link') : null;
+  }
+
+  function setNextLink(value) {
+    var root = pagesRoot();
+
+    if (!root) {
+      return;
+    }
+
+    if (value) {
+      root.setAttribute('data-next-link', value);
+      root.style.display = 'none';
+    } else {
+      root.removeAttribute('data-next-link');
+      root.style.display = '';
+      root.textContent = 'No more threads to display';
+    }
+  }
+
+  function nearBottom() {
+    return window.scrollY + window.innerHeight + 1000 >= document.documentElement.scrollHeight;
+  }
+
+  function dispatchThread(thread) {
+    if (!thread) {
+      return;
+    }
+
+    if (window.EirinchanFrontend && typeof window.EirinchanFrontend.dispatchNewPost === 'function') {
+      window.EirinchanFrontend.dispatchNewPost(thread);
+    } else if (window.jQuery) {
+      window.jQuery(document).trigger('new_post', thread);
+    }
+  }
+
+  function appendBlocks(doc) {
+    var source = doc.getElementById('overboard-thread-list');
+    var destination = threadListRoot();
+
+    if (!source || !destination) {
+      return;
+    }
+
+    Array.prototype.slice.call(source.children).forEach(function (block) {
+      var adopted = document.importNode(block, true);
+      destination.appendChild(adopted);
+
+      Array.prototype.slice.call(adopted.querySelectorAll('.thread')).forEach(dispatchThread);
+    });
+  }
+
+  function loadNextPage() {
+    var href = nextLink();
+
+    if (!href || loading || !nearBottom()) {
+      return;
+    }
+
+    loading = true;
+    fetch(href, { credentials: 'same-origin' })
+      .then(function (response) {
+        if (!response.ok) {
+          throw new Error('Failed to load overboard page');
+        }
+
+        return response.text();
+      })
+      .then(function (html) {
+        var doc = parser.parseFromString(html, 'text/html');
+        appendBlocks(doc);
+
+        var nextRoot = doc.querySelector('[data-overboard-pages]');
+        setNextLink(nextRoot ? nextRoot.getAttribute('data-next-link') : null);
+      })
+      .catch(function () {
+        setNextLink(null);
+      })
+      .finally(function () {
+        loading = false;
+      });
+  }
+
+  function tick() {
+    loadNextPage();
+    clearTimeout(timer);
+    timer = setTimeout(tick, 1000);
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    if (activePage() !== 'ukko' || !pagesRoot() || !threadListRoot()) {
+      return;
+    }
+
+    if (nextLink()) {
+      pagesRoot().style.display = 'none';
+    }
+
+    window.addEventListener('scroll', loadNextPage, { passive: true });
+    timer = setTimeout(tick, 1000);
+  });
+})();
