@@ -1,12 +1,9 @@
 <.flash_group flash={@flash} />
-<section>
-  <h1>Ban appeals (<%= length(@appeals) %>)</h1>
-  <p><a href={~p"/manage"}>Back to Manage</a></p>
-</section>
+<.page_header title={"Ban appeals (#{length(@appeals)})"} back_href={~p"/manage"} back_label="Back to Manage" />
 
 <section>
   <%= if @appeals == [] do %>
-    <p>No appeals.</p>
+    <.empty_notice text="No appeals." class_name="" centered={false} parenthesize={false} />
   <% else %>
     <%= for appeal <- @appeals do %>
       <article>

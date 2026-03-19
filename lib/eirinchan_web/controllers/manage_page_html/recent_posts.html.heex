@@ -1,12 +1,5 @@
 <.flash_group flash={@flash} />
-<section>
-  <h1>Recent Posts</h1>
-  <p>Signed in as <strong><%= @moderator.username %></strong>.</p>
-</section>
-
-<nav>
-  <a href={~p"/manage"}>Back to Manage</a>
-</nav>
+<.page_header title="Recent Posts" subtitle={"Signed in as #{@moderator.username}."} back_href={~p"/manage"} back_label="Back to Manage" />
 
 <section>
   <form action={~p"/manage/recent-posts/browser"} method="get">
@@ -39,7 +32,7 @@
 
 <section>
   <%= if @entries == [] do %>
-    <p>No posts matched.</p>
+    <.empty_notice text="No posts matched." class_name="" centered={false} parenthesize={false} />
   <% else %>
     <h4>Viewing last <%= @filters["limit"] %> posts</h4>
     <p>

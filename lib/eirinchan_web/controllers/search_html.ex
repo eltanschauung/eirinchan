@@ -1,6 +1,7 @@
 defmodule EirinchanWeb.SearchHTML do
   use EirinchanWeb, :html
   import EirinchanWeb.BrowserPostComponents
+  import EirinchanWeb.BrowserPageComponents
 
   embed_templates "search_html/*"
 
