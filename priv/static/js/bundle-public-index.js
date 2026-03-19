@@ -1780,7 +1780,7 @@ function buildMenu(e) {
 	$menu.empty().append(mainMenu.list_items());
 	menuBackground = resolveMenuBackground($target, $post);
 	$menu.css('--post-menu-bg-local', menuBackground);
-	$menu.children('ul').css('background-color', menuBackground);
+	$menu.find('ul').css('background-color', menuBackground);
 
 	//  execute registered click handlers
 	length = onclick_callbacks.length;
