@@ -590,11 +590,30 @@ defmodule Eirinchan.Posts do
     if board_ids == [] or thread_limit == 0 do
       []
     else
+      activity_query =
+        from thread in Post,
+          left_join: reply in Post,
+          on: reply.thread_id == thread.id and reply.board_id == thread.board_id,
+          where: thread.board_id in ^board_ids and is_nil(thread.thread_id),
+          group_by: thread.id,
+          select: %{
+            id: thread.id,
+            activity_at:
+              fragment(
+                "GREATEST(COALESCE(MAX(?), ?), COALESCE(?, ?))",
+                reply.inserted_at,
+                thread.inserted_at,
+                thread.bump_at,
+                thread.inserted_at
+              )
+          }
+
       threads =
         repo.all(
           from post in Post,
-            where: post.board_id in ^board_ids and is_nil(post.thread_id),
-            order_by: [desc_nulls_last: post.bump_at, desc: post.inserted_at, desc: post.id],
+            join: activity in subquery(activity_query),
+            on: activity.id == post.id,
+            order_by: [desc: activity.activity_at, desc: post.inserted_at, desc: post.id],
             limit: ^thread_limit
         )
         |> repo.preload([:board, :extra_files])
@@ -1184,7 +1203,7 @@ defmodule Eirinchan.Posts do
       reply_image_count = stats.image_count
       reply_extra_image_count = Map.get(reply_extra_image_counts, thread.id, 0)
 
-      last_modified = stats.latest_inserted_at || thread.inserted_at
+      last_modified = latest_activity_at(stats.latest_inserted_at, thread.bump_at, thread.inserted_at)
 
       %{
         thread: thread,
@@ -1200,9 +1219,15 @@ defmodule Eirinchan.Posts do
               Enum.sum(Enum.map(replies, &post_image_count/1)),
             0
           ),
-        last_modified: thread.bump_at || last_modified
+        last_modified: last_modified
       }
     end)
+  end
+
+  defp latest_activity_at(reply_inserted_at, bump_at, inserted_at) do
+    [reply_inserted_at, bump_at, inserted_at]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.max_by(&DateTime.to_unix/1)
   end
 
   defp thread_preview_count(%Post{sticky: true}, config) do
