@@ -163,6 +163,41 @@ defmodule EirinchanWeb.PostViewTest do
     assert html =~ ~s(src="/bant/thumb/example.jpg")
   end
 
+  test "file_image_html pre-renders the full image shell for expandable images" do
+    config = Config.compose()
+
+    file = %{
+      file_name: "example.jpg",
+      file_path: "/bant/src/example.jpg",
+      thumb_path: "/bant/thumb/example.jpg",
+      image_width: 640,
+      image_height: 480
+    }
+
+    html = PostView.file_image_html(file, config)
+
+    assert html =~ ~s(class="full-image")
+    assert html =~ ~s(data-full-image-src="/bant/src/example.jpg")
+  end
+
+  test "file_image_html does not pre-render the full image shell for videos" do
+    config = Config.compose()
+
+    file = %{
+      file_name: "example.mp4",
+      file_path: "/bant/src/example.mp4",
+      thumb_path: "/bant/thumb/example.jpg",
+      file_type: "video/mp4",
+      image_width: 640,
+      image_height: 480
+    }
+
+    html = PostView.file_image_html(file, config)
+
+    refute html =~ ~s(class="full-image")
+    assert html =~ ~s(data-video-file="true")
+  end
+
   test "embed_html rejects raw html payloads" do
     config = Config.compose()
 

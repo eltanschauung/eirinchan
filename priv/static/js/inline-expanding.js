@@ -116,7 +116,7 @@ $(document).ready(function(){
 							img.style.display = '';
 						});
 
-						img.setAttribute('src', ele.href);
+						img.setAttribute('src', img.dataset.fullImageSrc || ele.href);
 						$(ele).data('imageLoading', 'true');
 						ele.timeout = onLoadStart(img);
 					});
@@ -163,14 +163,18 @@ $(document).ready(function(){
 							canvas.style.display = 'block';
 						}
 
-						thumb.style.opacity = '0.4';
-						thumb.style.filter = 'alpha(opacity=40)';
+					thumb.style.opacity = '0.4';
+					thumb.style.filter = 'alpha(opacity=40)';
 
+					img = fullImageElement(this);
+					if (!img) {
 						img = document.createElement('img');
 						img.className = 'full-image';
 						img.style.display = 'none';
 						img.setAttribute('alt', 'Fullsized image');
+						img.dataset.fullImageSrc = this.href;
 						this.appendChild(img);
+					}
 
 						loadingQueue.add(this);
 					} else {
@@ -189,7 +193,10 @@ $(document).ready(function(){
 						thumb.style.opacity = '';
 						thumb.style.display = '';
 						img = fullImageElement(this);
-						if (img) this.removeChild(img);  //full image loaded or loading
+						if (img) {
+							img.style.display = 'none';
+							img.removeAttribute('src');
+						}
 						$(this).removeData('expanded');
 						delete thumb.style.filter;
 
