@@ -148,7 +148,30 @@
       'boxShadow'
     ]);
 
-    copy_styles($sourceTable, $table, ['color']);
+    copy_styles($dummyReply, $postForm, [
+      'backgroundColor',
+      'borderStyle',
+      'borderWidth',
+      'borderColor',
+      'borderRadius',
+      'boxShadow'
+    ]);
+
+    copy_styles($sourceTable, $table, [
+      'background',
+      'backgroundColor',
+      'backgroundImage',
+      'backgroundPosition',
+      'backgroundRepeat',
+      'backgroundSize',
+      'backgroundAttachment',
+      'borderStyle',
+      'borderWidth',
+      'borderColor',
+      'borderRadius',
+      'boxShadow',
+      'color'
+    ]);
     copy_styles($sourceTh, $targetTh, [
       'backgroundColor',
       'color',
