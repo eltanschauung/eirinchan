@@ -4,6 +4,7 @@ defmodule EirinchanWeb.PublicShell do
   alias Eirinchan.Runtime.Config
   alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Settings
+  alias EirinchanWeb.JsBundles
 
   @catalog_required_scripts [
     "js/catalog.js",
@@ -114,6 +115,13 @@ defmodule EirinchanWeb.PublicShell do
 
   def eager_javascript_urls(active_page, config)
       when active_page in [:index, :thread, :catalog] do
+    if Map.get(config, :additional_javascript_compile, false) do
+      [
+        additional_javascript_url(config, "js/runtime-config.js"),
+        config.url_javascript
+      ]
+      |> Enum.reject(&is_nil/1)
+    else
     javascript_urls(active_page, config)
     |> Enum.filter(
         &(&1 in [
@@ -126,6 +134,7 @@ defmodule EirinchanWeb.PublicShell do
           "/js/save-user_flag.js"
         ])
     )
+    end
   end
 
   def eager_javascript_urls(_active_page, _config), do: []
@@ -138,18 +147,46 @@ defmodule EirinchanWeb.PublicShell do
       ]
       |> Enum.reject(&is_nil/1)
 
+    scripts =
+      config
+      |> additional_javascript()
+      |> maybe_filter_catalog_scripts(active_page)
+      |> maybe_add_catalog_scripts(active_page)
+
     if Map.get(config, :additional_javascript_compile, false) do
-      main
-    else
-      scripts =
-        config
-        |> additional_javascript()
-        |> maybe_filter_catalog_scripts(active_page)
-        |> maybe_add_catalog_scripts(active_page)
+      bundled_sources = JsBundles.bundled_sources_for(active_page)
+
+      bundled_urls =
+        active_page
+        |> JsBundles.bundle_urls_for()
         |> Enum.map(&additional_javascript_url(config, &1))
         |> Enum.reject(&is_nil/1)
 
-      main ++ scripts
+      remaining_urls =
+        scripts
+        |> Enum.reject(&JsBundles.ignored_script?/1)
+        |> Enum.filter(fn script ->
+          trimmed = String.trim(script)
+          normalized = String.trim_leading(trimmed, "/")
+
+          String.starts_with?(trimmed, ["http://", "https://", "//"]) or
+            not String.starts_with?(normalized, "js/")
+        end)
+        |> Enum.reject(fn script ->
+          normalized = String.trim_leading(script, "/")
+          MapSet.member?(bundled_sources, normalized)
+        end)
+        |> Enum.map(&additional_javascript_url(config, &1))
+        |> Enum.reject(&is_nil/1)
+
+      main ++ bundled_urls ++ remaining_urls
+    else
+      script_urls =
+        scripts
+        |> Enum.map(&additional_javascript_url(config, &1))
+        |> Enum.reject(&is_nil/1)
+
+      main ++ script_urls
     end
   end
 

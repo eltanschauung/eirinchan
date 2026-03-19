@@ -64,7 +64,7 @@ defmodule EirinchanWeb.PublicShellTest do
            ]
   end
 
-  test "compile mode suppresses separate additional javascript tags" do
+  test "compile mode emits page bundles instead of separate local script tags" do
     config = %{
       root: "/",
       url_javascript: "/main.js",
@@ -73,7 +73,48 @@ defmodule EirinchanWeb.PublicShellTest do
       additional_javascript_compile: true
     }
 
-    assert PublicShell.javascript_urls(:thread, config) == ["/js/runtime-config.js", "/main.js"]
+    assert PublicShell.javascript_urls(:thread, config) == [
+             "/js/runtime-config.js",
+             "/main.js",
+             "/js/bundle-public-core.js",
+             "/js/bundle-public-thread.js"
+           ]
+  end
+
+  test "compile mode keeps remote scripts outside bundles" do
+    config = %{
+      root: "/",
+      url_javascript: "/main.js",
+      additional_javascript: ["js/jquery.min.js", "https://cdn.example.test/remote.js"],
+      additional_javascript_url: "/",
+      additional_javascript_compile: true,
+      allow_remote_script_urls: true
+    }
+
+    assert PublicShell.javascript_urls(:thread, config) == [
+             "/js/runtime-config.js",
+             "/main.js",
+             "/js/bundle-public-core.js",
+             "/js/bundle-public-thread.js",
+             "https://cdn.example.test/remote.js"
+           ]
+  end
+
+  test "compile mode uses the catalog bundle for catalog pages" do
+    config = %{
+      root: "/",
+      url_javascript: "/main.js",
+      additional_javascript: ["js/jquery.min.js", "js/catalog-search.js"],
+      additional_javascript_url: "/",
+      additional_javascript_compile: true
+    }
+
+    assert PublicShell.javascript_urls(:catalog, config) == [
+             "/js/runtime-config.js",
+             "/main.js",
+             "/js/bundle-public-core.js",
+             "/js/bundle-public-catalog.js"
+           ]
   end
 
   test "filters dangerous additional javascript entries" do
