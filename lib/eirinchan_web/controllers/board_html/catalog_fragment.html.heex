@@ -1,3 +1,10 @@
+<div id="global-message-refresh-target">
+  <%= if @global_message_html && @global_message_html != "" do %>
+    <%= raw(@global_message_html) %>
+  <% else %>
+    <hr />
+  <% end %>
+</div>
 <div id="Grid" data-fragment-md5={@fragment_md5}>
   <%= if @threads == [] do %>
     <p class="unimportant">No threads yet.</p>

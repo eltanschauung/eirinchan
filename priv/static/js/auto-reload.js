@@ -253,6 +253,17 @@ $(document).ready(function(){
 		return container.dataset.fragmentMd5 || '';
 	};
 
+	var sync_global_message = function(doc) {
+		var replacement = doc && doc.querySelector ? doc.querySelector('#global-message-refresh-target') : null;
+		var current = document.getElementById('global-message-refresh-target');
+
+		if (!replacement || !current) {
+			return;
+		}
+
+		current.replaceWith(replacement);
+	};
+
 	var refresh_if_changed = function(pollFn) {
 		if (!can_start_poll()) {
 			return false;
@@ -353,6 +364,8 @@ $(document).ready(function(){
 					}
 					return;
 				}
+
+				sync_global_message(doc);
 
 				if (replacement.dataset && replacement.dataset.fragmentMd5) {
 					currentGrid.dataset.fragmentMd5 = replacement.dataset.fragmentMd5;
@@ -471,6 +484,8 @@ $(document).ready(function(){
 					return;
 				}
 
+				sync_global_message(doc);
+
 				currentThreads = current.querySelector('#board-threads');
 				if (currentThreads) {
 					Array.prototype.forEach.call(currentThreads.querySelectorAll('.post[id]'), function(node) {
@@ -580,6 +595,7 @@ $(document).ready(function(){
 				var loaded_posts = 0;	// the number of new posts loaded in this update
 				var elementsToAppend = [];
 				var insertedPostIds = [];
+				sync_global_message(doc);
 				if (replacement && replacement.dataset && replacement.dataset.fragmentMd5) {
 					var currentContainer = document.getElementById('thread-refresh-target');
 					if (currentContainer) {
