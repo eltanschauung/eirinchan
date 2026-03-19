@@ -11,6 +11,10 @@
 if (active_page == 'thread' || active_page == 'index' || active_page == 'ukko') {
 $(document).on('menu_ready', function(){
 var Menu = window.Menu;
+if (!Menu || Menu.__quickActionMenuInstalled) {
+	return;
+}
+Menu.__quickActionMenuInstalled = true;
 
 function ensureQuickActionForm($post, postId) {
 	var $checkbox = $('#delete_' + postId);
