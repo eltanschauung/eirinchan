@@ -85,6 +85,13 @@ defmodule EirinchanWeb.Router do
     get "/flags/browser", ManagePageController, :flags
     patch "/flags/browser", ManagePageController, :update_flags
     get "/themes/browser", ManagePageController, :themes
+    get "/users/browser", ManagePageController, :users
+    get "/users/browser/new", ManagePageController, :new_user
+    post "/users/browser/new", ManagePageController, :create_user_browser
+    get "/users/browser/:id", ManagePageController, :user
+    post "/users/browser/:id", ManagePageController, :update_user_browser
+    post "/users/browser/:id/promote", ManagePageController, :promote_user_browser
+    post "/users/browser/:id/demote", ManagePageController, :demote_user_browser
     get "/themes/browser/:name", ManagePageController, :theme
     post "/themes/browser/:name", ManagePageController, :install_theme
     post "/themes/browser/:name/rebuild", ManagePageController, :rebuild_theme

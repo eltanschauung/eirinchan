@@ -47,6 +47,9 @@
       <a href={~p"/manage/stickers/browser"}>Configure stickers</a>
     </li>
     <li :if={@moderator.role == "admin"}>
+      <a href={~p"/manage/users/browser"}>Manage users</a>
+    </li>
+    <li :if={@moderator.role == "admin"}>
       <a href={~p"/manage/themes/browser"}>Manage themes</a>
     </li>
     <li><a href={~p"/manage/announcement/browser"}>Announcements</a></li>

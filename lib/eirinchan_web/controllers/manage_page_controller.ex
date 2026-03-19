@@ -728,6 +728,208 @@ defmodule EirinchanWeb.ManagePageController do
     end
   end
 
+  def users(conn, _params) do
+    with {:ok, moderator} <- ensure_admin(conn) do
+      users = manage_users()
+
+      render(conn, :users,
+        moderator: moderator,
+        users: users,
+        latest_actions: ModerationLog.latest_entries_for_users(Enum.map(users, & &1.id)),
+        error: nil
+      )
+    else
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      {:error, :forbidden} ->
+        render_users_error(conn, "Administrator access required.", :forbidden)
+    end
+  end
+
+  def new_user(conn, _params) do
+    with {:ok, moderator} <- ensure_admin(conn) do
+      render(conn, :user,
+        user_form_assigns(%{
+          moderator: moderator,
+          user: %Moderation.ModUser{username: "", role: "janitor", all_boards: false},
+          boards: Boards.list_boards(),
+          form: %{"username" => "", "role" => "janitor", "allboards" => "0"},
+          selected_boards: %{},
+          logs: [],
+          error: nil,
+          new: true,
+          action: "/manage/users/browser/new",
+          can_manage_user?: true,
+          can_edit_password?: true,
+          can_delete_user?: false
+        })
+      )
+    else
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      {:error, :forbidden} ->
+        render_users_error(conn, "Administrator access required.", :forbidden)
+    end
+  end
+
+  def create_user_browser(conn, params) do
+    with {:ok, moderator} <- ensure_admin(conn),
+         {:ok, user} <-
+           Moderation.create_user(%{
+             username: Map.get(params, "username"),
+             password: Map.get(params, "password"),
+             role: Map.get(params, "role"),
+             all_boards: allboards_param?(params)
+           }),
+         {:ok, _user} <- sync_user_board_accesses(user, params) do
+      ModerationAudit.log(conn, "Created user #{user.username}", moderator: moderator)
+
+      conn
+      |> put_flash(:info, "User created.")
+      |> redirect(to: ~p"/manage/users/browser")
+    else
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      {:error, :forbidden} ->
+        render_users_error(conn, "Administrator access required.", :forbidden)
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        render_user_form_error(conn, nil, params, format_changeset(changeset), :unprocessable_entity)
+    end
+  end
+
+  def user(conn, %{"id" => id}) do
+    with {:ok, moderator} <- ensure_user_editor(conn, id),
+         %Moderation.ModUser{} = user <- Moderation.get_user(id, preload: [board_accesses: :board]) do
+      render(conn, :user,
+        user_form_assigns(%{
+          moderator: moderator,
+          user: user,
+          boards: Boards.list_boards(),
+          form: user_form_params(user),
+          selected_boards: selected_board_map(user),
+          logs: ModerationLog.list_entries(mod_user_id: user.id, page_size: 5),
+          error: nil,
+          new: false,
+          action: "/manage/users/browser/#{user.id}",
+          can_manage_user?: moderator.role == "admin",
+          can_edit_password?: moderator.role == "admin" or moderator.id == user.id,
+          can_delete_user?: moderator.role == "admin"
+        })
+      )
+    else
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      {:error, :forbidden} ->
+        render_users_error(conn, "Administrator access required.", :forbidden)
+
+      nil ->
+        render_users_error(conn, "User not found.", :not_found)
+    end
+  end
+
+  def update_user_browser(conn, %{"id" => id} = params) do
+    with {:ok, moderator} <- ensure_user_editor(conn, id),
+         %Moderation.ModUser{} = user <- Moderation.get_user(id, preload: [board_accesses: :board]) do
+      cond do
+        params["delete"] in ["1", "true", "on"] ->
+          if moderator.role != "admin" do
+            render_users_error(conn, "Administrator access required.", :forbidden)
+          else
+            {:ok, _deleted} = Moderation.delete_user(user)
+            ModerationAudit.log(conn, "Deleted user #{user.username}", moderator: moderator)
+
+            if moderator.id == user.id do
+              conn
+              |> clear_session()
+              |> configure_session(drop: true)
+              |> put_flash(:info, "User deleted.")
+              |> redirect(to: ~p"/manage/login")
+            else
+              conn
+              |> put_flash(:info, "User deleted.")
+              |> redirect(to: ~p"/manage/users/browser")
+            end
+          end
+
+        moderator.role == "admin" ->
+          with {:ok, updated} <-
+                 Moderation.update_user(user, %{
+                   username: Map.get(params, "username"),
+                   password: Map.get(params, "password"),
+                   role: user.role,
+                   all_boards: allboards_param?(params)
+                 }),
+               {:ok, _updated} <- sync_user_board_accesses(updated, params) do
+            log_user_update(conn, moderator, user, updated, params)
+
+            maybe_refresh_user_session(conn, moderator, updated, params)
+            |> put_flash(:info, "User updated.")
+            |> redirect(to: ~p"/manage/users/browser")
+          else
+            {:error, %Ecto.Changeset{} = changeset} ->
+              render_user_form_error(
+                conn,
+                id,
+                params,
+                format_changeset(changeset),
+                :unprocessable_entity
+              )
+          end
+
+        moderator.id == user.id ->
+          with {:ok, updated} <-
+                 Moderation.update_user(user, %{
+                   username: user.username,
+                   password: Map.get(params, "password"),
+                   role: user.role,
+                   all_boards: user.all_boards
+                 }) do
+            if String.trim(to_string(Map.get(params, "password", ""))) != "" do
+              ModerationAudit.log(conn, "Changed own password", moderator: moderator)
+            end
+
+            maybe_refresh_user_session(conn, moderator, updated, params)
+            |> put_flash(:info, "User updated.")
+            |> redirect(to: ~p"/manage/users/browser")
+          else
+            {:error, %Ecto.Changeset{} = changeset} ->
+              render_user_form_error(
+                conn,
+                id,
+                params,
+                format_changeset(changeset),
+                :unprocessable_entity
+              )
+          end
+
+        true ->
+          render_users_error(conn, "Administrator access required.", :forbidden)
+      end
+    else
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      {:error, :forbidden} ->
+        render_users_error(conn, "Administrator access required.", :forbidden)
+
+      nil ->
+        render_users_error(conn, "User not found.", :not_found)
+    end
+  end
+
+  def promote_user_browser(conn, %{"id" => id}) do
+    update_user_role_browser(conn, id, :promote)
+  end
+
+  def demote_user_browser(conn, %{"id" => id}) do
+    update_user_role_browser(conn, id, :demote)
+  end
+
   def theme(conn, %{"name" => name}) do
     with {:ok, moderator} <- ensure_admin(conn),
          %{} = theme <- Enum.find(Themes.all_themes(), &(&1.name == String.trim(name))) do
@@ -2511,6 +2713,44 @@ defmodule EirinchanWeb.ManagePageController do
     )
   end
 
+  defp render_users_error(conn, message, status) do
+    users = manage_users()
+
+    conn
+    |> put_status(status)
+    |> render(:users,
+      moderator: conn.assigns[:current_moderator],
+      users: users,
+      latest_actions: ModerationLog.latest_entries_for_users(Enum.map(users, & &1.id)),
+      error: message
+    )
+  end
+
+  defp render_user_form_error(conn, id, params, message, status) do
+    moderator = conn.assigns[:current_moderator]
+    new? = is_nil(id)
+    user = if(new?, do: nil, else: Moderation.get_user(id, preload: [board_accesses: :board]))
+
+    conn
+    |> put_status(status)
+    |> render(:user,
+      user_form_assigns(%{
+        moderator: moderator,
+        user: user || %Moderation.ModUser{},
+        boards: Boards.list_boards(),
+        form: user_form_params(user, params),
+        selected_boards: selected_board_map(params),
+        logs: if(user, do: ModerationLog.list_entries(mod_user_id: user.id, page_size: 5), else: []),
+        error: message,
+        new: new?,
+        action: if(new?, do: "/manage/users/browser/new", else: "/manage/users/browser/#{id}"),
+        can_manage_user?: moderator && moderator.role == "admin",
+        can_edit_password?: moderator && (moderator.role == "admin" or (user && moderator.id == user.id)),
+        can_delete_user?: moderator && moderator.role == "admin" and not new?
+      })
+    )
+  end
+
   defp render_theme_error(conn, name, message, status) do
     case Enum.find(Themes.all_themes(), &(&1.name == String.trim(to_string(name)))) do
       nil ->
@@ -3129,5 +3369,161 @@ defmodule EirinchanWeb.ManagePageController do
   defp shell_boardlist_groups do
     Boards.list_boards()
     |> PostView.boardlist_groups()
+  end
+
+  defp manage_users do
+    Moderation.list_users(preload: [board_accesses: :board])
+    |> Enum.sort_by(fn user -> {manage_role_sort_key(user.role), user.id} end)
+  end
+
+  defp manage_role_sort_key("admin"), do: 0
+  defp manage_role_sort_key("mod"), do: 1
+  defp manage_role_sort_key("janitor"), do: 2
+  defp manage_role_sort_key(_role), do: 99
+
+  defp user_form_assigns(assigns) do
+    Map.merge(
+      %{
+        logs: [],
+        error: nil,
+        selected_boards: %{}
+      },
+      assigns
+    )
+  end
+
+  defp ensure_user_editor(conn, id) do
+    with {:ok, moderator} <- ensure_moderator(conn) do
+      cond do
+        moderator.role == "admin" ->
+          {:ok, moderator}
+
+        Integer.to_string(moderator.id) == String.trim(to_string(id)) ->
+          {:ok, moderator}
+
+        true ->
+          {:error, :forbidden}
+      end
+    end
+  end
+
+  defp update_user_role_browser(conn, id, direction) do
+    with {:ok, moderator} <- ensure_admin(conn),
+         %Moderation.ModUser{} = user <- Moderation.get_user(id),
+         {:ok, updated} <- Moderation.update_user(user, %{role: next_user_role(user.role, direction)}) do
+      ModerationAudit.log(conn, role_change_log_text(direction, updated.username), moderator: moderator)
+
+      conn
+      |> put_flash(:info, "User updated.")
+      |> redirect(to: ~p"/manage/users/browser")
+    else
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      {:error, :forbidden} ->
+        render_users_error(conn, "Administrator access required.", :forbidden)
+
+      nil ->
+        render_users_error(conn, "User not found.", :not_found)
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        render_users_error(conn, format_changeset(changeset), :unprocessable_entity)
+    end
+  end
+
+  defp role_change_log_text(:promote, username), do: "Promoted user #{username}"
+  defp role_change_log_text(:demote, username), do: "Demoted user #{username}"
+
+  defp next_user_role("janitor", :promote), do: "mod"
+  defp next_user_role("mod", :promote), do: "admin"
+  defp next_user_role("admin", :promote), do: "admin"
+  defp next_user_role("admin", :demote), do: "mod"
+  defp next_user_role("mod", :demote), do: "janitor"
+  defp next_user_role("janitor", :demote), do: "janitor"
+  defp next_user_role(role, _direction), do: role
+
+  defp sync_user_board_accesses(%Moderation.ModUser{role: "admin"} = user, _params), do: {:ok, user}
+  defp sync_user_board_accesses(%Moderation.ModUser{all_boards: true} = user, _params), do: {:ok, user}
+
+  defp sync_user_board_accesses(user, params) do
+    Moderation.set_board_accesses(user, selected_boards(params))
+  end
+
+  defp selected_boards(params) do
+    boards = Boards.list_boards()
+
+    if allboards_param?(params) do
+      boards
+    else
+      Enum.filter(boards, fn board ->
+        Map.get(params, "board_#{board.uri}") in ["on", "true", "1"]
+      end)
+    end
+  end
+
+  defp selected_board_map(%Moderation.ModUser{} = user) do
+    Moderation.list_accessible_boards(user)
+    |> Map.new(&{&1.uri, true})
+  end
+
+  defp selected_board_map(params) when is_map(params) do
+    Boards.list_boards()
+    |> Map.new(fn board ->
+      {board.uri, Map.get(params, "board_#{board.uri}") in ["on", "true", "1"]}
+    end)
+  end
+
+  defp user_form_params(user, params \\ %{})
+
+  defp user_form_params(nil, params) do
+    %{
+      "username" => Map.get(params, "username", ""),
+      "role" => Map.get(params, "role", "janitor"),
+      "allboards" => if(allboards_param?(params), do: "1", else: "0")
+    }
+  end
+
+  defp user_form_params(%Moderation.ModUser{} = user, params) do
+    if is_map(params) and map_size(params) > 0 do
+      %{
+        "username" => Map.get(params, "username", user.username || ""),
+        "role" => Map.get(params, "role", user.role || "janitor"),
+        "allboards" => if(allboards_param?(params), do: "1", else: "0")
+      }
+    else
+      %{
+        "username" => user.username || "",
+        "role" => user.role || "janitor",
+        "allboards" => if(user.role == "admin" or user.all_boards, do: "1", else: "0")
+      }
+    end
+  end
+
+  defp allboards_param?(params) do
+    Map.get(params, "allboards") in ["on", "true", "1"]
+  end
+
+  defp maybe_refresh_user_session(conn, moderator, updated_user, params) do
+    if moderator.id == updated_user.id and String.trim(to_string(Map.get(params, "password", ""))) != "" do
+      establish_moderator_session(conn, updated_user, RequestMeta.effective_remote_ip(conn))
+    else
+      conn
+    end
+  end
+
+  defp log_user_update(conn, moderator, original_user, updated_user, params) do
+    if original_user.username != updated_user.username do
+      ModerationAudit.log(
+        conn,
+        "Renamed user #{original_user.username} to #{updated_user.username}",
+        moderator: moderator
+      )
+    else
+      ModerationAudit.log(conn, "Updated user #{updated_user.username}", moderator: moderator)
+    end
+
+    if String.trim(to_string(Map.get(params, "password", ""))) != "" do
+      ModerationAudit.log(conn, "Changed password for #{updated_user.username}", moderator: moderator)
+    end
   end
 end

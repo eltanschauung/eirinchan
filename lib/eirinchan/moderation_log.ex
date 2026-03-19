@@ -42,6 +42,39 @@ defmodule Eirinchan.ModerationLog do
     |> repo.aggregate(:count, :id)
   end
 
+  def latest_entries_for_users(user_ids, opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+
+    user_ids =
+      user_ids
+      |> List.wrap()
+      |> Enum.filter(&is_integer/1)
+      |> Enum.uniq()
+
+    if user_ids == [] do
+      %{}
+    else
+      latest_times =
+        from log in LogEntry,
+          where: log.mod_user_id in ^user_ids,
+          group_by: log.mod_user_id,
+          select: %{mod_user_id: log.mod_user_id, inserted_at: max(log.inserted_at)}
+
+      repo.all(
+        from log in LogEntry,
+          join: latest in subquery(latest_times),
+          on:
+            log.mod_user_id == latest.mod_user_id and
+              log.inserted_at == latest.inserted_at,
+          order_by: [desc: log.id],
+          preload: [:mod_user]
+      )
+      |> Enum.reduce(%{}, fn log, acc ->
+        Map.put_new(acc, log.mod_user_id, log)
+      end)
+    end
+  end
+
   def list_recent_entries_by_text(text, opts \\ []) when is_binary(text) do
     repo = Keyword.get(opts, :repo, Repo)
     limit = max(Keyword.get(opts, :limit, 50), 1)
@@ -67,6 +100,8 @@ defmodule Eirinchan.ModerationLog do
       |> Keyword.get(:board_uri)
       |> normalize_filter()
 
+    mod_user_id = Keyword.get(opts, :mod_user_id)
+
     text =
       opts
       |> Keyword.get(:text)
@@ -87,6 +122,13 @@ defmodule Eirinchan.ModerationLog do
     query =
       if is_binary(board_uri) do
         from [log, mod_user] in query, where: log.board_uri == ^board_uri
+      else
+        query
+      end
+
+    query =
+      if is_integer(mod_user_id) do
+        from [log, mod_user] in query, where: log.mod_user_id == ^mod_user_id
       else
         query
       end

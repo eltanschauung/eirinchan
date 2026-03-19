@@ -4,6 +4,7 @@ defmodule EirinchanWeb.ManagePageHTML do
   import EirinchanWeb.BrowserPageComponents
 
   alias Eirinchan.Noticeboard.Entry, as: NoticeboardEntry
+  alias Eirinchan.Moderation.ModUser
   alias EirinchanWeb.PostView
 
   embed_templates "manage_page_html/*"
@@ -45,4 +46,22 @@ defmodule EirinchanWeb.ManagePageHTML do
 
   def noticeboard_page_path(1), do: "/manage/noticeboard"
   def noticeboard_page_path(page_no) when is_integer(page_no) and page_no > 1, do: "/manage/noticeboard/#{page_no}"
+
+  def mod_role_label(%ModUser{role: role}), do: mod_role_label(role)
+  def mod_role_label("admin"), do: "Administrator"
+  def mod_role_label("mod"), do: "Moderator"
+  def mod_role_label("janitor"), do: "Janitor"
+  def mod_role_label(_role), do: "Unknown"
+
+  def user_board_labels(%ModUser{role: "admin"}), do: ["all boards"]
+  def user_board_labels(%ModUser{all_boards: true}), do: ["all boards"]
+
+  def user_board_labels(%ModUser{board_accesses: accesses}) when is_list(accesses) do
+    accesses
+    |> Enum.map(fn access -> access.board && access.board.uri end)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.sort()
+  end
+
+  def user_board_labels(_user), do: []
 end
