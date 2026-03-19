@@ -621,6 +621,27 @@ defmodule Eirinchan.PostsTest do
     assert thread.image_height == 48
   end
 
+  test "create_post generates thumbnails for animated webp uploads" do
+    board = board_fixture()
+    upload = animated_webp_upload_fixture("clip.webp")
+
+    assert {:ok, thread, %{noko: false}} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "animated webp post",
+                 "file" => upload,
+                 "post" => "New Topic"
+               },
+               config: post_config(board.config_overrides),
+               request: post_request(board.uri)
+             )
+
+    assert thread.file_type == "image/webp"
+    assert thread.thumb_path =~ ~r|^/#{board.uri}/thumb/\d+s\.png$|
+    assert File.exists?(Eirinchan.Uploads.filesystem_path(thread.thumb_path))
+  end
+
   test "create_post marks spoiler uploads on primary and extra files" do
     board = board_fixture()
 

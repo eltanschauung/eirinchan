@@ -63,6 +63,28 @@ defmodule Eirinchan.UploadsFixtures do
     }
   end
 
+  def animated_webp_upload_fixture(filename \\ "animated.webp") do
+    base =
+      Path.join(
+        System.tmp_dir!(),
+        "eirinchan-upload-anim-#{System.unique_integer([:positive])}-#{Path.basename(filename, ".webp")}"
+      )
+
+    frame1 = base <> "-f1.png"
+    frame2 = base <> "-f2.png"
+    webp_path = base <> ".webp"
+
+    {_, 0} = System.cmd("convert", ["-size", "20x20", "xc:red", frame1])
+    {_, 0} = System.cmd("convert", ["-size", "20x20", "xc:blue", frame2])
+    {_, 0} = System.cmd("convert", ["-delay", "20", "-loop", "0", frame1, frame2, webp_path])
+
+    %Plug.Upload{
+      path: webp_path,
+      filename: filename,
+      content_type: "image/webp"
+    }
+  end
+
   def video_upload_fixture(filename \\ "sample.mp4") do
     path =
       Path.join(
