@@ -11,7 +11,7 @@ defmodule EirinchanWeb.PostView do
   alias Eirinchan.Themes
   alias Eirinchan.ThreadPaths
   alias Eirinchan.WhaleStickers
-  alias EirinchanWeb.{IpPresentation, ManageSecurity}
+  alias EirinchanWeb.{IpPresentation, ManageSecurity, ModeratorPermissions}
 
   @deleted_file_sentinel "deleted"
   @filename_title_limit 256
@@ -305,7 +305,7 @@ defmodule EirinchanWeb.PostView do
   def can_view_ip?(nil, _board), do: false
 
   def can_view_ip?(moderator, nil) do
-    role_level(moderator.role) >= permission_level(:show_ip_global)
+    ModeratorPermissions.allowed?(moderator, :show_ip_global)
   end
 
   def can_view_ip?(moderator, board) do
@@ -804,30 +804,8 @@ defmodule EirinchanWeb.PostView do
   defp can_moderate?(_moderator, board, _permission) when is_nil(board), do: false
 
   defp can_moderate?(moderator, board, permission) do
-    Moderation.board_access?(moderator, board) and
-      role_level(moderator.role) >= permission_level(permission)
+    ModeratorPermissions.allowed_on_board?(moderator, board, permission)
   end
-
-  defp role_level("admin"), do: 30
-  defp role_level("mod"), do: 20
-  defp role_level("janitor"), do: 10
-  defp role_level(_), do: 0
-
-  defp permission_level(:show_ip), do: 20
-  defp permission_level(:show_ip_global), do: 30
-  defp permission_level(:delete), do: 10
-  defp permission_level(:ban), do: 20
-  defp permission_level(:bandelete), do: 20
-  defp permission_level(:deletebyip), do: 20
-  defp permission_level(:ban24), do: 30
-  defp permission_level(:sticky), do: 20
-  defp permission_level(:cycle), do: 20
-  defp permission_level(:lock), do: 20
-  defp permission_level(:bumplock), do: 20
-  defp permission_level(:editpost), do: 30
-  defp permission_level(:move), do: 20
-  defp permission_level(:deletefile), do: 10
-  defp permission_level(:spoilerimage), do: 10
 
   defp body_style(post, _config, _opts \\ []) do
     cond do

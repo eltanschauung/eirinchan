@@ -577,6 +577,54 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert Moderation.get_user(created.id).role == "mod"
   end
 
+  test "moderator can list users but janitor cannot", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "mod"})
+    janitor = moderator_fixture(%{role: "janitor"})
+
+    mod_page =
+      conn
+      |> login_moderator(moderator)
+      |> get("/manage/users/browser")
+      |> html_response(200)
+
+    assert mod_page =~ "Manage users"
+
+    forbidden_conn =
+      conn
+      |> recycle()
+      |> login_moderator(janitor)
+      |> get("/manage/users/browser")
+
+    assert html_response(forbidden_conn, 403) =~ "Administrator access required."
+  end
+
+  test "dashboard visibility follows vichan role split", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "mod"})
+    janitor = moderator_fixture(%{role: "janitor"})
+
+    mod_dashboard =
+      conn
+      |> login_moderator(moderator)
+      |> get("/manage")
+      |> html_response(200)
+
+    assert mod_dashboard =~ ~s(href="/manage/users/browser")
+    refute mod_dashboard =~ ~s(href="/manage/themes/browser")
+    refute mod_dashboard =~ ~s(href="/manage/announcement/browser")
+    assert mod_dashboard =~ ~s(href="/manage/pages/browser")
+
+    janitor_dashboard =
+      conn
+      |> recycle()
+      |> login_moderator(janitor)
+      |> get("/manage")
+      |> html_response(200)
+
+    refute janitor_dashboard =~ ~s(href="/manage/users/browser")
+    refute janitor_dashboard =~ ~s(href="/manage/announcement/browser")
+    refute janitor_dashboard =~ ~s(href="/manage/pages/browser")
+  end
+
   test "dnsbl editor shows vichan defaults before overrides exist", %{conn: conn} do
     original_path = Application.get_env(:eirinchan, :instance_config_path)
 
