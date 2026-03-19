@@ -1,6 +1,11 @@
 if (active_page === 'thread' || active_page === 'index' || active_page === 'catalog' || active_page === 'ukko') {
 	$(document).on('menu_ready', function () {
 		'use strict';
+		var Menu = window.Menu;
+		if (!Menu || Menu.__postFilterMenuInstalled) {
+			return;
+		}
+		Menu.__postFilterMenuInstalled = true;
 		
 		// returns blacklist object from storage
 		function getList() {
@@ -204,7 +209,6 @@ if (active_page === 'thread' || active_page === 'index' || active_page === 'cata
 		 *  create filter menu when the button is clicked
 		 */
 		function initPostMenu(pageData) {
-			var Menu = window.Menu;
 			var submenu;
 			Menu.add_item('filter-menu-hide', _('Hide post'));
 			Menu.add_item('filter-menu-hide-plus', _('Hide post +'), _('Hide post and all replies'));
