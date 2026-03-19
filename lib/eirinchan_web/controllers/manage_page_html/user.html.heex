@@ -1,0 +1,130 @@
+<.flash_group flash={@flash} />
+<%= if @new do %>
+  <h1>New user</h1>
+<% else %>
+  <h1>Edit user</h1>
+<% end %>
+<p><a href={~p"/manage"}>Back to dashboard</a></p>
+<p :if={@error} class="error"><%= @error %></p>
+
+<form action={@action} method="post">
+  <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+  <table>
+    <tr>
+      <th>Username</th>
+      <td>
+        <%= if @can_manage_user? do %>
+          <input size="20" maxlength="64" type="text" name="username" value={@form["username"]} autocomplete="off" />
+        <% else %>
+          <%= @form["username"] %>
+        <% end %>
+      </td>
+    </tr>
+    <tr>
+      <th>Password <%= unless @new do %><small style="font-weight:normal">(new; optional)</small><% end %></th>
+      <td>
+        <%= if @can_edit_password? do %>
+          <input size="20" maxlength="255" type="password" name="password" value="" autocomplete="off" />
+        <% else %>
+          -
+        <% end %>
+      </td>
+    </tr>
+    <tr :if={@new}>
+      <th>Group</th>
+      <td>
+        <ul style="padding:5px 8px;list-style:none">
+          <li>
+            <input type="radio" name="role" id="group_admin" value="admin" checked={@form["role"] == "admin"} />
+            <label for="group_admin">Administrator</label>
+          </li>
+          <li>
+            <input type="radio" name="role" id="group_mod" value="mod" checked={@form["role"] == "mod"} />
+            <label for="group_mod">Moderator</label>
+          </li>
+          <li>
+            <input type="radio" name="role" id="group_janitor" value="janitor" checked={@form["role"] == "janitor"} />
+            <label for="group_janitor">Janitor</label>
+          </li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <th>Boards</th>
+      <td>
+        <ul style="padding:0 5px;list-style:none">
+          <li>
+            <input
+              type="checkbox"
+              id="allboards"
+              name="allboards"
+              checked={@form["allboards"] == "1"}
+              disabled={!@can_manage_user?}
+            />
+            <label for="allboards">"*" - All boards</label>
+          </li>
+          <%= for board <- @boards do %>
+            <li>
+              <input
+                type="checkbox"
+                id={"board_#{board.uri}"}
+                name={"board_#{board.uri}"}
+                checked={Map.get(@selected_boards, board.uri, false)}
+                disabled={!@can_manage_user?}
+              />
+              <label for={"board_#{board.uri}"}>
+                /<%= board.uri %>/ - <%= board.title %>
+              </label>
+            </li>
+          <% end %>
+        </ul>
+      </td>
+    </tr>
+  </table>
+
+  <ul style="padding:0;text-align:center;list-style:none">
+    <%= if @new do %>
+      <li><input type="submit" value="Create user" /></li>
+    <% else %>
+      <li><input type="submit" value="Save changes" /></li>
+      <%= if @can_delete_user? do %>
+        <li>
+          <button
+            name="delete"
+            value="1"
+            onclick="return confirm('Are you sure you want to permanently delete this user?');"
+            type="submit"
+          >Delete user</button>
+        </li>
+      <% end %>
+    <% end %>
+  </ul>
+</form>
+
+<%= if @logs != [] do %>
+  <table class="modlog" style="width:600px">
+    <tr>
+      <th>IP address</th>
+      <th>Time</th>
+      <th>Board</th>
+      <th>Action</th>
+    </tr>
+    <%= for log <- @logs do %>
+      <tr>
+        <td class="minimal"><%= if(log.actor_ip, do: Eirinchan.IpCrypt.cloak_ip(log.actor_ip), else: "-") %></td>
+        <td class="minimal"><span title={Calendar.strftime(log.inserted_at, "%m/%d/%y (%a) %H:%M:%S")}><%= Calendar.strftime(log.inserted_at, "%m/%d/%y (%a) %H:%M:%S") %></span></td>
+        <td class="minimal">
+          <%= if is_binary(log.board_uri) and log.board_uri != "" do %>
+            <a href={"/#{log.board_uri}/index.html"}>/<%= log.board_uri %>/</a>
+          <% else %>
+            -
+          <% end %>
+        </td>
+        <td><%= log.text %></td>
+      </tr>
+    <% end %>
+  </table>
+  <p style="text-align:center" class="unimportant">
+    <a href={"/manage/log/browser?username=#{URI.encode(@user.username)}"}>View more logs for this user.</a>
+  </p>
+<% end %>

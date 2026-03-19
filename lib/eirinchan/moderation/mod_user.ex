@@ -2,21 +2,27 @@ defmodule Eirinchan.Moderation.ModUser do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Eirinchan.Moderation.ModBoardAccess
+
   schema "mod_users" do
     field :username, :string
     field :password_hash, :string
     field :password_salt, :string
     field :role, :string, default: "admin"
+    field :all_boards, :boolean, default: false
     field :last_login_at, :utc_datetime_usec
     field :password, :string, virtual: true
+
+    has_many :board_accesses, ModBoardAccess
 
     timestamps(type: :utc_datetime_usec)
   end
 
   def create_changeset(user, attrs) do
     user
-    |> cast(attrs, [:username, :password, :role, :last_login_at])
+    |> cast(attrs, [:username, :password, :role, :all_boards, :last_login_at])
     |> update_change(:username, &normalize_string/1)
+    |> normalize_optional_password()
     |> validate_required([:username, :password, :role])
     |> validate_length(:username, min: 1, max: 64)
     |> validate_length(:password, min: 1, max: 255)
@@ -29,6 +35,19 @@ defmodule Eirinchan.Moderation.ModUser do
   def login_changeset(user, attrs) do
     user
     |> cast(attrs, [:last_login_at])
+  end
+
+  def update_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:username, :password, :role, :all_boards])
+    |> update_change(:username, &normalize_string/1)
+    |> normalize_optional_password()
+    |> validate_required([:username, :role])
+    |> validate_length(:username, min: 1, max: 64)
+    |> validate_length(:password, min: 1, max: 255)
+    |> validate_inclusion(:role, ["admin", "mod", "janitor"])
+    |> put_password_fields()
+    |> unique_constraint(:username)
   end
 
   defp put_password_fields(changeset) do
@@ -105,6 +124,22 @@ defmodule Eirinchan.Moderation.ModUser do
     |> case do
       "" -> nil
       trimmed -> trimmed
+    end
+  end
+
+  defp normalize_optional_password(changeset) do
+    case get_change(changeset, :password) do
+      value when is_binary(value) ->
+        trimmed = String.trim(value)
+
+        if trimmed == "" do
+          delete_change(changeset, :password)
+        else
+          put_change(changeset, :password, trimmed)
+        end
+
+      _ ->
+        changeset
     end
   end
 end

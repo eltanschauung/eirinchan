@@ -491,7 +491,90 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       |> html_response(200)
 
     refute dashboard =~ "FAQ Editor"
+    assert dashboard =~ "Manage users"
     assert dashboard =~ "Manage themes"
+    {users_index, _} = :binary.match(dashboard, "Manage users")
+    {themes_index, _} = :binary.match(dashboard, "Manage themes")
+    assert users_index < themes_index
+  end
+
+  test "admin can manage users from the browser interface", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin", username: "admin"})
+    board = board_fixture(%{title: "International Random"})
+    target = moderator_fixture(%{role: "janitor", username: "helper"})
+
+    users_page =
+      conn
+      |> login_moderator(moderator)
+      |> get("/manage/users/browser")
+      |> html_response(200)
+
+    assert users_page =~ "Manage users"
+    assert users_page =~ "Create a new user"
+    assert users_page =~ target.username
+
+    conn =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> post("/manage/users/browser/new", %{
+        "username" => "newmod",
+        "password" => "secret123",
+        "role" => "mod",
+        "board_#{board.uri}" => "on"
+      })
+
+    assert redirected_to(conn) == "/manage/users/browser"
+
+    created = Enum.find(Moderation.list_users(preload: [board_accesses: :board]), &(&1.username == "newmod"))
+    assert created
+    assert created.role == "mod"
+    refute created.all_boards
+    assert Moderation.board_access?(created, board)
+
+    edit_page =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> get("/manage/users/browser/#{created.id}")
+      |> html_response(200)
+
+    assert edit_page =~ "Edit user"
+    assert edit_page =~ ~s(value="newmod")
+
+    conn =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> post("/manage/users/browser/#{created.id}", %{
+        "username" => "renamedmod",
+        "password" => "",
+        "allboards" => "on"
+      })
+
+    assert redirected_to(conn) == "/manage/users/browser"
+
+    updated = Moderation.get_user(created.id)
+    assert updated.username == "renamedmod"
+    assert updated.all_boards
+
+    conn =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> post("/manage/users/browser/#{created.id}/demote", %{})
+
+    assert redirected_to(conn) == "/manage/users/browser"
+    assert Moderation.get_user(created.id).role == "janitor"
+
+    conn =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> post("/manage/users/browser/#{created.id}/promote", %{})
+
+    assert redirected_to(conn) == "/manage/users/browser"
+    assert Moderation.get_user(created.id).role == "mod"
   end
 
   test "dnsbl editor shows vichan defaults before overrides exist", %{conn: conn} do

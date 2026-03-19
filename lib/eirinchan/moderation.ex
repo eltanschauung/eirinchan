@@ -22,13 +22,58 @@ defmodule Eirinchan.Moderation do
   @spec get_user(integer(), keyword()) :: ModUser.t() | nil
   def get_user(id, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
-    repo.get(ModUser, id)
+    preload = List.wrap(Keyword.get(opts, :preload, []))
+
+    case repo.get(ModUser, id) do
+      nil -> nil
+      user -> maybe_preload(user, preload, repo)
+    end
   end
 
   @spec list_users(keyword()) :: [ModUser.t()]
   def list_users(opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
-    repo.all(from user in ModUser, order_by: [asc: user.username])
+    preload = List.wrap(Keyword.get(opts, :preload, []))
+
+    ModUser
+    |> from(order_by: [asc: :username])
+    |> repo.all()
+    |> maybe_preload(preload, repo)
+  end
+
+  @spec update_user(ModUser.t(), map(), keyword()) :: {:ok, ModUser.t()} | {:error, Ecto.Changeset.t()}
+  def update_user(%ModUser{} = user, attrs, opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+
+    user
+    |> ModUser.update_changeset(attrs)
+    |> repo.update()
+  end
+
+  @spec delete_user(ModUser.t(), keyword()) :: {:ok, ModUser.t()} | {:error, Ecto.Changeset.t()}
+  def delete_user(%ModUser{} = user, opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+    repo.delete(user)
+  end
+
+  @spec set_board_accesses(ModUser.t(), [BoardRecord.t()], keyword()) :: {:ok, ModUser.t()} | {:error, term()}
+  def set_board_accesses(%ModUser{} = user, boards, opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+    board_ids = boards |> Enum.map(& &1.id) |> Enum.uniq()
+
+    repo.transaction(fn ->
+      repo.delete_all(from access in ModBoardAccess, where: access.mod_user_id == ^user.id)
+
+      Enum.each(board_ids, fn board_id ->
+        %ModBoardAccess{}
+        |> ModBoardAccess.changeset(%{mod_user_id: user.id, board_id: board_id})
+        |> repo.insert!()
+      end)
+    end)
+    |> case do
+      {:ok, _result} -> {:ok, user}
+      error -> error
+    end
   end
 
   @spec grant_board_access(ModUser.t(), BoardRecord.t(), keyword()) ::
@@ -53,6 +98,10 @@ defmodule Eirinchan.Moderation do
     Eirinchan.Boards.list_boards(opts)
   end
 
+  def list_accessible_boards(%ModUser{all_boards: true}, opts) do
+    Eirinchan.Boards.list_boards(opts)
+  end
+
   def list_accessible_boards(%ModUser{} = user, opts) do
     repo = Keyword.get(opts, :repo, Repo)
 
@@ -70,6 +119,7 @@ defmodule Eirinchan.Moderation do
 
   def board_access?(nil, _board, _opts), do: false
   def board_access?(%ModUser{role: "admin"}, _board, _opts), do: true
+  def board_access?(%ModUser{all_boards: true}, _board, _opts), do: true
 
   def board_access?(%ModUser{} = user, %BoardRecord{} = board, opts) do
     repo = Keyword.get(opts, :repo, Repo)
@@ -301,4 +351,7 @@ defmodule Eirinchan.Moderation do
   end
 
   defp normalize_ip(_ip), do: nil
+
+  defp maybe_preload(records, [], _repo), do: records
+  defp maybe_preload(records, preload, repo), do: repo.preload(records, preload)
 end

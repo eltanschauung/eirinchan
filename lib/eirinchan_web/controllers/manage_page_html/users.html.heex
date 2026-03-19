@@ -1,0 +1,81 @@
+<.flash_group flash={@flash} />
+<h1>Manage users (<%= length(@users) %>)</h1>
+<p><a href={~p"/manage"}>Back to dashboard</a></p>
+<p :if={@error} class="error"><%= @error %></p>
+
+<table class="modlog" style="width:auto">
+  <tr>
+    <th>ID</th>
+    <th>Username</th>
+    <th>Type</th>
+    <th>Boards</th>
+    <th>Last action</th>
+    <th>&hellip;</th>
+  </tr>
+
+  <%= for user <- @users do %>
+    <tr>
+      <td><small><%= user.id %></small></td>
+      <td><%= user.username %></td>
+      <td><%= EirinchanWeb.ManagePageHTML.mod_role_label(user) %></td>
+      <td>
+        <%= case EirinchanWeb.ManagePageHTML.user_board_labels(user) do %>
+          <% [] -> %>
+            <em>none</em>
+          <% ["all boards"] -> %>
+            <em>all boards</em>
+          <% labels -> %>
+            <%= Enum.map_join(labels, ", ", fn label -> "/#{label}/" end) %>
+        <% end %>
+      </td>
+      <td>
+        <%= case Map.get(@latest_actions, user.id) do %>
+          <% nil -> %>
+            <em>never</em>
+          <% action -> %>
+            <span title={action.text}><%= Calendar.strftime(action.inserted_at, "%m/%d/%y (%a) %H:%M:%S") %></span>
+        <% end %>
+      </td>
+      <td>
+        <%= if @moderator.id != user.id and user.role != "admin" do %>
+          <form
+            action={"/manage/users/browser/#{user.id}/promote"}
+            method="post"
+            class="inline-form"
+            style="display:inline"
+          >
+            <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+            <button
+              type="submit"
+              style="float:left;text-decoration:none;background:none;border:none;padding:0;cursor:pointer"
+              title="Promote"
+            >&#9650;</button>
+          </form>
+        <% end %>
+        <%= if user.role != "janitor" do %>
+          <form
+            action={"/manage/users/browser/#{user.id}/demote"}
+            method="post"
+            class="inline-form"
+            style="display:inline"
+          >
+            <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+            <button
+              type="submit"
+              style="float:left;text-decoration:none;background:none;border:none;padding:0;cursor:pointer"
+              title="Demote"
+              onclick={if @moderator.id == user.id, do: "return confirm('Are you sure you want to demote yourself?')", else: nil}
+            >&#9660;</button>
+          </form>
+        <% end %>
+        <a class="unimportant" style="margin-left:5px;float:right" href={"/manage/log/browser?username=#{URI.encode(user.username)}"}>[log]</a>
+        <a class="unimportant" style="margin-left:5px;float:right" href={"/manage/users/browser/#{user.id}"}>[edit]</a>
+        <a class="unimportant" style="margin-left:5px;float:right" href={"/manage/messages/browser?recipient=#{URI.encode(user.username)}"}>[PM]</a>
+      </td>
+    </tr>
+  <% end %>
+</table>
+
+<p style="text-align:center">
+  <a href={~p"/manage/users/browser/new"}>Create a new user</a>
+</p>

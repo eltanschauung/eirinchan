@@ -58,6 +58,27 @@ defmodule Eirinchan.ModerationTest do
     assert Enum.map(Moderation.list_accessible_boards(moderator), & &1.id) == [board.id]
   end
 
+  test "all_boards grants non-admin moderators access to every board" do
+    board = board_fixture()
+    other_board = board_fixture()
+
+    assert {:ok, moderator} =
+             Moderation.create_user(%{
+               username: "globalmod",
+               password: "secret123",
+               role: "mod",
+               all_boards: true
+             })
+
+    assert Moderation.board_access?(moderator, board)
+    assert Moderation.board_access?(moderator, other_board)
+
+    accessible_board_ids = Enum.map(Moderation.list_accessible_boards(moderator), & &1.id)
+
+    assert board.id in accessible_board_ids
+    assert other_board.id in accessible_board_ids
+  end
+
   test "ip notes and ip post history can be queried by moderators" do
     board = board_fixture()
     moderator = moderator_fixture(%{role: "mod"})
