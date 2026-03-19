@@ -1,3 +1,8 @@
+<div id="global-message-refresh-target">
+  <%= if @global_message_html && @global_message_html != "" do %>
+    <%= raw(@global_message_html) %>
+  <% end %>
+</div>
 <div
   id="thread-refresh-target"
   data-fragment-md5={@fragment_md5}

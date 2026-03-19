@@ -79,6 +79,7 @@ defmodule EirinchanWeb.JsBundles do
       "js/upload-selection.js",
       "js/post-menu.js",
       "js/post-filter.js",
+      "js/auto-reload.js",
       "js/image-hover.js",
       "js/show-own-posts.js",
       "js/show-own-posts-options.js",
