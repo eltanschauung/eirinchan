@@ -19,6 +19,7 @@ defmodule Eirinchan.ImportExport do
     {"feedback", Eirinchan.Feedback.Entry},
     {"feedback_comments", Eirinchan.Feedback.Comment},
     {"news_entries", Eirinchan.News.Entry},
+    {"noticeboard_entries", Eirinchan.Noticeboard.Entry},
     {"announcement_entries", Eirinchan.Announcement.Entry},
     {"custom_pages", Eirinchan.CustomPages.Page},
     {"ip_notes", Eirinchan.Moderation.IpNote},

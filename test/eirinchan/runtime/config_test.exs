@@ -243,6 +243,21 @@ defmodule Eirinchan.Runtime.ConfigTest do
     assert config.news_blotter_button_label == "View News - {date}"
   end
 
+  test "defaults moderator noticeboard paging values to vichan parity" do
+    config =
+      Config.compose(
+        %{
+          root: "/",
+          dir: %{img: "img/", thumb: "thumb/", res: "res/"}
+        },
+        %{},
+        %{}
+      )
+
+    assert config.noticeboard_page == 50
+    assert config.noticeboard_dashboard == 5
+  end
+
   test "builds default vichan flood filters when filters are unset" do
     config =
       Config.compose(
