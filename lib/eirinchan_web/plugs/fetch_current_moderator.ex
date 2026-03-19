@@ -29,9 +29,18 @@ defmodule EirinchanWeb.Plugs.FetchCurrentModerator do
         session_token = get_session(conn, :secure_manage_token)
         session_fingerprint = get_session(conn, :moderator_session_fingerprint)
         login_ip = get_session(conn, :moderator_login_ip)
+        issued_at = get_session(conn, :moderator_session_issued_at)
+        last_seen_at = get_session(conn, :moderator_session_last_seen_at)
         moderator = Moderation.get_user(moderator_user_id)
 
-        if valid_session?(moderator, session_fingerprint, login_ip, remote_ip, config) do
+        if valid_session?(moderator, session_fingerprint, login_ip, remote_ip, issued_at, last_seen_at, config) do
+          conn =
+            if EirinchanWeb.ManageSecurity.refresh_session_activity?(last_seen_at) do
+              put_session(conn, :moderator_session_last_seen_at, EirinchanWeb.ManageSecurity.current_session_issued_at())
+            else
+              conn
+            end
+
           conn
           |> assign(:secure_manage_token, session_token)
           |> assign(:current_moderator, moderator)
@@ -44,9 +53,9 @@ defmodule EirinchanWeb.Plugs.FetchCurrentModerator do
     end
   end
 
-  defp valid_session?(nil, _session_fingerprint, _login_ip, _remote_ip, _config), do: false
+  defp valid_session?(nil, _session_fingerprint, _login_ip, _remote_ip, _issued_at, _last_seen_at, _config), do: false
 
-  defp valid_session?(moderator, session_fingerprint, login_ip, remote_ip, config) do
+  defp valid_session?(moderator, session_fingerprint, login_ip, remote_ip, issued_at, last_seen_at, config) do
     expected_fingerprint = EirinchanWeb.ManageSecurity.session_fingerprint(moderator)
     current_ip = EirinchanWeb.ManageSecurity.ip_fingerprint(remote_ip)
 
@@ -62,6 +71,7 @@ defmodule EirinchanWeb.Plugs.FetchCurrentModerator do
         true
       end
 
-    fingerprint_ok? and ip_ok?
+    not EirinchanWeb.ManageSecurity.session_expired?(issued_at, last_seen_at, config) and
+      fingerprint_ok? and ip_ok?
   end
 end

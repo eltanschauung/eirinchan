@@ -16,6 +16,7 @@ defmodule Eirinchan.Application do
       {Phoenix.PubSub, name: Eirinchan.PubSub},
       {Task.Supervisor, name: Eirinchan.BuildTaskSupervisor},
       Eirinchan.BrowserPresence,
+      Eirinchan.ManageLoginThrottle,
       EirinchanWeb.FragmentCache,
       # Start a worker by calling: Eirinchan.Worker.start_link(arg)
       # {Eirinchan.Worker, arg},

@@ -1,30 +1,34 @@
 defmodule EirinchanWeb.ManageSessionController do
   use EirinchanWeb, :controller
 
+  alias Eirinchan.ManageLoginThrottle
   alias Eirinchan.Moderation
   alias EirinchanWeb.{ManageSecurity, ModerationAudit, RequestMeta}
 
   def create(conn, %{"username" => username, "password" => password}) do
-    case Moderation.authenticate(username, password) do
-      {:ok, user} ->
-        secure_token = ManageSecurity.generate_token()
-        session_fingerprint = ManageSecurity.session_fingerprint(user)
-        login_ip = ManageSecurity.ip_fingerprint(RequestMeta.effective_remote_ip(conn))
-        ModerationAudit.log(conn, "Logged in", moderator: user)
+    config = current_config()
+    remote_ip = RequestMeta.effective_remote_ip(conn)
 
-        conn
-        |> configure_session(renew: true)
-        |> clear_session()
-        |> put_session(:moderator_user_id, user.id)
-        |> put_session(:secure_manage_token, secure_token)
-        |> put_session(:moderator_session_fingerprint, session_fingerprint)
-        |> put_session(:moderator_login_ip, login_ip)
-        |> json(%{data: session_data(user)})
+    case ManageLoginThrottle.allowed?(username, remote_ip, config) do
+      :ok ->
+        case Moderation.authenticate(username, password) do
+          {:ok, user} ->
+            ManageLoginThrottle.clear(username, remote_ip)
+            ModerationAudit.log(conn, "Logged in", moderator: user)
 
-      {:error, :invalid_credentials} ->
+            conn
+            |> establish_moderator_session(user, remote_ip)
+            |> json(%{data: session_data(user)})
+
+          {:error, :invalid_credentials} ->
+            handle_failed_login(conn, username, remote_ip, config)
+        end
+
+      {:error, retry_after} ->
         conn
-        |> put_status(:unauthorized)
-        |> json(%{error: "invalid_credentials"})
+        |> put_resp_header("retry-after", Integer.to_string(retry_after))
+        |> put_status(:too_many_requests)
+        |> json(%{error: "rate_limited"})
     end
   end
 
@@ -55,5 +59,41 @@ defmodule EirinchanWeb.ManageSessionController do
       username: user.username,
       role: user.role
     }
+  end
+
+  defp establish_moderator_session(conn, user, remote_ip) do
+    secure_token = ManageSecurity.generate_token()
+    session_fingerprint = ManageSecurity.session_fingerprint(user)
+    login_ip = ManageSecurity.ip_fingerprint(remote_ip)
+    issued_at = ManageSecurity.current_session_issued_at()
+
+    conn
+    |> configure_session(renew: true)
+    |> clear_session()
+    |> put_session(:moderator_user_id, user.id)
+    |> put_session(:secure_manage_token, secure_token)
+    |> put_session(:moderator_session_fingerprint, session_fingerprint)
+    |> put_session(:moderator_login_ip, login_ip)
+    |> put_session(:moderator_session_issued_at, issued_at)
+    |> put_session(:moderator_session_last_seen_at, issued_at)
+  end
+
+  defp handle_failed_login(conn, username, remote_ip, config) do
+    case ManageLoginThrottle.record_failure(username, remote_ip, config) do
+      {:error, retry_after} ->
+        conn
+        |> put_resp_header("retry-after", Integer.to_string(retry_after))
+        |> put_status(:too_many_requests)
+        |> json(%{error: "rate_limited"})
+
+      :ok ->
+        conn
+        |> put_status(:unauthorized)
+        |> json(%{error: "invalid_credentials"})
+    end
+  end
+
+  defp current_config do
+    Eirinchan.Settings.current_instance_config()
   end
 end
