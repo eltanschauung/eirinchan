@@ -73,8 +73,10 @@ function setupVideo(thumb, url) {
 			videoContainer.appendChild(video);
 			thumb.parentNode.insertBefore(videoContainer, thumb.nextSibling);
 
-			// Keep native mobile control gestures local to the video player.
-			["click", "touchstart", "touchmove", "touchend", "pointerdown", "pointermove", "pointerup", "pointercancel", "mousedown", "mouseup"].forEach(function(eventName) {
+			// Keep plain clicks on the player from leaking into surrounding UI.
+			// Do not trap touch/pointer release events here; native mobile seek controls
+			// need those to commit the new playhead position.
+			["click"].forEach(function(eventName) {
 				video.addEventListener(eventName, function(e) {
 					e.stopPropagation();
 				}, false);
