@@ -46,6 +46,8 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert dashboard =~ "Report queue (0)"
     assert dashboard =~ "Feedback (0)"
     assert dashboard =~ "Ban appeals (0)"
+    assert dashboard =~ ~s(href="/ukko">Overboard</a>)
+    refute dashboard =~ ~s(href="/news">News</a>)
     assert dashboard =~ ~s(class="boardlist")
   end
 
@@ -1024,6 +1026,8 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert page =~ ~s(class="thread")
     assert page =~ ~s(class="post op")
     assert page =~ ~s(class="controls op")
+    assert page =~ "Next 10 posts"
+    assert page =~ "last="
     assert page =~ Integer.to_string(PublicIds.public_id(matching_post))
     assert page =~ "green leaf"
     refute page =~ ~s(id="op_#{other_post.id}")

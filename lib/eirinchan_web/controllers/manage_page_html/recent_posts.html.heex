@@ -42,6 +42,15 @@
     <p>No posts matched.</p>
   <% else %>
     <h4>Viewing last <%= @filters["limit"] %> posts</h4>
+    <p>
+      View
+      <a href={~p"/manage/recent-posts/browser?#{[limit: 25]}"}>25</a>
+      |
+      <a href={~p"/manage/recent-posts/browser?#{[limit: 50]}"}>50</a>
+      |
+      <a href={~p"/manage/recent-posts/browser?#{[limit: 100]}"}>100</a>
+    </p>
+    <a href="javascript:void(0)" id="erase-local-data" style="float:right; clear:both">Erase local data</a>
     <%= for entry <- @entries do %>
       <div class="post-wrapper" data-board={entry.board.uri}>
         <hr />
@@ -56,5 +65,20 @@
         />
       </div>
     <% end %>
+    <p :if={@last_time}>
+      <a
+        href={
+          ~p"/manage/recent-posts/browser?#{[
+            board: @filters["board"],
+            query: @filters["query"],
+            ip: @filters["ip"],
+            limit: @filters["limit"],
+            last: @last_time
+          ]}"
+        }
+      >
+        Next <%= @filters["limit"] %> posts
+      </a>
+    </p>
   <% end %>
 </section>

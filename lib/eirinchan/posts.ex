@@ -408,6 +408,7 @@ defmodule Eirinchan.Posts do
     board_ids = Keyword.get(opts, :board_ids)
     search_query = Keyword.get(opts, :query)
     ip_subnet = Keyword.get(opts, :ip_subnet)
+    inserted_before = Keyword.get(opts, :inserted_before)
 
     query =
       from post in Post,
@@ -417,6 +418,12 @@ defmodule Eirinchan.Posts do
     query =
       case board_ids do
         ids when is_list(ids) -> from post in query, where: post.board_id in ^ids
+        _ -> query
+      end
+
+    query =
+      case inserted_before do
+        %NaiveDateTime{} = cutoff -> from post in query, where: post.inserted_at < ^cutoff
         _ -> query
       end
 

@@ -1009,13 +1009,27 @@ defmodule EirinchanWeb.ManagePageController do
           :error -> 25
         end
 
+      inserted_before = recent_posts_cutoff(params["last"])
+
       posts =
         Eirinchan.Posts.list_recent_posts(
           limit: limit,
           board_ids: board_ids,
           query: params["query"],
-          ip_subnet: params["ip"]
+          ip_subnet: params["ip"],
+          inserted_before: inserted_before
         )
+
+      last_time =
+        case List.last(posts) do
+          %{inserted_at: %NaiveDateTime{} = inserted_at} ->
+            DateTime.from_naive!(inserted_at, "Etc/UTC") |> DateTime.to_unix()
+
+          %{inserted_at: %DateTime{} = inserted_at} ->
+            DateTime.to_unix(inserted_at)
+
+          _ -> nil
+        end
 
       conn
       |> assign(:javascript_urls, ["/js/mod/recent-posts.js"])
@@ -1028,7 +1042,8 @@ defmodule EirinchanWeb.ManagePageController do
           "query" => params["query"],
           "ip" => params["ip"],
           "limit" => Integer.to_string(limit)
-        }
+        },
+        last_time: last_time
       )
     else
       {:error, :unauthorized} -> redirect(conn, to: ~p"/manage/login")
@@ -2793,6 +2808,22 @@ defmodule EirinchanWeb.ManagePageController do
 
   defp recent_post_entries(posts, boards, host) do
     BrowserEntries.post_entries(posts, boards, host)
+  end
+
+  defp recent_posts_cutoff(nil), do: nil
+  defp recent_posts_cutoff(""), do: nil
+
+  defp recent_posts_cutoff(value) do
+    case Integer.parse(to_string(value)) do
+      {unix, ""} when unix > 0 ->
+        case DateTime.from_unix(unix) do
+          {:ok, dt} -> DateTime.to_naive(dt)
+          _ -> nil
+        end
+
+      _ ->
+        nil
+    end
   end
 
   defp report_entries(reports, boards, host, session_token, moderator) do
