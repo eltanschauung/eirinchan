@@ -1721,14 +1721,35 @@ function cssVariableValue(node, name) {
 	return rootValue ? $.trim(rootValue) : '';
 }
 
+function sampleReplyBackground($context) {
+	var $scope = $context && $context.length ? $context.closest('.thread') : $();
+	var $reply = $scope.find('.post.reply:visible').first();
+
+	if (!$reply.length) {
+		$reply = $('.post.reply:visible').first();
+	}
+
+	if (!$reply.length) {
+		return '';
+	}
+
+	var sampled = $reply.css('background-color');
+	return isTransparentColor(sampled) ? '' : sampled;
+}
+
 function resolveMenuBackground($trigger, $post) {
 	var sampled = '';
 
 	if ($post && $post.length) {
 		sampled = $post.css('background-color');
-		if (!isTransparentColor(sampled)) {
+		if (!isTransparentColor(sampled) && !$post.hasClass('op')) {
 			return sampled;
 		}
+	}
+
+	sampled = sampleReplyBackground($post);
+	if (sampled) {
+		return sampled;
 	}
 
 	var triggerNode = $trigger && $trigger.length ? $trigger[0] : null;
