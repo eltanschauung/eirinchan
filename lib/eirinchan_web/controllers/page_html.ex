@@ -5,6 +5,7 @@ defmodule EirinchanWeb.PageHTML do
   See the `page_html` directory for all templates available.
   """
   use EirinchanWeb, :html
+  import EirinchanWeb.BrowserPostComponents
 
   attr :watch_summaries, :list, default: []
 

@@ -16,7 +16,11 @@ defmodule EirinchanWeb.BrowserPostComponents do
   attr :show_post_button, :boolean, default: false
   attr :show_post_controls, :boolean, default: false
   attr :show_reply_link, :boolean, default: true
+  attr :hide_op_fileboard, :boolean, default: false
+  attr :thread_attrs, :any, default: []
   attr :quote_mode, :atom, default: :navigate
+  slot :op_prefix
+  slot :op_suffix
 
   def browser_post(assigns) do
     assigns =
@@ -27,7 +31,12 @@ defmodule EirinchanWeb.BrowserPostComponents do
 
     ~H"""
     <%= if is_nil(@post.thread_id) do %>
-      <div class="thread" id={"thread_#{@public_post_id}"} data-board={@board.uri}>
+      <div
+        class="thread"
+        id={"thread_#{@public_post_id}"}
+        data-board={@board.uri}
+        {@thread_attrs}
+      >
         <PostComponents.files_block
           post={@post}
           config={@config}
@@ -46,6 +55,7 @@ defmodule EirinchanWeb.BrowserPostComponents do
           end}
         >
           <p class="intro">
+            <%= render_slot(@op_prefix) %>
             <.selection_checkbox :if={@show_selection} post_id={@public_post_id} />
             <.identity
               post={@post}
@@ -74,6 +84,7 @@ defmodule EirinchanWeb.BrowserPostComponents do
               <img class="icon" title={icon.title} src={icon.path} alt={icon.title} />
             <% end %>
             <a :if={@show_reply_link} href={PostView.thread_path(@board, @post, @config)}>[Reply]</a>
+            <%= render_slot(@op_suffix) %>
             <PostComponents.post_controls
               :if={@show_post_controls}
               post={@post}
@@ -88,6 +99,7 @@ defmodule EirinchanWeb.BrowserPostComponents do
             thread={@post}
             config={@config}
             op?={true}
+            hide_fileboard={@hide_op_fileboard}
             own_post_ids={@own_post_ids}
             show_yous={@show_yous}
           />
