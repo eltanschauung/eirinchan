@@ -3,6 +3,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
   import Ecto.Query, only: [from: 2]
 
   alias Eirinchan.Bans
+  alias Eirinchan.BrowserPresence
   alias Eirinchan.Feedback
   alias Eirinchan.Moderation
   alias Eirinchan.ModerationLog
@@ -868,6 +869,54 @@ defmodule EirinchanWeb.ManagePageControllerTest do
 
     assert page =~ "PPH: <b>7</b><br /><i>italic</i>"
     assert page =~ ~s(<textarea name="body" rows="6">PPH: &lt;b&gt;7&lt;/b&gt;\\n&lt;i&gt;italic&lt;/i&gt;</textarea>)
+  end
+
+  test "announcement preview resolves users and aggregate posts-per-hour placeholders", %{conn: conn} do
+    original_path = Application.get_env(:eirinchan, :instance_config_path)
+
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "eirinchan-global-message-stats-#{System.unique_integer([:positive])}.json"
+      )
+
+    File.rm(path)
+    Application.put_env(:eirinchan, :instance_config_path, path)
+
+    on_exit(fn ->
+      Application.put_env(:eirinchan, :instance_config_path, original_path)
+      File.rm(path)
+    end)
+
+    :ets.delete_all_objects(:eirinchan_browser_presence)
+    BrowserPresence.touch("token-1234567890123456")
+
+    moderator = moderator_fixture(%{role: "admin"})
+    board = board_fixture(%{uri: "annstats", title: "Announcement Stats"})
+    thread = thread_fixture(board)
+    _reply = reply_fixture(board, thread)
+
+    conn =
+      conn
+      |> login_moderator(moderator)
+      |> post("/manage/announcement/browser", %{
+        "editor" => "global_message",
+        "body" =>
+          "This software is receiving updates again;\\n<i>Visitors in the last 10 minutes: {stats.users_10minutes}\\nPPH: {stats.posts_perhour}</i>"
+      })
+
+    page =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> get("/manage/announcement/browser")
+      |> html_response(200)
+
+    assert page =~ "This software is receiving updates again;"
+    assert page =~ "Visitors in the last 10 minutes: 1"
+    assert page =~ "PPH: 2"
+    assert page =~ "<i>"
+    assert page =~ ~s(<textarea name="body" rows="6">This software is receiving updates again;\\n&lt;i&gt;Visitors in the last 10 minutes: {stats.users_10minutes}\\nPPH: {stats.posts_perhour}&lt;/i&gt;</textarea>)
   end
 
   test "browser custom page management creates, updates, and deletes pages", %{conn: conn} do
