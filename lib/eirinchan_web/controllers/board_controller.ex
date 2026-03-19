@@ -4,10 +4,10 @@ defmodule EirinchanWeb.BoardController do
   alias Eirinchan.Boards
   alias Eirinchan.Build
   alias Eirinchan.Posts
-  alias Eirinchan.ThreadWatcher
   alias EirinchanWeb.Announcements
   alias EirinchanWeb.BoardChrome
   alias EirinchanWeb.PostView
+  alias EirinchanWeb.PublicControllerHelpers
   alias EirinchanWeb.PublicShell
   alias EirinchanWeb.ShowYous
 
@@ -19,10 +19,7 @@ defmodule EirinchanWeb.BoardController do
   plug :require_catalog_theme when action in [:catalog_page]
 
   def show(conn, params) do
-    render_page(conn, 1,
-      fragment?: fragment_request?(params),
-      fragment_md5?: fragment_md5_request?(params)
-    )
+    render_page(conn, 1, PublicControllerHelpers.fragment_options(params))
   end
 
   def show_page(conn, %{"page_num_html" => page_num_html}) do
@@ -41,20 +38,17 @@ defmodule EirinchanWeb.BoardController do
       end
 
     if is_integer(page_num) and page_num > 0 do
-      render_page(conn, page_num,
-        fragment?: fragment_request?(conn.params),
-        fragment_md5?: fragment_md5_request?(conn.params)
-      )
+      render_page(conn, page_num, PublicControllerHelpers.fragment_options(conn.params))
     else
       send_resp(conn, :not_found, "Page not found")
     end
   end
 
   def catalog(conn, params) do
-    render_catalog_page(conn, 1,
-      fragment?: fragment_request?(params),
-      fragment_md5?: fragment_md5_request?(params),
-      params: params
+    render_catalog_page(
+      conn,
+      1,
+      Keyword.put(PublicControllerHelpers.fragment_options(params), :params, params)
     )
   end
 
@@ -71,17 +65,17 @@ defmodule EirinchanWeb.BoardController do
       end
 
     if is_integer(page_num) and page_num > 1 do
-      render_catalog_page(conn, page_num,
-        fragment?: fragment_request?(conn.params),
-        fragment_md5?: fragment_md5_request?(conn.params),
-        params: conn.params
+      render_catalog_page(
+        conn,
+        page_num,
+        Keyword.put(PublicControllerHelpers.fragment_options(conn.params), :params, conn.params)
       )
     else
       send_resp(conn, :not_found, "Page not found")
     end
   end
 
-  defp render_catalog_page(conn, page_num, opts \\ []) do
+  defp render_catalog_page(conn, page_num, opts) do
     board = conn.assigns.current_board
     config = conn.assigns.current_board_config
     boards = Boards.list_boards()
@@ -104,14 +98,14 @@ defmodule EirinchanWeb.BoardController do
           )
 
         chrome = BoardChrome.for_board(board)
-        thread_watch_state = thread_watch_state(conn, board)
+        thread_watch_state = PublicControllerHelpers.thread_watch_state(conn, board.uri)
 
         %{
           watcher_count: watcher_count,
           watcher_unread_count: watcher_unread_count,
           watcher_you_count: watcher_you_count
         } =
-          watcher_metrics(conn)
+          PublicControllerHelpers.watcher_metrics(conn)
 
         own_post_ids = ShowYous.owned_post_ids(conn, Enum.map(page_data.threads, & &1.thread))
         show_yous = ShowYous.enabled?(conn)
@@ -151,8 +145,11 @@ defmodule EirinchanWeb.BoardController do
           show_nav_arrows_page: true,
           viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",
           base_stylesheet: "/stylesheets/style.css",
-          body_class: catalog_body_class(conn),
-          body_data_stylesheet: board_data_stylesheet(conn),
+          body_class:
+            PublicControllerHelpers.moderator_body_class(conn, "active-catalog",
+              extra_classes: ["theme-catalog"]
+            ),
+          body_data_stylesheet: PublicControllerHelpers.data_stylesheet(conn),
           page_title: "#{board.uri} - Catalog",
           head_meta:
             PublicShell.head_meta("catalog",
@@ -168,15 +165,15 @@ defmodule EirinchanWeb.BoardController do
             ),
           eager_javascript_urls: PublicShell.eager_javascript_urls(:catalog, config),
           javascript_urls: PublicShell.javascript_urls(:catalog, config),
-          primary_stylesheet: board_primary_stylesheet(conn),
+          primary_stylesheet: PublicControllerHelpers.primary_stylesheet(conn),
           primary_stylesheet_id: "stylesheet",
-          extra_stylesheets: board_extra_stylesheets(board),
+          extra_stylesheets: PublicControllerHelpers.extra_stylesheets(),
           hide_theme_switcher: true,
           skip_app_stylesheet: true
         ]
 
         fragment_md5 =
-          render_fragment_md5(
+          PublicControllerHelpers.render_fragment_md5(
             EirinchanWeb.BoardHTML,
             :catalog_fragment,
             render_assigns,
@@ -229,7 +226,7 @@ defmodule EirinchanWeb.BoardController do
   defp normalize_catalog_search(value) when is_binary(value), do: String.trim(value)
   defp normalize_catalog_search(_value), do: ""
 
-  defp render_page(conn, page, opts \\ []) do
+  defp render_page(conn, page, opts) do
     board = conn.assigns.current_board
     config = conn.assigns.current_board_config
     boards = Boards.list_boards()
@@ -239,14 +236,14 @@ defmodule EirinchanWeb.BoardController do
       {:ok, page_data} ->
         chrome = BoardChrome.for_board(board)
         backlinks_map = page_backlinks_map(page_data)
-        thread_watch_state = thread_watch_state(conn, board)
+        thread_watch_state = PublicControllerHelpers.thread_watch_state(conn, board.uri)
 
         %{
           watcher_count: watcher_count,
           watcher_unread_count: watcher_unread_count,
           watcher_you_count: watcher_you_count
         } =
-          watcher_metrics(conn)
+          PublicControllerHelpers.watcher_metrics(conn)
 
         own_post_ids = own_post_ids(conn, page_data)
         show_yous = ShowYous.enabled?(conn)
@@ -284,8 +281,8 @@ defmodule EirinchanWeb.BoardController do
           show_nav_arrows_page: true,
           viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",
           base_stylesheet: "/stylesheets/style.css",
-          body_class: board_body_class(conn),
-          body_data_stylesheet: board_data_stylesheet(conn),
+          body_class: PublicControllerHelpers.moderator_body_class(conn, "active-index"),
+          body_data_stylesheet: PublicControllerHelpers.data_stylesheet(conn),
           head_meta:
             PublicShell.head_meta("index",
               board_name: board.uri,
@@ -300,15 +297,15 @@ defmodule EirinchanWeb.BoardController do
             ),
           eager_javascript_urls: PublicShell.eager_javascript_urls(:index, config),
           javascript_urls: PublicShell.javascript_urls(:index, config),
-          primary_stylesheet: board_primary_stylesheet(conn),
+          primary_stylesheet: PublicControllerHelpers.primary_stylesheet(conn),
           primary_stylesheet_id: "stylesheet",
-          extra_stylesheets: board_extra_stylesheets(board),
+          extra_stylesheets: PublicControllerHelpers.extra_stylesheets(),
           hide_theme_switcher: true,
           skip_app_stylesheet: true
         ]
 
         fragment_md5 =
-          render_fragment_md5(
+          PublicControllerHelpers.render_fragment_md5(
             EirinchanWeb.BoardHTML,
             :index_fragment,
             render_assigns,
@@ -340,40 +337,6 @@ defmodule EirinchanWeb.BoardController do
     Posts.backlinks_map_for_posts(posts)
   end
 
-  defp board_body_class(conn) do
-    moderator_class =
-      if conn.assigns[:current_moderator], do: "is-moderator", else: "is-not-moderator"
-
-    "8chan vichan #{moderator_class} active-index"
-  end
-
-  defp catalog_body_class(conn) do
-    moderator_class =
-      if conn.assigns[:current_moderator], do: "is-moderator", else: "is-not-moderator"
-
-    "8chan vichan #{moderator_class} theme-catalog active-catalog"
-  end
-
-  defp board_data_stylesheet(conn) do
-    board_primary_stylesheet(conn)
-    |> Path.basename()
-  end
-
-  defp board_primary_stylesheet(conn),
-    do: conn.assigns[:theme_stylesheet] || "/stylesheets/yotsuba.css"
-
-  defp board_extra_stylesheets(_board),
-    do: ["/stylesheets/eirinchan-public.css", "/stylesheets/eirinchan-bant.css"]
-
-  defp fragment_request?(%{"fragment" => value}) when value in ["1", "true", "yes"], do: true
-  defp fragment_request?(_params), do: false
-
-  defp fragment_md5_request?(%{"fragment" => "md5"}), do: true
-  defp fragment_md5_request?(_params), do: false
-
-  defp render_fragment_md5(view, template, assigns, cache_key),
-    do: EirinchanWeb.FragmentHash.md5(view, template, assigns, cache_key: cache_key)
-
   defp fragment_cache_key(kind, board, page_data, assigns) do
     {
       :board_fragment_md5,
@@ -381,7 +344,7 @@ defmodule EirinchanWeb.BoardController do
       board.id,
       Map.get(page_data, :page),
       page_data_stamp(page_data),
-      dynamic_fragment_stamp(assigns)
+      PublicControllerHelpers.dynamic_fragment_stamp(assigns, :thread_watch_state)
     }
   end
 
@@ -393,40 +356,8 @@ defmodule EirinchanWeb.BoardController do
     |> :erlang.phash2()
   end
 
-  defp dynamic_fragment_stamp(assigns) do
-    {
-      own_post_ids_stamp(Keyword.get(assigns, :own_post_ids, MapSet.new())),
-      Keyword.get(assigns, :show_yous, false),
-      :erlang.phash2(Keyword.get(assigns, :thread_watch_state, %{})),
-      moderator_stamp(Keyword.get(assigns, :current_moderator)),
-      Keyword.get(assigns, :secure_manage_token),
-      Keyword.get(assigns, :mobile_client?, false)
-    }
-  end
-
-  defp own_post_ids_stamp(%MapSet{} = ids), do: ids |> MapSet.to_list() |> Enum.sort() |> :erlang.phash2()
-  defp own_post_ids_stamp(ids) when is_list(ids), do: ids |> Enum.sort() |> :erlang.phash2()
-  defp own_post_ids_stamp(_ids), do: 0
-
-  defp moderator_stamp(nil), do: nil
-  defp moderator_stamp(moderator), do: {moderator.id, moderator.role}
-
   defp require_catalog_theme(conn, _opts) do
     EirinchanWeb.Plugs.RequirePageTheme.call(conn, theme: "catalog")
-  end
-
-  defp thread_watch_state(conn, board) do
-    case conn.assigns[:browser_token] do
-      token when is_binary(token) -> ThreadWatcher.watch_state_for_board(token, board.uri)
-      _ -> %{}
-    end
-  end
-
-  defp watcher_metrics(conn) do
-    case conn.assigns[:browser_token] do
-      token when is_binary(token) -> ThreadWatcher.watch_metrics(token)
-      _ -> %{watcher_count: 0, watcher_unread_count: 0, watcher_you_count: 0}
-    end
   end
 
   defp own_post_ids(conn, page_data) do
