@@ -1356,7 +1356,7 @@ div.boardlist a {
 }
 
 .post-menu ul {
-  background-color: var(--post-menu-bg);
+  background-color: var(--post-menu-bg-local, var(--post-menu-bg));
   border: 1px solid var(--post-menu-border);
   color: var(--post-menu-fg);
   list-style: none;
