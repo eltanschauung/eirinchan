@@ -24,6 +24,7 @@ defmodule EirinchanWeb.PageController do
   alias EirinchanWeb.PostView
   alias EirinchanWeb.PublicControllerHelpers
   alias EirinchanWeb.PublicShell
+  alias EirinchanWeb.ShowYous
   alias Eirinchan.ThreadPaths
 
   def home(conn, _params) do
@@ -87,15 +88,11 @@ defmodule EirinchanWeb.PageController do
       redirect(conn, to: ~p"/setup")
     else
       if Themes.page_theme_enabled?("ukko") do
-        render(
-          conn,
-          :ukko,
-          Keyword.merge(
-            public_page_assigns(conn, "active-page", "ukko"),
-            layout: false,
-            threads: ukko_threads()
-          )
-        )
+        if Themes.overboard_path() == "/ukko" do
+          render_overboard(conn)
+        else
+          redirect(conn, to: Themes.overboard_path())
+        end
       else
         send_resp(conn, :not_found, "Page not found")
       end
@@ -254,6 +251,35 @@ defmodule EirinchanWeb.PageController do
   def legacy_flags(conn, _params), do: redirect(conn, to: ~p"/flags")
 
   def board_flag_legacy(conn, %{"board" => _uri}), do: redirect(conn, to: ~p"/flags")
+
+  def render_overboard(conn) do
+    settings = Themes.theme_settings("ukko")
+    boards = Boards.list_boards()
+    threads = overboard_threads(settings, boards)
+    posts = Enum.flat_map(threads, fn %{summary: summary} -> [summary.thread | summary.replies] end)
+
+    conn
+    |> put_view(EirinchanWeb.PageHTML)
+    |> render(
+      :ukko,
+      Keyword.merge(
+        public_page_assigns(conn, "active-page", "ukko"),
+        layout: false,
+        page_title: "#{Themes.overboard_uri()} - #{overboard_title(settings)}",
+        body_class: PublicControllerHelpers.moderator_body_class(conn, "active-page"),
+        threads: threads,
+        overboard_uri: Themes.overboard_uri(),
+        overboard_title: overboard_title(settings),
+        overboard_subtitle: overboard_subtitle(settings),
+        own_post_ids: ShowYous.owned_post_ids(conn, posts),
+        show_yous: ShowYous.enabled?(conn),
+        backlinks_map: Posts.backlinks_map_for_posts(posts),
+        thread_watch_state_by_board: overboard_thread_watch_state(conn, threads),
+        current_moderator: conn.assigns[:current_moderator],
+        secure_manage_token: conn.assigns[:secure_manage_token]
+      )
+    )
+  end
 
   def board_flag(conn, %{"board" => uri}) do
     if Installation.setup_required?() do
@@ -777,16 +803,17 @@ defmodule EirinchanWeb.PageController do
     end)
   end
 
-  defp ukko_threads do
-    Boards.list_boards()
-    |> Enum.flat_map(fn board ->
-      config = board_config(board)
+  defp overboard_threads(settings, boards) do
+    config_by_board =
+      boards
+      |> Enum.map(fn board -> {board.id, board_config(board)} end)
+      |> Map.new()
 
-      case Posts.list_threads_page(board, 1, config: config) do
-        {:ok, page} -> Enum.map(page.threads, &%{board: board, summary: &1})
-        _ -> []
-      end
-    end)
+    Posts.list_overboard_threads(boards,
+      config_by_board: config_by_board,
+      exclude: overboard_excluded_boards(settings),
+      thread_limit: overboard_thread_limit(settings)
+    )
   end
 
   defp sitemap_paths do
@@ -824,7 +851,7 @@ defmodule EirinchanWeb.PageController do
   defp themed_global_paths do
     []
     |> maybe_add_path(Themes.page_theme_enabled?("catalog"), "/catalog")
-    |> maybe_add_path(Themes.page_theme_enabled?("ukko"), "/ukko")
+    |> maybe_add_path(Themes.page_theme_enabled?("ukko"), Themes.overboard_path())
     |> maybe_add_path(Themes.page_theme_enabled?("recent"), "/recent")
   end
 
@@ -835,6 +862,54 @@ defmodule EirinchanWeb.PageController do
     Config.compose(nil, Settings.current_instance_config(), board.config_overrides || %{},
       board: BoardRecord.to_board(board)
     )
+  end
+
+  defp overboard_thread_limit(settings) do
+    case Integer.parse(to_string(Map.get(settings, "thread_limit", "15"))) do
+      {value, _} when value >= 0 -> value
+      _ -> 15
+    end
+  end
+
+  defp overboard_title(settings) do
+    settings
+    |> Map.get("title", "Ukko")
+    |> to_string()
+    |> String.trim()
+    |> case do
+      "" -> "Ukko"
+      title -> title
+    end
+  end
+
+  defp overboard_subtitle(settings) do
+    subtitle =
+      settings
+      |> Map.get("subtitle", "")
+      |> to_string()
+      |> String.trim()
+
+    if subtitle == "" do
+      ""
+    else
+      String.replace(subtitle, "%s", Integer.to_string(overboard_thread_limit(settings)))
+    end
+  end
+
+  defp overboard_excluded_boards(settings) do
+    settings
+    |> Map.get("exclude", "")
+    |> to_string()
+    |> String.split(~r/\s+/, trim: true)
+  end
+
+  defp overboard_thread_watch_state(conn, threads) do
+    threads
+    |> Enum.map(& &1.board.uri)
+    |> Enum.uniq()
+    |> Map.new(fn board_uri ->
+      {board_uri, PublicControllerHelpers.thread_watch_state(conn, board_uri)}
+    end)
   end
 
   defp html_escape(value) do

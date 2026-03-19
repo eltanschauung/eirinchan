@@ -573,6 +573,56 @@ defmodule Eirinchan.Posts do
     end
   end
 
+  @spec list_overboard_threads([BoardRecord.t()], keyword()) :: [%{board: BoardRecord.t(), config: map(), summary: map()}]
+  def list_overboard_threads(boards, opts \\ []) when is_list(boards) do
+    repo = Keyword.get(opts, :repo, Repo)
+    config_by_board = Keyword.get(opts, :config_by_board, %{})
+    excluded = Keyword.get(opts, :exclude, []) |> MapSet.new()
+    thread_limit = max(Keyword.get(opts, :thread_limit, 15), 0)
+
+    boards =
+      boards
+      |> Enum.reject(&MapSet.member?(excluded, &1.uri))
+
+    board_map = Map.new(boards, &{&1.id, &1})
+    board_ids = Map.keys(board_map)
+
+    if board_ids == [] or thread_limit == 0 do
+      []
+    else
+      threads =
+        repo.all(
+          from post in Post,
+            where: post.board_id in ^board_ids and is_nil(post.thread_id),
+            order_by: [desc_nulls_last: post.bump_at, desc: post.inserted_at, desc: post.id],
+            limit: ^thread_limit
+        )
+        |> repo.preload([:board, :extra_files])
+
+      summaries_by_thread_id =
+        threads
+        |> Enum.group_by(& &1.board_id)
+        |> Enum.flat_map(fn {board_id, board_threads} ->
+          board = Map.fetch!(board_map, board_id)
+          config = Map.fetch!(config_by_board, board_id)
+
+          build_thread_summaries(board, board_threads, config, repo, include_replies: true)
+          |> Enum.map(&{&1.thread.id, &1})
+        end)
+        |> Map.new()
+
+      Enum.map(threads, fn thread ->
+        board = Map.fetch!(board_map, thread.board_id)
+
+        %{
+          board: board,
+          config: Map.fetch!(config_by_board, board.id),
+          summary: Map.fetch!(summaries_by_thread_id, thread.id)
+        }
+      end)
+    end
+  end
+
   @spec list_catalog_page(BoardRecord.t(), pos_integer(), keyword()) ::
           {:ok, map()} | {:error, :not_found}
   def list_catalog_page(%BoardRecord{} = board, page, opts \\ []) do

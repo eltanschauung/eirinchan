@@ -5,15 +5,12 @@ defmodule EirinchanWeb.SearchController do
   alias Eirinchan.Boards
   alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.Posts
-  alias Eirinchan.Posts.Post
-  alias Eirinchan.Posts.PublicIds
-  alias Eirinchan.Repo
   alias Eirinchan.Runtime.Config
   alias Eirinchan.Settings
+  alias EirinchanWeb.BrowserEntries
   alias EirinchanWeb.PublicShell
   alias EirinchanWeb.RequestMeta
   alias EirinchanWeb.ShowYous
-  import Ecto.Query, only: [from: 2]
 
   plug :assign_search_shell
 
@@ -49,8 +46,7 @@ defmodule EirinchanWeb.SearchController do
           {:ok, posts} ->
             results =
               posts
-              |> Repo.preload(:board)
-              |> build_search_results()
+              |> BrowserEntries.post_entries(boards, RequestMeta.request_host(conn))
 
             render_search(conn, query, board, boards, results, nil, config)
         end
@@ -156,36 +152,6 @@ defmodule EirinchanWeb.SearchController do
 
   defp normalize_uri(uri) when is_binary(uri), do: uri |> String.trim() |> String.trim("/")
   defp normalize_uri(uri), do: to_string(uri)
-
-  defp build_search_results(posts) do
-    thread_ids =
-      posts
-      |> Enum.map(&(&1.thread_id || &1.id))
-      |> Enum.uniq()
-
-    threads_by_id =
-      Repo.all(from post in Post, where: post.id in ^thread_ids)
-      |> Repo.preload(:board)
-      |> Map.new(&{&1.id, &1})
-
-    Enum.map(posts, fn post ->
-      thread = Map.get(threads_by_id, post.thread_id || post.id, post)
-
-      %{
-        post: post,
-        thread: thread,
-        board: post.board,
-        result_url: result_url(post)
-      }
-    end)
-  end
-
-  defp result_url(%{board: board, thread_id: nil} = post),
-    do: "/#{board.uri}/res/#{PublicIds.public_id(post)}.html#p#{PublicIds.public_id(post)}"
-
-  defp result_url(%{board: board, thread_id: _thread_id} = post),
-    do:
-      "/#{board.uri}/res/#{PublicIds.thread_public_id(post)}.html#p#{PublicIds.public_id(post)}"
 
   defp search_limit(config), do: max(Map.get(config, :search_limit, 100), 1)
 

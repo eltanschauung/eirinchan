@@ -11,6 +11,7 @@ defmodule EirinchanWeb.BoardController do
   alias EirinchanWeb.PublicShell
   alias EirinchanWeb.ShowYous
 
+  plug EirinchanWeb.Plugs.RenderOverboard when action in [:show]
   plug EirinchanWeb.Plugs.LoadBoard when action in [:show]
   plug EirinchanWeb.Plugs.LoadBoard when action in [:show_page]
   plug EirinchanWeb.Plugs.LoadBoard when action in [:catalog]

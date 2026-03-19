@@ -140,6 +140,8 @@ defmodule EirinchanWeb.PublicShell do
   def eager_javascript_urls(_active_page, _config), do: []
 
   def javascript_urls(active_page, config) do
+    active_page = normalize_active_page(active_page)
+
     main =
       [
         additional_javascript_url(config, "js/runtime-config.js"),
@@ -308,6 +310,19 @@ defmodule EirinchanWeb.PublicShell do
   end
 
   defp maybe_filter_catalog_scripts(scripts, _active_page), do: scripts
+
+  defp normalize_active_page(active_page) when is_binary(active_page) do
+    case String.trim(active_page) do
+      "thread" -> :thread
+      "index" -> :index
+      "ukko" -> :ukko
+      "catalog" -> :catalog
+      "search" -> :search
+      _ -> active_page
+    end
+  end
+
+  defp normalize_active_page(active_page), do: active_page
 
   defp script_blocked?(script, blocked_set) when is_binary(script) do
     normalized = String.trim_leading(script, "/")
