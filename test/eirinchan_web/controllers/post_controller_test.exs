@@ -1328,6 +1328,34 @@ defmodule EirinchanWeb.PostControllerTest do
     assert %{"error" => "Post not found"} = json_response(conn, 404)
   end
 
+  test "report branch is rate limited by public flood controls", %{conn: conn} do
+    board = board_fixture(%{config_overrides: %{flood_time: 60}})
+    thread = thread_fixture(board, %{body: "Thread body"})
+
+    first_conn =
+      conn
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post("/#{board.uri}/post", %{
+        "report_post_id" => Integer.to_string(PublicIds.public_id(thread)),
+        "reason" => "Spam thread",
+        "json_response" => "1"
+      })
+
+    assert %{"status" => "ok"} = json_response(first_conn, 200)
+
+    second_conn =
+      conn
+      |> recycle()
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post("/#{board.uri}/post", %{
+        "report_post_id" => Integer.to_string(PublicIds.public_id(thread)),
+        "reason" => "Spam thread",
+        "json_response" => "1"
+      })
+
+    assert %{"error_code" => "antispam"} = json_response(second_conn, 422)
+  end
+
   test "delete branch removes replies and returns thread redirect metadata", %{conn: conn} do
     board = board_fixture(%{config_overrides: %{slugify: true}})
 
@@ -1448,6 +1476,39 @@ defmodule EirinchanWeb.PostControllerTest do
       })
 
     assert %{"error" => "Incorrect password."} = json_response(conn, 403)
+  end
+
+  test "delete branch is rate limited by public flood controls", %{conn: conn} do
+    board = board_fixture(%{config_overrides: %{flood_time: 60}})
+
+    first_thread =
+      thread_fixture(board, %{subject: "Delete one", body: "Thread body", password: "threadpw1"})
+
+    second_thread =
+      thread_fixture(board, %{subject: "Delete two", body: "Thread body", password: "threadpw2"})
+
+    first_delete_conn =
+      conn
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post("/#{board.uri}/post", %{
+        "delete_post_id" => Integer.to_string(PublicIds.public_id(first_thread)),
+        "password" => "threadpw1",
+        "json_response" => "1"
+      })
+
+    assert %{"thread_deleted" => true} = json_response(first_delete_conn, 200)
+
+    second_delete_conn =
+      conn
+      |> recycle()
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post("/#{board.uri}/post", %{
+        "delete_post_id" => Integer.to_string(PublicIds.public_id(second_thread)),
+        "password" => "threadpw2",
+        "json_response" => "1"
+      })
+
+    assert %{"error_code" => "antispam"} = json_response(second_delete_conn, 422)
   end
 
   test "legacy mode payloads can delete and report posts", %{conn: conn} do

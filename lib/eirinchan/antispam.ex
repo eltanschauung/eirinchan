@@ -7,6 +7,7 @@ defmodule Eirinchan.Antispam do
 
   alias Eirinchan.Antispam.{FloodEntry, SearchQuery}
   alias Eirinchan.Boards.BoardRecord
+  alias Eirinchan.Moderation.ModUser
   alias Eirinchan.Repo
 
   def check_post(%BoardRecord{} = board, attrs, request, config, opts \\ []) do
@@ -48,6 +49,30 @@ defmodule Eirinchan.Antispam do
       board_id: board.id,
       ip_subnet: request_ip(request),
       body_hash: body_hash(attrs)
+    })
+    |> repo.insert()
+  end
+
+  def check_public_action(%BoardRecord{} = board, action, attrs, request, config, opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+    now = DateTime.utc_now()
+
+    if moderated_request?(request) do
+      :ok
+    else
+      evaluate_filters(repo, board, public_action_entry(action, attrs, request), config, now)
+    end
+  end
+
+  def log_public_action(%BoardRecord{} = board, action, attrs, request, opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+    entry = public_action_entry(action, attrs, request)
+
+    %FloodEntry{}
+    |> FloodEntry.changeset(%{
+      board_id: board.id,
+      ip_subnet: entry.ip_subnet,
+      body_hash: entry.body_hash
     })
     |> repo.insert()
   end
@@ -423,6 +448,47 @@ defmodule Eirinchan.Antispam do
     end
   end
 
+  defp public_action_entry(action, attrs, request) do
+    body = public_action_body(action, attrs)
+
+    %{
+      ip_subnet: request_ip(request),
+      body: body,
+      body_hash: body_hash(%{"body" => body}),
+      op?: false
+    }
+  end
+
+  defp public_action_body(action, attrs) do
+    attrs = normalize_action_attrs(attrs)
+
+    case to_string(action) do
+      "report" ->
+        ["report", Map.get(attrs, "report_post_id", ""), normalize_query(Map.get(attrs, "reason")) || ""]
+        |> Enum.join(":")
+
+      "delete" ->
+        [
+          if(truthy?(Map.get(attrs, "file")), do: "delete-file", else: "delete"),
+          Map.get(attrs, "delete_post_id", "")
+        ]
+        |> Enum.join(":")
+
+      other ->
+        [other, normalize_query(inspect(attrs)) || ""]
+        |> Enum.join(":")
+    end
+  end
+
+  defp normalize_action_attrs(attrs) when is_map(attrs) do
+    Enum.into(attrs, %{}, fn
+      {key, value} when is_atom(key) -> {Atom.to_string(key), value}
+      pair -> pair
+    end)
+  end
+
+  defp normalize_action_attrs(_attrs), do: %{}
+
   defp request_ip(request) do
     request
     |> Map.get(:remote_ip, Map.get(request, "remote_ip"))
@@ -465,4 +531,11 @@ defmodule Eirinchan.Antispam do
 
   defp normalize_ip(ip) when is_binary(ip), do: String.trim(ip)
   defp normalize_ip(_ip), do: nil
+
+  defp moderated_request?(request) do
+    case Map.get(request, :moderator) || Map.get(request, "moderator") do
+      %ModUser{} -> true
+      _ -> false
+    end
+  end
 end

@@ -29,4 +29,39 @@ defmodule EirinchanWeb.FeedbackControllerTest do
 
     assert %{"errors" => %{"body" => [_ | _]}} = json_response(conn, 422)
   end
+
+  test "feedback submission uses search-style public rate limits", %{conn: conn} do
+    previous = Application.get_env(:eirinchan, :search_overrides, %{})
+
+    Application.put_env(:eirinchan, :search_overrides, %{
+      search_queries_per_minutes: [1, 2],
+      search_queries_per_minutes_all: [0, 2]
+    })
+
+    on_exit(fn ->
+      Application.put_env(:eirinchan, :search_overrides, previous)
+    end)
+
+    first_conn =
+      conn
+      |> post("/feedback", %{
+        "name" => "Anon",
+        "body" => "Public feedback",
+        "json_response" => "1"
+      })
+
+    assert %{"status" => "ok"} = json_response(first_conn, 200)
+
+    second_conn =
+      conn
+      |> recycle()
+      |> post("/feedback", %{
+        "name" => "Anon",
+        "body" => "More feedback",
+        "json_response" => "1"
+      })
+
+    assert %{"error" => "Wait a while before searching again, please."} =
+             json_response(second_conn, 429)
+  end
 end

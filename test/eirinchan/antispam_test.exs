@@ -66,4 +66,20 @@ defmodule Eirinchan.AntispamTest do
              board_id: board.id
            )
   end
+
+  test "public actions reuse the flood table rate limits" do
+    board = board_fixture(%{config_overrides: %{flood_time: 60, flood_time_ip: 60, flood_time_same: 60}})
+    request = %{remote_ip: {198, 51, 100, 44}}
+    runtime_board = Eirinchan.Boards.BoardRecord.to_board(board)
+    config = Eirinchan.Runtime.Config.compose(nil, %{}, board.config_overrides || %{}, board: runtime_board)
+    attrs = %{"report_post_id" => "123", "reason" => "spam"}
+
+    refute match?({:error, _}, Antispam.check_public_action(board, :report, attrs, request, config, repo: Repo))
+
+    assert {:ok, _entry} =
+             Antispam.log_public_action(board, :report, attrs, request, repo: Repo)
+
+    assert {:error, :antispam} =
+             Antispam.check_public_action(board, :report, attrs, request, config, repo: Repo)
+  end
 end
