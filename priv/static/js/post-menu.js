@@ -103,8 +103,10 @@ function buildMenu(e) {
 
 	if ($post.length) {
 		$menu.css('--post-menu-bg-local', $post.css('background-color'));
+		$menu.children('ul').css('background-color', $post.css('background-color'));
 	} else {
 		$menu.css('--post-menu-bg-local', '');
+		$menu.children('ul').css('background-color', '');
 	}
 
 	//  execute registered click handlers
