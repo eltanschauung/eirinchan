@@ -32,4 +32,18 @@ defmodule Eirinchan.StatsTest do
 
     assert Stats.users_10minutes() == 2
   end
+
+  test "users_10minutes excludes crawler requests from tracked presence" do
+    conn =
+      Phoenix.ConnTest.build_conn()
+      |> Map.put(:method, "GET")
+      |> Map.put(:request_path, "/bant/")
+      |> Plug.Conn.put_req_header("user-agent", "Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)")
+      |> Plug.Conn.assign(:browser_token, "token-1234567890123456")
+
+    _ = EirinchanWeb.Plugs.TrackBrowserPresence.call(conn, [])
+    BrowserPresence.touch("token-abcdefghijklmnop")
+
+    assert Stats.users_10minutes() == 1
+  end
 end
