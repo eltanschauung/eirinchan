@@ -59,8 +59,8 @@ $(window).ready(function() {
 
 			var triggerAjaxAfterPost = function(post_response) {
 				try {
-					if (window.EirinchanFrontend && typeof window.EirinchanFrontend.afterPostSuccess === 'function') {
-						window.EirinchanFrontend.afterPostSuccess(post_response, form);
+					if (window.EirinchanFrontend && typeof window.EirinchanFrontend.dispatchAjaxAfterPostSuccess === 'function') {
+						window.EirinchanFrontend.dispatchAjaxAfterPostSuccess(post_response, form);
 					} else {
 						$(document).trigger('ajax_after_post', [post_response, form]);
 					}
@@ -204,8 +204,8 @@ $(window).ready(function() {
 								triggerAjaxAfterPost(post_response);
 
 								try {
-									if (window.EirinchanFrontend && typeof window.EirinchanFrontend.initPost === 'function') {
-										window.EirinchanFrontend.initPost($reply[0]);
+									if (window.EirinchanFrontend && typeof window.EirinchanFrontend.dispatchNewPost === 'function') {
+										window.EirinchanFrontend.dispatchNewPost($reply[0]);
 									} else {
 										$(document).trigger('new_post', $reply[0]);
 									}

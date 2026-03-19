@@ -451,8 +451,8 @@ $(window).ready(function() {
 
 			var triggerAjaxAfterPost = function(post_response) {
 				try {
-					if (window.EirinchanFrontend && typeof window.EirinchanFrontend.afterPostSuccess === 'function') {
-						window.EirinchanFrontend.afterPostSuccess(post_response, form);
+					if (window.EirinchanFrontend && typeof window.EirinchanFrontend.dispatchAjaxAfterPostSuccess === 'function') {
+						window.EirinchanFrontend.dispatchAjaxAfterPostSuccess(post_response, form);
 					} else {
 						$(document).trigger('ajax_after_post', [post_response, form]);
 					}
@@ -596,8 +596,8 @@ $(window).ready(function() {
 								triggerAjaxAfterPost(post_response);
 
 								try {
-									if (window.EirinchanFrontend && typeof window.EirinchanFrontend.initPost === 'function') {
-										window.EirinchanFrontend.initPost($reply[0]);
+									if (window.EirinchanFrontend && typeof window.EirinchanFrontend.dispatchNewPost === 'function') {
+										window.EirinchanFrontend.dispatchNewPost($reply[0]);
 									} else {
 										$(document).trigger('new_post', $reply[0]);
 									}
@@ -696,20 +696,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
         }
 
-        var readCookie = function(name) {
+        var runtime = window.EirinchanRuntime || {};
+        var readCookie = runtime.readCookie || function(name, fallback) {
                 var match = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '=([^;]*)'));
-                return match ? decodeURIComponent(match[1]) : null;
+                return match ? decodeURIComponent(match[1]) : fallback;
+        };
+        var writeCookie = runtime.writeCookie || function(name, value) {
+                document.cookie = name + '=' + encodeURIComponent(value) + '; path=/; max-age=31536000; samesite=lax';
         };
 
         Options.extend_tab('general', '<label id="add-nav-arrows"><input type="checkbox">' + _('Display navigation arrows') + '</label>');
 
-        var enabled = readCookie('navarrows');
+        var enabled = readCookie('navarrows', null);
         enabled = enabled !== 'false';
         $('#add-nav-arrows>input').prop('checked', enabled);
 
         $('#add-nav-arrows>input').on('click', function() {
                 var value = $('#add-nav-arrows>input').is(':checked') ? 'true' : 'false';
-                document.cookie = 'navarrows=' + value + '; path=/; max-age=31536000; samesite=lax';
+                writeCookie('navarrows', value, { path: '/', maxAge: 31536000, sameSite: 'lax' });
                 location.reload();
         });
 })};
@@ -2650,6 +2654,7 @@ if (active_page === 'thread' || active_page === 'index' || active_page === 'cata
 
 $(document).ready(function(){
 	'use strict';
+	var runtime = window.EirinchanRuntime || {};
 
 	var syncTimezoneCookie = function() {
 		try {
@@ -2661,10 +2666,18 @@ $(document).ready(function(){
 			if (tz === current && offset === currentOffset) return;
 
 			if (tz) {
-				document.cookie = 'timezone=' + encodeURIComponent(tz) + '; path=/; max-age=31536000; samesite=lax';
+				if (runtime.writeCookie) {
+					runtime.writeCookie('timezone', tz, { path: '/', maxAge: 31536000, sameSite: 'lax' });
+				} else {
+					document.cookie = 'timezone=' + encodeURIComponent(tz) + '; path=/; max-age=31536000; samesite=lax';
+				}
 			}
 			if (!isNaN(offset)) {
-				document.cookie = 'timezone_offset=' + offset + '; path=/; max-age=31536000; samesite=lax';
+				if (runtime.writeCookie) {
+					runtime.writeCookie('timezone_offset', offset, { path: '/', maxAge: 31536000, sameSite: 'lax' });
+				} else {
+					document.cookie = 'timezone_offset=' + offset + '; path=/; max-age=31536000; samesite=lax';
+				}
 			}
 		} catch (err) {
 		}
@@ -2813,17 +2826,55 @@ add_title_collector = function(f) {
 auto_reload_enabled = true; // for watch.js to interop
 
 $(document).ready(function(){
+	var runtime = window.EirinchanRuntime || {};
 	var livePageCookieName = 'live_page_auto_update';
-	var readLivePageCookie = function() {
-		var match = document.cookie.match(new RegExp('(?:^|; )' + livePageCookieName + '=([^;]*)'));
-		if (!match) {
-			return true;
+	var parseFragmentDocument = (function() {
+		var parser = typeof DOMParser !== 'undefined' ? new DOMParser() : null;
+		return function(markup) {
+			return parser ? parser.parseFromString(markup, 'text/html') : null;
+		};
+	})();
+	var dispatchNewPost = function(post) {
+		if (!post) {
+			return;
 		}
 
-		return decodeURIComponent(match[1]) !== '0';
+		if (window.EirinchanFrontend && typeof window.EirinchanFrontend.dispatchNewPost === 'function') {
+			window.EirinchanFrontend.dispatchNewPost(post);
+		} else {
+			$(document).trigger('new_post', post);
+		}
+	};
+	var queueNextPoll = function(delay) {
+		if ($('#auto_update_status').is(':checked')) {
+			poll_interval_delay = delay;
+			auto_update(poll_interval_delay);
+		}
+	};
+	var readLivePageCookie = function() {
+		var value = runtime.readCookie ? runtime.readCookie(livePageCookieName, '1') : null;
+		if (value === null) {
+			var match = document.cookie.match(new RegExp('(?:^|; )' + livePageCookieName + '=([^;]*)'));
+			if (!match) {
+				return true;
+			}
+
+			value = decodeURIComponent(match[1]);
+		}
+
+		return value !== '0';
 	};
 
 	var writeLivePageCookie = function(enabled) {
+		if (runtime.writeCookie) {
+			runtime.writeCookie(livePageCookieName, enabled ? '1' : '0', {
+				path: '/',
+				maxAge: 60 * 60 * 24 * 365,
+				sameSite: 'lax'
+			});
+			return;
+		}
+
 		document.cookie =
 			livePageCookieName + '=' + encodeURIComponent(enabled ? '1' : '0') +
 			'; path=/; max-age=' + (60 * 60 * 24 * 365);
@@ -3059,10 +3110,7 @@ $(document).ready(function(){
 		}
 
 		if (should_defer_for_media()) {
-			if ($('#auto_update_status').is(':checked')) {
-				poll_interval_delay = poll_interval_mindelay;
-				auto_update(poll_interval_delay);
-			}
+			queueNextPoll(poll_interval_mindelay);
 			return false;
 		}
 
@@ -3074,10 +3122,7 @@ $(document).ready(function(){
 				var serverMd5 = $.trim(data || '');
 
 				if (serverMd5 && localMd5 && serverMd5 === localMd5) {
-					if ($('#auto_update_status').is(':checked')) {
-						poll_interval_delay = poll_interval_mindelay;
-						auto_update(poll_interval_delay);
-					}
+					queueNextPoll(poll_interval_mindelay);
 					return;
 				}
 
@@ -3085,10 +3130,7 @@ $(document).ready(function(){
 				pollFn(false);
 			},
 			error: function() {
-				if ($('#auto_update_status').is(':checked')) {
-					poll_interval_delay = poll_interval_errordelay;
-					auto_update(poll_interval_delay);
-				}
+				queueNextPoll(poll_interval_errordelay);
 			},
 			complete: function() {
 				if (active_poll_request === request) {
@@ -3137,8 +3179,7 @@ $(document).ready(function(){
 			cache: false,
 			success: function(data) {
 				var new_threads = 0;
-				var parser = new DOMParser();
-				var doc = parser.parseFromString(data, 'text/html');
+				var doc = parseFragmentDocument(data);
 				var replacement = doc.querySelector('#Grid');
 				var currentGrid = document.getElementById('Grid');
 				var current_ids = {};
@@ -3147,10 +3188,7 @@ $(document).ready(function(){
 
 				if (!replacement || !currentGrid) {
 					$('#update_secs').text(_("Unknown error"));
-					if ($('#auto_update_status').is(':checked')) {
-						poll_interval_delay = poll_interval_errordelay;
-						auto_update(poll_interval_delay);
-					}
+					queueNextPoll(poll_interval_errordelay);
 					return;
 				}
 
@@ -3211,8 +3249,7 @@ $(document).ready(function(){
 				}
 
 				if ($('#auto_update_status').is(':checked')) {
-					poll_interval_delay = poll_interval_mindelay;
-					auto_update(poll_interval_delay);
+					queueNextPoll(poll_interval_mindelay);
 				} else {
 					if (new_threads > 0)
 						$('#update_secs').text(fmt(_("Catalog updated with {0} new thread(s)"), [new_threads]));
@@ -3229,10 +3266,7 @@ $(document).ready(function(){
 					$('#update_secs').text(_("Unknown error"));
 				}
 
-				if ($('#auto_update_status').is(':checked')) {
-					poll_interval_delay = poll_interval_errordelay;
-					auto_update(poll_interval_delay);
-				}
+				queueNextPoll(poll_interval_errordelay);
 			},
 			complete: function() {
 				finish_poll();
@@ -3255,8 +3289,7 @@ $(document).ready(function(){
 			url: fragment_url(),
 			cache: false,
 			success: function(data) {
-				var parser = new DOMParser();
-				var doc = parser.parseFromString(data, 'text/html');
+				var doc = parseFragmentDocument(data);
 				var replacement = doc.querySelector('#board-refresh-target');
 				var current = document.querySelector('#board-refresh-target');
 				var currentThreads;
@@ -3266,10 +3299,7 @@ $(document).ready(function(){
 
 				if (!replacement || !current) {
 					$('#update_secs').text(_("Unknown error"));
-					if ($('#auto_update_status').is(':checked')) {
-						poll_interval_delay = poll_interval_errordelay;
-						auto_update(poll_interval_delay);
-					}
+					queueNextPoll(poll_interval_errordelay);
 					return;
 				}
 
@@ -3315,11 +3345,7 @@ $(document).ready(function(){
 				current.replaceWith(replacement);
 
 				$(replacement).find('.post').each(function() {
-					if (window.EirinchanFrontend && typeof window.EirinchanFrontend.initPost === 'function') {
-						window.EirinchanFrontend.initPost(this);
-					} else {
-						$(document).trigger('new_post', this);
-					}
+					dispatchNewPost(this);
 				});
 
 				if (typeof window.EirinchanInitExpand === 'function') {
@@ -3337,8 +3363,7 @@ $(document).ready(function(){
 				}
 
 				if ($('#auto_update_status').is(':checked')) {
-					poll_interval_delay = poll_interval_mindelay;
-					auto_update(poll_interval_delay);
+					queueNextPoll(poll_interval_mindelay);
 				} else {
 					$('#update_secs').text("5");
 				}
@@ -3352,10 +3377,7 @@ $(document).ready(function(){
 					$('#update_secs').text("5");
 				}
 
-				if ($('#auto_update_status').is(':checked')) {
-					poll_interval_delay = poll_interval_errordelay;
-					auto_update(poll_interval_delay);
-				}
+				queueNextPoll(poll_interval_errordelay);
 			},
 			complete: function() {
 				finish_poll();
@@ -3378,8 +3400,7 @@ $(document).ready(function(){
 			url: fragment_url(),
 			cache: false,
 			success: function(data) {
-				var parser = new DOMParser();
-				var doc = parser.parseFromString(data, 'text/html');
+				var doc = parseFragmentDocument(data);
 				var replacement = doc.querySelector('#thread-refresh-target');
 				var loaded_posts = 0;	// the number of new posts loaded in this update
 				var elementsToAppend = [];
@@ -3426,11 +3447,7 @@ $(document).ready(function(){
 						if (typeof window.syncBacklinksFromPost === 'function') {
 							window.syncBacklinksFromPost(inserted);
 						}
-						if (window.EirinchanFrontend && typeof window.EirinchanFrontend.initPost === 'function') {
-							window.EirinchanFrontend.initPost(inserted);
-						} else {
-							$(document).trigger('new_post', inserted);
-						}
+						dispatchNewPost(inserted);
 					}
 				});
 
@@ -3451,8 +3468,7 @@ $(document).ready(function(){
 				
 				
 				if ($('#auto_update_status').is(':checked')) {
-					poll_interval_delay = poll_interval_mindelay;
-					auto_update(poll_interval_delay);
+					queueNextPoll(poll_interval_mindelay);
 				} else {
 					// Decide the message to show if auto update is disabled
 					if (loaded_posts > 0)
@@ -3478,10 +3494,7 @@ $(document).ready(function(){
 				}
 				
 				// Keep trying to update
-				if ($('#auto_update_status').is(':checked')) {
-					poll_interval_delay = poll_interval_errordelay;
-					auto_update(poll_interval_delay);
-				}
+				queueNextPoll(poll_interval_errordelay);
 			},
 			complete: function() {
 				finish_poll();
@@ -4017,18 +4030,26 @@ $(document).on('new_post', function(e,post) {
 if (active_page === 'thread' || active_page === 'index' || active_page === 'catalog' || active_page === 'ukko') {
   document.addEventListener('DOMContentLoaded', function () {
     if (!(window.Options && Options.get_tab('general'))) return;
+    var runtime = window.EirinchanRuntime || {};
+    var readCookie = runtime.readCookie || function(name, fallback) {
+      var match = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '=([^;]*)'));
+      return match ? decodeURIComponent(match[1]) : fallback;
+    };
+    var writeCookie = runtime.writeCookie || function(name, value) {
+      document.cookie = name + '=' + encodeURIComponent(value) + '; path=/; max-age=31536000; samesite=lax';
+    };
 
     Options.extend_tab(
       'general',
       '<label id="show-yous"><input type="checkbox">' + _('Show (You)s') + '</label>'
     );
 
-    var enabled = document.cookie.indexOf('show_yous=false') === -1;
+    var enabled = readCookie('show_yous', 'true') !== 'false';
     $('#show-yous>input').prop('checked', enabled);
 
     $('#show-yous>input').on('click', function () {
       var value = $('#show-yous>input').is(':checked') ? 'true' : 'false';
-      document.cookie = 'show_yous=' + value + '; path=/; max-age=31536000; samesite=lax';
+      writeCookie('show_yous', value, { path: '/', maxAge: 31536000, sameSite: 'lax' });
       location.reload();
     });
   });

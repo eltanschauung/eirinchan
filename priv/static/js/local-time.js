@@ -15,6 +15,7 @@
 
 $(document).ready(function(){
 	'use strict';
+	var runtime = window.EirinchanRuntime || {};
 
 	var syncTimezoneCookie = function() {
 		try {
@@ -26,10 +27,18 @@ $(document).ready(function(){
 			if (tz === current && offset === currentOffset) return;
 
 			if (tz) {
-				document.cookie = 'timezone=' + encodeURIComponent(tz) + '; path=/; max-age=31536000; samesite=lax';
+				if (runtime.writeCookie) {
+					runtime.writeCookie('timezone', tz, { path: '/', maxAge: 31536000, sameSite: 'lax' });
+				} else {
+					document.cookie = 'timezone=' + encodeURIComponent(tz) + '; path=/; max-age=31536000; samesite=lax';
+				}
 			}
 			if (!isNaN(offset)) {
-				document.cookie = 'timezone_offset=' + offset + '; path=/; max-age=31536000; samesite=lax';
+				if (runtime.writeCookie) {
+					runtime.writeCookie('timezone_offset', offset, { path: '/', maxAge: 31536000, sameSite: 'lax' });
+				} else {
+					document.cookie = 'timezone_offset=' + offset + '; path=/; max-age=31536000; samesite=lax';
+				}
 			}
 		} catch (err) {
 		}
