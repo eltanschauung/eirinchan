@@ -7,14 +7,6 @@
 
 <section>
   <h2>Global Message</h2>
-  <%= if @global_message_preview_html && @global_message_preview_html != "" do %>
-    <article class="blotter">
-      <%= raw(@global_message_preview_html) %>
-    </article>
-  <% else %>
-    <p>No global message is active.</p>
-  <% end %>
-
   <form action={~p"/manage/announcement/browser"} method="post">
     <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
     <input type="hidden" name="editor" value="global_message" />
@@ -73,7 +65,7 @@
       </tbody>
     </table>
 
-    <p class="unimportant">Entries are rendered in the order listed (most recent first). Maximum <%= @limit %> entries.</p>
+    <p class="unimportant">Entries are rendered in the order listed (most recent first). The public blotter preview shows the first <%= @limit %> entries, and <a href={~p"/news"} class="unimportant2">View All News</a> shows up to 100.</p>
 
     <div class="mod-form-actions">
       <button type="submit">Save news blotter</button>

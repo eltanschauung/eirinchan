@@ -58,6 +58,7 @@ defmodule Eirinchan.Runtime.Config do
     ],
     news_blotter_entries: [],
     news_blotter_limit: 100,
+    news_maxentries: 10,
     news_blotter_button_label: "View News - {date}",
     noticeboard_page: 50,
     noticeboard_dashboard: 5,

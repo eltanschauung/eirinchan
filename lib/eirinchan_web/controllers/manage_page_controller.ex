@@ -1065,7 +1065,7 @@ defmodule EirinchanWeb.ManagePageController do
         history: global_message_history(),
         entries: Eirinchan.NewsBlotter.entries(config),
         button_label: Eirinchan.NewsBlotter.button_label(config),
-        limit: max_blotter_limit(Map.get(config, :news_blotter_limit, 100)),
+        limit: Eirinchan.NewsBlotter.preview_limit(config),
         blotter_preview_html: EirinchanWeb.Announcements.news_blotter_html(config),
         error: nil
       )
@@ -2546,7 +2546,7 @@ defmodule EirinchanWeb.ManagePageController do
       history: global_message_history(),
       entries: Eirinchan.NewsBlotter.entries(config),
       button_label: Eirinchan.NewsBlotter.button_label(config),
-      limit: max_blotter_limit(Map.get(config, :news_blotter_limit, 100)),
+      limit: Eirinchan.NewsBlotter.preview_limit(config),
       blotter_preview_html: EirinchanWeb.Announcements.news_blotter_html(config),
       error: message
     )
