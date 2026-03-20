@@ -69,12 +69,26 @@ defmodule Eirinchan.LogSystem do
   defp stringify_metadata(metadata) do
     metadata
     |> Enum.reject(fn {key, _value} -> to_string(key) == "log_format" end)
-    |> Map.new(fn {key, value} -> {to_string(key), metadata_value(value)} end)
+    |> Map.new(fn {key, value} -> {to_string(key), json_metadata_value(value)} end)
   end
 
   defp metadata_value(value) when is_binary(value), do: value
   defp metadata_value(value) when is_atom(value), do: Atom.to_string(value)
   defp metadata_value(value), do: inspect(value)
+
+  defp json_metadata_value(value) when is_binary(value), do: value
+  defp json_metadata_value(value) when is_integer(value), do: value
+  defp json_metadata_value(value) when is_float(value), do: value
+  defp json_metadata_value(value) when is_boolean(value), do: value
+  defp json_metadata_value(nil), do: nil
+  defp json_metadata_value(value) when is_atom(value), do: Atom.to_string(value)
+  defp json_metadata_value(value) when is_map(value), do: stringify_json_map(value)
+  defp json_metadata_value(value) when is_list(value), do: Enum.map(value, &json_metadata_value/1)
+  defp json_metadata_value(value), do: inspect(value)
+
+  defp stringify_json_map(value) do
+    Map.new(value, fn {key, nested} -> {to_string(key), json_metadata_value(nested)} end)
+  end
 
   defp write_file(path, line) do
     path

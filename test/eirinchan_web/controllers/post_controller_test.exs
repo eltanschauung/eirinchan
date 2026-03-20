@@ -828,7 +828,22 @@ defmodule EirinchanWeb.PostControllerTest do
   end
 
   test "invalid image failures log decoder diagnostics and quarantine the upload", %{conn: conn} do
-    board = board_fixture(%{config_overrides: %{force_image_op: true}})
+    log_path =
+      Path.join(
+        System.tmp_dir!(),
+        "post-failure-details-#{System.unique_integer([:positive])}.log"
+      )
+
+    on_exit(fn -> File.rm(log_path) end)
+
+    board =
+      board_fixture(%{
+        config_overrides: %{
+          force_image_op: true,
+          log_system: %{type: "file", file_path: log_path}
+        }
+      })
+
     unique_name = "diag-#{System.unique_integer([:positive])}.png"
 
     conn =
@@ -844,17 +859,18 @@ defmodule EirinchanWeb.PostControllerTest do
     assert %{"error" => "Invalid image."} = json_response(conn, 422)
 
     log_line =
-      "/path/to/eirinchan-v1/var/post_failures.log"
+      log_path
       |> File.stream!()
       |> Enum.reverse()
       |> Enum.find(fn line ->
-        String.contains?(line, "\"board\":\"#{board.uri}\"") and String.contains?(line, unique_name)
+        String.contains?(line, "\"event\":\"post.failure_details\"") and
+          String.contains?(line, "\"board\":\"#{board.uri}\"") and String.contains?(line, unique_name)
       end)
 
     assert is_binary(log_line)
 
     decoded = Jason.decode!(log_line)
-    [diagnostic] = decoded["invalid_image_diagnostics"]
+    [diagnostic] = decoded["metadata"]["invalid_image_diagnostics"]
 
     assert diagnostic["filename"] == unique_name
     assert diagnostic["content_type"] == "image/png"

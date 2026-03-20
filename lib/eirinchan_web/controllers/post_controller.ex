@@ -737,14 +737,13 @@ defmodule EirinchanWeb.PostController do
       conn.assigns.current_board_config
     )
 
-    write_post_failure_log(conn, metadata)
+    log_post_failure_details(conn, metadata, level)
   end
 
-  defp write_post_failure_log(conn, metadata) do
-    log_path = Path.expand("../../../var/post_failures.log", __DIR__)
+  defp log_post_failure_details(conn, metadata, level) do
     invalid_image_diagnostics = build_invalid_image_diagnostics(conn.params, metadata)
 
-    line =
+    payload =
       %{
         timestamp: DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601(),
         board: conn.assigns.current_board.uri,
@@ -766,14 +765,15 @@ defmodule EirinchanWeb.PostController do
         params: sanitize_failure_params(conn.params)
       }
       |> maybe_put_invalid_image_diagnostics(invalid_image_diagnostics)
-      |> Jason.encode!()
-      |> Kernel.<>("\n")
 
-    log_path
-    |> Path.dirname()
-    |> File.mkdir_p!()
+    LogSystem.log(
+      level,
+      "post.failure_details",
+      "post.failure_details",
+      Map.put(payload, :log_format, "json"),
+      conn.assigns.current_board_config
+    )
 
-    _ = File.write(log_path, line, [:append])
     :ok
   end
 
