@@ -245,7 +245,6 @@ defmodule EirinchanWeb.PostView do
     []
     |> maybe_add_icon(post.sticky, config.image_sticky, "Important")
     |> maybe_add_icon(post.locked, config.image_locked, "Locked")
-    |> maybe_add_icon(post.sage, config.image_bumplocked, "Bumplocked")
     |> maybe_add_icon(post.cycle, config.image_cyclical, "Cyclical")
   end
 
