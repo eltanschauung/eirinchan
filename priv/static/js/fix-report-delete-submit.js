@@ -91,13 +91,34 @@ Menu.onclick(function(e, $buf) {
 			}
 
 			if (passwordValue.length) {
-				$form.find('input[name="delete"]').trigger('click');
+				$form.find('input[name="delete"]').trigger('focus');
 			} else {
 				$password.trigger('focus');
 			}
 		});
 	});
 }
+
+Menu.add_item("edit_post_menu", _("Edit"));
+Menu.onclick(function(e, $buf) {
+	var ele = e.target.dataset.postTarget ? document.getElementById(e.target.dataset.postTarget) : $(e.target).closest('.post')[0];
+	var $ele = $(ele);
+	var postId = $ele.find('.post_no').not('[id]').text();
+	var $thread = $ele.closest('.thread');
+	var boardUri = $thread.data('boardUri') || $thread.data('board');
+	var isModerator = /\bis-moderator\b/.test(document.body.className || '');
+	var isOwnPost = $ele.find('.own_post').length > 0;
+
+	if (!boardUri || !postId || (!isModerator && !isOwnPost)) {
+		$buf.find('#edit_post_menu').addClass('hidden');
+		return;
+	}
+
+	$buf.find('#edit_post_menu').off('click').on('click', function(evt) {
+		evt.preventDefault();
+		window.location.href = '/' + boardUri + '/edit/' + postId;
+	});
+});
 
 Menu.add_item("report_menu", _("Report"));
 //Menu.add_item("global_report_menu", _("Global report"));

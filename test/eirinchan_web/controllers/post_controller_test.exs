@@ -1478,6 +1478,36 @@ defmodule EirinchanWeb.PostControllerTest do
     refute thread_html =~ ~s(File: <a href="deleted")
   end
 
+  test "delete file only rejects incorrect passwords", %{conn: conn} do
+    board = board_fixture()
+
+    create_conn =
+      conn
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post("/#{board.uri}/post", %{
+        "body" => "Thread body",
+        "password" => "threadpw",
+        "files" => [upload_fixture("first.png", "first")],
+        "json_response" => "1",
+        "post" => "New Topic"
+      })
+
+    assert %{"id" => thread_id} = json_response(create_conn, 200)
+
+    delete_conn =
+      conn
+      |> recycle()
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post("/#{board.uri}/post", %{
+        "delete_post_id" => Integer.to_string(thread_id),
+        "password" => "wrong",
+        "file" => "on",
+        "json_response" => "1"
+      })
+
+    assert %{"error" => "Incorrect password."} = json_response(delete_conn, 403)
+  end
+
   test "delete branch rejects incorrect passwords", %{conn: conn} do
     board = board_fixture()
     thread = thread_fixture(board, %{password: "threadpw"})

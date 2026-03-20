@@ -8,6 +8,7 @@ defmodule Eirinchan.Posts do
   alias Eirinchan.Antispam
   alias Eirinchan.Build
   alias Eirinchan.Boards.BoardRecord
+  alias Eirinchan.Moderation
   alias Eirinchan.Posts.Cite
   alias Eirinchan.Posts.Flags, as: PostsFlags
   alias Eirinchan.Posts.Metadata, as: PostsMetadata
@@ -274,11 +275,15 @@ defmodule Eirinchan.Posts do
     PostsRequestGuards.captcha_required?(config, op?)
   end
 
-  defp normalize_public_post_id(value) when is_integer(value) and value > 0, do: value
+  @max_public_post_id 2_147_483_647
+
+  defp normalize_public_post_id(value)
+       when is_integer(value) and value > 0 and value <= @max_public_post_id,
+       do: value
 
   defp normalize_public_post_id(value) when is_binary(value) do
     case Integer.parse(String.trim(value)) do
-      {parsed, ""} when parsed > 0 -> parsed
+      {parsed, ""} when parsed > 0 and parsed <= @max_public_post_id -> parsed
       _ -> nil
     end
   end
@@ -388,6 +393,46 @@ defmodule Eirinchan.Posts do
     end
   end
 
+  @spec edit_post(BoardRecord.t(), String.t() | integer(), map(), keyword()) ::
+          {:ok, Post.t()}
+          | {:error, :not_found | :invalid_password | Ecto.Changeset.t() | :cite_insert_failed}
+  def edit_post(%BoardRecord{} = board, post_id, attrs, opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+    config = Keyword.get(opts, :config, Config.compose())
+    moderator = Keyword.get(opts, :moderator)
+    browser_token = Keyword.get(opts, :browser_token)
+    attrs = normalize_attrs(attrs)
+    password = trim_to_nil(Map.get(attrs, "password"))
+
+    with {:ok, post} <- get_post(board, post_id, repo: repo),
+         :ok <- validate_edit_authorization(post, password, moderator, board, browser_token),
+         {:ok, attrs} <- normalize_moderation_post_update(post, attrs, config),
+         :ok <- PostsValidation.validate_body(is_nil(post.thread_id), attrs, config),
+         :ok <- PostsValidation.validate_body_limits(attrs, config) do
+      case repo.transaction(fn ->
+             with {:ok, updated_post} <-
+                    post
+                    |> Post.create_changeset(attrs)
+                    |> repo.update(),
+                  :ok <- replace_citations(board, updated_post, repo) do
+               repo.preload(updated_post, :extra_files)
+             else
+               {:error, reason} -> repo.rollback(reason)
+             end
+           end) do
+        {:ok, updated_post} ->
+          _ = Build.rebuild_after_post_update(board, updated_post, config: config, repo: repo)
+          {:ok, updated_post}
+
+        {:error, :not_found} ->
+          {:error, :not_found}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
   @spec moderate_delete_post(BoardRecord.t(), String.t() | integer(), keyword()) ::
           {:ok, map()} | {:error, :post_not_found | Ecto.Changeset.t()}
   def moderate_delete_post(%BoardRecord{} = board, post_id, opts \\ []) do
@@ -410,6 +455,22 @@ defmodule Eirinchan.Posts do
           {:ok, Post.t()} | {:error, :not_found | Ecto.Changeset.t()}
   def delete_post_files(%BoardRecord{} = board, post_id, opts \\ []) do
     PostsModeration.delete_post_files(board, post_id, opts)
+  end
+
+  @spec public_delete_post_files(BoardRecord.t(), String.t() | integer(), String.t() | nil, keyword()) ::
+          {:ok, Post.t()} | {:error, :not_found | :invalid_password | Ecto.Changeset.t()}
+  def public_delete_post_files(%BoardRecord{} = board, post_id, password, opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+    password = trim_to_nil(password)
+
+    with {:ok, post} <- get_post(board, post_id, repo: repo),
+         :ok <- validate_delete_password(post, password) do
+      PostsModeration.delete_post_files(board, post_id, opts)
+    else
+      {:error, :not_found} -> {:error, :not_found}
+      {:error, :invalid_password} -> {:error, :invalid_password}
+      other -> other
+    end
   end
 
   @spec delete_post_file(BoardRecord.t(), String.t() | integer(), non_neg_integer(), keyword()) ::
@@ -1654,13 +1715,55 @@ defmodule Eirinchan.Posts do
     "%#{escaped}%"
   end
 
-  defp validate_delete_password(%Post{password: stored_password}, provided_password) do
-    if trim_to_nil(stored_password) == provided_password and not is_nil(provided_password) do
+  defp validate_delete_password(%Post{} = post, provided_password),
+    do: validate_post_password(post, provided_password)
+
+  defp validate_edit_authorization(%Post{} = _post, _password, moderator, board, _browser_token)
+       when is_map(moderator) do
+    if moderator_edit_override?(moderator, board), do: :ok, else: {:error, :invalid_password}
+  end
+
+  defp validate_edit_authorization(%Post{} = post, password, _moderator, _board, browser_token) do
+    with :ok <- validate_post_password(post, password),
+         :ok <- validate_edit_ownership(post, browser_token) do
+      :ok
+    end
+  end
+
+  defp validate_edit_ownership(%Post{id: post_id}, browser_token) when is_binary(browser_token) do
+    if MapSet.member?(Eirinchan.PostOwnership.owned_post_ids(browser_token, [post_id]), post_id) do
       :ok
     else
       {:error, :invalid_password}
     end
   end
+
+  defp validate_edit_ownership(_post, _browser_token), do: {:error, :invalid_password}
+
+  defp validate_post_password(%Post{password: stored_password}, provided_password) do
+    stored_password = trim_to_nil(stored_password)
+    provided_password = trim_to_nil(provided_password)
+
+    cond do
+      is_nil(stored_password) or is_nil(provided_password) ->
+        {:error, :invalid_password}
+
+      byte_size(stored_password) != byte_size(provided_password) ->
+        {:error, :invalid_password}
+
+      Plug.Crypto.secure_compare(stored_password, provided_password) ->
+        :ok
+
+      true ->
+        {:error, :invalid_password}
+    end
+  end
+
+  defp moderator_edit_override?(%{role: "admin"} = moderator, %BoardRecord{} = board) do
+    Moderation.board_access?(moderator, board)
+  end
+
+  defp moderator_edit_override?(_moderator, _board), do: false
 
   defp timed(fun) when is_function(fun, 0) do
     started_at = System.monotonic_time(:microsecond)
