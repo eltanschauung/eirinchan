@@ -21,7 +21,8 @@ defmodule EirinchanWeb.Plugs.FetchBrowserToken do
         |> put_resp_cookie(@cookie_name, token,
           max_age: @max_age,
           path: "/",
-          http_only: false,
+          http_only: true,
+          secure: Mix.env() == :prod,
           same_site: "Lax"
         )
     end
