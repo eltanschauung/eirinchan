@@ -5,8 +5,8 @@
   <.admin_shortcuts moderator={@current_moderator} />
 </header>
 
-<%= if @global_message && @global_message != "" do %>
-  <div class="blotter"><%= raw(@global_message) %></div>
+<%= if @global_message_html && @global_message_html != "" do %>
+  <%= raw(@global_message_html) %>
 <% end %>
 
 <%= if assigns[:errors] do %>

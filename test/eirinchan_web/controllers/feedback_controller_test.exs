@@ -64,4 +64,24 @@ defmodule EirinchanWeb.FeedbackControllerTest do
     assert %{"error" => "Wait a while before searching again, please."} =
              json_response(second_conn, 429)
   end
+
+  test "feedback page renders global message placeholders and line breaks", %{conn: conn} do
+    board = board_fixture(%{uri: "feedbackgm#{System.unique_integer([:positive])}", title: "Feedback GM"})
+    thread = thread_fixture(board, %{body: "seed"})
+    reply_fixture(board, thread, %{body: "recent"})
+
+    :ok =
+      Eirinchan.Settings.persist_instance_config(%{
+        global_message:
+          "Visitors in the last 10 minutes: {stats.users_10minutes}\\nPPH: {stats.posts_perhour}"
+      })
+
+    page = conn |> get("/feedback") |> html_response(200)
+
+    assert page =~ "Visitors in the last 10 minutes:"
+    assert page =~ "PPH:"
+    assert page =~ "<br />"
+    refute page =~ "{stats.users_10minutes}"
+    refute page =~ "{stats.posts_perhour}"
+  end
 end

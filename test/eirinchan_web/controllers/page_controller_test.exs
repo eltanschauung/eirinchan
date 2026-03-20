@@ -134,6 +134,58 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ ~s(href="https://github.com/username/eirinchan-v1")
   end
 
+  test "site-wide public pages render global message stats placeholders and line breaks", %{conn: conn} do
+    moderator_fixture()
+    board = board_fixture(%{uri: "gmstats#{System.unique_integer([:positive])}", title: "GM Stats"})
+    thread = thread_fixture(board, %{body: "seed"})
+    reply_fixture(board, thread, %{body: "recent"})
+
+    :ok =
+      Eirinchan.Settings.persist_instance_config(%{
+        global_message:
+          "Visitors in the last 10 minutes: {stats.users_10minutes}\\nPPH: {stats.posts_perhour}"
+      })
+
+    page =
+      conn
+      |> get("/news")
+      |> html_response(200)
+
+    assert page =~ "Visitors in the last 10 minutes:"
+    assert page =~ "PPH:"
+    assert page =~ "<br />"
+    refute page =~ "{stats.users_10minutes}"
+    refute page =~ "{stats.posts_perhour}"
+  end
+
+  test "custom pages render global message through the shared blotter renderer", %{conn: conn} do
+    author = moderator_fixture(%{username: "pagewriter"})
+    board = board_fixture(%{uri: "customgm#{System.unique_integer([:positive])}", title: "Custom GM"})
+    thread = thread_fixture(board, %{body: "seed"})
+    reply_fixture(board, thread, %{body: "recent"})
+
+    {:ok, _page} =
+      Eirinchan.CustomPages.create_page(%{
+        slug: "help-gm",
+        title: "Help",
+        body: "How to post",
+        mod_user_id: author.id
+      })
+
+    :ok =
+      Eirinchan.Settings.persist_instance_config(%{
+        global_message: "<i>Visitors:</i> {stats.users_10minutes}\\nPPH: {stats.posts_perhour}"
+      })
+
+    page = conn |> get("/pages/help-gm") |> html_response(200)
+
+    assert page =~ "<i>Visitors:</i>"
+    assert page =~ "PPH:"
+    assert page =~ "<br />"
+    refute page =~ "{stats.users_10minutes}"
+    refute page =~ "{stats.posts_perhour}"
+  end
+
   test "GET /pages/:slug renders a custom page", %{conn: conn} do
     author = moderator_fixture(%{username: "pagewriter"})
 
@@ -187,6 +239,43 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ "/faq/output_canvas.png"
     assert page =~ "/faq/whale.jpg"
     assert page =~ ~s(href="/faq/recent.css)
+  end
+
+  test "GET /rules renders the copied rules page", %{conn: conn} do
+    moderator_fixture()
+
+    page =
+      conn
+      |> get("/rules")
+      |> html_response(200)
+
+    assert page =~ "What are the Rules?"
+    assert page =~ "/bant/ - International/Random"
+    assert page =~ "What if i'm banned?"
+    assert page =~ ~s(src="/site_logo2.png")
+    assert page =~ ~s(href="/faq/recent.css")
+  end
+
+  test "GET /rules normalizes stored full html overrides into the shared shell", %{conn: conn} do
+    moderator_fixture()
+    author = moderator_fixture(%{username: "ruleseditor"})
+
+    {:ok, _page} =
+      Eirinchan.CustomPages.create_page(%{
+        slug: "rules",
+        title: "Rules",
+        body:
+          "<!doctype html><html><body><header><h1>ignored</h1></header><div class=\"box-wrap faq-page-shell rules-page-shell\"><div class=\"box middle\"><h2><i>Stored Rules</i></h2></div></div><hr><footer>ignored</footer></body></html>",
+        mod_user_id: author.id
+      })
+
+    rules_conn = get(conn, "/rules")
+    html = response(rules_conn, 200)
+
+    assert html =~ "Stored Rules"
+    assert html =~ ~s(class="boardlist")
+    assert html =~ ~s(src="/site_logo2.png")
+    refute html =~ "<header><h1>ignored</h1></header>"
   end
 
   test "GET /faq normalizes stored full html overrides into the shared shell", %{conn: conn} do

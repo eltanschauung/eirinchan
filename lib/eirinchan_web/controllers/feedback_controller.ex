@@ -8,8 +8,8 @@ defmodule EirinchanWeb.FeedbackController do
   alias Eirinchan.Runtime.Config
   alias Eirinchan.Settings
   alias Eirinchan.ThreadWatcher
+  alias EirinchanWeb.Announcements
   alias EirinchanWeb.BoardChrome
-  alias EirinchanWeb.HtmlSanitizer
   alias EirinchanWeb.PublicShell
   alias EirinchanWeb.RequestMeta
 
@@ -18,7 +18,7 @@ defmodule EirinchanWeb.FeedbackController do
   def show(conn, _params) do
     render(conn, :show,
       boards: Boards.list_boards(),
-      global_message: current_global_message(),
+      global_message_html: current_global_message_html(),
       custom_pages: CustomPages.list_pages(),
       board_chrome: BoardChrome.for_board(%{uri: "bant"})
     )
@@ -45,7 +45,7 @@ defmodule EirinchanWeb.FeedbackController do
           errors: %{"rate_limit" => [message]},
           params: params,
           boards: Boards.list_boards(),
-          global_message: current_global_message(),
+          global_message_html: current_global_message_html(),
           custom_pages: CustomPages.list_pages(),
           board_chrome: BoardChrome.for_board(%{uri: "bant"})
         )
@@ -73,7 +73,7 @@ defmodule EirinchanWeb.FeedbackController do
               errors: translate_errors(changeset),
               params: params,
               boards: Boards.list_boards(),
-              global_message: current_global_message(),
+              global_message_html: current_global_message_html(),
               custom_pages: CustomPages.list_pages(),
               board_chrome: BoardChrome.for_board(%{uri: "bant"})
             )
@@ -145,11 +145,9 @@ defmodule EirinchanWeb.FeedbackController do
     |> assign(:skip_flash_group, true)
   end
 
-  defp current_global_message do
-    case Eirinchan.Settings.current_instance_config() |> Map.get(:global_message) do
-      value when is_binary(value) -> HtmlSanitizer.sanitize_fragment(value)
-      _ -> ""
-    end
+  defp current_global_message_html do
+    board_ids = Boards.list_boards() |> Enum.map(& &1.id)
+    Announcements.global_message_html(Settings.current_instance_config(), surround_hr: true, board_ids: board_ids)
   end
 
   defp translate_errors(changeset) do

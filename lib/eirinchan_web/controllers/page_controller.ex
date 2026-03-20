@@ -11,13 +11,14 @@ defmodule EirinchanWeb.PageController do
   alias Eirinchan.Installation
   alias Eirinchan.News
   alias Eirinchan.Posts
+  alias Eirinchan.RulesPage
   alias Eirinchan.Stats
   alias Eirinchan.ThreadWatcher
   alias Eirinchan.Posts.{Post, PostFile, PublicIds}
   alias Eirinchan.Repo
   alias Eirinchan.Settings
   alias Eirinchan.Themes
-  alias EirinchanWeb.{BoardChrome, BoardRuntime}
+  alias EirinchanWeb.{Announcements, BoardChrome, BoardRuntime}
   alias EirinchanWeb.HtmlSanitizer
   alias EirinchanWeb.PostView
   alias EirinchanWeb.PublicControllerHelpers
@@ -246,6 +247,25 @@ defmodule EirinchanWeb.PageController do
     end
   end
 
+  def rules(conn, _params) do
+    if Installation.setup_required?() do
+      redirect(conn, to: ~p"/setup")
+    else
+      case CustomPages.get_page_by_slug("rules") do
+        %CustomPages.Page{} = page ->
+          render_custom_page(conn, %{page | body: RulesPage.normalize_body(page.body)})
+
+        _ ->
+          render_custom_page(conn, %{
+            slug: "rules",
+            title: "Rules",
+            body: RulesPage.default_body(),
+            mod_user: nil
+          })
+      end
+    end
+  end
+
   def legacy_flags(conn, _params), do: redirect(conn, to: ~p"/flags")
 
   def board_flag_legacy(conn, %{"board" => _uri}), do: redirect(conn, to: ~p"/flags")
@@ -324,7 +344,7 @@ defmodule EirinchanWeb.PageController do
       boards: boards,
       primary_board: primary_board,
       board_chrome: chrome,
-      global_message: current_global_message(),
+      global_message_html: current_global_message_html(boards),
       custom_pages: CustomPages.list_pages(),
       global_boardlist_groups: PostView.boardlist_groups(boards),
       public_shell: true,
@@ -361,11 +381,9 @@ defmodule EirinchanWeb.PageController do
 
   defp public_body_class(page_kind), do: "8chan vichan is-not-moderator #{page_kind}"
 
-  defp current_global_message do
-    case Settings.current_instance_config() |> Map.get(:global_message) do
-      value when is_binary(value) -> HtmlSanitizer.sanitize_fragment(value)
-      _ -> ""
-    end
+  defp current_global_message_html(boards) do
+    board_ids = Enum.map(boards, & &1.id)
+    Announcements.global_message_html(Settings.current_instance_config(), surround_hr: true, board_ids: board_ids)
   end
 
   defp current_sticker_config do
@@ -395,6 +413,7 @@ defmodule EirinchanWeb.PageController do
       case page.slug do
         "faq" -> %{page | body: FaqPage.normalize_body(page.body)}
         "formatting" -> %{page | body: FormattingPage.normalize_body(page.body, current_stickers)}
+        "rules" -> %{page | body: RulesPage.normalize_body(page.body)}
         _ -> page
       end
 
@@ -419,6 +438,7 @@ defmodule EirinchanWeb.PageController do
       "flags" -> render(conn, :flag, assigns)
       "faq" -> render(conn, :faq, assigns)
       "formatting" -> render(conn, :formatting, assigns)
+      "rules" -> render(conn, :rules, assigns)
       _ -> render(conn, :page, assigns)
     end
   end
@@ -427,6 +447,9 @@ defmodule EirinchanWeb.PageController do
     do: stylesheets ++ ["/faq/recent.css"]
 
   defp maybe_add_page_stylesheet(stylesheets, %{slug: "formatting"}),
+    do: stylesheets ++ ["/faq/recent.css"]
+
+  defp maybe_add_page_stylesheet(stylesheets, %{slug: "rules"}),
     do: stylesheets ++ ["/faq/recent.css"]
 
   defp maybe_add_page_stylesheet(stylesheets, _page), do: stylesheets
