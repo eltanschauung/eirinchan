@@ -8,7 +8,6 @@ defmodule Eirinchan.Posts do
   alias Eirinchan.Antispam
   alias Eirinchan.Build
   alias Eirinchan.Boards.BoardRecord
-  alias Eirinchan.Moderation
   alias Eirinchan.Posts.Cite
   alias Eirinchan.Posts.Flags, as: PostsFlags
   alias Eirinchan.Posts.Metadata, as: PostsMetadata
@@ -369,46 +368,6 @@ defmodule Eirinchan.Posts do
 
     with {:ok, post} <- get_post(board, post_id, repo: repo),
          {:ok, attrs} <- normalize_moderation_post_update(post, attrs, config) do
-      case repo.transaction(fn ->
-             with {:ok, updated_post} <-
-                    post
-                    |> Post.create_changeset(attrs)
-                    |> repo.update(),
-                  :ok <- replace_citations(board, updated_post, repo) do
-               repo.preload(updated_post, :extra_files)
-             else
-               {:error, reason} -> repo.rollback(reason)
-             end
-           end) do
-        {:ok, updated_post} ->
-          _ = Build.rebuild_after_post_update(board, updated_post, config: config, repo: repo)
-          {:ok, updated_post}
-
-        {:error, :not_found} ->
-          {:error, :not_found}
-
-        {:error, reason} ->
-          {:error, reason}
-      end
-    end
-  end
-
-  @spec edit_post(BoardRecord.t(), String.t() | integer(), map(), keyword()) ::
-          {:ok, Post.t()}
-          | {:error, :not_found | :invalid_password | Ecto.Changeset.t() | :cite_insert_failed}
-  def edit_post(%BoardRecord{} = board, post_id, attrs, opts \\ []) do
-    repo = Keyword.get(opts, :repo, Repo)
-    config = Keyword.get(opts, :config, Config.compose())
-    moderator = Keyword.get(opts, :moderator)
-    browser_token = Keyword.get(opts, :browser_token)
-    attrs = normalize_attrs(attrs)
-    password = trim_to_nil(Map.get(attrs, "password"))
-
-    with {:ok, post} <- get_post(board, post_id, repo: repo),
-         :ok <- validate_edit_authorization(post, password, moderator, board, browser_token),
-         {:ok, attrs} <- normalize_moderation_post_update(post, attrs, config),
-         :ok <- PostsValidation.validate_body(is_nil(post.thread_id), attrs, config),
-         :ok <- PostsValidation.validate_body_limits(attrs, config) do
       case repo.transaction(fn ->
              with {:ok, updated_post} <-
                     post
@@ -1718,28 +1677,6 @@ defmodule Eirinchan.Posts do
   defp validate_delete_password(%Post{} = post, provided_password),
     do: validate_post_password(post, provided_password)
 
-  defp validate_edit_authorization(%Post{} = _post, _password, moderator, board, _browser_token)
-       when is_map(moderator) do
-    if moderator_edit_override?(moderator, board), do: :ok, else: {:error, :invalid_password}
-  end
-
-  defp validate_edit_authorization(%Post{} = post, password, _moderator, _board, browser_token) do
-    with :ok <- validate_post_password(post, password),
-         :ok <- validate_edit_ownership(post, browser_token) do
-      :ok
-    end
-  end
-
-  defp validate_edit_ownership(%Post{id: post_id}, browser_token) when is_binary(browser_token) do
-    if MapSet.member?(Eirinchan.PostOwnership.owned_post_ids(browser_token, [post_id]), post_id) do
-      :ok
-    else
-      {:error, :invalid_password}
-    end
-  end
-
-  defp validate_edit_ownership(_post, _browser_token), do: {:error, :invalid_password}
-
   defp validate_post_password(%Post{password: stored_password}, provided_password) do
     stored_password = trim_to_nil(stored_password)
     provided_password = trim_to_nil(provided_password)
@@ -1758,12 +1695,6 @@ defmodule Eirinchan.Posts do
         {:error, :invalid_password}
     end
   end
-
-  defp moderator_edit_override?(%{role: "admin"} = moderator, %BoardRecord{} = board) do
-    Moderation.board_access?(moderator, board)
-  end
-
-  defp moderator_edit_override?(_moderator, _board), do: false
 
   defp timed(fun) when is_function(fun, 0) do
     started_at = System.monotonic_time(:microsecond)
