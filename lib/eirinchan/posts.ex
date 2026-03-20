@@ -182,6 +182,28 @@ defmodule Eirinchan.Posts do
     end
   end
 
+  @spec public_posts_map(BoardRecord.t(), [String.t() | integer()], keyword()) :: %{integer() => Post.t()}
+  def public_posts_map(%BoardRecord{} = board, post_ids, opts \\ []) when is_list(post_ids) do
+    repo = Keyword.get(opts, :repo, Repo)
+
+    normalized_ids =
+      post_ids
+      |> Enum.map(&normalize_public_post_id/1)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
+
+    if normalized_ids == [] do
+      %{}
+    else
+      from(post in Post,
+        where: post.board_id == ^board.id and post.public_id in ^normalized_ids,
+        preload: [:thread]
+      )
+      |> repo.all()
+      |> Map.new(fn post -> {PublicIds.public_id(post), post} end)
+    end
+  end
+
   @spec get_post_by_internal_id(BoardRecord.t(), String.t() | integer(), keyword()) ::
           {:ok, Post.t()} | {:error, :not_found}
   def get_post_by_internal_id(%BoardRecord{} = board, post_id, opts \\ []) do
@@ -198,6 +220,17 @@ defmodule Eirinchan.Posts do
   def captcha_required?(config, op?) do
     PostsRequestGuards.captcha_required?(config, op?)
   end
+
+  defp normalize_public_post_id(value) when is_integer(value) and value > 0, do: value
+
+  defp normalize_public_post_id(value) when is_binary(value) do
+    case Integer.parse(String.trim(value)) do
+      {parsed, ""} when parsed > 0 -> parsed
+      _ -> nil
+    end
+  end
+
+  defp normalize_public_post_id(_value), do: nil
 
   def recalculate_thread_bump(board, thread_id, opts \\ []) do
     if is_nil(thread_id) do

@@ -3,6 +3,9 @@ defmodule EirinchanWeb.PostView do
 
   import Phoenix.HTML, only: [html_escape: 1, safe_to_string: 1]
 
+  @local_quote_regex ~r/(^|[\s(])&gt;&gt;(\d+?)((?=[\s,.)?!])|$)/m
+  @raw_local_quote_regex ~r/(^|[\s(])>>(\d+?)((?=[\s,.)?!])|$)/m
+
   alias Eirinchan.{Boardlist, Boards, Posts}
   alias Eirinchan.Moderation
   alias Eirinchan.Posts.Post
@@ -666,6 +669,11 @@ defmodule EirinchanWeb.PostView do
   end
 
   def body_segments(post, board, thread, config, opts \\ []) do
+    opts =
+      Keyword.put_new_lazy(opts, :local_quote_hrefs, fn ->
+        local_quote_hrefs(post, board, thread, config)
+      end)
+
     post.body
     |> Kernel.||("")
     |> String.replace("\r\n", "\n")
@@ -1070,27 +1078,112 @@ defmodule EirinchanWeb.PostView do
     |> then(&Regex.replace(~r/(&#39;){2}(.+?)(&#39;){2}/u, &1, ~s(<em>\\2</em>)))
   end
 
-  defp render_quote_links(line, board, thread, config, opts) do
+  defp render_quote_links(line, _board, thread, _config, opts) do
     own_post_ids = Keyword.get(opts, :own_post_ids, MapSet.new())
     show_yous = Keyword.get(opts, :show_yous, false)
     op_public_id = if thread, do: PublicIds.public_id(thread), else: nil
+    current_thread_public_id = if thread, do: PublicIds.thread_public_id(thread), else: nil
 
-    Regex.replace(~r/&gt;&gt;(\d+)/, line, fn _match, id ->
+    local_quote_hrefs = Keyword.get(opts, :local_quote_hrefs, %{})
+
+    Regex.replace(@local_quote_regex, line, fn match, prefix, id, suffix ->
       post_id = String.to_integer(id)
-      href = ThreadPaths.thread_path(board, thread, config) <> "##{id}"
 
-      op =
-        if op_public_id == post_id,
-          do: " <small>(OP)</small>",
-          else: ""
+      case Map.get(local_quote_hrefs, post_id) do
+        %{href: href} ->
+          op =
+            if op_public_id == post_id,
+              do: " <small>(OP)</small>",
+              else: ""
 
-      you =
-        if show_yous and MapSet.member?(own_post_ids, post_id),
-          do: " <small>(You)</small>",
-          else: ""
+          cross_thread =
+            if local_cross_thread_quote?(local_quote_hrefs, post_id, current_thread_public_id),
+              do: " <small>(Cross-Thread)</small>",
+              else: ""
 
-      "<a data-highlight-reply=\"#{id}\" href=\"#{href}\">&gt;&gt;#{id}</a>#{op}#{you}"
+          you =
+            if show_yous and MapSet.member?(own_post_ids, post_id),
+              do: " <small>(You)</small>",
+              else: ""
+
+          prefix <>
+            "<a data-highlight-reply=\"#{id}\" href=\"#{href}\">&gt;&gt;#{id}</a>#{op}#{cross_thread}#{you}" <>
+            suffix
+
+        _ ->
+          match
+      end
     end)
+  end
+
+  defp local_quote_hrefs(%{body: body}, board, thread, config),
+    do: local_quote_hrefs(body, board, thread, config)
+
+  defp local_quote_hrefs(body, %Boards.BoardRecord{} = board, thread, config) when is_binary(body) do
+    ids = extract_local_quote_ids(body)
+
+    cond do
+      ids == [] ->
+        %{}
+
+      is_integer(board.id) ->
+        board
+        |> Posts.public_posts_map(ids)
+        |> Enum.into(%{}, fn {public_id, post} ->
+          {public_id, local_quote_ref(board, post, config)}
+        end)
+
+      match?(%Post{}, thread) ->
+        current_thread_href = ThreadPaths.thread_path(board, thread, config)
+        current_thread_public_id = PublicIds.thread_public_id(thread)
+
+        Map.new(ids, fn id ->
+          {id, %{href: current_thread_href <> "##{id}", thread_public_id: current_thread_public_id}}
+        end)
+
+      true ->
+        %{}
+    end
+  end
+
+  defp local_quote_hrefs(_body, _board, _thread, _config), do: %{}
+
+  defp extract_local_quote_ids(body) when is_binary(body) do
+    @raw_local_quote_regex
+    |> Regex.scan(body, capture: :all_but_first)
+    |> Enum.map(fn [_prefix, id, _suffix] -> String.to_integer(id) end)
+    |> Enum.uniq()
+  end
+
+  defp local_quote_ref(%Boards.BoardRecord{} = board, %Post{thread_id: nil} = post, config) do
+    %{
+      href: ThreadPaths.thread_path(board, post, config) <> "##{PublicIds.public_id(post)}",
+      thread_public_id: PublicIds.public_id(post)
+    }
+  end
+
+  defp local_quote_ref(%Boards.BoardRecord{} = board, %Post{} = post, config) do
+    thread =
+      case post.thread do
+        %Post{} = thread -> thread
+        _ -> post
+      end
+
+    %{
+      href: ThreadPaths.thread_path(board, thread, config) <> "##{PublicIds.public_id(post)}",
+      thread_public_id: PublicIds.public_id(thread)
+    }
+  end
+
+  defp local_cross_thread_quote?(quote_hrefs, post_id, current_thread_public_id) do
+    case Map.get(quote_hrefs, post_id) do
+      %{thread_public_id: thread_public_id}
+      when is_integer(thread_public_id) and is_integer(current_thread_public_id) ->
+        thread_public_id != current_thread_public_id
+
+      _ ->
+        false
+    end
   end
 
   defp render_cross_board_links(line, board, config) do
