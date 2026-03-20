@@ -3,7 +3,10 @@ defmodule EirinchanWeb.Announcements do
 
   alias Eirinchan.NewsBlotter
   alias Eirinchan.Stats
+  alias EirinchanWeb.FragmentCache
   alias EirinchanWeb.HtmlSanitizer
+
+  @aggregate_cache_bucket_seconds 30
 
   def news_blotter_html(config) when is_map(config) do
     NewsBlotter.render_html(config)
@@ -11,7 +14,7 @@ defmodule EirinchanWeb.Announcements do
 
   def global_message(config, opts \\ []) when is_map(config) do
     case Map.get(config, :global_message) do
-      value when is_binary(value) and value != "" -> expand_placeholders(value, opts)
+      value when is_binary(value) and value != "" -> expand_placeholders_cached(value, opts)
       _ -> nil
     end
   end
@@ -46,10 +49,41 @@ defmodule EirinchanWeb.Announcements do
 
   def render_message_fragment(other), do: render_message_fragment(to_string(other))
 
+  defp expand_placeholders_cached(message, opts) do
+    if cacheable_aggregate_placeholders?(message, opts) do
+      FragmentCache.fetch_or_store(aggregate_cache_key(message, opts), fn ->
+        expand_placeholders(message, opts)
+      end)
+    else
+      expand_placeholders(message, opts)
+    end
+  end
+
   defp expand_placeholders(message, opts) do
     message
     |> maybe_replace_posts_perhour(opts)
     |> maybe_replace_users_10minutes()
+  end
+
+  defp cacheable_aggregate_placeholders?(message, opts) do
+    aggregate_board_ids?(opts[:board_ids]) and stats_placeholder?(message)
+  end
+
+  defp aggregate_board_ids?(board_ids), do: is_list(board_ids) and board_ids != []
+
+  defp stats_placeholder?(message) do
+    String.contains?(message, "{stats.posts_perhour}") or
+      String.contains?(message, "{stats.users_10minutes}")
+  end
+
+  defp aggregate_cache_key(message, opts) do
+    {
+      :announcement_global_message,
+      message,
+      opts[:surround_hr] || false,
+      Enum.sort(opts[:board_ids]),
+      div(System.system_time(:second), @aggregate_cache_bucket_seconds)
+    }
   end
 
   defp posts_perhour_placeholder(opts) do
