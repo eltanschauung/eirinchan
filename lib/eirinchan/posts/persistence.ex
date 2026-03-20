@@ -91,8 +91,8 @@ defmodule Eirinchan.Posts.Persistence do
     end
   end
 
-  defp store_primary_upload(board, post, %{upload: upload, metadata: metadata}, repo, config) do
-    case Uploads.store(board, post, upload, config, metadata) do
+  defp store_primary_upload(board, post, %{metadata: metadata}, repo, config) do
+    case Uploads.finalize(board, post, config, metadata) do
       {:ok, stored_metadata} ->
         case post |> Post.create_changeset(stored_metadata) |> repo.update() do
           {:ok, updated_post} ->
@@ -114,14 +114,7 @@ defmodule Eirinchan.Posts.Persistence do
   defp store_extra_uploads(board, post, entries, repo, config, stored_files) do
     Enum.with_index(entries, 1)
     |> Enum.reduce_while({:ok, [], stored_files}, fn {entry, position}, {:ok, inserted, stored} ->
-      case Uploads.store(
-             board,
-             post,
-             entry.upload,
-             config,
-             entry.metadata,
-             Integer.to_string(position)
-           ) do
+      case Uploads.finalize(board, post, config, entry.metadata, Integer.to_string(position)) do
         {:ok, stored_metadata} ->
           attrs =
             stored_metadata

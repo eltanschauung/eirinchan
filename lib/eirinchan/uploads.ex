@@ -37,18 +37,52 @@ defmodule Eirinchan.Uploads do
     end
   end
 
+  @spec prepare(Plug.Upload.t(), map(), keyword()) :: {:ok, map()} | {:error, atom()}
+  def prepare(%Plug.Upload{} = upload, config, opts \\ []) do
+    op? = Keyword.get(opts, :op?, false)
+    normalized_name = normalized_input_filename(upload.filename)
+
+    with {:ok, initial_metadata} <- describe_without_normalizing(upload, normalized_name, config),
+         {:ok, staged_path} <- create_staged_upload_path(initial_metadata.ext) do
+      with :ok <- File.cp(upload.path, staged_path),
+           :ok <- normalize_stored_upload(staged_path, config, initial_metadata),
+           {:ok, prepared_metadata} <- refresh_stored_metadata(staged_path, initial_metadata, config),
+           {:ok, staged_thumb_path} <-
+             create_staged_thumbnail_path(thumbnail_extension(prepared_metadata, config)) do
+        case generate_thumbnail(staged_path, staged_thumb_path, config, prepared_metadata, op?) do
+          :ok ->
+            {:ok,
+             prepared_metadata
+             |> Map.put(:prepared_upload, true)
+             |> Map.put(:staged_path, staged_path)
+             |> Map.put(:source_upload_path, upload.path)
+             |> Map.put(:staged_thumb_path, staged_thumb_path)}
+
+          {:error, reason} ->
+            cleanup_prepared(%{staged_path: staged_path, staged_thumb_path: staged_thumb_path})
+            {:error, reason}
+        end
+      else
+        {:error, reason} ->
+          cleanup_prepared(%{staged_path: staged_path})
+          {:error, reason}
+      end
+    end
+  end
+
   @spec store(BoardRecord.t(), Post.t(), Plug.Upload.t(), map()) ::
           {:ok, map()} | {:error, atom()}
   def store(%BoardRecord{} = board, %Post{} = post, %Plug.Upload{} = upload, config) do
-    with {:ok, metadata} <- describe(upload, config) do
-      store(board, post, upload, config, metadata, nil)
+    with {:ok, metadata} <- prepare(upload, config, op?: is_nil(post.thread_id)) do
+      finalize(board, post, config, metadata, nil)
     end
   end
 
   @spec store(BoardRecord.t(), Post.t(), Plug.Upload.t(), map(), map()) ::
           {:ok, map()} | {:error, atom()}
   def store(%BoardRecord{} = board, %Post{} = post, %Plug.Upload{} = upload, config, metadata) do
-    store(board, post, upload, config, metadata, nil)
+    _ = upload
+    finalize(board, post, config, metadata, nil)
   end
 
   @spec store(BoardRecord.t(), Post.t(), Plug.Upload.t(), map(), map(), String.t() | nil) ::
@@ -60,6 +94,19 @@ defmodule Eirinchan.Uploads do
         config,
         metadata,
         suffix
+      ) do
+    _ = upload
+    finalize(board, post, config, metadata, suffix)
+  end
+
+  @spec finalize(BoardRecord.t(), Post.t(), map(), map(), String.t() | nil) ::
+          {:ok, map()} | {:error, atom()}
+  def finalize(
+        %BoardRecord{} = board,
+        %Post{} = post,
+        config,
+        metadata,
+        suffix \\ nil
       ) do
     base_name = unique_timestamp_base_name(board, post, config, metadata.ext, suffix)
     storage_name = "#{base_name}#{metadata.ext}"
@@ -76,20 +123,14 @@ defmodule Eirinchan.Uploads do
     |> Path.dirname()
     |> File.mkdir_p!()
 
-    case move_to_destination(upload.path, destination) do
+    case move_to_destination(Map.get(metadata, :staged_path), destination) do
       :ok ->
-        with :ok <- normalize_stored_upload(destination, config, metadata),
-             {:ok, stored_metadata} <- refresh_stored_metadata(destination, metadata, config),
-             :ok <-
-               generate_thumbnail(
-                 destination,
-                 thumb_destination,
-                 config,
-                 stored_metadata,
-                 is_nil(post.thread_id)
-               ) do
+        with :ok <- move_to_destination(Map.get(metadata, :staged_thumb_path), thumb_destination) do
+          source_upload_path = Map.get(metadata, :source_upload_path)
+          if is_binary(source_upload_path), do: File.rm(source_upload_path)
+
           {:ok,
-           Map.merge(stored_metadata, %{
+           Map.merge(drop_prepared_paths(metadata), %{
              file_path: "/#{board.uri}/#{config.dir.img}#{storage_name}",
              thumb_path: "/#{board.uri}/#{config.dir.thumb}#{thumb_name}"
            })}
@@ -156,6 +197,20 @@ defmodule Eirinchan.Uploads do
     Path.dirname(destination) |> File.mkdir_p!()
     generate_spoiler_thumbnail(destination, config)
   end
+
+  def cleanup_prepared(metadata) when is_map(metadata) do
+    metadata
+    |> prepared_paths()
+    |> Enum.each(fn path ->
+      if is_binary(path) do
+        _ = File.rm(path)
+      end
+    end)
+
+    :ok
+  end
+
+  def cleanup_prepared(_metadata), do: :ok
 
   @spec regenerate_thumbnail(String.t(), String.t(), map(), map(), boolean()) ::
           :ok | {:error, atom()}
@@ -267,6 +322,30 @@ defmodule Eirinchan.Uploads do
 
       true ->
         %{width: nil, height: nil}
+    end
+  end
+
+  defp describe_without_normalizing(%Plug.Upload{} = upload, normalized_name, config) do
+    with {:ok, binary} <- File.read(upload.path) do
+      ext = normalized_name |> Path.extname() |> String.downcase()
+      file_type = detect_mime_type(upload.path, normalized_name)
+      normalized_ext = normalized_media_extension(ext, file_type)
+      media_metadata = maybe_media_metadata(upload.path, file_type, normalized_ext, config)
+
+      {:ok,
+       %{
+         binary: binary,
+         ext: normalized_ext,
+         file_name: normalized_filename(normalized_name, config),
+         file_size: byte_size(binary),
+         file_type: file_type,
+         file_md5: :crypto.hash(:md5, binary) |> Base.encode64(),
+         image_width: media_metadata.width,
+         image_height: media_metadata.height,
+         spoiler: false
+       }}
+    else
+      {:error, _reason} -> {:error, :upload_failed}
     end
   end
 
@@ -619,6 +698,32 @@ defmodule Eirinchan.Uploads do
     end
   end
 
+  defp create_staged_upload_path(ext) do
+    path =
+      Path.join(staging_root(), "upload-#{System.unique_integer([:positive])}#{ext}")
+
+    path
+    |> Path.dirname()
+    |> File.mkdir_p!()
+
+    {:ok, path}
+  end
+
+  defp create_staged_thumbnail_path(ext) do
+    path =
+      Path.join(staging_root(), "thumb-#{System.unique_integer([:positive])}#{ext}")
+
+    path
+    |> Path.dirname()
+    |> File.mkdir_p!()
+
+    {:ok, path}
+  end
+
+  defp staging_root do
+    Path.join(System.tmp_dir!(), "eirinchan-upload-staging")
+  end
+
   defp maybe_add_auto_orient(args, config) do
     if Map.get(config, :convert_auto_orient, true), do: args ++ ["-auto-orient"], else: args
   end
@@ -644,6 +749,21 @@ defmodule Eirinchan.Uploads do
     else
       {:ok, metadata}
     end
+  end
+
+  defp prepared_paths(metadata) do
+    [
+      Map.get(metadata, :staged_path),
+      Map.get(metadata, :staged_thumb_path)
+    ]
+  end
+
+  defp drop_prepared_paths(metadata) do
+    metadata
+    |> Map.delete(:prepared_upload)
+    |> Map.delete(:staged_path)
+    |> Map.delete(:staged_thumb_path)
+    |> Map.delete(:source_upload_path)
   end
 
   defp refresh_stored_metadata(path, metadata, config) do

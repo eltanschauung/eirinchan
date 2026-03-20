@@ -3,9 +3,29 @@ defmodule Eirinchan.Posts.UploadPreparation do
 
   alias Eirinchan.Uploads
 
-  def prepare_uploads(attrs, config) do
+  def prepare_uploads(attrs, config, _opts \\ []) do
     prepare_file_uploads(attrs, config)
+    |> case do
+      {:ok, prepared_attrs} ->
+        {:ok, prepared_attrs}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
+
+  def cleanup_uploads(attrs) when is_map(attrs) do
+    attrs
+    |> Map.get("__upload_entries__", [])
+    |> Enum.each(fn
+      %{metadata: metadata} -> Uploads.cleanup_prepared(metadata)
+      _ -> :ok
+    end)
+
+    :ok
+  end
+
+  def cleanup_uploads(_attrs), do: :ok
 
   def normalize_embed(attrs, %{enable_embedding: false}) do
     {:ok, Map.put(attrs, "embed", nil)}
@@ -26,20 +46,26 @@ defmodule Eirinchan.Posts.UploadPreparation do
   end
 
   defp prepare_file_uploads(attrs, config) do
+    op? = is_nil(trim_to_nil(Map.get(attrs, "thread")))
+
     with {:ok, attrs, uploads} <- maybe_add_remote_upload(attrs, config) do
       case Enum.reduce_while(uploads, {:ok, []}, fn upload, {:ok, entries} ->
-             case Uploads.describe(upload, config) do
+             case Uploads.prepare(upload, config, op?: op?) do
                {:ok, metadata} ->
-                 {:cont, {:ok, entries ++ [%{upload: upload, metadata: metadata}]}}
+                 {:cont, {:ok, [%{upload: upload, metadata: metadata} | entries]}}
 
                {:error, reason} ->
+                 Enum.each(entries, fn entry -> Uploads.cleanup_prepared(entry.metadata) end)
                  {:halt, {:error, reason}}
              end
            end) do
         {:ok, []} ->
           {:ok, attrs |> Map.put("file", nil) |> Map.put("__upload_entries__", [])}
 
-        {:ok, [primary | _] = entries} ->
+        {:ok, entries} ->
+          entries = Enum.reverse(entries)
+          [primary | _] = entries
+
           {:ok,
            attrs
            |> Map.put("file", primary.upload)
