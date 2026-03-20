@@ -1,6 +1,7 @@
 defmodule EirinchanWeb.PublicPostEditControllerTest do
   use EirinchanWeb.ConnCase, async: true
 
+  alias Eirinchan.PostOwnership
   alias Eirinchan.Posts
   alias Eirinchan.Posts.PublicIds
 
@@ -45,9 +46,12 @@ defmodule EirinchanWeb.PublicPostEditControllerTest do
     board = board_fixture()
     thread = thread_fixture(board)
     reply = reply_fixture(board, thread, %{password: "editpw", body: "editable body"})
+    token = "token-#{System.unique_integer([:positive])}1234567890"
+    assert {:ok, _} = PostOwnership.record(token, reply.id)
 
     conn =
       conn
+      |> put_req_cookie("browser_token", token)
       |> patch("/#{board.uri}/edit/#{PublicIds.public_id(reply)}", %{
         "name" => "editor",
         "subject" => "updated",
@@ -62,6 +66,25 @@ defmodule EirinchanWeb.PublicPostEditControllerTest do
     assert updated_reply.name == "editor"
     assert updated_reply.subject == "updated"
     assert updated_reply.body == "updated body"
+  end
+
+  test "public edit rejects matching password for posts not owned by this browser", %{conn: conn} do
+    board = board_fixture()
+    thread = thread_fixture(board)
+    reply = reply_fixture(board, thread, %{password: "editpw", body: "editable body"})
+
+    page =
+      conn
+      |> patch("/#{board.uri}/edit/#{PublicIds.public_id(reply)}", %{
+        "body" => "hijacked body",
+        "password" => "editpw"
+      })
+      |> html_response(422)
+
+    assert page =~ "Incorrect password."
+
+    {:ok, unchanged_reply} = Posts.get_post(board, PublicIds.public_id(reply))
+    assert unchanged_reply.body == "editable body"
   end
 
   test "public edit rejects an incorrect password", %{conn: conn} do

@@ -85,7 +85,11 @@
             <%= if @admin_override? do %>
               Optional for administrators.
             <% else %>
-              Must match the post password.
+              <%= if @own_post? do %>
+                Must match the post password.
+              <% else %>
+                You can only edit posts made from this browser and the password must match.
+              <% end %>
             <% end %>
           </span>
         </td>

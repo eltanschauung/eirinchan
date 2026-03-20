@@ -26,6 +26,7 @@ defmodule EirinchanWeb.PublicPostEditController do
     board = conn.assigns.current_board
     config = conn.assigns.current_board_config
     moderator = edit_override_moderator(conn.assigns[:current_moderator], board)
+    browser_token = conn.assigns[:browser_token]
 
     request = %{
       remote_ip: RequestMeta.effective_remote_ip(conn),
@@ -36,7 +37,12 @@ defmodule EirinchanWeb.PublicPostEditController do
 
     with :ok <- Antispam.check_public_action(board, :edit, params, request, config),
          :ok <- maybe_log_edit_attempt(board, params, request, moderator),
-         {:ok, post} <- Posts.edit_post(board, post_id, params, config: config, moderator: moderator) do
+         {:ok, post} <-
+           Posts.edit_post(board, post_id, params,
+             config: config,
+             moderator: moderator,
+             browser_token: browser_token
+           ) do
       redirect(conn, to: return_path(board, post, config))
     else
       {:error, :invalid_password} ->
@@ -106,6 +112,14 @@ defmodule EirinchanWeb.PublicPostEditController do
         body: Map.get(form_params, "body", post.body),
         password: Map.get(form_params, "password", "")
       },
+      own_post?:
+        case conn.assigns[:browser_token] do
+          token when is_binary(token) ->
+            MapSet.member?(Eirinchan.PostOwnership.owned_post_ids(token, [post.id]), post.id)
+
+          _ ->
+            false
+        end,
       return_path: return_path(board, post, config),
       admin_override?: !is_nil(edit_override_moderator(conn.assigns[:current_moderator], board))
     )

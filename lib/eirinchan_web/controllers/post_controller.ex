@@ -59,7 +59,12 @@ defmodule EirinchanWeb.PostController do
         with :ok <- Antispam.check_public_action(board, :delete, params, request, config) do
           delete_action =
             if delete_file_only do
-              Posts.delete_post_files(board, params["delete_post_id"], config: config)
+              Posts.public_delete_post_files(
+                board,
+                params["delete_post_id"],
+                params["password"],
+                config: config
+              )
             else
               Posts.delete_post(board, params["delete_post_id"], params["password"], config: config)
             end
