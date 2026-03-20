@@ -67,51 +67,55 @@ defmodule Eirinchan.Posts do
     config = Keyword.get(opts, :config, Config.compose())
     request = Keyword.get(opts, :request, %{})
     attrs = normalize_attrs(attrs)
+    thread_param = blank_to_nil(Map.get(attrs, "thread"))
+    op? = is_nil(thread_param)
 
     with {:ok, attrs} <- PostsUploadPreparation.normalize_embed(attrs, config),
-         {:ok, attrs} <- PostsUploadPreparation.prepare_uploads(attrs, config) do
-      thread_param = blank_to_nil(Map.get(attrs, "thread"))
-      op? = is_nil(thread_param)
+         {:ok, attrs} <- PostsUploadPreparation.prepare_uploads(attrs, config, op?: op?) do
       now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
 
-      with :ok <- PostsRequestGuards.validate_post_button(op?, attrs, config),
-           :ok <- PostsRequestGuards.validate_referer(request, config, board),
-           :ok <- PostsRequestGuards.validate_hidden_input(attrs, config, request, board),
-           :ok <-
-             PostsRequestGuards.validate_antispam_question(
-               op?,
-               attrs,
-               config,
-               request,
-               board
-             ),
-           :ok <- PostsRequestGuards.validate_captcha(attrs, config, request, board, op?),
-           :ok <- PostsRequestGuards.validate_ipaccess(attrs, request, config, board),
-           :ok <- PostsRequestGuards.validate_dnsbl(attrs, request, config),
-           :ok <- PostsRequestGuards.validate_ban(request, board),
-           :ok <- PostsRequestGuards.validate_board_lock(config, request, board),
-           {:ok, thread} <- PostsThreadLookup.fetch_thread(board, thread_param, repo),
-           :ok <- PostsRequestGuards.validate_thread_lock(thread, request, board),
-           {:ok, attrs} <- normalize_post_metadata(attrs, config, request, op?),
-           :ok <- Antispam.check_post(board, attrs, request, config, repo: repo),
-           :ok <- PostsValidation.validate_body(op?, attrs, config),
-           :ok <- PostsValidation.validate_body_limits(attrs, config),
-           :ok <- PostsValidation.validate_upload(op?, attrs, config, request),
-           :ok <- PostsValidation.validate_image_dimensions(attrs, config),
-           :ok <- PostsValidation.validate_reply_limit(board, thread, config, repo),
-           :ok <- PostsValidation.validate_image_limit(board, thread, attrs, config, repo),
-           :ok <- PostsValidation.validate_duplicate_upload(board, thread, attrs, config, repo),
-           {:ok, post} <-
-             PostsPersistence.create_post_record(board, thread, attrs, repo, config, now, fn ->
-               maybe_bump_thread(thread, attrs, config, repo, now)
-               maybe_cycle_thread(board, thread, config, repo)
-               :ok
-             end) do
-        _ = maybe_prune_threads(board, post, config, repo)
-        _ = Antispam.log_post(board, attrs, request, repo: repo)
-        _ = Build.rebuild_after_post(board, post, config: config, repo: repo)
-        {:ok, post, %{noko: false}}
-      end
+      result =
+        with :ok <- PostsRequestGuards.validate_post_button(op?, attrs, config),
+             :ok <- PostsRequestGuards.validate_referer(request, config, board),
+             :ok <- PostsRequestGuards.validate_hidden_input(attrs, config, request, board),
+             :ok <-
+               PostsRequestGuards.validate_antispam_question(
+                 op?,
+                 attrs,
+                 config,
+                 request,
+                 board
+               ),
+             :ok <- PostsRequestGuards.validate_captcha(attrs, config, request, board, op?),
+             :ok <- PostsRequestGuards.validate_ipaccess(attrs, request, config, board),
+             :ok <- PostsRequestGuards.validate_dnsbl(attrs, request, config),
+             :ok <- PostsRequestGuards.validate_ban(request, board),
+             :ok <- PostsRequestGuards.validate_board_lock(config, request, board),
+             {:ok, thread} <- PostsThreadLookup.fetch_thread(board, thread_param, repo),
+             :ok <- PostsRequestGuards.validate_thread_lock(thread, request, board),
+             {:ok, attrs} <- normalize_post_metadata(attrs, config, request, op?),
+             :ok <- Antispam.check_post(board, attrs, request, config, repo: repo),
+             :ok <- PostsValidation.validate_body(op?, attrs, config),
+             :ok <- PostsValidation.validate_body_limits(attrs, config),
+             :ok <- PostsValidation.validate_upload(op?, attrs, config, request),
+             :ok <- PostsValidation.validate_image_dimensions(attrs, config),
+             :ok <- PostsValidation.validate_reply_limit(board, thread, config, repo),
+             :ok <- PostsValidation.validate_image_limit(board, thread, attrs, config, repo),
+             :ok <- PostsValidation.validate_duplicate_upload(board, thread, attrs, config, repo),
+             {:ok, post} <-
+               PostsPersistence.create_post_record(board, thread, attrs, repo, config, now, fn ->
+                 maybe_bump_thread(thread, attrs, config, repo, now)
+                 maybe_cycle_thread(board, thread, config, repo)
+                 :ok
+               end) do
+          _ = maybe_prune_threads(board, post, config, repo)
+          _ = Antispam.log_post(board, attrs, request, repo: repo)
+          _ = Build.rebuild_after_post(board, post, config: config, repo: repo)
+          {:ok, post, %{noko: false}}
+        end
+
+      _ = PostsUploadPreparation.cleanup_uploads(attrs)
+      result
     end
   end
 

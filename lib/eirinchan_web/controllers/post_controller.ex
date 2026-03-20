@@ -170,8 +170,8 @@ defmodule EirinchanWeb.PostController do
 
       payload =
         if post.thread_id do
-          case Posts.get_thread_by_internal_id(board, thread_id) do
-            {:ok, [thread | _]} ->
+          case Posts.get_post_by_internal_id(board, thread_id) do
+            {:ok, thread} ->
               owned_post_ids = ajax_reply_owned_post_ids(conn, board, post)
 
               Map.put(
@@ -218,12 +218,9 @@ defmodule EirinchanWeb.PostController do
         |> quoted_post_ids()
 
       quoted_posts =
-        Enum.flat_map(quoted_public_ids, fn public_id ->
-          case Posts.get_post(board, public_id) do
-            {:ok, quoted_post} -> [quoted_post]
-            _ -> []
-          end
-        end)
+        board
+        |> Posts.public_posts_map(quoted_public_ids)
+        |> Map.values()
 
       ShowYous.owned_post_ids(conn, quoted_posts ++ [post])
     else
@@ -281,8 +278,8 @@ defmodule EirinchanWeb.PostController do
   end
 
   defp thread_redirect_path(board, _post, thread_id, config) do
-    case Posts.get_thread_by_internal_id(board, thread_id) do
-      {:ok, [thread | _]} -> ThreadPaths.thread_path(board, thread, config)
+    case Posts.get_post_by_internal_id(board, thread_id) do
+      {:ok, thread} -> ThreadPaths.thread_path(board, thread, config)
       {:error, :not_found} -> "/#{board.uri}/res/#{public_thread_id(board, thread_id)}.html"
     end
   end
