@@ -1,0 +1,97 @@
+<.board_banner />
+
+<header>
+  <h1><%= EirinchanWeb.PostView.board_heading(@board) %></h1>
+  <div class="subtitle">Edit post</div>
+  <.admin_shortcuts moderator={@current_moderator} />
+</header>
+
+<%= if @global_message_html && @global_message_html != "" do %>
+  <%= raw(@global_message_html) %>
+<% end %>
+
+<div class="banner">
+  Editing post No. <%= EirinchanWeb.PostView.public_post_id(@post) %>
+  <a class="unimportant" href={@return_path}>[Return]</a>
+</div>
+
+<div class="post-form">
+  <h2 :if={@error} class="error"><%= @error %></h2>
+
+  <form action={~p"/#{@board.uri}/edit/#{EirinchanWeb.PostView.public_post_id(@post)}"} method="post">
+    <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+    <input type="hidden" name="_method" value="patch" />
+
+    <table>
+      <tr>
+        <th>Name</th>
+        <td>
+          <input
+            type="text"
+            name="name"
+            size="25"
+            maxlength="35"
+            autocomplete="off"
+            value={@form.name}
+          />
+        </td>
+      </tr>
+      <tr>
+        <th>Email</th>
+        <td>
+          <input
+            type="text"
+            name="email"
+            size="25"
+            maxlength="40"
+            autocomplete="off"
+            value={@form.email}
+          />
+        </td>
+      </tr>
+      <tr>
+        <th>Subject</th>
+        <td>
+          <input
+            style="float:left;"
+            type="text"
+            name="subject"
+            size="25"
+            maxlength="100"
+            autocomplete="off"
+            value={@form.subject}
+          />
+          <input accesskey="s" style="margin-left:2px;" type="submit" name="post" value="Update" />
+        </td>
+      </tr>
+      <tr>
+        <th>Comment</th>
+        <td>
+          <textarea name="body" id="body" rows="8" cols="35"><%= @form.body %></textarea>
+        </td>
+      </tr>
+      <tr>
+        <th>Password</th>
+        <td>
+          <input
+            type="password"
+            name="password"
+            size="18"
+            maxlength="18"
+            autocomplete="off"
+            value={@form.password}
+          />
+          <span class="unimportant">
+            <%= if @admin_override? do %>
+              Optional for administrators.
+            <% else %>
+              Must match the post password.
+            <% end %>
+          </span>
+        </td>
+      </tr>
+    </table>
+  </form>
+</div>
+
+<EirinchanWeb.PostComponents.site_footer />

@@ -10,8 +10,8 @@
   <%= raw(@board_chrome.top_news_html) %>
 <% end %>
 
-<%= if @global_message && @global_message != "" do %>
-  <div class="blotter"><%= raw(@global_message) %></div>
+<%= if @global_message_html && @global_message_html != "" do %>
+  <%= raw(@global_message_html) %>
 <% end %>
 
 <form class="search-form compact-search" action={~p"/search"} method="get">
