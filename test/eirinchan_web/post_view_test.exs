@@ -232,3 +232,50 @@ defmodule EirinchanWeb.PostViewTest do
     assert html =~ "Line two"
   end
 end
+
+defmodule EirinchanWeb.PostViewQuoteTest do
+  use Eirinchan.DataCase, async: true
+
+  alias Eirinchan.Posts.PublicIds
+  alias Eirinchan.Runtime.Config
+  alias Eirinchan.ThreadPaths
+  alias EirinchanWeb.PostView
+
+  test "body_html resolves local cross-thread quote links to the cited thread" do
+    board = board_fixture(%{config_overrides: %{slugify: true}})
+    target_thread = thread_fixture(board, %{subject: "Cross target thread"})
+    target_reply = reply_fixture(board, target_thread, %{body: "Target reply"})
+    current_thread = thread_fixture(board, %{subject: "Current thread"})
+
+    html =
+      PostView.body_html(
+        %Eirinchan.Posts.Post{body: ">>#{PublicIds.public_id(target_reply)}"},
+        board,
+        current_thread,
+        Config.compose(nil, %{}, board.config_overrides)
+      )
+
+    expected_href =
+      ThreadPaths.thread_path(board, target_thread, Config.compose(nil, %{}, board.config_overrides)) <>
+        "##{PublicIds.public_id(target_reply)}"
+
+    assert html =~ ~s(data-highlight-reply="#{PublicIds.public_id(target_reply)}")
+    assert html =~ ~s(href="#{expected_href}")
+    assert html =~ ~s|<small>(Cross-Thread)</small>|
+  end
+
+  test "body_html leaves missing local quote ids as plain text" do
+    board = board_fixture()
+    thread = thread_fixture(board)
+
+    html =
+      PostView.body_html(
+        %Eirinchan.Posts.Post{body: ">>999999"},
+        board,
+        thread,
+        Config.compose(nil, %{}, board.config_overrides)
+      )
+
+    assert html == "&gt;&gt;999999"
+  end
+end
