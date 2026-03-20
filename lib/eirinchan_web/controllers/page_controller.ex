@@ -9,7 +9,7 @@ defmodule EirinchanWeb.PageController do
   alias Eirinchan.FaqPage
   alias Eirinchan.FormattingPage
   alias Eirinchan.Installation
-  alias Eirinchan.News
+  alias Eirinchan.NewsBlotter
   alias Eirinchan.Posts
   alias Eirinchan.RulesPage
   alias Eirinchan.Stats
@@ -33,13 +33,15 @@ defmodule EirinchanWeb.PageController do
       if Themes.page_theme_enabled?("recent") do
         render_recent_theme(conn, "index")
       else
+        config = Settings.current_instance_config()
+
         render(
           conn,
           :home,
           Keyword.merge(
-            public_page_assigns(conn, "active-page", "index"),
+            public_page_assigns(conn, "active-page", "index", include_global_message: false),
             layout: false,
-            news_entries: News.list_entries(limit: 5)
+            news_entries: NewsBlotter.entries(config, limit: 5)
           )
         )
       end
@@ -50,13 +52,15 @@ defmodule EirinchanWeb.PageController do
     if Installation.setup_required?() do
       redirect(conn, to: ~p"/setup")
     else
+      config = Settings.current_instance_config()
+
       render(
         conn,
         :news,
         Keyword.merge(
-          public_page_assigns(conn, "active-page", "news"),
+          public_page_assigns(conn, "active-page", "news", include_global_message: false),
           layout: false,
-          news_entries: News.list_entries()
+          news_entries: NewsBlotter.entries(config, limit: 100)
         )
       )
     end
@@ -329,10 +333,16 @@ defmodule EirinchanWeb.PageController do
     end
   end
 
-  defp public_page_assigns(conn, page_kind, active_page) do
+  defp public_page_assigns(conn, page_kind, active_page, opts \\ []) do
     boards = Boards.list_boards()
     primary_board = Enum.find(boards, &(&1.uri == "bant")) || %{uri: "bant"}
     chrome = BoardChrome.for_board(primary_board)
+    global_message_html =
+      if Keyword.get(opts, :include_global_message, true) do
+        current_global_message_html(boards)
+      else
+        nil
+      end
 
     %{
       watcher_count: watcher_count,
@@ -344,7 +354,7 @@ defmodule EirinchanWeb.PageController do
       boards: boards,
       primary_board: primary_board,
       board_chrome: chrome,
-      global_message_html: current_global_message_html(boards),
+      global_message_html: global_message_html,
       custom_pages: CustomPages.list_pages(),
       global_boardlist_groups: PostView.boardlist_groups(boards),
       public_shell: true,

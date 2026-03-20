@@ -5,13 +5,31 @@ defmodule Eirinchan.NewsBlotter do
 
   alias EirinchanWeb.HtmlSanitizer
 
-  def entries(config) when is_map(config) do
+  def entries(config, opts \\ []) when is_map(config) do
+    limit = Keyword.get(opts, :limit, entry_limit(config))
+
     config
     |> Map.get(:news_blotter_entries, Map.get(config, "news_blotter_entries", []))
     |> List.wrap()
     |> Enum.map(&normalize_entry/1)
     |> Enum.filter(& &1)
-    |> apply_limit(Map.get(config, :news_blotter_limit, Map.get(config, "news_blotter_limit", 100)))
+    |> apply_limit(limit)
+  end
+
+  def preview_entries(config) when is_map(config) do
+    entries(config, limit: preview_limit(config))
+  end
+
+  def preview_limit(config) when is_map(config) do
+    config
+    |> Map.get(:news_maxentries, Map.get(config, "news_maxentries", 10))
+    |> normalize_positive_limit(10)
+  end
+
+  def entry_limit(config) when is_map(config) do
+    config
+    |> Map.get(:news_blotter_limit, Map.get(config, "news_blotter_limit", 100))
+    |> normalize_positive_limit(100)
   end
 
   def button_label(config) when is_map(config) do
@@ -29,7 +47,7 @@ defmodule Eirinchan.NewsBlotter do
   end
 
   def render_html(config) when is_map(config) do
-    entries = entries(config)
+    entries = preview_entries(config)
 
     case entries do
       [] ->
@@ -61,11 +79,16 @@ defmodule Eirinchan.NewsBlotter do
             <h1 style=\"font-size: 16pt; letter-spacing: -1px;\">PSA Blotter</h1>
             <table class=\"subtitle\" style=\"font-size: 8pt; color: maroon;\">#{rows}</table>
             <hr style=\"width: 100%; max-width: 500px;\">
+            <a href=\"/news\" class=\"unimportant2\">View All News</a>
           </div>
         </div>
         """
         |> String.trim()
     end
+  end
+
+  def render_message_html(message) when is_binary(message) do
+    HtmlSanitizer.sanitize_fragment(message)
   end
 
   defp normalize_entry(%{"date" => date, "message" => message}) do
@@ -99,6 +122,17 @@ defmodule Eirinchan.NewsBlotter do
   end
 
   defp apply_limit(entries, _limit), do: entries
+
+  defp normalize_positive_limit(value, _default) when is_integer(value) and value > 0, do: value
+
+  defp normalize_positive_limit(value, default) when is_binary(value) do
+    case Integer.parse(String.trim(value)) do
+      {parsed, ""} when parsed > 0 -> parsed
+      _ -> default
+    end
+  end
+
+  defp normalize_positive_limit(_, default), do: default
 
   defp escape(value) do
     value

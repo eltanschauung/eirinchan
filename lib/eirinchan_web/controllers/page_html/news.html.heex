@@ -4,22 +4,21 @@
   <.admin_shortcuts moderator={@current_moderator} />
 </header>
 
-<%= if @global_message_html && @global_message_html != "" do %>
-  <%= raw(@global_message_html) %>
-<% end %>
-
 <section class="public-panel">
   <%= if @news_entries == [] do %>
     <p>No news entries yet.</p>
   <% else %>
-    <%= for entry <- @news_entries do %>
-      <article class="news-entry">
-        <h2><%= entry.title %></h2>
-        <p><%= entry.body %></p>
-        <p :if={entry.mod_user} class="unimportant">Posted by <%= entry.mod_user.username %></p>
-      </article>
-      <hr />
-    <% end %>
+    <div class="news-blotter" style="width: 100%; max-width: 600px; margin: 0 auto; display: block;">
+      <h1 style="font-size: 16pt; letter-spacing: -1px;">PSA Blotter</h1>
+      <table class="subtitle" style="font-size: 8pt; color: maroon;">
+        <%= for entry <- @news_entries do %>
+          <tr>
+            <td><%= entry.date %></td>
+            <td><%= raw(Eirinchan.NewsBlotter.render_message_html(entry.message)) %></td>
+          </tr>
+        <% end %>
+      </table>
+    </div>
   <% end %>
 </section>
 

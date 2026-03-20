@@ -10,10 +10,6 @@
   <%= raw(@board_chrome.top_news_html) %>
 <% end %>
 
-<%= if @global_message_html && @global_message_html != "" do %>
-  <%= raw(@global_message_html) %>
-<% end %>
-
 <form class="search-form compact-search" action={~p"/search"} method="get">
   <p>
     <input type="text" name="q" placeholder="Search posts" />
@@ -30,8 +26,8 @@
   <% else %>
     <%= for entry <- @news_entries do %>
       <article class="news-entry">
-        <h3><%= entry.title %></h3>
-        <p><%= entry.body %></p>
+        <h3><%= entry.date %></h3>
+        <p><%= raw(Eirinchan.NewsBlotter.render_message_html(entry.message)) %></p>
       </article>
     <% end %>
   <% end %>
