@@ -13,19 +13,19 @@ defmodule Eirinchan.Uploads do
   def describe(%Plug.Upload{} = upload, config) do
     normalized_name = normalized_input_filename(upload.filename)
 
-    with {:ok, binary} <- File.read(upload.path) do
+    with {:ok, digest} <- file_digest_metadata(upload.path) do
       ext = normalized_name |> Path.extname() |> String.downcase()
       file_type = detect_mime_type(upload.path, normalized_name)
       normalized_ext = normalized_media_extension(ext, file_type)
       media_metadata = maybe_media_metadata(upload.path, file_type, normalized_ext, config)
 
       metadata = %{
-        binary: binary,
+        binary: digest.prefix,
         ext: normalized_ext,
         file_name: normalized_filename(normalized_name, config),
-        file_size: byte_size(binary),
+        file_size: digest.size,
         file_type: file_type,
-        file_md5: :crypto.hash(:md5, binary) |> Base.encode64(),
+        file_md5: digest.md5,
         image_width: media_metadata.width,
         image_height: media_metadata.height,
         spoiler: false
@@ -326,7 +326,7 @@ defmodule Eirinchan.Uploads do
   end
 
   defp describe_without_normalizing(%Plug.Upload{} = upload, normalized_name, config) do
-    with {:ok, binary} <- File.read(upload.path) do
+    with {:ok, digest} <- file_digest_metadata(upload.path) do
       ext = normalized_name |> Path.extname() |> String.downcase()
       file_type = detect_mime_type(upload.path, normalized_name)
       normalized_ext = normalized_media_extension(ext, file_type)
@@ -334,12 +334,12 @@ defmodule Eirinchan.Uploads do
 
       {:ok,
        %{
-         binary: binary,
+         binary: digest.prefix,
          ext: normalized_ext,
          file_name: normalized_filename(normalized_name, config),
-         file_size: byte_size(binary),
+         file_size: digest.size,
          file_type: file_type,
-         file_md5: :crypto.hash(:md5, binary) |> Base.encode64(),
+         file_md5: digest.md5,
          image_width: media_metadata.width,
          image_height: media_metadata.height,
          spoiler: false
@@ -767,23 +767,56 @@ defmodule Eirinchan.Uploads do
   end
 
   defp refresh_stored_metadata(path, metadata, config) do
-    with {:ok, binary} <- File.read(path) do
+    with {:ok, digest} <- file_digest_metadata(path) do
       file_type = detect_mime_type(path, metadata.file_name)
       normalized_ext = normalized_media_extension(metadata.ext, file_type)
       media_metadata = maybe_media_metadata(path, file_type, normalized_ext, config)
 
       {:ok,
        metadata
-       |> Map.put(:binary, binary)
+       |> Map.put(:binary, digest.prefix)
        |> Map.put(:ext, normalized_ext)
-       |> Map.put(:file_size, byte_size(binary))
+       |> Map.put(:file_size, digest.size)
        |> Map.put(:file_type, file_type)
-       |> Map.put(:file_md5, :crypto.hash(:md5, binary) |> Base.encode64())
+       |> Map.put(:file_md5, digest.md5)
        |> Map.put(:image_width, media_metadata.width)
        |> Map.put(:image_height, media_metadata.height)}
     else
       {:error, _reason} -> {:error, :upload_failed}
     end
+  end
+
+  defp file_digest_metadata(path) do
+    max_prefix = 255
+
+    digest =
+      path
+      |> File.stream!([], 64 * 1024)
+      |> Enum.reduce(%{hash: :crypto.hash_init(:md5), size: 0, prefix: []}, fn chunk, acc ->
+        prefix =
+          if IO.iodata_length(acc.prefix) >= max_prefix do
+            acc.prefix
+          else
+            remaining = max_prefix - IO.iodata_length(acc.prefix)
+            [acc.prefix | binary_part(chunk, 0, min(byte_size(chunk), remaining))]
+          end
+
+        %{
+          hash: :crypto.hash_update(acc.hash, chunk),
+          size: acc.size + byte_size(chunk),
+          prefix: prefix
+        }
+      end)
+
+    {:ok,
+     %{
+       size: digest.size,
+       md5: digest.hash |> :crypto.hash_final() |> Base.encode64(),
+       prefix: IO.iodata_to_binary(digest.prefix)
+     }}
+  rescue
+    _error ->
+      {:error, :upload_failed}
   end
 
   defp image_metadata(path) do
