@@ -392,40 +392,6 @@ $(window).ready(function() {
 				}
 			};
 
-			var insertReplyMarkup = function(post_response) {
-				if (!post_response || !post_response.html) {
-					return $('div.post#reply_' + post_response.id).first();
-				}
-
-				var $reply = $('div.post#reply_' + post_response.id).first();
-				if ($reply.length) {
-					return $reply;
-				}
-
-				var $newReply = $(post_response.html);
-				var $container = $('#thread-refresh-target');
-
-				if ($container.length) {
-					var $lastReply = $container.children('div.post.reply:last');
-					var $clearBreak = $lastReply.next('br.clear');
-
-					if ($clearBreak.length) {
-						$clearBreak.after($newReply);
-					} else if ($lastReply.length) {
-						$lastReply.after($newReply);
-					} else {
-						$container.append($newReply);
-					}
-				} else {
-					var $thread = $('div.thread').first();
-					if ($thread.length) {
-						$thread.append($newReply);
-					}
-				}
-
-				return $('div.post#reply_' + post_response.id).first();
-			};
-
 
 			var clearReplyFields = function() {
 				$(form).find('input[name="subject"],input[name="file_url"],input[name="embed"],\
@@ -482,7 +448,31 @@ $(window).ready(function() {
 					} else if (post_response.redirect && post_response.id) {
 						if (is_reply_form) {
 							$submit.val(_('Posted...'));
-							var $reply = insertReplyMarkup(post_response);
+							var $reply = $('div.post#reply_' + post_response.id).first();
+
+							if (post_response.html && !$reply.length) {
+								var $newReply = $(post_response.html);
+								var $lastPost = $('div.thread > div.post.reply:last');
+
+								if ($lastPost.length) {
+									var $after = $lastPost.nextAll('br.clear:first');
+									if ($after.length) {
+										$after.after($newReply);
+									} else {
+										$lastPost.after($newReply);
+									}
+								} else {
+									var $op = $('div.thread > div.post.op, div.thread > div.op').first();
+									var $afterOp = $op.nextAll('br.clear:first');
+									if ($afterOp.length) {
+										$afterOp.after($newReply);
+									} else {
+										$op.after($newReply);
+									}
+								}
+
+								$reply = $('div.post#reply_' + post_response.id).first();
+							}
 
 							if ($reply.length) {
 								var anchor = document.getElementById(String(post_response.id)) || $reply[0];
@@ -4275,34 +4265,13 @@ Menu.onclick(function(e, $buf) {
 			}
 
 			if (passwordValue.length) {
-				$form.find('input[name="delete"]').trigger('focus');
+				$form.find('input[name="delete"]').trigger('click');
 			} else {
 				$password.trigger('focus');
 			}
 		});
 	});
 }
-
-Menu.add_item("edit_post_menu", _("Edit"));
-Menu.onclick(function(e, $buf) {
-	var ele = e.target.dataset.postTarget ? document.getElementById(e.target.dataset.postTarget) : $(e.target).closest('.post')[0];
-	var $ele = $(ele);
-	var postId = $ele.find('.post_no').not('[id]').text();
-	var $thread = $ele.closest('.thread');
-	var boardUri = $thread.data('boardUri') || $thread.data('board');
-	var isModerator = /\bis-moderator\b/.test(document.body.className || '');
-	var isOwnPost = $ele.find('.own_post').length > 0;
-
-	if (!boardUri || !postId || (!isModerator && !isOwnPost)) {
-		$buf.find('#edit_post_menu').addClass('hidden');
-		return;
-	}
-
-	$buf.find('#edit_post_menu').off('click').on('click', function(evt) {
-		evt.preventDefault();
-		window.location.href = '/' + boardUri + '/edit/' + postId;
-	});
-});
 
 Menu.add_item("report_menu", _("Report"));
 //Menu.add_item("global_report_menu", _("Global report"));
