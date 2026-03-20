@@ -25,7 +25,10 @@ defmodule Eirinchan.Posts do
   alias Eirinchan.Repo
   alias Eirinchan.Runtime.Config
   alias Eirinchan.Uploads
+  alias Eirinchan.LogSystem
   alias Eirinchan.ModerationLog
+
+  @slow_post_log_ms 750
 
   @spec create_post(BoardRecord.t(), map(), keyword()) ::
           {:ok, Post.t(), map()}
@@ -69,53 +72,99 @@ defmodule Eirinchan.Posts do
     attrs = normalize_attrs(attrs)
     thread_param = blank_to_nil(Map.get(attrs, "thread"))
     op? = is_nil(thread_param)
+    total_started_at = System.monotonic_time(:microsecond)
 
-    with {:ok, attrs} <- PostsUploadPreparation.normalize_embed(attrs, config),
-         {:ok, attrs} <- PostsUploadPreparation.prepare_uploads(attrs, config, op?: op?) do
-      now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
+    with {:ok, attrs} <- PostsUploadPreparation.normalize_embed(attrs, config) do
+      {prepare_us, prepare_result} =
+        timed(fn -> PostsUploadPreparation.prepare_uploads(attrs, config, op?: op?) end)
 
-      result =
-        with :ok <- PostsRequestGuards.validate_post_button(op?, attrs, config),
-             :ok <- PostsRequestGuards.validate_referer(request, config, board),
-             :ok <- PostsRequestGuards.validate_hidden_input(attrs, config, request, board),
-             :ok <-
-               PostsRequestGuards.validate_antispam_question(
-                 op?,
-                 attrs,
-                 config,
-                 request,
-                 board
-               ),
-             :ok <- PostsRequestGuards.validate_captcha(attrs, config, request, board, op?),
-             :ok <- PostsRequestGuards.validate_ipaccess(attrs, request, config, board),
-             :ok <- PostsRequestGuards.validate_dnsbl(attrs, request, config),
-             :ok <- PostsRequestGuards.validate_ban(request, board),
-             :ok <- PostsRequestGuards.validate_board_lock(config, request, board),
-             {:ok, thread} <- PostsThreadLookup.fetch_thread(board, thread_param, repo),
-             :ok <- PostsRequestGuards.validate_thread_lock(thread, request, board),
-             {:ok, attrs} <- normalize_post_metadata(attrs, config, request, op?),
-             :ok <- Antispam.check_post(board, attrs, request, config, repo: repo),
-             :ok <- PostsValidation.validate_body(op?, attrs, config),
-             :ok <- PostsValidation.validate_body_limits(attrs, config),
-             :ok <- PostsValidation.validate_upload(op?, attrs, config, request),
-             :ok <- PostsValidation.validate_image_dimensions(attrs, config),
-             :ok <- PostsValidation.validate_reply_limit(board, thread, config, repo),
-             :ok <- PostsValidation.validate_image_limit(board, thread, attrs, config, repo),
-             :ok <- PostsValidation.validate_duplicate_upload(board, thread, attrs, config, repo),
-             {:ok, post} <-
-               PostsPersistence.create_post_record(board, thread, attrs, repo, config, now, fn ->
-                 maybe_bump_thread(thread, attrs, config, repo, now)
-                 maybe_cycle_thread(board, thread, config, repo)
-                 :ok
-               end) do
-          _ = maybe_prune_threads(board, post, config, repo)
-          _ = Antispam.log_post(board, attrs, request, repo: repo)
-          _ = Build.rebuild_after_post(board, post, config: config, repo: repo)
-          {:ok, post, %{noko: false}}
-        end
+      case prepare_result do
+        {:ok, attrs} ->
+          now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
+          validation_started_at = System.monotonic_time(:microsecond)
 
-      _ = PostsUploadPreparation.cleanup_uploads(attrs)
-      result
+          result =
+            with :ok <- PostsRequestGuards.validate_post_button(op?, attrs, config),
+                 :ok <- PostsRequestGuards.validate_referer(request, config, board),
+                 :ok <- PostsRequestGuards.validate_hidden_input(attrs, config, request, board),
+                 :ok <-
+                   PostsRequestGuards.validate_antispam_question(
+                     op?,
+                     attrs,
+                     config,
+                     request,
+                     board
+                   ),
+                 :ok <- PostsRequestGuards.validate_captcha(attrs, config, request, board, op?),
+                 :ok <- PostsRequestGuards.validate_ipaccess(attrs, request, config, board),
+                 :ok <- PostsRequestGuards.validate_dnsbl(attrs, request, config),
+                 :ok <- PostsRequestGuards.validate_ban(request, board),
+                 :ok <- PostsRequestGuards.validate_board_lock(config, request, board),
+                 {:ok, thread} <- PostsThreadLookup.fetch_thread(board, thread_param, repo),
+                 :ok <- PostsRequestGuards.validate_thread_lock(thread, request, board),
+                 {:ok, attrs} <- normalize_post_metadata(attrs, config, request, op?),
+                 :ok <- Antispam.check_post(board, attrs, request, config, repo: repo),
+                 :ok <- PostsValidation.validate_body(op?, attrs, config),
+                 :ok <- PostsValidation.validate_body_limits(attrs, config),
+                 :ok <- PostsValidation.validate_upload(op?, attrs, config, request),
+                 :ok <- PostsValidation.validate_image_dimensions(attrs, config),
+                 :ok <- PostsValidation.validate_reply_limit(board, thread, config, repo),
+                 :ok <- PostsValidation.validate_image_limit(board, thread, attrs, config, repo),
+                 :ok <- PostsValidation.validate_duplicate_upload(board, thread, attrs, config, repo) do
+              {persistence_us, persistence_result} =
+                timed(fn ->
+                  PostsPersistence.create_post_record(board, thread, attrs, repo, config, now, fn ->
+                    maybe_bump_thread(thread, attrs, config, repo, now)
+                    maybe_cycle_thread(board, thread, config, repo)
+                    :ok
+                  end)
+                end)
+
+              case persistence_result do
+                {:ok, post} ->
+                  _ = maybe_prune_threads(board, post, config, repo)
+                  _ = Antispam.log_post(board, attrs, request, repo: repo)
+                  _ = Build.rebuild_after_post(board, post, config: config, repo: repo)
+
+                  maybe_log_slow_post(
+                    board,
+                    attrs,
+                    total_started_at,
+                    prepare_us,
+                    System.monotonic_time(:microsecond) - validation_started_at - persistence_us,
+                    persistence_us,
+                    {:ok, post, %{noko: false}},
+                    config
+                  )
+
+                  {:ok, post, %{noko: false}}
+
+                {:error, reason} ->
+                  {:error, reason}
+              end
+            end
+
+          _ = PostsUploadPreparation.cleanup_uploads(attrs)
+
+          unless match?({:ok, _, _}, result) do
+            maybe_log_slow_post(
+              board,
+              attrs,
+              total_started_at,
+              prepare_us,
+              System.monotonic_time(:microsecond) - validation_started_at,
+              nil,
+              result,
+              config
+            )
+          end
+
+          result
+
+        {:error, reason} ->
+          maybe_log_slow_post(board, attrs, total_started_at, prepare_us, 0, nil, {:error, reason}, config)
+          {:error, reason}
+      end
     end
   end
 
@@ -1611,5 +1660,58 @@ defmodule Eirinchan.Posts do
     else
       {:error, :invalid_password}
     end
+  end
+
+  defp timed(fun) when is_function(fun, 0) do
+    started_at = System.monotonic_time(:microsecond)
+    result = fun.()
+    {System.monotonic_time(:microsecond) - started_at, result}
+  end
+
+  defp maybe_log_slow_post(
+         board,
+         attrs,
+         total_started_at,
+         prepare_us,
+         validation_us,
+         persistence_us,
+         result,
+         config
+       ) do
+    total_us = System.monotonic_time(:microsecond) - total_started_at
+
+    if total_us >= @slow_post_log_ms * 1000 do
+      LogSystem.log(
+        :info,
+        "post.performance",
+        "post.performance",
+        %{
+          board: board.uri,
+          outcome: slow_post_outcome(result),
+          total_ms: round(total_us / 1000),
+          upload_prepare_ms: round(prepare_us / 1000),
+          validation_ms: round(max(validation_us, 0) / 1000),
+          persistence_ms: if(is_integer(persistence_us), do: round(persistence_us / 1000), else: nil),
+          upload_count: attrs |> Map.get("__upload_entries__", []) |> length(),
+          video_upload: has_video_upload?(attrs)
+        },
+        config
+      )
+    end
+
+    :ok
+  end
+
+  defp slow_post_outcome({:ok, _post, _meta}), do: "ok"
+  defp slow_post_outcome({:error, reason}) when is_atom(reason), do: Atom.to_string(reason)
+  defp slow_post_outcome({:error, _changeset}), do: "changeset"
+  defp slow_post_outcome(_result), do: "unknown"
+
+  defp has_video_upload?(attrs) do
+    attrs
+    |> Map.get("__upload_entries__", [])
+    |> Enum.any?(fn %{metadata: metadata} ->
+      Map.get(metadata, :ext) in [".webm", ".mp4"]
+    end)
   end
 end
