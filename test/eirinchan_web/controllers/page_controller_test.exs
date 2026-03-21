@@ -106,8 +106,7 @@ defmodule EirinchanWeb.PageControllerTest do
     assert redirected_to(conn) == "/setup"
   end
 
-  test "GET /news renders public news entries", %{conn: conn} do
-    author = moderator_fixture(%{username: "editor"})
+  test "GET /news renders public blotter entries", %{conn: conn} do
     page_author = moderator_fixture(%{username: "pageeditor"})
 
     {:ok, _page} =
@@ -118,15 +117,21 @@ defmodule EirinchanWeb.PageControllerTest do
         mod_user_id: page_author.id
       })
 
-    {:ok, _entry} =
-      Eirinchan.News.create_entry(%{title: "Launch", body: "Board online", mod_user_id: author.id})
+    :ok =
+      Eirinchan.Settings.persist_instance_config(%{
+        news_blotter_entries: [
+          %{date: "03/20/26", message: "Board online"},
+          %{date: "03/19/26", message: "Launch"}
+        ]
+      })
 
     conn = get(conn, ~p"/news")
     page = html_response(conn, 200)
     assert page =~ "News"
+    assert page =~ "PSA Blotter"
     assert page =~ "Launch"
     assert page =~ "Board online"
-    assert page =~ "editor"
+    assert page =~ "03/20/26"
     assert page =~ ~s(class="boardlist")
     assert page =~ ~s(name="eirinchan:active-page" content="news")
     assert page =~ ~s(name="eirinchan:board-name" content="")
@@ -134,7 +139,7 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ ~s(href="https://github.com/eltanschauung/eirinchan-v1")
   end
 
-  test "site-wide public pages render global message stats placeholders and line breaks", %{conn: conn} do
+  test "site-wide public static pages render global message stats placeholders and line breaks", %{conn: conn} do
     moderator_fixture()
     board = board_fixture(%{uri: "gmstats#{System.unique_integer([:positive])}", title: "GM Stats"})
     thread = thread_fixture(board, %{body: "seed"})
@@ -148,7 +153,7 @@ defmodule EirinchanWeb.PageControllerTest do
 
     page =
       conn
-      |> get("/news")
+      |> get("/faq")
       |> html_response(200)
 
     assert page =~ "Visitors in the last 10 minutes:"

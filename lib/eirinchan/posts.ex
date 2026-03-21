@@ -27,6 +27,7 @@ defmodule Eirinchan.Posts do
   alias Eirinchan.Uploads
   alias Eirinchan.LogSystem
   alias Eirinchan.ModerationLog
+  alias EirinchanWeb.FragmentCache
 
   @slow_post_log_ms 750
 
@@ -1318,24 +1319,6 @@ defmodule Eirinchan.Posts do
       )
       |> Map.new()
 
-    replies_by_thread =
-      if include_replies do
-        repo.all(
-          from post in Post,
-            where: post.board_id == ^board.id and post.thread_id in ^thread_ids,
-            order_by: [asc: post.thread_id, desc: post.inserted_at, desc: post.id]
-        )
-        |> repo.preload(:extra_files)
-        |> Enum.group_by(& &1.thread_id)
-        |> Map.new(fn {thread_id, replies_desc} ->
-          thread = Enum.find(threads, &(&1.id == thread_id))
-          preview_count = thread_preview_count(thread, config)
-          {thread_id, replies_desc |> Enum.take(preview_count) |> Enum.reverse()}
-        end)
-      else
-        %{}
-      end
-
     Enum.map(threads, fn thread ->
       stats =
         Map.get(reply_stats, thread.id, %{
@@ -1344,30 +1327,81 @@ defmodule Eirinchan.Posts do
           image_count: 0
         })
 
-      replies = Map.get(replies_by_thread, thread.id, [])
-      reply_count = stats.reply_count
-      reply_image_count = stats.image_count
       reply_extra_image_count = Map.get(reply_extra_image_counts, thread.id, 0)
+      preview_count = if include_replies, do: thread_preview_count(thread, config), else: 0
 
-      last_modified = latest_activity_at(stats.latest_inserted_at, thread.bump_at, thread.inserted_at)
+      FragmentCache.fetch_or_store(
+        thread_summary_cache_key(thread, stats, reply_extra_image_count, preview_count, include_replies),
+        fn ->
+          replies =
+            if include_replies do
+              fetch_preview_replies(repo, board.id, thread.id, preview_count)
+            else
+              []
+            end
 
-      %{
-        thread: thread,
-        replies: replies,
-        reply_count: reply_count,
-        has_noko50: reply_count >= config.noko50_min,
-        last_count: config.noko50_count,
-        image_count: reply_image_count + reply_extra_image_count + post_image_count(thread),
-        omitted_posts: max(reply_count - length(replies), 0),
-        omitted_images:
-          max(
-            reply_image_count + reply_extra_image_count -
-              Enum.sum(Enum.map(replies, &post_image_count/1)),
-            0
-          ),
-        last_modified: last_modified
-      }
+          build_thread_summary(thread, replies, stats, reply_extra_image_count, config)
+        end
+      )
     end)
+  end
+
+  defp fetch_preview_replies(repo, board_id, thread_id, preview_count)
+       when is_integer(preview_count) and preview_count > 0 do
+    repo.all(
+      from post in Post,
+        where: post.board_id == ^board_id and post.thread_id == ^thread_id,
+        order_by: [desc: post.inserted_at, desc: post.id],
+        limit: ^preview_count
+    )
+    |> repo.preload(:extra_files)
+    |> Enum.reverse()
+  end
+
+  defp fetch_preview_replies(_repo, _board_id, _thread_id, _preview_count), do: []
+
+  defp build_thread_summary(thread, replies, stats, reply_extra_image_count, config) do
+    reply_count = stats.reply_count
+    reply_image_count = stats.image_count
+    last_modified = latest_activity_at(stats.latest_inserted_at, thread.bump_at, thread.inserted_at)
+
+    %{
+      thread: thread,
+      replies: replies,
+      reply_count: reply_count,
+      has_noko50: reply_count >= config.noko50_min,
+      last_count: config.noko50_count,
+      image_count: reply_image_count + reply_extra_image_count + post_image_count(thread),
+      omitted_posts: max(reply_count - length(replies), 0),
+      omitted_images:
+        max(
+          reply_image_count + reply_extra_image_count -
+            Enum.sum(Enum.map(replies, &post_image_count/1)),
+          0
+        ),
+      last_modified: last_modified
+    }
+  end
+
+  defp thread_summary_cache_key(
+         thread,
+         stats,
+         reply_extra_image_count,
+         preview_count,
+         include_replies
+       ) do
+    {
+      :thread_summary,
+      thread.id,
+      include_replies,
+      preview_count,
+      thread.updated_at,
+      thread.bump_at,
+      stats.reply_count,
+      stats.latest_inserted_at,
+      stats.image_count,
+      reply_extra_image_count
+    }
   end
 
   defp latest_activity_at(reply_inserted_at, bump_at, inserted_at) do

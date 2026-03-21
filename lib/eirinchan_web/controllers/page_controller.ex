@@ -12,7 +12,6 @@ defmodule EirinchanWeb.PageController do
   alias Eirinchan.NewsBlotter
   alias Eirinchan.Posts
   alias Eirinchan.RulesPage
-  alias Eirinchan.Stats
   alias Eirinchan.ThreadWatcher
   alias Eirinchan.Posts.{Post, PostFile, PublicIds}
   alias Eirinchan.Repo
@@ -572,31 +571,12 @@ defmodule EirinchanWeb.PageController do
           select: coalesce(sum(fragment("GREATEST(COALESCE(?, 1) - 1, 0)", board.next_public_post_id)), 0)
       ) || 0
 
-    unique_posters =
-      Repo.one(
-        from post in Post,
-          where: post.board_id in ^board_ids and not is_nil(post.ip_subnet),
-          select: count(post.ip_subnet, :distinct)
-      ) || 0
-
     posts_week =
       Repo.aggregate(
         from(post in Post, where: post.board_id in ^board_ids and post.inserted_at > ^week_cutoff),
         :count,
         :id
       )
-
-    posts_perhour = Stats.posts_perhour(board_ids)
-    users_10minutes = Stats.users_10minutes()
-
-    posters_week =
-      Repo.one(
-        from post in Post,
-          where:
-            post.board_id in ^board_ids and post.inserted_at > ^week_cutoff and
-              not is_nil(post.ip_subnet),
-          select: count(post.ip_subnet, :distinct)
-      ) || 0
 
     primary_bytes =
       Repo.one(
@@ -616,11 +596,11 @@ defmodule EirinchanWeb.PageController do
 
     %{
       total_posts: number_with_delimiters(total_posts),
-      unique_posters: number_with_delimiters(unique_posters),
-      posts_perhour: number_with_delimiters(posts_perhour),
-      users_10minutes: number_with_delimiters(users_10minutes),
+      unique_posters: "many",
+      posts_perhour: "n/a",
+      users_10minutes: "n/a",
       posts_week: number_with_delimiters(posts_week),
-      posters_week: number_with_delimiters(posters_week),
+      posters_week: "many",
       active_content: PostView.file_size_text(%{file_size: primary_bytes + extra_bytes})
     }
   end
