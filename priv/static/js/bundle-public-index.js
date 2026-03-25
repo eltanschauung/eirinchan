@@ -392,6 +392,31 @@ $(window).ready(function() {
 				}
 			};
 
+			var insertReplyMarkup = function(post_response) {
+				if (!post_response || !post_response.html) {
+					return $('div.post#reply_' + post_response.id).first();
+				}
+
+				var $reply = $('div.post#reply_' + post_response.id).first();
+				if ($reply.length) {
+					return $reply;
+				}
+
+				var $newReply = $($.parseHTML(post_response.html, document, true));
+				var $container = $('#thread-refresh-target');
+
+				if ($container.length) {
+					$container.append($newReply);
+				} else {
+					var $thread = $('div.thread').first();
+					if ($thread.length) {
+						$thread.append($newReply);
+					}
+				}
+
+				return $('div.post#reply_' + post_response.id).first();
+			};
+
 
 			var clearReplyFields = function() {
 				$(form).find('input[name="subject"],input[name="file_url"],input[name="embed"],\
@@ -448,31 +473,7 @@ $(window).ready(function() {
 					} else if (post_response.redirect && post_response.id) {
 						if (is_reply_form) {
 							$submit.val(_('Posted...'));
-							var $reply = $('div.post#reply_' + post_response.id).first();
-
-							if (post_response.html && !$reply.length) {
-								var $newReply = $(post_response.html);
-								var $lastPost = $('div.thread > div.post.reply:last');
-
-								if ($lastPost.length) {
-									var $after = $lastPost.nextAll('br.clear:first');
-									if ($after.length) {
-										$after.after($newReply);
-									} else {
-										$lastPost.after($newReply);
-									}
-								} else {
-									var $op = $('div.thread > div.post.op, div.thread > div.op').first();
-									var $afterOp = $op.nextAll('br.clear:first');
-									if ($afterOp.length) {
-										$afterOp.after($newReply);
-									} else {
-										$op.after($newReply);
-									}
-								}
-
-								$reply = $('div.post#reply_' + post_response.id).first();
-							}
+							var $reply = insertReplyMarkup(post_response);
 
 							if ($reply.length) {
 								var anchor = document.getElementById(String(post_response.id)) || $reply[0];
@@ -1485,7 +1486,7 @@ $(document).ready(function(){
 		}
 	}
 
-	var fields_to_hide = 'div.file,div.post,div.video-container,video,iframe,img:not(.unanimated),canvas,p.fileinfo,a.hide-thread-link,div.new-posts,br';
+	var fields_to_hide = 'div.file,div.post,div.video-container,video,iframe,img:not(.unanimated),canvas,p.fileinfo,.hide-thread-link,div.new-posts,br';
 
 	var restoreInlineImageState = function(thread_container) {
 		thread_container.find('img.full-image').each(function() {
@@ -3166,8 +3167,20 @@ $(document).ready(function(){
 		});
 	};
 
+	var has_active_youtube_embed = function() {
+		return Array.prototype.some.call(document.querySelectorAll('.video-container iframe'), function(iframe) {
+			return !!iframe.offsetParent;
+		});
+	};
+
+	var has_active_post_hover = function() {
+		return Array.prototype.some.call(document.querySelectorAll('.post-hover'), function(hover) {
+			return !!hover.offsetParent;
+		});
+	};
+
 	var should_defer_for_media = function() {
-		return has_active_inline_video();
+		return has_active_inline_video() || has_active_youtube_embed() || has_active_post_hover();
 	};
 
 	var fragment_md5_url = function() {
@@ -3530,17 +3543,7 @@ $(document).ready(function(){
 					}
 				});
 				if (elementsToAppend.length) {
-					var currentContainer = $('#thread-refresh-target');
-					var lastReply = currentContainer.children('div.post.reply:last');
-					var clearBreak = lastReply.next('br.clear');
-
-					if (clearBreak.length) {
-						clearBreak.after(elementsToAppend);
-					} else if (lastReply.length) {
-						lastReply.after(elementsToAppend);
-					} else {
-						currentContainer.append(elementsToAppend);
-					}
+					$('#thread-refresh-target').append(elementsToAppend);
 				}
 				recheck_activated();
 				insertedPostIds.forEach(function(id){
@@ -3942,6 +3945,13 @@ onReady(function() {
 					newPost.find('span.mentioned').remove();
 					newPost.find('a.post_anchor').remove();
 
+					if (post.is('#op_' + id)) {
+						let fileBlock = post.prev('.files');
+						if (fileBlock.length) {
+							newPost.prepend(fileBlock.clone());
+						}
+					}
+
 					newPost
 						.attr('id', 'post-hover-' + id)
 						.attr('data-board', board)
@@ -4257,6 +4267,7 @@ Menu.onclick(function(e, $buf) {
 
 			var $fileToggle = $form.find('#delete_file_' + postId + ', #delete_file, input[name="file"]').first();
 			var $password = $form.find('input[name="password"]');
+			var $deleteButton = $form.find('input[name="delete"]').first();
 			var passwordValue = $.trim($password.val() || '');
 			if ($(this).attr('id') === 'delete_file_menu') {
 				$fileToggle.prop('checked', true);
@@ -4265,7 +4276,7 @@ Menu.onclick(function(e, $buf) {
 			}
 
 			if (passwordValue.length) {
-				$form.find('input[name="delete"]').trigger('click');
+				$deleteButton.trigger('click');
 			} else {
 				$password.trigger('focus');
 			}

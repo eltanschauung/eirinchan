@@ -411,6 +411,10 @@ defmodule Eirinchan.Posts do
     PostsModeration.moderate_delete_posts_by_ip(boards, ip_subnet, opts)
   end
 
+  def null_all_post_ips(opts \\ []) do
+    PostsModeration.null_all_post_ips(opts)
+  end
+
   @spec delete_post_files(BoardRecord.t(), String.t() | integer(), keyword()) ::
           {:ok, Post.t()} | {:error, :not_found | Ecto.Changeset.t()}
   def delete_post_files(%BoardRecord{} = board, post_id, opts \\ []) do

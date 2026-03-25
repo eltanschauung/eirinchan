@@ -117,6 +117,7 @@ defmodule EirinchanWeb.Router do
     get "/messages/browser", ManagePageController, :messages
     post "/messages/browser", ManagePageController, :create_message
     get "/recent-posts/browser", ManagePageController, :recent_posts
+    post "/null-post-ips/browser", ManagePageController, :null_post_ips
     get "/feedback/browser", ManagePageController, :feedback
     get "/boards/:uri/posts/:post_id/ban/browser", ManagePageController, :ban_post
     post "/boards/:uri/posts/:post_id/ban/browser", ManagePageController, :create_post_ban
@@ -179,6 +180,7 @@ defmodule EirinchanWeb.Router do
     post "/watcher/:board/:thread_id", ThreadWatcherController, :create
     delete "/watcher/:board/:thread_id", ThreadWatcherController, :delete
     patch "/watcher/:board/:thread_id", ThreadWatcherController, :update
+    delete "/watcher", ThreadWatcherController, :clear
     post "/theme", ThemeController, :update
     get "/auth", IpAccessAuthController, :show
     post "/auth", IpAccessAuthController, :create

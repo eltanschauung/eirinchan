@@ -665,6 +665,13 @@ onReady(function() {
 					newPost.find('span.mentioned').remove();
 					newPost.find('a.post_anchor').remove();
 
+					if (post.is('#op_' + id)) {
+						let fileBlock = post.prev('.files');
+						if (fileBlock.length) {
+							newPost.prepend(fileBlock.clone());
+						}
+					}
+
 					newPost
 						.attr('id', 'post-hover-' + id)
 						.attr('data-board', board)

@@ -1260,6 +1260,23 @@ defmodule EirinchanWeb.ManagePageController do
     end
   end
 
+  def null_post_ips(conn, _params) do
+    with {:ok, moderator} <- ensure_admin(conn),
+         {:ok, count} <- Eirinchan.Posts.null_all_post_ips() do
+      ModerationAudit.log(conn, "Cleared post IPs (#{count})", moderator: moderator)
+
+      conn
+      |> put_flash(:info, "Cleared stored post IPs for #{count} posts.")
+      |> redirect(to: ~p"/manage")
+    else
+      {:error, :unauthorized} ->
+        redirect(conn, to: ~p"/manage/login")
+
+      {:error, :forbidden} ->
+        render_dashboard_error(conn, "Administrator access required.", %{})
+    end
+  end
+
   def reports(conn, params) do
     with {:ok, moderator} <- ensure_permission(conn, :reports) do
       case Map.get(params, "uri") do
@@ -2469,6 +2486,7 @@ defmodule EirinchanWeb.ManagePageController do
   defp can_manage_users?(moderator), do: ModeratorPermissions.allowed?(moderator, :manageusers)
   defp can_manage_themes?(moderator), do: ModeratorPermissions.allowed?(moderator, :themes)
   defp can_manage_news?(moderator), do: ModeratorPermissions.allowed?(moderator, :news)
+  defp can_null_post_ips?(moderator), do: ModeratorPermissions.rank(moderator) >= ModeratorPermissions.rank("admin")
   defp can_edit_pages?(moderator), do: ModeratorPermissions.allowed?(moderator, :edit_pages)
   defp can_view_log?(moderator), do: ModeratorPermissions.allowed?(moderator, :modlog)
   defp can_view_recent?(moderator), do: ModeratorPermissions.allowed?(moderator, :recent)
@@ -2606,6 +2624,7 @@ defmodule EirinchanWeb.ManagePageController do
         can_manage_users?: can_manage_users?(moderator),
         can_manage_themes?: can_manage_themes?(moderator),
         can_manage_news?: can_manage_news?(moderator),
+        can_null_post_ips?: can_null_post_ips?(moderator),
         can_edit_pages?: can_edit_pages?(moderator),
         can_create_board?: can_create_board?(moderator),
         can_manage_board?: can_manage_board?(moderator),

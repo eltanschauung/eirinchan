@@ -41,6 +41,17 @@ a,a:visited {
   color: #34345C;
 }
 
+button.js-link-button {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  display: inline;
+}
+
 a:hover,.intro a.post_no:hover {
   color: #ff0000;
 }
@@ -229,6 +240,12 @@ div.post p.fileinfo {
   padding-left: 5px;
 }
 
+p.fileinfo a.postfilename,
+p.fileinfo a.postfilename:hover {
+  color: inherit;
+  text-decoration: none;
+}
+
 div.banner {
   background-color: #E04000;
   font-size: 12pt;
@@ -331,7 +348,8 @@ div.post.reply div.body {
   margin-top: 0.8em;
   padding-right: 3em;
   padding-bottom: 0.3em;
-  overflow:hidden;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 div.post.reply.highlighted {
@@ -340,15 +358,12 @@ div.post.reply.highlighted {
 
 div.post.reply div.body a {
   color: #D00;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 div.post {
   padding-left: 20px;
-}
-
-div.post div.body {
-  white-space: pre-wrap;
-  word-wrap: break-word;
 }
 
 div.post.reply {
@@ -944,11 +959,20 @@ pre {
   bottom: 0px;
   height: 100%;
   border-right: 1px solid black;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-sizing: border-box;
 }
 
 .options_tab_icon {
   padding: 5px;
   cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 2px;
+  box-sizing: border-box;
 }
 
 .options_tab_icon.active {
@@ -961,6 +985,7 @@ pre {
 
 .options_tab_icon div {
   font-size: 11px;
+  margin: 0;
 }
 
 .options_tab {

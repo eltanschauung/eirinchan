@@ -5,7 +5,9 @@ defmodule EirinchanWeb.PostController do
 
   alias Eirinchan.Antispam
   alias Eirinchan.Bans
+  alias Eirinchan.IpAccessAuth
   alias Eirinchan.LogSystem
+  alias Eirinchan.ModerationLog
   alias Eirinchan.PostOwnership
   alias Eirinchan.Posts
   alias Eirinchan.Posts.PublicIds
@@ -72,10 +74,12 @@ defmodule EirinchanWeb.PostController do
           case delete_action do
             {:ok, result} when delete_file_only ->
               _ = Antispam.log_public_action(board, :delete, params, request)
+              _ = log_public_delete_action(conn, board, result, :delete_file)
               respond_deleted_file(conn, board, result, params)
 
             {:ok, result} ->
               _ = Antispam.log_public_action(board, :delete, params, request)
+              _ = log_public_delete_action(conn, board, result, :delete_post)
               respond_deleted(conn, board, result, params)
 
             {:error, reason} when is_atom(reason) ->
@@ -240,6 +244,39 @@ defmodule EirinchanWeb.PostController do
   end
 
   defp quoted_post_ids(_body), do: []
+
+  defp log_public_delete_action(conn, board, result, action) do
+    text =
+      case {action, result} do
+        {:delete_post, %{deleted_post_id: post_id}} ->
+          "Self-deleted post No. #{post_id}"
+
+        {:delete_file, %{public_id: post_id}} ->
+          "Self-deleted files from post No. #{post_id}"
+
+        {:delete_file, %{id: post_id}} ->
+          "Self-deleted files from post No. #{post_id}"
+
+        _ ->
+          nil
+      end
+
+    if is_binary(text) do
+      ModerationLog.log_action(%{
+        actor_ip: RequestMeta.effective_remote_ip(conn) |> normalize_log_ip(),
+        board_uri: board.uri,
+        text: text
+      })
+    else
+      :ok
+    end
+  end
+
+  defp normalize_log_ip(nil), do: nil
+  defp normalize_log_ip({_, _, _, _} = ip), do: ip |> :inet.ntoa() |> to_string()
+  defp normalize_log_ip({_, _, _, _, _, _, _, _} = ip), do: ip |> :inet.ntoa() |> to_string()
+  defp normalize_log_ip(ip) when is_binary(ip), do: String.trim(ip)
+  defp normalize_log_ip(_), do: nil
 
   defp maybe_watch_thread_on_reply(conn, board, post) do
     case {conn.assigns[:browser_token], post.thread_id} do
@@ -584,8 +621,9 @@ defmodule EirinchanWeb.PostController do
 
   defp error_message(:thread_not_found, _config), do: "Thread not found"
   defp error_message(:post_not_found, _config), do: "Post not found"
-  defp error_message(:ipaccess, _config),
-    do: "Access denied; visit <a href=\"https://auth.bantculture.com\">auth.bantculture.com</a>"
+  defp error_message(:ipaccess, config),
+    do:
+      "Access denied; visit <a href=\"#{IpAccessAuth.auth_path(Map.get(config, :ip_access_auth, %{}))}\">#{IpAccessAuth.auth_path(Map.get(config, :ip_access_auth, %{}))}</a>"
   defp error_message(:dnsbl, config), do: String.replace(config.error.dnsbl, "%s", "DNSBL")
   defp error_message(:invalid_password, config), do: config.error.password
   defp error_message(:banned, config), do: config.error.banned

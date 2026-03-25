@@ -111,6 +111,22 @@ defmodule EirinchanWeb.PostViewTest do
     assert html =~ ~s(<span class="glow">glow</span>)
   end
 
+  test "body_html keeps malformed multi-arrow quote lines green" do
+    config = Config.compose()
+
+    html =
+      PostView.body_html(
+        %Post{body: ">>whale\n>>>>whale\n>>123"},
+        %BoardRecord{uri: "bant"},
+        %Post{id: 1},
+        config
+      )
+
+    assert html =~ ~s(<span class="quote">&gt;&gt;whale</span>)
+    assert html =~ ~s(<span class="quote">&gt;&gt;&gt;&gt;whale</span>)
+    assert length(Regex.scan(~r/<span class="quote">/u, html)) == 2
+  end
+
   test "backlinks_html renders existing backlinks server-side" do
     post = %Post{id: 670}
 

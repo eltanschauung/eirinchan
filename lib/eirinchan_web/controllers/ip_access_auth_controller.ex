@@ -8,14 +8,15 @@ defmodule EirinchanWeb.IpAccessAuthController do
 
   def show(conn, _params) do
     config = effective_config()
-    _ = IpAccessAuth.ensure_access_file(config)
 
     conn
     |> put_root_layout(false)
     |> render(:show,
       layout: false,
+      title: config.title,
       message: config.message,
       auth_path: request_path(conn, config),
+      redirect_url: redirect_url(conn),
       error: nil,
       success: false,
       entered_password: nil,
@@ -34,8 +35,10 @@ defmodule EirinchanWeb.IpAccessAuthController do
         |> put_root_layout(false)
         |> render(:show,
           layout: false,
+          title: config.title,
           message: config.message,
           auth_path: request_path(conn, config),
+          redirect_url: redirect_url(conn),
           error: nil,
           success: true,
           entered_password: nil,
@@ -63,8 +66,10 @@ defmodule EirinchanWeb.IpAccessAuthController do
     |> put_root_layout(false)
     |> render(:show,
       layout: false,
+      title: config.title,
       message: config.message,
       auth_path: request_path(conn, config),
+      redirect_url: redirect_url(conn),
       error: message,
       success: false,
       entered_password: password,
@@ -74,13 +79,23 @@ defmodule EirinchanWeb.IpAccessAuthController do
   end
 
   defp effective_config do
-    Settings.current_instance_config()
+    instance_config = Settings.current_instance_config()
+
+    instance_config
     |> Map.get(:ip_access_auth, %{})
+    |> Map.put(:passwords, Map.get(instance_config, :ip_access_passwords, []))
     |> IpAccessAuth.effective_config()
   end
 
   defp request_path(conn, config) do
     conn.assigns[:ip_access_auth_request_path] || IpAccessAuth.auth_path(config)
+  end
+
+  defp redirect_url(conn) do
+    case List.first(get_req_header(conn, "referer")) do
+      value when is_binary(value) and value != "" -> value
+      _ -> "/"
+    end
   end
 
   defp theme_stylesheet(config, conn) do

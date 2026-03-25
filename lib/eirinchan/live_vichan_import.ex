@@ -375,62 +375,78 @@ defmodule Eirinchan.LiveVichanImport do
       source_rel = file_source_rel(board, legacy_file)
       source_abs = Path.join(source_root, source_rel)
 
-      unless File.exists?(source_abs) do
-        raise "missing source asset: #{source_abs}"
+      if File.exists?(source_abs) do
+        stored_name =
+          legacy_file["file"] ||
+            Path.basename(
+              legacy_file["file_path"] || legacy_file["full_path"] || legacy_file["filename"]
+            )
+
+        spoiler? = truthy?(legacy_file["spoiler"]) or spoiler_thumb?(legacy_file)
+
+        thumb_name =
+          if spoiler_thumb?(legacy_file) do
+            Path.basename(stored_name)
+          else
+            legacy_file["thumb"] || Path.basename(stored_name)
+          end
+
+        file_rel = "/#{board.uri}/src/#{stored_name}"
+        thumb_rel = "/#{board.uri}/thumb/#{thumb_name}"
+        file_abs = Uploads.filesystem_path(file_rel)
+        thumb_abs = Uploads.filesystem_path(thumb_rel)
+
+        file_abs |> Path.dirname() |> File.mkdir_p!()
+        thumb_abs |> Path.dirname() |> File.mkdir_p!()
+        File.cp!(source_abs, file_abs)
+
+        metadata =
+          media_metadata(file_abs, legacy_file)
+          |> Map.put(:file_name, legacy_file["filename"] || legacy_file["name"] || stored_name)
+          |> Map.put(:file_path, file_rel)
+          |> Map.put(:thumb_path, thumb_rel)
+          |> Map.put(:spoiler, spoiler?)
+
+        :ok =
+          case Uploads.regenerate_thumbnail(file_abs, thumb_abs, config, metadata, op?) do
+            :ok ->
+              :ok
+
+            {:error, _reason} ->
+              restore_live_thumbnail(board, legacy_file, source_root, file_abs, thumb_abs, config)
+          end
+
+        %{
+          file_name: metadata.file_name,
+          file_path: file_rel,
+          thumb_path: thumb_rel,
+          file_size: metadata.file_size,
+          file_type: metadata.file_type,
+          file_md5: metadata.file_md5,
+          image_width: metadata.image_width,
+          image_height: metadata.image_height,
+          spoiler: metadata.spoiler
+        }
+      else
+        missing_source_asset_attrs(legacy_file)
       end
-
-      stored_name =
-        legacy_file["file"] ||
-          Path.basename(
-            legacy_file["file_path"] || legacy_file["full_path"] || legacy_file["filename"]
-          )
-
-      spoiler? = truthy?(legacy_file["spoiler"]) or spoiler_thumb?(legacy_file)
-
-      thumb_name =
-        if spoiler_thumb?(legacy_file) do
-          Path.basename(stored_name)
-        else
-          legacy_file["thumb"] || Path.basename(stored_name)
-        end
-
-      file_rel = "/#{board.uri}/src/#{stored_name}"
-      thumb_rel = "/#{board.uri}/thumb/#{thumb_name}"
-      file_abs = Uploads.filesystem_path(file_rel)
-      thumb_abs = Uploads.filesystem_path(thumb_rel)
-
-      file_abs |> Path.dirname() |> File.mkdir_p!()
-      thumb_abs |> Path.dirname() |> File.mkdir_p!()
-      File.cp!(source_abs, file_abs)
-
-      metadata =
-        media_metadata(file_abs, legacy_file)
-        |> Map.put(:file_name, legacy_file["filename"] || legacy_file["name"] || stored_name)
-        |> Map.put(:file_path, file_rel)
-        |> Map.put(:thumb_path, thumb_rel)
-        |> Map.put(:spoiler, spoiler?)
-
-      :ok =
-        case Uploads.regenerate_thumbnail(file_abs, thumb_abs, config, metadata, op?) do
-          :ok ->
-            :ok
-
-          {:error, _reason} ->
-            restore_live_thumbnail(board, legacy_file, source_root, file_abs, thumb_abs, config)
-        end
-
-      %{
-        file_name: metadata.file_name,
-        file_path: file_rel,
-        thumb_path: thumb_rel,
-        file_size: metadata.file_size,
-        file_type: metadata.file_type,
-        file_md5: metadata.file_md5,
-        image_width: metadata.image_width,
-        image_height: metadata.image_height,
-        spoiler: metadata.spoiler
-      }
     end
+  end
+
+  defp missing_source_asset_attrs(legacy_file) do
+    %{
+      file_name: legacy_file["filename"] || legacy_file["name"] || legacy_file["file"] || "deleted",
+      file_path: "deleted",
+      thumb_path: nil,
+      file_size: integer_or_nil(legacy_file["size"]),
+      file_type:
+        legacy_file["type"] || MIME.from_path(legacy_file["filename"] || "") ||
+          "application/octet-stream",
+      file_md5: legacy_file["hash"] || "deleted",
+      image_width: integer_or_nil(legacy_file["width"]),
+      image_height: integer_or_nil(legacy_file["height"]),
+      spoiler: truthy?(legacy_file["spoiler"]) or spoiler_thumb?(legacy_file)
+    }
   end
 
   defp media_metadata(file_abs, legacy_file) do

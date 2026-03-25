@@ -866,7 +866,7 @@ defmodule EirinchanWeb.PostView do
 
   defp control_title(_post, :delete), do: "Delete"
   defp control_title(_post, :deletebyip), do: "Delete all posts by IP"
-  defp control_title(_post, :ban24), do: "Ban this /24 subnet across all boards"
+  defp control_title(_post, :ban24), do: "Ban this /24 subnet across all boards and delete files"
   defp control_title(_post, :ban), do: "Ban"
   defp control_title(_post, :bandelete), do: "Ban & Delete"
 
@@ -889,7 +889,7 @@ defmodule EirinchanWeb.PostView do
 
   defp control_label(_post, :delete), do: "[D]"
   defp control_label(_post, :deletebyip), do: "[D+]"
-  defp control_label(_post, :ban24), do: "[D24]"
+  defp control_label(_post, :ban24), do: "[B24]"
   defp control_label(_post, :ban), do: "[B]"
   defp control_label(_post, :bandelete), do: "[B&D]"
   defp control_label(post, :sticky), do: if(post.sticky, do: "[-Sticky]", else: "[Sticky]")
@@ -905,7 +905,7 @@ defmodule EirinchanWeb.PostView do
     do: "Are you sure you want to delete all posts by this IP address?"
 
   defp control_confirm(:ban24),
-    do: "Are you sure you want to ban this /24 subnet across all boards?"
+    do: "Are you sure you want to ban this /24 subnet across all boards and delete files from this post?"
 
   defp control_confirm(:sticky),
     do: "Are you sure you want to change sticky state for this thread?"
@@ -1018,12 +1018,24 @@ defmodule EirinchanWeb.PostView do
       |> render_line_formatting()
       |> render_inline_formatting()
 
-    if String.starts_with?(rendered, "&gt;") and not String.starts_with?(rendered, "&gt;&gt;") do
+    if quoted_line?(line) do
       ~s(<span class="quote">#{rendered}</span>)
     else
       rendered
     end
   end
+
+  defp quoted_line?(line) when is_binary(line) do
+    trimmed = String.trim_leading(line)
+
+    String.starts_with?(trimmed, "&gt;") and
+      not Regex.match?(
+        ~r/^(&gt;&gt;\d+|&gt;&gt;&gt;\/[a-zA-Z0-9_]+f?(?:\/\d+)?)(?=[\s,.)?!]|$)/u,
+        trimmed
+      )
+  end
+
+  defp quoted_line?(_line), do: false
 
   defp render_plain_urls(line, %{markup_urls: false}), do: line
 

@@ -49,13 +49,13 @@ defmodule Eirinchan.Posts.RequestGuards do
       not Map.get(config, :ipaccess, false) ->
         :ok
 
+      ipaccess_reply_bypass?(attrs, config) ->
+        :ok
+
       ipaccess_bypass?(attrs, config) ->
         :ok
 
-      AccessList.allowed_from_file?(
-        request[:remote_ip] || request["remote_ip"],
-        Map.get(config, :ipaccess_file, AccessList.default_path())
-      ) ->
+      AccessList.allowed_for_posting?(request[:remote_ip] || request["remote_ip"]) ->
         :ok
 
       true ->
@@ -68,20 +68,23 @@ defmodule Eirinchan.Posts.RequestGuards do
       not Map.get(config, :use_dnsbl, true) ->
         :ok
 
+      ipaccess_reply_bypass?(attrs, config) ->
+        :ok
+
       ipaccess_bypass?(attrs, config) ->
         :ok
 
       true ->
-      dnsbl_opts =
-        case Map.get(request, :dnsbl_resolver) do
-          resolver when is_function(resolver, 1) -> [resolver: resolver]
-          _ -> []
-        end
+        dnsbl_opts =
+          case Map.get(request, :dnsbl_resolver) do
+            resolver when is_function(resolver, 1) -> [resolver: resolver]
+            _ -> []
+          end
 
-      case DNSBL.check(Map.get(request, :remote_ip), config, dnsbl_opts) do
-        :ok -> :ok
-        {:error, _name} -> {:error, :dnsbl}
-      end
+        case DNSBL.check(Map.get(request, :remote_ip), config, dnsbl_opts) do
+          :ok -> :ok
+          {:error, _name} -> {:error, :dnsbl}
+        end
     end
   end
 
@@ -201,6 +204,38 @@ defmodule Eirinchan.Posts.RequestGuards do
         false
     end
   end
+
+  defp ipaccess_reply_bypass?(attrs, config) do
+    Map.get(config, :ipaccess_replies, false) and reply?(attrs) and not uploaded_file?(attrs)
+  end
+
+  defp reply?(attrs) when is_map(attrs), do: present?(Map.get(attrs, "thread"))
+  defp reply?(_attrs), do: false
+
+  defp uploaded_file?(attrs) when is_map(attrs) do
+    match?(%Plug.Upload{}, Map.get(attrs, "file")) or
+      attrs
+      |> Map.values()
+      |> Enum.any?(fn
+        %Plug.Upload{} ->
+          true
+
+        uploads when is_list(uploads) ->
+          Enum.any?(uploads, &match?(%Plug.Upload{}, &1))
+
+        uploads when is_map(uploads) ->
+          uploads |> Map.values() |> Enum.any?(&match?(%Plug.Upload{}, &1))
+
+        _ ->
+          false
+      end)
+  end
+
+  defp uploaded_file?(_attrs), do: false
+
+  defp present?(value) when is_binary(value), do: String.trim(value) != ""
+  defp present?(nil), do: false
+  defp present?(_value), do: true
 
   defp submitted_flag_length(attrs) when is_map(attrs) do
     attrs

@@ -2,6 +2,9 @@ defmodule EirinchanWeb.PostControllerTest do
   use EirinchanWeb.ConnCase, async: true
 
   import ExUnit.CaptureLog
+  import Ecto.Query
+
+  alias Eirinchan.Moderation.LogEntry
   alias Eirinchan.Posts.Post
   alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Repo
@@ -1408,6 +1411,13 @@ defmodule EirinchanWeb.PostControllerTest do
            } = json_response(delete_conn, 200)
 
     assert redirect =~ "/#{board.uri}/res/#{PublicIds.public_id(thread)}-delete-target.html"
+
+    assert Repo.exists?(
+             from log in LogEntry,
+               where:
+                 log.board_uri == ^board.uri and
+                   like(log.text, ^"%Self-deleted post No. #{reply_id}%")
+           )
   end
 
   test "delete branch removes threads and redirects to the board", %{conn: conn} do
@@ -1476,6 +1486,13 @@ defmodule EirinchanWeb.PostControllerTest do
 
     assert thread_html =~ ~s(src="/static/deleted.png")
     refute thread_html =~ ~s(File: <a href="deleted")
+
+    assert Repo.exists?(
+             from log in LogEntry,
+               where:
+                 log.board_uri == ^board.uri and
+                   like(log.text, ^"%Self-deleted files from post No. #{thread_id}%")
+           )
   end
 
   test "delete file only rejects incorrect passwords", %{conn: conn} do

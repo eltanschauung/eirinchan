@@ -17,6 +17,7 @@ defmodule Eirinchan.ThreadWatcher do
   end
 
   def list_watch_summaries(browser_token) when is_binary(browser_token) do
+    purge_missing_watches(browser_token)
     watches = list_watches(browser_token)
 
     if watches == [] do
@@ -109,6 +110,8 @@ defmodule Eirinchan.ThreadWatcher do
 
   def watch_state_for_board(browser_token, board_uri)
       when is_binary(browser_token) and is_binary(board_uri) do
+    purge_missing_watches(browser_token, board_uri)
+
     watches =
       Watch
       |> where([watch], watch.browser_token == ^browser_token and watch.board_uri == ^board_uri)
@@ -141,6 +144,8 @@ defmodule Eirinchan.ThreadWatcher do
   end
 
   def watch_count(browser_token) when is_binary(browser_token) do
+    purge_missing_watches(browser_token)
+
     Watch
     |> where([watch], watch.browser_token == ^browser_token)
     |> select([watch], count(watch.id))
@@ -149,6 +154,7 @@ defmodule Eirinchan.ThreadWatcher do
   end
 
   def watch_metrics(browser_token) when is_binary(browser_token) do
+    purge_missing_watches(browser_token)
     watches = list_watches(browser_token)
 
     if watches == [] do
@@ -211,6 +217,47 @@ defmodule Eirinchan.ThreadWatcher do
             watch.browser_token == ^browser_token and watch.board_uri == ^board_uri and
               watch.thread_id == ^thread_id
       )
+
+    {:ok, count}
+  end
+
+  def clear_watches(browser_token) when is_binary(browser_token) do
+    {count, _} =
+      Repo.delete_all(
+        from watch in Watch,
+          where: watch.browser_token == ^browser_token
+      )
+
+    {:ok, count}
+  end
+
+  def purge_missing_watches(browser_token, board_uri \\ nil)
+      when is_binary(browser_token) and (is_binary(board_uri) or is_nil(board_uri)) do
+    thread_ids = from(post in Post, where: is_nil(post.thread_id), select: post.id)
+
+    query =
+      from watch in Watch,
+        where: watch.browser_token == ^browser_token and watch.thread_id not in subquery(thread_ids)
+
+    query =
+      if is_binary(board_uri),
+        do: from(watch in query, where: watch.board_uri == ^board_uri),
+        else: query
+
+    Repo.delete_all(query)
+  end
+
+  def unwatch_stale_threads(browser_token, board_uri)
+      when is_binary(browser_token) and is_binary(board_uri) do
+    thread_ids = from(post in Post, where: is_nil(post.thread_id), select: post.id)
+
+    {count, _} =
+      from(watch in Watch,
+        where:
+          watch.browser_token == ^browser_token and watch.board_uri == ^board_uri and
+            watch.thread_id not in subquery(thread_ids)
+      )
+      |> Repo.delete_all()
 
     {:ok, count}
   end

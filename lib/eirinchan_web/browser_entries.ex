@@ -7,6 +7,7 @@ defmodule EirinchanWeb.BrowserEntries do
   alias Eirinchan.Posts.Post
   alias Eirinchan.Repo
   alias Eirinchan.Settings
+  alias Eirinchan.ThreadPaths
   alias EirinchanWeb.BoardRuntime
 
   @spec post_entries([Post.t()], [BoardRecord.t()] | map(), String.t() | nil, keyword()) :: [map()]
@@ -17,15 +18,18 @@ defmodule EirinchanWeb.BrowserEntries do
     board_map = normalize_board_map(posts, boards, repo)
     thread_map = load_thread_map(posts, repo)
     config_map = build_config_map(board_map, request_host)
+    preferred_thread_paths = build_preferred_thread_paths(posts, thread_map, board_map, config_map, repo)
 
     Enum.map(posts, fn post ->
       board = Map.fetch!(board_map, post.board_id)
+      thread = Map.get(thread_map, post.thread_id || post.id, post)
 
       %{
         post: post,
         board: board,
-        thread: Map.get(thread_map, post.thread_id || post.id, post),
-        config: Map.fetch!(config_map, board.id)
+        thread: thread,
+        config: Map.fetch!(config_map, board.id),
+        preferred_thread_path: Map.fetch!(preferred_thread_paths, thread.id)
       }
     end)
   end
@@ -113,6 +117,39 @@ defmodule EirinchanWeb.BrowserEntries do
     board_map
     |> Map.values()
     |> BoardRuntime.config_map(request_host, instance_config: Settings.current_instance_config())
+  end
+
+  defp build_preferred_thread_paths(posts, thread_map, board_map, config_map, repo) do
+    thread_ids =
+      posts
+      |> Enum.map(&(&1.thread_id || &1.id))
+      |> Enum.uniq()
+
+    reply_counts =
+      if thread_ids == [] do
+        %{}
+      else
+        repo.all(
+          from post in Post,
+            where: post.thread_id in ^thread_ids,
+            group_by: post.thread_id,
+            select: {post.thread_id, count(post.id)}
+        )
+        |> Map.new()
+      end
+
+    thread_ids
+    |> Enum.map(fn thread_id ->
+      thread = Map.fetch!(thread_map, thread_id)
+      board = Map.fetch!(board_map, thread.board_id)
+      config = Map.fetch!(config_map, board.id)
+
+      {thread_id,
+       ThreadPaths.preferred_thread_path(board, thread, config,
+         reply_count: Map.get(reply_counts, thread_id, 0)
+       )}
+    end)
+    |> Map.new()
   end
 
   defp ensure_post_preloads(posts, repo) do

@@ -118,6 +118,16 @@ defmodule Eirinchan.Posts.Moderation do
     end
   end
 
+  def null_all_post_ips(opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+
+    {count, _} =
+      from(post in Post, where: not is_nil(post.ip_subnet))
+      |> repo.update_all(set: [ip_subnet: nil])
+
+    {:ok, count}
+  end
+
   @spec delete_post_file(BoardRecord.t(), String.t() | integer(), non_neg_integer(), keyword()) ::
           {:ok, Post.t()} | {:error, :not_found | Ecto.Changeset.t()}
   def delete_post_file(%BoardRecord{} = board, post_id, file_index, opts \\ []) do

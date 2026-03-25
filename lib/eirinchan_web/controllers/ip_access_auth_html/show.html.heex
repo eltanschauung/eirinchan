@@ -1,10 +1,11 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes" />
     <meta name="csrf-token" content={get_csrf_token()} />
-    <title>IP Access Auth</title>
+    <title><%= @title %></title>
+    <link rel="icon" type="image/x-icon" href={EirinchanWeb.Layouts.versioned_asset("/auth/favicon.ico", @asset_version)} />
     <link
       :if={@theme_stylesheet}
       rel="stylesheet"
@@ -12,58 +13,109 @@
     />
     <style>
       body {
-        font-family: sans-serif;
-        margin: 0;
-        padding: 2rem 1rem;
-        background: #f6f7f9;
-        color: #222;
+        text-align: center;
+        font-family: tahoma;
       }
-      .container {
-        max-width: 420px;
+
+      img {
+        max-width: 25em;
+        display: block;
         margin: 0 auto;
-        background: #fff;
-        padding: 1.25rem;
-        border: 1px solid #dadada;
       }
-      .message {
-        margin: 0 0 1rem 0;
+
+      .footer {
+        text-align: center;
+        margin-top: 12%;
       }
+
+      .footer hr {
+        border: 1px color #8b8b78;
+      }
+
+      .footer p2 {
+        font-size: 12pt;
+      }
+
+      .footer p1 {
+        font-size: 8pt;
+      }
+
+      .password-form form {
+        display: inline-block;
+      }
+
+      .error-message {
+        color: #800000;
+        margin-top: 1em;
+        font-weight: 700;
+      }
+
+      @media (max-width: 600px) {
+        img {
+          max-width: 90%;
+        }
+
+        input[type="password"] {
+          max-width: 90%;
+        }
+      }
+
       input[type="password"] {
-        width: 100%;
-        box-sizing: border-box;
-        margin-bottom: 0.75rem;
-        padding: 0.5rem;
-      }
-      button {
-        padding: 0.5rem 1rem;
-      }
-      .result {
-        margin: 0 0 0.75rem 0;
-      }
-      .success {
-        color: #0b7a2f;
-      }
-      .error {
-        color: #9d1c1c;
+        width: 20em;
+        border: 1px solid #ccc;
       }
     </style>
   </head>
   <body>
-    <div class="container">
-      <p class="message"><%= @message %></p>
-      <p :if={@success} class="result success">Access granted. You can continue to the board.</p>
-      <p :if={@error} class="result error"><%= @error %></p>
-      <form method="post" action={@auth_path} autocomplete="off">
+    <img src={EirinchanWeb.Layouts.versioned_asset("/auth/authlanding2.png", @asset_version)} />
+    <p><%= @message %></p>
+    <div class="password-form" autocomplete="off">
+      <form action={@auth_path} method="post" autocomplete="off">
         <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
         <input
+          name="disable-pwd-mgr-1"
           type="password"
-          name="password"
-          value={@entered_password}
-          autocomplete="off"
-          required
+          id="disable-pwd-mgr-1"
+          style="display: none;"
+          value="disable-pwd-mgr-1"
         />
+        <input
+          name="disable-pwd-mgr-2"
+          type="password"
+          id="disable-pwd-mgr-2"
+          style="display: none;"
+          value="disable-pwd-mgr-2"
+        />
+        <input
+          name="disable-pwd-mgr-3"
+          type="password"
+          id="disable-pwd-mgr-3"
+          style="display: none;"
+          value="disable-pwd-mgr-3"
+        />
+        <input type="password" name="password" value={@entered_password} />
         <button type="submit">Enter</button>
       </form>
     </div>
+
+    <p :if={@success}>Access granted.</p>
+    <p :if={@error} class="error-message"><%= @error %></p>
+
+    <br />
+    <div
+      id="redirectHandle"
+      style={if @success, do: "text-align:center;visibility:visible", else: "text-align:center;visibility:hidden"}
+    >
+      <p2>Correct. Not being redirected? Click <a href={@redirect_url}>Here</a>.</p2>
+    </div>
+    <div class="footer">
+      <hr />
+      <p1>Ray ID 810 - <a href="mailto:aryanchad@hitler.rocks">Contact</a></p1><br />
+      <p2>Performance &amp; Security by 無下限</p2>
+    </div>
+
+    <script :if={@success}>
+      setTimeout(function () { window.location.href = <%= raw(Phoenix.json_library().encode!(@redirect_url)) %>; }, 3000);
+    </script>
   </body>
 </html>

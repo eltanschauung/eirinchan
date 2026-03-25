@@ -176,6 +176,8 @@ defmodule EirinchanWeb.LegacyModController do
          :ok <- require_permission(moderator, :show_ip_global),
          :ok <- verify_action_token(conn, "#{uri}/ban24/#{post_id}", token),
          {:ok, post} <- Posts.get_post(board, post_id),
+         {:ok, _post_after_file_delete} <-
+           maybe_delete_post_files_for_ban24(board, post, board_config(board, conn)),
          true <- is_binary(post.ip_subnet) and post.ip_subnet != "",
          {:ok, subnet} <- IpAccessAuth.subnet_for_ip(post.ip_subnet),
          {:ok, _ban} <-
@@ -189,7 +191,7 @@ defmodule EirinchanWeb.LegacyModController do
            }) do
       ModerationAudit.log(
         conn,
-        "Created /24 ban #{subnet} from #{display_ip_for_log(post.ip_subnet)} on post No. #{PostView.public_post_id(post)}",
+        "Created /24 ban #{subnet} from #{display_ip_for_log(post.ip_subnet)} on post No. #{PostView.public_post_id(post)} and deleted attached files",
         moderator: moderator,
         board: board
       )
@@ -462,6 +464,18 @@ defmodule EirinchanWeb.LegacyModController do
       end
 
     Posts.update_thread_state(board, post_id, attrs, config: board_config(board, host))
+  end
+
+  defp maybe_delete_post_files_for_ban24(board, post, config) do
+    if post_has_files?(post) do
+      Posts.delete_post_files(board, post.id, config: config)
+    else
+      {:ok, post}
+    end
+  end
+
+  defp post_has_files?(post) do
+    post.file_path not in [nil, "", "deleted"] or Enum.any?(post.extra_files || [])
   end
 
   defp legacy_error(conn, {:error, :unauthorized}), do: redirect(conn, to: ~p"/manage/login")

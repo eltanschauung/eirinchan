@@ -22,7 +22,6 @@ defmodule EirinchanWeb.JsBundles do
     ],
     thread: [
       "js/inline-expanding.js",
-      "js/save-user_flag.js",
       "js/thread-stats.js",
       "js/strftime.min.js",
       "js/ajax.js",
@@ -48,7 +47,6 @@ defmodule EirinchanWeb.JsBundles do
     ],
     index: [
       "js/inline-expanding.js",
-      "js/save-user_flag.js",
       "js/strftime.min.js",
       "js/ajax.js",
       "js/navarrows2.js",
@@ -73,7 +71,6 @@ defmodule EirinchanWeb.JsBundles do
       "js/expand-video.js"
     ],
     catalog: [
-      "js/save-user_flag.js",
       "js/ajax.js",
       "js/file-selector.js",
       "js/upload-selection.js",

@@ -15,6 +15,7 @@
   <%= for %{board: board, config: config, summary: summary} <- @threads do %>
     <% thread = summary.thread %>
     <% thread_public_id = EirinchanWeb.PostView.public_post_id(thread) %>
+    <% preferred_thread_path = EirinchanWeb.PostView.thread_summary_path(board, summary, config) %>
     <% watch = @thread_watch_state_by_board |> Map.get(board.uri, %{}) |> Map.get(thread_public_id, %{watched: false, unread_count: 0}) %>
     <div class="overboard-thread-block" data-board={board.uri} data-thread-id={thread_public_id}>
     <small class="unimportant2 overboard-board-label">/<%= board.uri %>/</small>
@@ -32,6 +33,7 @@
       show_post_controls={!is_nil(@current_moderator)}
       show_reply_link={false}
       hide_op_fileboard={true}
+      preferred_thread_path={preferred_thread_path}
       thread_attrs={
         %{
           "data-board-uri" => board.uri,
@@ -53,9 +55,9 @@
         />
       </:op_prefix>
       <:op_suffix>
-        <a href={EirinchanWeb.PostView.thread_path(board, thread, config)}>[Reply]</a>
+        <a href={preferred_thread_path}>[Reply]</a>
         <%= if summary.has_noko50 do %>
-          <a href={Eirinchan.ThreadPaths.thread_path(board, thread, config, noko50: true)}>
+          <a href={preferred_thread_path}>
             [Last <%= summary.last_count %> Posts]
           </a>
         <% end %>
@@ -80,6 +82,7 @@
           show_selection={!is_nil(@current_moderator)}
           show_post_button={true}
           show_post_controls={!is_nil(@current_moderator)}
+          preferred_thread_path={preferred_thread_path}
           quote_mode={:navigate}
         />
       <% end %>

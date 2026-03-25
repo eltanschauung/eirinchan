@@ -83,6 +83,7 @@ Menu.onclick(function(e, $buf) {
 
 			var $fileToggle = $form.find('#delete_file_' + postId + ', #delete_file, input[name="file"]').first();
 			var $password = $form.find('input[name="password"]');
+			var $deleteButton = $form.find('input[name="delete"]').first();
 			var passwordValue = $.trim($password.val() || '');
 			if ($(this).attr('id') === 'delete_file_menu') {
 				$fileToggle.prop('checked', true);
@@ -91,7 +92,7 @@ Menu.onclick(function(e, $buf) {
 			}
 
 			if (passwordValue.length) {
-				$form.find('input[name="delete"]').trigger('focus');
+				$deleteButton.trigger('click');
 			} else {
 				$password.trigger('focus');
 			}

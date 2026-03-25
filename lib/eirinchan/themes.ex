@@ -302,6 +302,7 @@ defmodule Eirinchan.Themes do
   defp maybe_rebuild_theme(_name), do: :ok
 
   defp maybe_install_side_effect("faq", params), do: ensure_faq_page(params)
+  defp maybe_install_side_effect("IpAccessAuth", _params), do: sync_ip_access_auth_config()
   defp maybe_install_side_effect(_name, _params), do: :ok
 
   defp maybe_uninstall_side_effect("faq"), do: delete_faq_page()
@@ -371,6 +372,25 @@ defmodule Eirinchan.Themes do
           {:ok, _page} -> :ok
           {:error, reason} -> {:error, reason}
         end
+    end
+  end
+
+  defp sync_ip_access_auth_config do
+    settings = theme_settings("IpAccessAuth")
+    config = Settings.current_instance_config()
+    current_auth = Map.get(config, :ip_access_auth, %{})
+
+    updated_auth =
+      current_auth
+      |> Map.put(:auth_path, "/" <> (Map.get(settings, "path", "auth") |> to_string() |> String.trim("/") |> case do
+        "" -> "auth"
+        value -> value
+      end))
+      |> Map.put(:title, Map.get(settings, "title", "IP Access Authentication"))
+
+    case Settings.persist_instance_config(Map.put(config, :ip_access_auth, updated_auth)) do
+      :ok -> :ok
+      {:error, reason} -> {:error, reason}
     end
   end
 

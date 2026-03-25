@@ -110,10 +110,9 @@ Canonical keys
 - field_disable_password
 - post_form_flags
 - post_form_embed
+- ip_access_passwords
 - ip_access_auth.auth_path
-- ip_access_auth.passwords
 - ip_access_auth.message
-- ip_access_auth.access_file
 - ip_access_auth.theme
 - threads_per_page
 - max_pages

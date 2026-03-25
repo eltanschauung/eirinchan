@@ -1,38 +1,39 @@
 defmodule Eirinchan.IpAccessAuth do
   @moduledoc false
 
+  alias Eirinchan.AccessList
   alias Eirinchan.IpMatching
 
-  @default_passwords ["password", "nigel", "whitehouse"]
+  @default_passwords []
 
   @type config :: %{
           optional(:auth_path) => binary(),
           optional(:passwords) => binary() | [binary()],
           optional(:message) => binary(),
-          optional(:access_file) => binary(),
-          optional(:theme) => binary()
+          optional(:theme) => binary(),
+          optional(:title) => binary()
         }
 
   def default_config do
     %{
       auth_path: "/auth",
-      passwords: Enum.join(@default_passwords, ","),
+      passwords: @default_passwords,
       message: "Enter a password to gain access.",
-      access_file: "access.conf",
-      theme: "ipaccessauth"
+      theme: "ipaccessauth",
+      title: "IP Access Authentication"
     }
   end
 
   def effective_config(config \\ %{}) do
     config
     |> Map.new(fn {key, value} -> {normalize_key(key), value} end)
-    |> Map.take([:auth_path, :passwords, :message, :access_file, :theme])
+    |> Map.take([:auth_path, :message, :theme, :passwords, :title])
     |> then(&Map.merge(default_config(), &1))
     |> Map.update!(:auth_path, &normalize_auth_path/1)
     |> Map.update!(:passwords, &normalized_passwords/1)
     |> Map.update!(:message, &normalize_message/1)
-    |> Map.update!(:access_file, &normalize_access_file_setting/1)
     |> Map.update!(:theme, &normalize_theme_name/1)
+    |> Map.update!(:title, &normalize_title/1)
   end
 
   def auth_path(config \\ %{}) do
@@ -43,37 +44,21 @@ defmodule Eirinchan.IpAccessAuth do
     request_path == auth_path(config)
   end
 
-  def ensure_access_file(config \\ %{}) do
-    path = access_file_path(config)
-    directory = Path.dirname(path)
-
-    with :ok <- maybe_mkdir_p(directory),
-         :ok <- maybe_touch(path) do
-      {:ok, path}
-    end
-  end
-
-  def access_file_path(config \\ %{}) do
-    access_file = effective_config(config).access_file
-
-    if Path.type(access_file) == :absolute do
-      access_file
-    else
-      Path.expand(access_file, project_root())
-    end
-  end
-
   def authorize(ip, password, config \\ %{})
 
   def authorize(ip, password, config) when is_binary(password) do
     config = effective_config(config)
     normalized_password = password |> String.trim() |> String.downcase()
+    passwords = normalized_passwords(Map.get(config, :passwords, @default_passwords))
 
     cond do
       normalized_password == "" ->
         {:error, :password_required}
 
-      normalized_password not in config.passwords ->
+      passwords == [] ->
+        {:error, :invalid_password}
+
+      normalized_password not in passwords ->
         {:error, :invalid_password}
 
       true ->
@@ -97,65 +82,13 @@ defmodule Eirinchan.IpAccessAuth do
     end
   end
 
-  defp do_authorize(ip, normalized_password, config) do
+  defp do_authorize(ip, normalized_password, _config) do
     with {:ok, subnet} <- subnet_for_ip(ip),
-         {:ok, path} <- ensure_access_file(config),
-         {:ok, existing} <- read_existing_entries(path),
-         :ok <- maybe_append_entry(path, subnet, ip, normalized_password, existing) do
-      {:ok, %{subnet: subnet, access_file: path}}
+         {:ok, _entry} <- AccessList.record_access(subnet, normalized_password) do
+      {:ok, %{subnet: subnet}}
     else
       {:error, :invalid_ip} -> {:error, :invalid_ip}
       {:error, _reason} = error -> error
-    end
-  end
-
-  defp read_existing_entries(path) do
-    entries =
-      path
-      |> File.read!()
-      |> String.split(~r/\R/u, trim: true)
-      |> Enum.map(&String.trim/1)
-      |> Enum.reject(&(&1 == "" or String.starts_with?(&1, "#")))
-
-    {:ok, entries}
-  rescue
-    error -> {:error, error}
-  end
-
-  defp maybe_append_entry(path, subnet, ip, password, existing) do
-    if subnet in existing do
-      :ok
-    else
-      timestamp =
-        NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second) |> NaiveDateTime.to_string()
-
-      entry = subnet <> "\n#" <> password <> " " <> timestamp <> " " <> render_ip(ip) <> "\n"
-
-      case File.write(path, entry, [:append]) do
-        :ok -> :ok
-        {:error, reason} -> {:error, reason}
-      end
-    end
-  end
-
-  defp maybe_mkdir_p("."), do: :ok
-  defp maybe_mkdir_p(""), do: :ok
-
-  defp maybe_mkdir_p(path) do
-    case File.mkdir_p(path) do
-      :ok -> :ok
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  defp maybe_touch(path) do
-    if File.exists?(path) do
-      :ok
-    else
-      case File.write(path, "") do
-        :ok -> :ok
-        {:error, reason} -> {:error, reason}
-      end
     end
   end
 
@@ -200,16 +133,6 @@ defmodule Eirinchan.IpAccessAuth do
     end
   end
 
-  defp normalize_access_file_setting(value) do
-    value
-    |> to_string()
-    |> String.trim()
-    |> case do
-      "" -> default_config().access_file
-      path -> path
-    end
-  end
-
   defp normalize_theme_name(value) do
     value
     |> to_string()
@@ -217,6 +140,16 @@ defmodule Eirinchan.IpAccessAuth do
     |> case do
       "" -> default_config().theme
       theme -> theme
+    end
+  end
+
+  defp normalize_title(value) do
+    value
+    |> to_string()
+    |> String.trim()
+    |> case do
+      "" -> default_config().title
+      title -> title
     end
   end
 
@@ -237,24 +170,6 @@ defmodule Eirinchan.IpAccessAuth do
       |> Enum.map(&String.downcase/1)
       |> Enum.uniq()
 
-    if passwords == [], do: @default_passwords, else: passwords
+    passwords
   end
-
-  defp project_root do
-    case Application.get_env(:eirinchan, :instance_config_path) do
-      path when is_binary(path) ->
-        path
-        |> Path.dirname()
-        |> then(&Path.expand("..", &1))
-
-      _ ->
-        File.cwd!()
-    end
-  end
-
-  defp render_ip(ip) when is_tuple(ip) do
-    ip |> :inet.ntoa() |> to_string()
-  end
-
-  defp render_ip(ip), do: to_string(ip)
 end

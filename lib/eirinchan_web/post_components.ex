@@ -30,21 +30,22 @@ defmodule EirinchanWeb.PostComponents do
         <%= if group != List.last(@groups), do: "  " %>
       <% end %>
       <span :if={!@hide_admin_options} id="admin_options_links" style="float: right;">
-        <a
+        <button
           :if={!@mobile_client?}
+          type="button"
           id="watcher-link"
-          href="javascript:void(0)"
           title={"Watcher#{if @watcher_count > 0, do: " (#{@watcher_count})", else: ""}"}
           aria-label={"Watcher#{if @watcher_count > 0, do: " (#{@watcher_count})", else: ""}"}
           data-count={@watcher_count}
           data-unread-count={@watcher_unread_count}
           class={[
+            "js-link-button",
             @watcher_unread_count > 0 && "has-unread",
             @watcher_you_count > 0 && "replies-quoting-you"
           ]}
         >
           👁
-        </a>
+        </button>
         <span :if={!@mobile_client?}>&nbsp;</span><a id="admin-link" href="/manage" title="Admin">[Admin]</a><span>&nbsp;</span><a
           id="options-link"
           href="javascript:void(0)"
@@ -154,7 +155,7 @@ defmodule EirinchanWeb.PostComponents do
     <div id="options_handler" style="display:none">
       <div id="options_background"></div>
       <div id="options_div">
-        <a id="options_close" href="javascript:void(0)"><i class="fa fa-times"></i></a>
+        <button type="button" id="options_close" class="js-link-button"><i class="fa fa-times"></i></button>
         <div id="options_tablist">
           <div id="options-tab-icon-general" class="options_tab_icon">
             <i class="fa fa-home"></i>
@@ -420,13 +421,13 @@ defmodule EirinchanWeb.PostComponents do
 
     ~H"""
     <span class="thread-top-controls">
-      <a :if={@show_hide} class="hide-thread-link" href="javascript:void(0)" title="Hide thread">
+      <button :if={@show_hide} type="button" class="hide-thread-link js-link-button" title="Hide thread">
         [–]
-      </a>
+      </button>
       <a href="#" class="post-btn" title="Post menu" data-post-target={@post_target}>▶</a>
-      <a
-        href="javascript:;"
-        class={["watch-thread-link", @watched && "watched"]}
+      <button
+        type="button"
+        class={["watch-thread-link", "js-link-button", @watched && "watched"]}
         title={if @watched, do: "Unwatch Thread", else: "Watch Thread"}
         data-thread-watch
         data-board-uri={@board_uri}
@@ -435,7 +436,7 @@ defmodule EirinchanWeb.PostComponents do
         data-unwatch-url={"/watcher/#{@board_uri}/#{@thread_id}"}
         data-watched={to_string(@watched)}
       >
-      </a>
+      </button>
     </span>
     """
   end
@@ -550,9 +551,9 @@ defmodule EirinchanWeb.PostComponents do
       end}
     >
       <p :if={!@deleted_file?} class="fileinfo">
-        <span class="postfilename" title={PostView.original_file_name(@file)}>
+        <a href={@file.file_path} class="postfilename" title={PostView.original_file_name(@file)}>
           <%= PostView.display_file_name(@file, @config) %>
-        </span>
+        </a>
         <a
           href={@file.file_path}
           download={PostView.original_file_name(@file) || PostView.stored_file_name(@file)}

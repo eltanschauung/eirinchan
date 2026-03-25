@@ -18,6 +18,7 @@ defmodule EirinchanWeb.ManagePageHTML do
   attr :backlinks_map, :map, default: %{}
   attr :own_post_ids, :any, default: MapSet.new()
   attr :show_yous, :boolean, default: false
+  attr :preferred_thread_path, :string, default: nil
 
   def moderation_post(assigns) do
     ~H"""
@@ -35,6 +36,7 @@ defmodule EirinchanWeb.ManagePageHTML do
       show_post_button={!is_nil(@post.thread_id)}
       show_post_controls={true}
       show_reply_link={true}
+      preferred_thread_path={@preferred_thread_path}
       quote_mode={:navigate}
     />
     """
@@ -46,6 +48,13 @@ defmodule EirinchanWeb.ManagePageHTML do
 
   def noticeboard_page_path(1), do: "/manage/noticeboard"
   def noticeboard_page_path(page_no) when is_integer(page_no) and page_no > 1, do: "/manage/noticeboard/#{page_no}"
+
+  def custom_page_path(%{slug: slug}), do: custom_page_path(slug)
+  def custom_page_path("faq"), do: "/faq"
+  def custom_page_path("flags"), do: "/flags"
+  def custom_page_path("formatting"), do: "/formatting"
+  def custom_page_path("rules"), do: "/rules"
+  def custom_page_path(slug) when is_binary(slug), do: "/pages/#{slug}"
 
   def mod_role_label(%ModUser{role: role}), do: mod_role_label(role)
   def mod_role_label("admin"), do: "Administrator"

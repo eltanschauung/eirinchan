@@ -262,8 +262,20 @@ $(document).ready(function(){
 		});
 	};
 
+	var has_active_youtube_embed = function() {
+		return Array.prototype.some.call(document.querySelectorAll('.video-container iframe'), function(iframe) {
+			return !!iframe.offsetParent;
+		});
+	};
+
+	var has_active_post_hover = function() {
+		return Array.prototype.some.call(document.querySelectorAll('.post-hover'), function(hover) {
+			return !!hover.offsetParent;
+		});
+	};
+
 	var should_defer_for_media = function() {
-		return has_active_inline_video();
+		return has_active_inline_video() || has_active_youtube_embed() || has_active_post_hover();
 	};
 
 	var fragment_md5_url = function() {
@@ -626,17 +638,7 @@ $(document).ready(function(){
 					}
 				});
 				if (elementsToAppend.length) {
-					var currentContainer = $('#thread-refresh-target');
-					var lastReply = currentContainer.children('div.post.reply:last');
-					var clearBreak = lastReply.next('br.clear');
-
-					if (clearBreak.length) {
-						clearBreak.after(elementsToAppend);
-					} else if (lastReply.length) {
-						lastReply.after(elementsToAppend);
-					} else {
-						currentContainer.append(elementsToAppend);
-					}
+					$('#thread-refresh-target').append(elementsToAppend);
 				}
 				recheck_activated();
 				insertedPostIds.forEach(function(id){

@@ -21,6 +21,12 @@
         <input type="submit" value="Logout" />
       </form>
     </li>
+    <li :if={@can_null_post_ips?}>
+      <form action={~p"/manage/null-post-ips/browser"} method="post" class="inline-form">
+        <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+        <input type="submit" value="Null all post IPs" />
+      </form>
+    </li>
   </ul>
 </fieldset>
 
@@ -165,7 +171,7 @@
     <% else %>
       <%= for page <- @custom_pages do %>
         <li>
-          <a href={if page.slug == "flags", do: "/flags", else: "/pages/#{page.slug}"}>
+          <a href={custom_page_path(page)}>
             <%= page.title %>
           </a>
           (<%= page.slug %>)

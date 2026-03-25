@@ -91,4 +91,47 @@ defmodule EirinchanWeb.ThreadWatcherControllerTest do
 
     assert last_seen_post_id == thread_id
   end
+
+  test "unwatching a missing thread purges stale watches", %{conn: conn} do
+    board = board_fixture(%{uri: "watchstale", title: "Watch Stale"})
+    token = "token-stale-delete-1234"
+
+    assert {:ok, _watch} = ThreadWatcher.watch_thread(token, board.uri, 999_998)
+
+    conn =
+      conn
+      |> put_req_cookie("browser_token", token)
+      |> put_req_header("x-csrf-token", CSRFProtection.get_csrf_token())
+      |> delete("/watcher/#{board.uri}/123456")
+
+    assert %{
+             "ok" => true,
+             "watched" => false,
+             "thread_id" => 123456,
+             "watcher_count" => 0
+           } = json_response(conn, 200)
+  end
+
+  test "clears all watched threads for the browser token", %{conn: conn} do
+    board = board_fixture(%{uri: "watchclear", title: "Watch Clear"})
+    token = "token-clear-1234567890"
+    thread = thread_fixture(board, %{body: "OP"})
+
+    assert {:ok, _watch} = ThreadWatcher.watch_thread(token, board.uri, thread.id)
+
+    conn =
+      conn
+      |> put_req_cookie("browser_token", token)
+      |> put_req_header("x-csrf-token", CSRFProtection.get_csrf_token())
+      |> delete("/watcher")
+
+    assert %{
+             "ok" => true,
+             "watcher_count" => 0,
+             "watcher_unread_count" => 0,
+             "watcher_you_count" => 0
+           } = json_response(conn, 200)
+
+    assert ThreadWatcher.list_watches(token) == []
+  end
 end

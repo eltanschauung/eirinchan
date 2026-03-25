@@ -75,6 +75,45 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert page =~ "Delete"
   end
 
+  test "recent posts browser links to noko50 when available", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+    board = board_fixture(%{uri: "recentnoko", title: "Recent Noko"})
+
+    with_instance_config(%{noko50_min: 1}, fn ->
+      thread = thread_fixture(board, %{body: "OP"})
+      reply = reply_fixture(board, thread, %{body: "Reply"})
+
+      page =
+        conn
+        |> login_moderator(moderator)
+        |> get("/manage/recent-posts/browser?board=#{board.uri}")
+        |> html_response(200)
+
+      assert page =~
+               Eirinchan.ThreadPaths.thread_path(
+                 board,
+                 thread,
+                 EirinchanWeb.BoardRuntime.board_config(board, nil),
+                 noko50: true
+               )
+      assert page =~ "##{PublicIds.public_id(reply)}"
+    end)
+  end
+
+  test "admin can clear stored post IPs", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+    board = board_fixture()
+    thread = thread_fixture(board, %{ip_subnet: "203.0.113.9"})
+
+    conn =
+      conn
+      |> login_moderator(moderator)
+      |> post("/manage/null-post-ips/browser", %{})
+
+    assert redirected_to(conn) == "/manage"
+    assert Repo.get!(Eirinchan.Posts.Post, thread.id).ip_subnet == nil
+  end
+
   test "report queue renders reporter ip and dismiss+ link", %{conn: conn} do
     with_instance_config(%{}, fn ->
       moderator = moderator_fixture(%{role: "admin"})
@@ -875,7 +914,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       |> get("/manage/announcement/browser")
       |> html_response(200)
 
-    assert page =~ "Maximum 100 entries."
+    assert page =~ "The public blotter preview shows the first 10 entries"
     refute page =~ ~s(name="limit")
   end
 
@@ -963,7 +1002,8 @@ defmodule EirinchanWeb.ManagePageControllerTest do
 
     refute page =~ "<script>alert(1)</script>"
     refute String.contains?(page, "href=\"javascript:alert(1)\"")
-    assert page =~ ~s(href="#")
+    assert page =~
+             "<textarea name=\"body\" rows=\"6\">&lt;script&gt;alert(1)&lt;/script&gt;&lt;a href=&quot;javascript:alert(1)&quot; onclick=&quot;alert(1)&quot;&gt;notice&lt;/a&gt;</textarea>"
   end
 
   test "announcement preview preserves bold, italics, and escaped newlines", %{conn: conn} do
@@ -1000,7 +1040,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       |> get("/manage/announcement/browser")
       |> html_response(200)
 
-    assert page =~ "PPH: <b>7</b><br /><i>italic</i>"
+    refute page =~ "PPH: <b>7</b><br /><i>italic</i>"
     assert page =~ ~s(<textarea name="body" rows="6">PPH: &lt;b&gt;7&lt;/b&gt;\\n&lt;i&gt;italic&lt;/i&gt;</textarea>)
   end
 
@@ -1045,10 +1085,8 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       |> get("/manage/announcement/browser")
       |> html_response(200)
 
-    assert page =~ "This software is receiving updates again;"
-    assert page =~ "Visitors in the last 10 minutes: 1"
-    assert page =~ "PPH: 2"
-    assert page =~ "<i>"
+    refute page =~ "Visitors in the last 10 minutes: 1"
+    refute page =~ "PPH: 2"
     assert page =~ ~s(<textarea name="body" rows="6">This software is receiving updates again;\\n&lt;i&gt;Visitors in the last 10 minutes: {stats.users_10minutes}\\nPPH: {stats.posts_perhour}&lt;/i&gt;</textarea>)
   end
 
@@ -1094,11 +1132,20 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     public_page =
       update_conn
       |> recycle()
-      |> get("/pages/rules")
+      |> get("/rules")
       |> html_response(200)
 
     assert public_page =~ "Board Rules"
     assert public_page =~ "Still be civil"
+
+    manage_pages =
+      update_conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> get("/manage/pages/browser")
+      |> html_response(200)
+
+    assert manage_pages =~ ~s(href="/rules")
 
     delete_conn =
       conn
