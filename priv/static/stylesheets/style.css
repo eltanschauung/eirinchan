@@ -42,7 +42,7 @@ a,a:visited {
 }
 
 button.js-link-button {
-  background: none;
+  background-color: transparent;
   border: 0;
   padding: 0;
   margin: 0;
