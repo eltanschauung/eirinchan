@@ -64,7 +64,7 @@
               type="submit"
               style="float:left;text-decoration:none;background:none;border:none;padding:0;cursor:pointer"
               title="Demote"
-              onclick={if @moderator.id == user.id, do: "return confirm('Are you sure you want to demote yourself?')", else: nil}
+              data-confirm-message={if @moderator.id == user.id, do: "Are you sure you want to demote yourself?", else: nil}
             >&#9660;</button>
           </form>
         <% end %>

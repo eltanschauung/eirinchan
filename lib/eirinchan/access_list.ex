@@ -1,10 +1,14 @@
 defmodule Eirinchan.AccessList do
   @moduledoc false
 
+  import Ecto.Query
+
+  alias Eirinchan.IpAccessEntry
   alias Eirinchan.IpMatching
+  alias Eirinchan.Repo
 
   @default_config %{enabled: false, entries: [], path: nil}
-  @default_access_file "var/access.conf"
+  @legacy_metadata_regex ~r/^#(?<password>\S+)\s+(?<date>\d{4}-\d{2}-\d{2})\s+(?<time>\d{2}:\d{2}:\d{2})(?:\s+\S+)?$/
 
   def enabled? do
     config().enabled
@@ -20,70 +24,83 @@ defmodule Eirinchan.AccessList do
     end
   end
 
-  def ip_matches_access_list?(ip, entries) do
-    ip_matches_access_list(ip, entries)
+  def allowed_for_posting?(ip) do
+    IpMatching.match?(ip, entries())
   end
 
-  # vichan parity helper for access.conf-style IP/CIDR matching.
-  def ip_matches_access_list(ip, entries_or_path \\ entries())
-
-  def ip_matches_access_list(ip, path) when is_binary(path) do
-    ip
-    |> ip_matches_access_list(load_file_entries(access_file_path(path)))
+  def ip_matches_access_list?(ip, entries) do
+    ip_matches_access_list(ip, entries)
   end
 
   def ip_matches_access_list(ip, entries) when is_list(entries) do
     IpMatching.match?(ip, entries)
   end
 
-  def allowed_from_file?(ip, path \\ default_path()) do
-    ip_matches_access_list(ip, access_file_path(path))
-  end
-
   def entries(cfg \\ config()) do
-    inline_entries = List.wrap(cfg.entries)
-    file_entries = load_file_entries(cfg.path)
-    inline_entries ++ file_entries
+    List.wrap(cfg.entries) ++ stored_entries()
   end
 
-  def default_path, do: access_file_path(@default_access_file)
+  def stored_entries do
+    Repo.all(from entry in IpAccessEntry, select: entry.ip)
+  end
 
-  def access_file_path(path) when is_binary(path) do
-    if Path.type(path) == :absolute do
+  def record_access(ip, password, granted_at \\ current_timestamp()) when is_binary(ip) do
+    Repo.insert(%IpAccessEntry{ip: ip, password: password, granted_at: granted_at})
+  end
+
+  def import_legacy_file(path) when is_binary(path) do
+    rows =
       path
-    else
-      Path.expand(path, project_root())
-    end
+      |> File.read!()
+      |> String.split(~r/\R/u, trim: true)
+      |> Enum.map(&String.trim/1)
+      |> Enum.reject(&(&1 == ""))
+      |> legacy_rows()
+
+    {count, _rows} = Repo.insert_all(IpAccessEntry, rows)
+    {:ok, count}
   end
 
   def config do
     Map.merge(@default_config, Application.get_env(:eirinchan, :ip_access_list, %{}))
   end
 
-  defp load_file_entries(nil), do: []
-  defp load_file_entries(""), do: []
+  defp legacy_rows(lines), do: legacy_rows(lines, [])
 
-  defp load_file_entries(path) do
-    if File.exists?(path) do
-      path
-      |> File.read!()
-      |> String.split(~r/\R/u, trim: true)
-      |> Enum.map(&String.trim/1)
-      |> Enum.reject(&(&1 == "" or String.starts_with?(&1, "#")))
-    else
-      []
+  defp legacy_rows([], acc), do: Enum.reverse(acc)
+
+  defp legacy_rows([<<"#", _::binary>> | rest], acc), do: legacy_rows(rest, acc)
+
+  defp legacy_rows([ip, <<"#", _::binary>> = metadata | rest], acc) do
+    {password, granted_at} = parse_legacy_metadata(metadata)
+    legacy_rows(rest, [%{ip: ip, password: password, granted_at: granted_at} | acc])
+  end
+
+  defp legacy_rows([ip | rest], acc) do
+    legacy_rows(rest, [%{ip: ip, password: nil, granted_at: nil} | acc])
+  end
+
+  defp parse_legacy_metadata(metadata) do
+    case Regex.named_captures(@legacy_metadata_regex, metadata) do
+      %{"password" => password, "date" => date, "time" => time} ->
+        {password, NaiveDateTime.from_iso8601!("#{date} #{time}")}
+
+      _ ->
+        password =
+          metadata
+          |> String.trim_leading("#")
+          |> String.split(~r/\s+/, parts: 2)
+          |> List.first()
+
+        {blank_to_nil(password), nil}
     end
   end
 
-  defp project_root do
-    case Application.get_env(:eirinchan, :instance_config_path) do
-      path when is_binary(path) ->
-        path
-        |> Path.dirname()
-        |> then(&Path.expand("..", &1))
+  defp blank_to_nil(nil), do: nil
+  defp blank_to_nil(""), do: nil
+  defp blank_to_nil(value), do: value
 
-      _ ->
-        File.cwd!()
-    end
+  defp current_timestamp do
+    NaiveDateTime.local_now() |> NaiveDateTime.truncate(:second)
   end
 end

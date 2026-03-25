@@ -1,6 +1,9 @@
 defmodule EirinchanWeb.ThemeManagementControllerTest do
   use EirinchanWeb.ConnCase, async: false
 
+  alias Eirinchan.IpAccessEntry
+  alias Eirinchan.Settings
+
   setup do
     original_path = Application.get_env(:eirinchan, :instance_config_path)
 
@@ -185,5 +188,24 @@ defmodule EirinchanWeb.ThemeManagementControllerTest do
     assert redirected_to(save_conn) == "/manage/themes/browser/faq"
     refute Eirinchan.CustomPages.get_page_by_slug("faq").body =~ "<!doctype html>"
     assert Eirinchan.CustomPages.get_page_by_slug("faq").body =~ "Theme FAQ"
+  end
+
+  test "admin can install IpAccessAuth without touching access grants", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+    Eirinchan.Repo.delete_all(IpAccessEntry)
+    Eirinchan.Repo.insert!(%IpAccessEntry{ip: "198.51.100.0/24", password: "tewi"})
+
+    install_conn =
+      conn
+      |> login_moderator(moderator)
+      |> post("/manage/themes/browser/IpAccessAuth", %{
+        "path" => "auth",
+        "title" => "Secret Door"
+      })
+
+    assert redirected_to(install_conn) == "/manage/themes/browser/IpAccessAuth"
+    assert Settings.current_instance_config().ip_access_auth.auth_path == "/auth"
+    assert Settings.current_instance_config().ip_access_auth.title == "Secret Door"
+    assert Eirinchan.Repo.aggregate(IpAccessEntry, :count, :ip) == 1
   end
 end

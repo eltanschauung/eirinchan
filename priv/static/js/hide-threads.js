@@ -36,7 +36,7 @@ $(document).ready(function(){
 		}
 	}
 
-	var fields_to_hide = 'div.file,div.post,div.video-container,video,iframe,img:not(.unanimated),canvas,p.fileinfo,a.hide-thread-link,div.new-posts,br';
+	var fields_to_hide = 'div.file,div.post,div.video-container,video,iframe,img:not(.unanimated),canvas,p.fileinfo,.hide-thread-link,div.new-posts,br';
 
 	var restoreInlineImageState = function(thread_container) {
 		thread_container.find('img.full-image').each(function() {

@@ -35,7 +35,6 @@ defmodule EirinchanWeb.Plugs.SecureHeaders do
       conn
       |> put_standard_headers()
       |> put_resp_header("permissions-policy", Enum.join(@permissions_policy, ", "))
-      |> put_resp_header("content-security-policy", content_security_policy(config))
     else
       conn
     end
@@ -47,27 +46,4 @@ defmodule EirinchanWeb.Plugs.SecureHeaders do
     end)
   end
 
-  defp content_security_policy(config) do
-    script_src =
-      ["'self'"] ++
-        if(Map.get(config, :allow_remote_script_urls, false), do: ["https:", "http:"], else: [])
-
-    [
-      {"default-src", ["'self'"]},
-      {"base-uri", ["'self'"]},
-      {"object-src", ["'none'"]},
-      {"frame-ancestors", ["'self'"]},
-      {"form-action", ["'self'"]},
-      {"script-src", script_src},
-      {"style-src", ["'self'", "'unsafe-inline'"]},
-      {"img-src", ["'self'", "data:", "blob:", "https:"]},
-      {"media-src", ["'self'", "blob:", "data:"]},
-      {"font-src", ["'self'", "data:"]},
-      {"connect-src", ["'self'", "ws:", "wss:"]},
-      {"frame-src", ["'self'", "https://www.youtube.com", "https://www.youtube-nocookie.com"]},
-      {"worker-src", ["'self'", "blob:"]}
-    ]
-    |> Enum.map(fn {directive, sources} -> "#{directive} #{Enum.join(sources, " ")}" end)
-    |> Enum.join("; ")
-  end
 end

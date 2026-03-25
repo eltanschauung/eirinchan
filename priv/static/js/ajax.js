@@ -104,6 +104,31 @@ $(window).ready(function() {
 				}
 			};
 
+			var insertReplyMarkup = function(post_response) {
+				if (!post_response || !post_response.html) {
+					return $('div.post#reply_' + post_response.id).first();
+				}
+
+				var $reply = $('div.post#reply_' + post_response.id).first();
+				if ($reply.length) {
+					return $reply;
+				}
+
+				var $newReply = $($.parseHTML(post_response.html, document, true));
+				var $container = $('#thread-refresh-target');
+
+				if ($container.length) {
+					$container.append($newReply);
+				} else {
+					var $thread = $('div.thread').first();
+					if ($thread.length) {
+						$thread.append($newReply);
+					}
+				}
+
+				return $('div.post#reply_' + post_response.id).first();
+			};
+
 
 			var clearReplyFields = function() {
 				$(form).find('input[name="subject"],input[name="file_url"],input[name="embed"],\
@@ -160,31 +185,7 @@ $(window).ready(function() {
 					} else if (post_response.redirect && post_response.id) {
 						if (is_reply_form) {
 							$submit.val(_('Posted...'));
-							var $reply = $('div.post#reply_' + post_response.id).first();
-
-							if (post_response.html && !$reply.length) {
-								var $newReply = $(post_response.html);
-								var $lastPost = $('div.thread > div.post.reply:last');
-
-								if ($lastPost.length) {
-									var $after = $lastPost.nextAll('br.clear:first');
-									if ($after.length) {
-										$after.after($newReply);
-									} else {
-										$lastPost.after($newReply);
-									}
-								} else {
-									var $op = $('div.thread > div.post.op, div.thread > div.op').first();
-									var $afterOp = $op.nextAll('br.clear:first');
-									if ($afterOp.length) {
-										$afterOp.after($newReply);
-									} else {
-										$op.after($newReply);
-									}
-								}
-
-								$reply = $('div.post#reply_' + post_response.id).first();
-							}
+							var $reply = insertReplyMarkup(post_response);
 
 							if ($reply.length) {
 								var anchor = document.getElementById(String(post_response.id)) || $reply[0];

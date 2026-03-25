@@ -98,9 +98,27 @@
     });
   }
 
+  function initConfirmButtons() {
+    document
+      .querySelectorAll('button[data-confirm-message], input[type="submit"][data-confirm-message]')
+      .forEach(function (button) {
+        if (button.dataset.confirmBound === 'true') return;
+
+        button.addEventListener('click', function (event) {
+          var message = button.getAttribute('data-confirm-message');
+          if (message && !window.confirm(message)) {
+            event.preventDefault();
+          }
+        });
+
+        button.dataset.confirmBound = 'true';
+      });
+  }
+
   onReady(function () {
     initAnnouncementEditor();
     initToggleDisabledTargets();
     initConfirmSubmit();
+    initConfirmButtons();
   });
 })();

@@ -267,10 +267,21 @@ defmodule Eirinchan.PostsTest do
     for _ <- 1..2, do: reply_fixture(board, thread_c, %{body: "reply"})
     for _ <- 1..1, do: reply_fixture(board, thread_d, %{body: "reply"})
 
-    Repo.update_all(from(p in Post, where: p.id == ^thread_a.id), set: [bump_at: ~N[2026-01-01 00:00:00]])
-    Repo.update_all(from(p in Post, where: p.id == ^thread_b.id), set: [bump_at: ~N[2026-01-02 00:00:00]])
-    Repo.update_all(from(p in Post, where: p.id == ^thread_c.id), set: [bump_at: ~N[2026-01-03 00:00:00]])
-    Repo.update_all(from(p in Post, where: p.id == ^thread_d.id), set: [bump_at: ~N[2026-01-04 00:00:00]])
+    Repo.update_all(from(p in Post, where: p.id == ^thread_a.id),
+      set: [bump_at: ~N[2026-01-01 00:00:00]]
+    )
+
+    Repo.update_all(from(p in Post, where: p.id == ^thread_b.id),
+      set: [bump_at: ~N[2026-01-02 00:00:00]]
+    )
+
+    Repo.update_all(from(p in Post, where: p.id == ^thread_c.id),
+      set: [bump_at: ~N[2026-01-03 00:00:00]]
+    )
+
+    Repo.update_all(from(p in Post, where: p.id == ^thread_d.id),
+      set: [bump_at: ~N[2026-01-04 00:00:00]]
+    )
 
     {:ok, page_data} =
       Posts.list_catalog_page(board, 1,
@@ -2200,19 +2211,11 @@ defmodule Eirinchan.PostsTest do
 
   test "create_post rejects IPs outside the ipaccess allowlist" do
     board = board_fixture()
-
-    access_file =
-      Path.join(
-        System.tmp_dir!(),
-        "eirinchan-ipaccess-#{System.unique_integer([:positive])}.conf"
-      )
-
-    File.write!(access_file, "198.51.100.0/24\n")
+    Repo.insert!(%Eirinchan.IpAccessEntry{ip: "198.51.100.0/24"})
 
     config =
       post_config(%{
-        ipaccess: true,
-        ipaccess_file: access_file
+        ipaccess: true
       })
 
     assert {:error, :ipaccess} =
@@ -2229,19 +2232,11 @@ defmodule Eirinchan.PostsTest do
 
   test "create_post bypasses ipaccess when the flag threshold is met" do
     board = board_fixture()
-
-    access_file =
-      Path.join(
-        System.tmp_dir!(),
-        "eirinchan-ipaccess-bypass-#{System.unique_integer([:positive])}.conf"
-      )
-
-    File.write!(access_file, "198.51.100.0/24\n")
+    Repo.insert!(%Eirinchan.IpAccessEntry{ip: "198.51.100.0/24"})
 
     config =
       post_config(%{
         ipaccess: true,
-        ipaccess_file: access_file,
         ip_nulling_flags: 8
       })
 
@@ -2259,6 +2254,70 @@ defmodule Eirinchan.PostsTest do
                  remote_ip: {203, 0, 113, 9}
                }
              )
+  end
+
+  test "create_post bypasses ipaccess for fileless replies when ipaccess_replies is enabled" do
+    board = board_fixture()
+    thread = thread_fixture(board)
+    Repo.insert!(%Eirinchan.IpAccessEntry{ip: "198.51.100.0/24"})
+
+    config =
+      post_config(%{
+        ipaccess: true,
+        ipaccess_replies: true
+      })
+
+    assert {:ok, reply, _meta} =
+             Posts.create_post(
+               board,
+               %{
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
+                 "body" => "fileless reply allowed by ipaccess_replies",
+                 "post" => "Reply"
+               },
+               config: config,
+               request: %{
+                 referer: "http://example.test/#{board.uri}/index.html",
+                 remote_ip: {203, 0, 113, 9}
+               }
+             )
+
+    assert reply.thread_id == thread.id
+  end
+
+  test "create_post bypasses dnsbl for fileless replies when ipaccess_replies is enabled" do
+    board = board_fixture()
+    thread = thread_fixture(board)
+
+    config =
+      post_config(%{
+        ipaccess_replies: true,
+        dnsbl: [["rbl.example", 4]],
+        error: %{dnsbl: "Your IP address is listed in %s."}
+      })
+
+    resolver = fn
+      "9.113.0.203.rbl.example" -> "127.0.0.4"
+      _ -> nil
+    end
+
+    assert {:ok, reply, _meta} =
+             Posts.create_post(
+               board,
+               %{
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
+                 "body" => "fileless reply allowed past dnsbl",
+                 "post" => "Reply"
+               },
+               config: config,
+               request: %{
+                 referer: "http://example.test/#{board.uri}/index.html",
+                 remote_ip: {203, 0, 113, 9},
+                 dnsbl_resolver: resolver
+               }
+             )
+
+    assert reply.thread_id == thread.id
   end
 
   test "create_post bypasses dnsbl when the flag threshold is met" do
@@ -2487,7 +2546,10 @@ defmodule Eirinchan.PostsTest do
 
     assert deleted_post_id == PublicIds.public_id(reply)
     assert thread_id == PublicIds.public_id(thread)
-    assert {:ok, [reloaded_thread]} = Posts.get_thread(board, PublicIds.public_id(thread), config: config)
+
+    assert {:ok, [reloaded_thread]} =
+             Posts.get_thread(board, PublicIds.public_id(thread), config: config)
+
     assert reloaded_thread.id == thread.id
   end
 
@@ -2527,7 +2589,10 @@ defmodule Eirinchan.PostsTest do
 
     assert deleted_post_id == PublicIds.public_id(thread)
     assert thread_id == PublicIds.public_id(thread)
-    assert {:error, :not_found} = Posts.get_thread(board, PublicIds.public_id(thread), config: config)
+
+    assert {:error, :not_found} =
+             Posts.get_thread(board, PublicIds.public_id(thread), config: config)
+
     assert Posts.list_threads(board, config: config) == []
   end
 
@@ -3196,7 +3261,7 @@ defmodule Eirinchan.PostsTest do
     assert {:ok, bump_reply, _meta} =
              Posts.create_post(
                board,
-                %{
+               %{
                  "thread" => Integer.to_string(PublicIds.public_id(older_thread)),
                  "body" => "Bumping reply",
                  "password" => "replypw",
@@ -3211,7 +3276,10 @@ defmodule Eirinchan.PostsTest do
     assert hd(page_after_bump.threads).thread.id == older_thread.id
 
     assert {:ok, %{deleted_post_id: deleted_post_id, thread_deleted: false}} =
-             Posts.delete_post(board, PublicIds.public_id(bump_reply), "replypw", config: config, repo: Repo)
+             Posts.delete_post(board, PublicIds.public_id(bump_reply), "replypw",
+               config: config,
+               repo: Repo
+             )
 
     assert deleted_post_id == PublicIds.public_id(bump_reply)
 
@@ -3256,7 +3324,12 @@ defmodule Eirinchan.PostsTest do
     old_reply_file = reply.file_path
 
     source_thread_output =
-      Path.join([Build.board_root(), source_board.uri, "res", "#{PublicIds.public_id(thread)}.html"])
+      Path.join([
+        Build.board_root(),
+        source_board.uri,
+        "res",
+        "#{PublicIds.public_id(thread)}.html"
+      ])
 
     assert {:ok, moved_thread} =
              Posts.move_thread(
@@ -3268,7 +3341,12 @@ defmodule Eirinchan.PostsTest do
              )
 
     target_thread_output =
-      Path.join([Build.board_root(), target_board.uri, "res", "#{PublicIds.public_id(moved_thread)}.html"])
+      Path.join([
+        Build.board_root(),
+        target_board.uri,
+        "res",
+        "#{PublicIds.public_id(moved_thread)}.html"
+      ])
 
     assert moved_thread.board_id == target_board.id
     assert moved_thread.file_path =~ ~r|^/#{target_board.uri}/src/\d+\.png$|
@@ -3279,7 +3357,9 @@ defmodule Eirinchan.PostsTest do
     refute File.exists?(source_thread_output)
     assert {:error, :not_found} = Posts.get_thread(source_board, PublicIds.public_id(thread))
 
-    assert {:ok, [reloaded_thread, moved_reply]} = Posts.get_thread(target_board, PublicIds.public_id(moved_thread))
+    assert {:ok, [reloaded_thread, moved_reply]} =
+             Posts.get_thread(target_board, PublicIds.public_id(moved_thread))
+
     assert reloaded_thread.board_id == target_board.id
     assert moved_reply.board_id == target_board.id
     assert moved_reply.thread_id == thread.id
@@ -3297,7 +3377,7 @@ defmodule Eirinchan.PostsTest do
     assert {:ok, reply, _meta} =
              Posts.create_post(
                source_board,
-                %{
+               %{
                  "thread" => Integer.to_string(PublicIds.public_id(source_thread)),
                  "body" => "Movable reply",
                  "file" => upload_fixture("move-reply.png", geometry: "32x32"),
@@ -3325,7 +3405,9 @@ defmodule Eirinchan.PostsTest do
     refute File.exists?(Eirinchan.Uploads.filesystem_path(old_file))
     assert File.exists?(Eirinchan.Uploads.filesystem_path(moved_reply.file_path))
 
-    assert {:ok, [reloaded_source_thread]} = Posts.get_thread(source_board, PublicIds.public_id(source_thread))
+    assert {:ok, [reloaded_source_thread]} =
+             Posts.get_thread(source_board, PublicIds.public_id(source_thread))
+
     assert reloaded_source_thread.id == source_thread.id
 
     assert {:ok, [_target_thread, moved_reply_from_target]} =
@@ -3334,7 +3416,12 @@ defmodule Eirinchan.PostsTest do
     assert moved_reply_from_target.id == reply.id
 
     assert File.read!(
-             Path.join([Build.board_root(), target_board.uri, "res", "#{PublicIds.public_id(target_thread)}.html"])
+             Path.join([
+               Build.board_root(),
+               target_board.uri,
+               "res",
+               "#{PublicIds.public_id(target_thread)}.html"
+             ])
            ) =~
              "Movable reply"
   end

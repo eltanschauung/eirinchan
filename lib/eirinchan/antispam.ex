@@ -474,6 +474,10 @@ defmodule Eirinchan.Antispam do
         ]
         |> Enum.join(":")
 
+      "edit" ->
+        ["edit", Map.get(attrs, "edit_post_id", Map.get(attrs, "post_id", ""))]
+        |> Enum.join(":")
+
       other ->
         [other, normalize_query(inspect(attrs)) || ""]
         |> Enum.join(":")

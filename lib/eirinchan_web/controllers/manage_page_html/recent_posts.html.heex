@@ -43,11 +43,11 @@
       |
       <a href={~p"/manage/recent-posts/browser?#{[limit: 100]}"}>100</a>
     </p>
-    <a href="javascript:void(0)" id="erase-local-data" style="float:right; clear:both">Erase local data</a>
+    <button type="button" id="erase-local-data" class="js-link-button" style="float:right; clear:both">Erase local data</button>
     <%= for entry <- @entries do %>
       <div class="post-wrapper" data-board={entry.board.uri}>
         <hr />
-        <.browser_entry_link board={entry.board} post={entry.post} thread={entry.thread} config={entry.config} /><br />
+        <.browser_entry_link board={entry.board} post={entry.post} thread={entry.thread} config={entry.config} preferred_thread_path={entry.preferred_thread_path} /><br />
         <.moderation_post
           post={entry.post}
           board={entry.board}
@@ -55,6 +55,7 @@
           config={entry.config}
           moderator={@moderator}
           secure_manage_token={@secure_manage_token}
+          preferred_thread_path={entry.preferred_thread_path}
         />
       </div>
     <% end %>

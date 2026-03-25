@@ -75,4 +75,12 @@ defmodule Eirinchan.ThreadWatcherTest do
     [summary] = ThreadWatcher.list_watch_summaries(token)
     assert summary.you_unread_count == 1
   end
+
+  test "purge_missing_watches removes stale watches" do
+    token = "token-stale-1234567890"
+    assert {:ok, _watch} = ThreadWatcher.watch_thread(token, "bant", 999_999)
+
+    assert ThreadWatcher.watch_count(token) == 0
+    assert ThreadWatcher.list_watch_summaries(token) == []
+  end
 end

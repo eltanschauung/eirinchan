@@ -296,27 +296,22 @@ window.toggleNews = window.toggleNews || toggleNews;
 */
 
 onReady(function() {
-	let do_embed_yt = function(tag) {
-		$('div.video-container a', tag).click(function() {
-			let videoID = $(this.parentNode).data('video');
-			let iframe = document.createElement('iframe');
-			iframe.style.cssText = 'float:left;margin: 10px 20px';
-			iframe.type = 'text/html';
-			iframe.width = '360';
-			iframe.height = '270';
-			iframe.src = '//www.youtube.com/embed/' + encodeURIComponent(videoID) + '?autoplay=1&html5=1';
-			iframe.allowFullscreen = true;
-			iframe.setAttribute('frameborder', '0');
-			this.parentNode.replaceChildren(iframe);
-
-			return false;
-		});
+	let embedYoutubeLink = function(link) {
+		let videoID = $(link.parentNode).data('video');
+		let iframe = document.createElement('iframe');
+		iframe.style.cssText = 'float:left;margin: 10px 20px';
+		iframe.type = 'text/html';
+		iframe.width = '360';
+		iframe.height = '270';
+		iframe.src = '//www.youtube.com/embed/' + encodeURIComponent(videoID) + '?autoplay=1&html5=1';
+		iframe.allowFullscreen = true;
+		iframe.setAttribute('frameborder', '0');
+		link.parentNode.replaceChildren(iframe);
 	};
-	do_embed_yt(document);
 
-	// allow to work with auto-reload.js, etc.
-	$(document).on('new_post', function(e, post) {
-		do_embed_yt(post);
+	$(document).on('click', 'div.video-container a', function(e) {
+		e.preventDefault();
+		embedYoutubeLink(this);
 	});
 });
 /* End js/youtube.js */
@@ -526,6 +521,25 @@ $(function(){
   var removeCookie = runtime.removeCookie || function(name) {
     document.cookie = name + "=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
   };
+  var csrfToken = function() {
+    var field = document.querySelector('input[name="_csrf_token"]');
+    if (field) return field.value;
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') : null;
+  };
+  var clearWatcherData = function() {
+    var token = csrfToken();
+    if (!token || !window.fetch) return Promise.resolve();
+
+    return fetch('/watcher', {
+      method: 'DELETE',
+      headers: {
+        'x-csrf-token': token,
+        'x-requested-with': 'XMLHttpRequest'
+      },
+      credentials: 'same-origin'
+    }).catch(function() {});
+  };
   var prefBox = $("#general-preferences");
   if (!prefBox.length) {
     prefBox = $("<div id='general-preferences'></div>").appendTo(tab.content);
@@ -565,7 +579,11 @@ $(function(){
       localStorage.clear();
       removeCookie("theme", { path: '/', sameSite: 'lax' });
       removeCookie("board_themes", { path: '/', sameSite: 'lax' });
-      document.location.reload();
+      clearWatcherData().then(function() {
+        document.location.reload();
+      }, function() {
+        document.location.reload();
+      });
     }
   });
 

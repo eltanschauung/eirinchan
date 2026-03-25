@@ -19,6 +19,7 @@ defmodule EirinchanWeb.BrowserPostComponents do
   attr :hide_op_fileboard, :boolean, default: false
   attr :thread_attrs, :any, default: []
   attr :quote_mode, :atom, default: :navigate
+  attr :preferred_thread_path, :string, default: nil
   slot :op_prefix
   slot :op_suffix
 
@@ -27,6 +28,10 @@ defmodule EirinchanWeb.BrowserPostComponents do
       assigns
       |> assign(:public_post_id, PostView.public_post_id(assigns.post))
       |> assign(:public_thread_id, PostView.public_post_id(assigns.thread))
+      |> assign(
+        :effective_thread_path,
+        assigns.preferred_thread_path || PostView.thread_path(assigns.board, assigns.thread, assigns.config)
+      )
       |> assign(:own_post?, assigns.show_yous and MapSet.member?(assigns.own_post_ids, PostView.public_post_id(assigns.post)))
 
     ~H"""
@@ -68,8 +73,8 @@ defmodule EirinchanWeb.BrowserPostComponents do
             />
             <PostComponents.post_number_links
               post_id={@public_post_id}
-              post_href={PostView.thread_path(@board, @post, @config) <> "##{@public_post_id}"}
-              quote_href={PostView.reply_path(@board, @post, @post, @config, :quote)}
+              post_href={@effective_thread_path <> "##{@public_post_id}"}
+              quote_href={@effective_thread_path <> "#q#{@public_post_id}"}
               quote_to={@public_post_id}
               quote_mode={@quote_mode}
             />
@@ -83,7 +88,7 @@ defmodule EirinchanWeb.BrowserPostComponents do
             <%= for icon <- PostView.state_icons(@post, @config) do %>
               <img class="icon" title={icon.title} src={icon.path} alt={icon.title} />
             <% end %>
-            <a :if={@show_reply_link} href={PostView.thread_path(@board, @post, @config)}>[Reply]</a>
+            <a :if={@show_reply_link} href={@effective_thread_path}>[Reply]</a>
             <%= render_slot(@op_suffix) %>
             <PostComponents.post_controls
               :if={@show_post_controls}
@@ -124,8 +129,8 @@ defmodule EirinchanWeb.BrowserPostComponents do
           />
           <PostComponents.post_number_links
             post_id={@public_post_id}
-            post_href={PostView.thread_path(@board, @thread, @config) <> "##{@public_post_id}"}
-            quote_href={PostView.reply_path(@board, @thread, @post, @config, :quote)}
+            post_href={@effective_thread_path <> "##{@public_post_id}"}
+            quote_href={@effective_thread_path <> "#q#{@public_post_id}"}
             quote_to={@public_post_id}
             quote_mode={@quote_mode}
           />
@@ -173,18 +178,23 @@ defmodule EirinchanWeb.BrowserPostComponents do
   attr :thread, :map, required: true
   attr :config, :map, required: true
   attr :prefix, :string, default: "eita"
+  attr :preferred_thread_path, :string, default: nil
 
   def browser_entry_link(assigns) do
     assigns =
       assigns
       |> assign(:public_post_id, PostView.public_post_id(assigns.post))
       |> assign(:public_thread_id, PostView.public_post_id(assigns.thread))
+      |> assign(
+        :effective_thread_path,
+        assigns.preferred_thread_path || PostView.thread_path(assigns.board, assigns.thread, assigns.config)
+      )
 
     ~H"""
     <a
       class="eita-link"
       id={"#{@prefix}-#{@board.uri}-#{@public_thread_id}-#{@public_post_id}"}
-      href={PostView.thread_path(@board, @thread, @config) <> "##{@public_post_id}"}
+      href={@effective_thread_path <> "##{@public_post_id}"}
     >/ <%= @board.uri %> /<%= @public_post_id %></a>
     """
   end

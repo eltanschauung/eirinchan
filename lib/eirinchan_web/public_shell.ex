@@ -48,7 +48,6 @@ defmodule EirinchanWeb.PublicShell do
                           "js/catalog-search.js",
                           "js/file-selector.js",
                           "js/upload-selection.js",
-                          "js/save-user_flag.js",
                           "js/ajax.js",
                           "js/auto-reload.js",
                           "js/expand-video.js",
@@ -130,8 +129,7 @@ defmodule EirinchanWeb.PublicShell do
           "/js/jquery.min.js",
           "/js/ajax.js",
           "/js/file-selector.js",
-          "/js/upload-selection.js",
-          "/js/save-user_flag.js"
+          "/js/upload-selection.js"
         ])
     )
     end

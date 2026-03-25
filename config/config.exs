@@ -10,7 +10,7 @@ import Config
 config :eirinchan,
   ecto_repos: [Eirinchan.Repo],
   feedback_store_ip: false,
-  ip_access_list: %{enabled: false, entries: [], path: Path.expand("../var/access.conf", __DIR__)},
+  ip_access_list: %{enabled: false, entries: []},
   ip_privacy: %{enabled: true, cloak_key: "eirinchan-dev-ip", immune_ips: [], immune_cidrs: []},
   site_assets: %{version: nil, custom_javascript: [], analytics_html: nil},
   instance_config_path: Path.expand("../var/settings.json", __DIR__),

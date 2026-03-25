@@ -19,6 +19,25 @@ $(function(){
   var removeCookie = runtime.removeCookie || function(name) {
     document.cookie = name + "=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
   };
+  var csrfToken = function() {
+    var field = document.querySelector('input[name="_csrf_token"]');
+    if (field) return field.value;
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') : null;
+  };
+  var clearWatcherData = function() {
+    var token = csrfToken();
+    if (!token || !window.fetch) return Promise.resolve();
+
+    return fetch('/watcher', {
+      method: 'DELETE',
+      headers: {
+        'x-csrf-token': token,
+        'x-requested-with': 'XMLHttpRequest'
+      },
+      credentials: 'same-origin'
+    }).catch(function() {});
+  };
   var prefBox = $("#general-preferences");
   if (!prefBox.length) {
     prefBox = $("<div id='general-preferences'></div>").appendTo(tab.content);
@@ -58,7 +77,11 @@ $(function(){
       localStorage.clear();
       removeCookie("theme", { path: '/', sameSite: 'lax' });
       removeCookie("board_themes", { path: '/', sameSite: 'lax' });
-      document.location.reload();
+      clearWatcherData().then(function() {
+        document.location.reload();
+      }, function() {
+        document.location.reload();
+      });
     }
   });
 

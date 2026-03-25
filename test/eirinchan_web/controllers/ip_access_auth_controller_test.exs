@@ -1,6 +1,7 @@
 defmodule EirinchanWeb.IpAccessAuthControllerTest do
   use EirinchanWeb.ConnCase, async: false
 
+  alias Eirinchan.IpAccessEntry
   alias Eirinchan.Settings
 
   setup do
@@ -14,6 +15,7 @@ defmodule EirinchanWeb.IpAccessAuthControllerTest do
 
     File.rm(path)
     Application.put_env(:eirinchan, :instance_config_path, path)
+    Eirinchan.Repo.delete_all(IpAccessEntry)
 
     on_exit(fn ->
       Application.put_env(:eirinchan, :instance_config_path, original_path)
@@ -32,29 +34,25 @@ defmodule EirinchanWeb.IpAccessAuthControllerTest do
     refute html =~ "Signed in as"
   end
 
-  test "custom auth path rewrites to the auth controller and posts update the configured access file",
+  test "custom auth path rewrites to the auth controller and posts update the configured access entries",
        %{
          conn: conn
        } do
-    access_file =
-      Path.join(System.tmp_dir!(), "ipauth-browser-#{System.unique_integer([:positive])}.conf")
-
-    File.rm(access_file)
-
     {:ok, _config} =
       Settings.update_instance_config_from_json(
         Jason.encode!(%{
+          ip_access_passwords: ["letmein", "other"],
           ip_access_auth: %{
             auth_path: "/door",
-            passwords: "letmein,other",
-            access_file: access_file,
-            message: "Knock first."
+            message: "Knock first.",
+            title: "Secret Door"
           }
         })
       )
 
     page = get(conn, "/door") |> html_response(200)
     assert page =~ "Knock first."
+    assert page =~ "<title>Secret Door</title>"
 
     post_conn =
       conn
@@ -64,10 +62,8 @@ defmodule EirinchanWeb.IpAccessAuthControllerTest do
     body = html_response(post_conn, 200)
     assert body =~ "Access granted."
 
-    access_body = File.read!(access_file)
-    assert access_body =~ "127.0.0.0/24"
-    assert access_body =~ "#letmein "
-    assert access_body =~ "127.0.0.1"
+    assert [%IpAccessEntry{ip: "127.0.0.0/24", password: "letmein", granted_at: %NaiveDateTime{}}] =
+             Eirinchan.Repo.all(IpAccessEntry)
   end
 
   test "invalid passwords return validation feedback", %{conn: conn} do

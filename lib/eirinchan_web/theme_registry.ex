@@ -33,7 +33,7 @@ defmodule EirinchanWeb.ThemeRegistry do
     "vichan" => %{label: "Yotsuba B", stylesheet: "/stylesheets/style.css"},
     "contrast" => %{label: "Contrast", stylesheet: "/stylesheets/contrast.css"},
     "feedback" => %{label: "Feedback", stylesheet: "/stylesheets/feedback.css"},
-    "ipaccessauth" => %{label: "IpAccessAuth", stylesheet: "/stylesheets/ipaccessauth.css"},
+    "ipaccessauth" => %{label: "IpAccessAuth", stylesheet: "/auth/yotsuba.css"},
     "aya" => %{label: "Aya", stylesheet: "/stylesheets/aya.css"},
     "cirno" => %{label: "Cirno Blue", stylesheet: "/stylesheets/cirno.css"},
     "christmas" => %{label: "Christmas", stylesheet: "/stylesheets/christmas.css"},

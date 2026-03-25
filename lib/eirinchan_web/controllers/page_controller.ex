@@ -439,7 +439,7 @@ defmodule EirinchanWeb.PageController do
         sanitized_body: HtmlSanitizer.sanitize_fragment(page.body || ""),
         flag_board: board,
         flag_assets: flag_assets(),
-        flag_storage_key: "flag_" <> if(board, do: board.uri, else: "bant"),
+        flag_storage_key: "flag_",
         extra_stylesheets: extra_stylesheets
       )
 
@@ -970,6 +970,8 @@ defmodule EirinchanWeb.PageController do
   defp watcher_summaries(conn) do
     case conn.assigns[:browser_token] do
       token when is_binary(token) ->
+        ThreadWatcher.purge_missing_watches(token)
+
         board_configs =
           Boards.list_boards()
           |> Map.new(fn board -> {board.uri, board_config(board)} end)

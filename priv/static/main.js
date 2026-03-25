@@ -122,6 +122,16 @@
 
       var highlightLink = event.target.closest('a[data-highlight-reply]');
       if (highlightLink) {
+        var highlightedId = highlightLink.getAttribute('data-highlight-reply');
+        var selectedText =
+          typeof document.getSelection === 'function' ? document.getSelection().toString() : '';
+
+        if (selectedText && highlightedId && typeof window.citeReply === 'function') {
+          event.preventDefault();
+          window.citeReply(highlightedId, true);
+          return;
+        }
+
         var highlightUrl = highlightLink.href ? new URL(highlightLink.href, window.location.href) : null;
 
         if (
@@ -133,7 +143,7 @@
         }
 
         if (typeof window.highlightReply === 'function') {
-          window.highlightReply(highlightLink.getAttribute('data-highlight-reply'));
+          window.highlightReply(highlightedId);
         }
         return;
       }
@@ -238,14 +248,8 @@
     var userFlagInput = container.querySelector('#user_flag');
     if (!userFlagInput) return;
 
-    var storageKey = container.getAttribute('data-flag-storage-key') || '';
-    var saved = null;
-
-    try {
-      saved = storageKey ? window.localStorage.getItem(storageKey) : null;
-    } catch (_error) {
-      saved = null;
-    }
+    var storageKey = userFlagStorageKey();
+    var saved = readStoredUserFlag(currentPostForm());
 
     userFlagInput.value = saved || 'country';
 
@@ -466,6 +470,79 @@
     return document.forms.post || document.querySelector('form[name="post"]');
   }
 
+  function boardValueForForm(form) {
+    var boardField = form && form.elements ? form.elements["board"] : null;
+    return boardField && boardField.value ? boardField.value : null;
+  }
+
+  function userFlagStorageKey() {
+    return 'flag_';
+  }
+
+  function legacyUserFlagStorageKey(form) {
+    var boardValue = boardValueForForm(form);
+    return boardValue ? 'flag_' + boardValue : null;
+  }
+
+  function readStoredUserFlag(form) {
+    var key = userFlagStorageKey();
+    var legacyKey = legacyUserFlagStorageKey(form);
+    var stored = null;
+
+    try {
+      stored = window.localStorage.getItem(key);
+    } catch (_error) {
+      stored = null;
+    }
+
+    if (stored !== null) {
+      return stored;
+    }
+
+    if (!legacyKey || legacyKey === key) {
+      return null;
+    }
+
+    try {
+      stored = window.localStorage.getItem(legacyKey);
+      if (stored !== null) {
+        window.localStorage.setItem(key, stored);
+        window.localStorage.removeItem(legacyKey);
+      }
+    } catch (_error) {
+      stored = null;
+    }
+
+    return stored;
+  }
+
+  function persistedUserFlag(form) {
+    var key = userFlagStorageKey();
+    var field = form && form.elements ? form.elements["user_flag"] : null;
+    var stored = null;
+
+    if (!key || !field) return null;
+
+    stored = readStoredUserFlag(form);
+
+    if (stored !== null) {
+      return stored;
+    }
+
+    stored = (field.value || '').toString();
+
+    if (!stored) {
+      return '';
+    }
+
+    try {
+      window.localStorage.setItem(key, stored);
+    } catch (_error) {
+    }
+
+    return stored;
+  }
+
   function anySelectedFile(form) {
     return Array.prototype.some.call(form.querySelectorAll('input[type="file"]'), function (field) {
       return (field.files && field.files.length > 0) || Boolean(field.value);
@@ -536,6 +613,14 @@
       syncPasswordCookie(form.elements["password"].value);
     }
 
+    if (form.elements["user_flag"]) {
+      var userFlagKey = userFlagStorageKey();
+
+      if (userFlagKey) {
+        window.localStorage.setItem(userFlagKey, form.elements["user_flag"].value);
+      }
+    }
+
     if (form.elements["email"]) {
       if (form.elements["email"].value !== "sage") {
         localStorage.email = form.elements["email"].value;
@@ -548,7 +633,7 @@
   function bindIdentityPersistence(form) {
     if (!form || form.dataset.identityPersistenceBound === "true") return;
 
-    ["name", "password", "email"].forEach(function (fieldName) {
+    ["name", "password", "email", "user_flag"].forEach(function (fieldName) {
       var field = form.elements[fieldName];
       if (!field) return;
 
@@ -796,6 +881,10 @@
 
     if (localStorage.email && form.elements["email"]) {
       form.elements["email"].value = localStorage.email;
+    }
+
+    if (form.elements["user_flag"]) {
+      form.elements["user_flag"].value = persistedUserFlag(form);
     }
 
     bindIdentityPersistence(form);
