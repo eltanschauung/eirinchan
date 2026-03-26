@@ -3416,7 +3416,7 @@ defmodule EirinchanWeb.ManagePageController do
 
   defp shell_boardlist_groups do
     Boards.list_boards()
-    |> PostView.boardlist_groups()
+    |> EirinchanWeb.BoardChrome.boardlist_groups(nil)
   end
 
   defp manage_users do

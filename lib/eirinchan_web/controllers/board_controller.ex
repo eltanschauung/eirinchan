@@ -6,7 +6,6 @@ defmodule EirinchanWeb.BoardController do
   alias Eirinchan.Posts
   alias EirinchanWeb.Announcements
   alias EirinchanWeb.BoardChrome
-  alias EirinchanWeb.PostView
   alias EirinchanWeb.PublicControllerHelpers
   alias EirinchanWeb.ShowYous
 
@@ -139,7 +138,7 @@ defmodule EirinchanWeb.BoardController do
           global_boardlist_groups:
             BoardChrome.boardlist_groups(
               boards,
-              chrome.boardlist_groups || PostView.boardlist_groups(boards)
+              chrome.boardlist_groups
             ),
           body_class:
             PublicControllerHelpers.moderator_body_class(conn, "active-catalog",
@@ -255,7 +254,7 @@ defmodule EirinchanWeb.BoardController do
           global_boardlist_groups:
             BoardChrome.boardlist_groups(
               boards,
-              chrome.boardlist_groups || PostView.boardlist_groups(boards)
+              chrome.boardlist_groups
             ),
           body_class: PublicControllerHelpers.moderator_body_class(conn, "active-index")
         ] ++

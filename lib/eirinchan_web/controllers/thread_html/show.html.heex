@@ -484,7 +484,7 @@
 
 <a name="bottom" id="bottom"></a>
 <.boardlist
-  groups={@board_chrome.boardlist_groups || PostView.boardlist_groups(@boards)}
+  groups={EirinchanWeb.BoardChrome.boardlist_groups(@boards, @board_chrome.boardlist_groups)}
   class_name="boardlist bottom"
 />
 

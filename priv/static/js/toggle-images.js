@@ -65,13 +65,14 @@ $(document).ready(function(){
         else {
                 selector = '#toggle-images a';
                 event = 'click';
-		$('hr:first').before('<div id="toggle-images" style="text-align:right"><a class="unimportant" href="javascript:void(0)">-</a></div>');
+		$('hr:first').before('<div id="toggle-images" style="text-align:right"><a class="unimportant" href="#">-</a></div>');
 		$('div#toggle-images a')
 			.text(hide_images ? _('Show images') : _('Hide images'));
         }
 
 	$(selector)
-		.on(event, function() {
+		.on(event, function(e) {
+			if (event === 'click') e.preventDefault();
 			hide_images = !hide_images;
 			if (hide_images) {
 				$('img.post-image, .theme-catalog .thread>a>img').each(hideImage);

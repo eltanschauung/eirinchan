@@ -265,8 +265,8 @@ if (active_page == 'thread' || active_page == 'index') {
 				');
 			} else {
 				var s1 = '#formatText_keybinds', s2 = '#formatText_toolbar', e = 'click';
-				$('hr:first').before('<div id="formatText_keybinds" style="text-align:right"><a class="unimportant" href="javascript:void(0)">'+ _('Enable formatting keybinds') +'</a></div>');
-				$('hr:first').before('<div id="formatText_toolbar" style="text-align:right"><a class="unimportant" href="javascript:void(0)">'+ _('Show formatting toolbar') +'</a></div>');
+				$('hr:first').before('<div id="formatText_keybinds" style="text-align:right"><a class="unimportant" href="#">'+ _('Enable formatting keybinds') +'</a></div>');
+				$('hr:first').before('<div id="formatText_toolbar" style="text-align:right"><a class="unimportant" href="#">'+ _('Show formatting toolbar') +'</a></div>');
 			}
 			
 			// add the tab for customizing the format settings
