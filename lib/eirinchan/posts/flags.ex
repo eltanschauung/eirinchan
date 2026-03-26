@@ -89,7 +89,7 @@ defmodule Eirinchan.Posts.Flags do
             resolve_user_flag(flag, allowed_flags, config, request)
           end)
 
-        pairs = unique_flag_pairs(existing_pairs ++ resolved_pairs)
+        pairs = existing_pairs ++ resolved_pairs
 
         {:ok,
          attrs
@@ -121,8 +121,7 @@ defmodule Eirinchan.Posts.Flags do
       {:ok,
        raw_flags
        |> String.split(",", trim: false)
-       |> normalize_user_flag_tokens()
-       |> unique_flags()}
+       |> normalize_user_flag_tokens()}
     end
   end
 
@@ -144,22 +143,6 @@ defmodule Eirinchan.Posts.Flags do
     tokens
     |> Enum.map(&(String.trim(&1) |> String.downcase()))
     |> Enum.reject(&(&1 == ""))
-  end
-
-  defp unique_flags(flags) do
-    Enum.reduce(flags, [], fn flag, acc ->
-      if flag in acc, do: acc, else: acc ++ [flag]
-    end)
-  end
-
-  defp unique_flag_pairs(flag_pairs) do
-    Enum.reduce(flag_pairs, [], fn {code, alt}, acc ->
-      if Enum.any?(acc, fn {existing_code, _existing_alt} -> existing_code == code end) do
-        acc
-      else
-        acc ++ [{code, alt}]
-      end
-    end)
   end
 
   defp resolve_country_flag(config, request, allow_fallback?) do
