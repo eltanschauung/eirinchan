@@ -335,14 +335,37 @@ defmodule EirinchanWeb.PageController do
   defp public_page_assigns(conn, page_kind, active_page, opts \\ []) do
     boards = Boards.list_boards()
     primary_board = Enum.find(boards, &(&1.uri == "bant")) || %{uri: "bant"}
-    chrome = BoardChrome.for_board(primary_board)
-    global_message_html =
-      if Keyword.get(opts, :include_global_message, true) do
-        current_global_message_html(boards)
-      else
-        nil
-      end
+    common_assigns =
+      common_public_shell_assigns(conn, active_page,
+        extra_stylesheets: PublicControllerHelpers.extra_stylesheets()
+      )
 
+    [
+      boards: boards,
+      primary_board: primary_board,
+      board_chrome: BoardChrome.for_board(primary_board),
+      global_message_html: maybe_global_message_html(boards, opts),
+      custom_pages: CustomPages.list_pages(),
+      global_boardlist_groups: PostView.boardlist_groups(boards),
+      body_class: public_body_class(page_kind)
+    ] ++ common_assigns
+  end
+
+  defp public_body_class("active-catalog"),
+    do: "8chan vichan is-not-moderator theme-catalog active-catalog"
+
+  defp public_body_class(page_kind), do: "8chan vichan is-not-moderator #{page_kind}"
+
+  defp current_global_message_html(boards) do
+    board_ids = Enum.map(boards, & &1.id)
+    Announcements.global_message_html(Settings.current_instance_config(), surround_hr: true, board_ids: board_ids)
+  end
+
+  defp maybe_global_message_html(boards, opts) do
+    if Keyword.get(opts, :include_global_message, true), do: current_global_message_html(boards)
+  end
+
+  defp common_public_shell_assigns(conn, active_page, opts) do
     %{
       watcher_count: watcher_count,
       watcher_unread_count: watcher_unread_count,
@@ -350,17 +373,10 @@ defmodule EirinchanWeb.PageController do
     } = PublicControllerHelpers.watcher_metrics(conn)
 
     [
-      boards: boards,
-      primary_board: primary_board,
-      board_chrome: chrome,
-      global_message_html: global_message_html,
-      custom_pages: CustomPages.list_pages(),
-      global_boardlist_groups: PostView.boardlist_groups(boards),
       public_shell: true,
       show_nav_arrows_page: active_page in ["index", "catalog", "ukko", :index, :catalog, :ukko],
       viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",
       base_stylesheet: "/stylesheets/style.css",
-      body_class: public_body_class(page_kind),
       body_data_stylesheet: PublicControllerHelpers.data_stylesheet(conn),
       watcher_count: watcher_count,
       watcher_unread_count: watcher_unread_count,
@@ -379,20 +395,10 @@ defmodule EirinchanWeb.PageController do
       javascript_urls: PublicShell.javascript_urls(active_page),
       primary_stylesheet: PublicControllerHelpers.primary_stylesheet(conn),
       primary_stylesheet_id: "stylesheet",
-      extra_stylesheets: PublicControllerHelpers.extra_stylesheets(),
+      extra_stylesheets: Keyword.get(opts, :extra_stylesheets, PublicControllerHelpers.extra_stylesheets()),
       hide_theme_switcher: true,
       skip_app_stylesheet: true
     ]
-  end
-
-  defp public_body_class("active-catalog"),
-    do: "8chan vichan is-not-moderator theme-catalog active-catalog"
-
-  defp public_body_class(page_kind), do: "8chan vichan is-not-moderator #{page_kind}"
-
-  defp current_global_message_html(boards) do
-    board_ids = Enum.map(boards, & &1.id)
-    Announcements.global_message_html(Settings.current_instance_config(), surround_hr: true, board_ids: board_ids)
   end
 
   defp current_sticker_config do
@@ -452,13 +458,8 @@ defmodule EirinchanWeb.PageController do
     end
   end
 
-  defp maybe_add_page_stylesheet(stylesheets, %{slug: "faq"}),
-    do: stylesheets ++ ["/faq/recent.css"]
-
-  defp maybe_add_page_stylesheet(stylesheets, %{slug: "formatting"}),
-    do: stylesheets ++ ["/faq/recent.css"]
-
-  defp maybe_add_page_stylesheet(stylesheets, %{slug: "rules"}),
+  defp maybe_add_page_stylesheet(stylesheets, %{slug: slug})
+       when slug in ["faq", "formatting", "rules"],
     do: stylesheets ++ ["/faq/recent.css"]
 
   defp maybe_add_page_stylesheet(stylesheets, _page), do: stylesheets
@@ -498,43 +499,13 @@ defmodule EirinchanWeb.PageController do
   defp recent_theme_assigns(conn, active_page, _settings) do
     boards = Boards.list_boards()
 
-    %{
-      watcher_count: watcher_count,
-      watcher_unread_count: watcher_unread_count,
-      watcher_you_count: watcher_you_count
-    } = PublicControllerHelpers.watcher_metrics(conn)
-
     [
       boards: boards,
       global_boardlist_groups: PostView.boardlist_groups(boards),
       show_footer: true,
-      public_shell: true,
       page_title: "Recent Posts",
-      viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",
-      base_stylesheet: "/stylesheets/style.css",
-      body_class: nil,
-      body_data_stylesheet: PublicControllerHelpers.data_stylesheet(conn),
-      watcher_count: watcher_count,
-      watcher_unread_count: watcher_unread_count,
-      watcher_you_count: watcher_you_count,
-      head_meta:
-        PublicShell.head_meta(active_page,
-          resource_version: conn.assigns[:asset_version],
-          theme_label: conn.assigns[:theme_label],
-          theme_options: conn.assigns[:theme_options],
-          browser_timezone: conn.assigns[:browser_timezone],
-          browser_timezone_offset_minutes: conn.assigns[:browser_timezone_offset_minutes],
-          watcher_count: watcher_count,
-          watcher_unread_count: watcher_unread_count,
-          watcher_you_count: watcher_you_count
-        ),
-      javascript_urls: PublicShell.javascript_urls(active_page),
-      primary_stylesheet: PublicControllerHelpers.primary_stylesheet(conn),
-      primary_stylesheet_id: "stylesheet",
-      extra_stylesheets: ["/recent.css"],
-      hide_theme_switcher: true,
-      skip_app_stylesheet: true
-    ]
+      body_class: nil
+    ] ++ common_public_shell_assigns(conn, active_page, extra_stylesheets: ["/recent.css"])
   end
 
   defp recent_theme_images(settings) do

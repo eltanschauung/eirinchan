@@ -48,7 +48,7 @@ defmodule EirinchanWeb.PostComponents do
         </button>
         <span :if={!@mobile_client?}>&nbsp;</span><a id="admin-link" href="/manage" title="Admin">[Admin]</a><span>&nbsp;</span><a
           id="options-link"
-          href="javascript:void(0)"
+          href="#"
           title="Options"
         >[Options]</a>
       </span>
