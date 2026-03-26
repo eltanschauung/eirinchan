@@ -3,6 +3,7 @@ defmodule EirinchanWeb.PublicControllerHelpers do
 
   alias Eirinchan.ThreadWatcher
   alias EirinchanWeb.FragmentHash
+  alias EirinchanWeb.PublicShell
 
   @empty_watcher_metrics %{watcher_count: 0, watcher_unread_count: 0, watcher_you_count: 0}
   @public_extra_stylesheets ["/stylesheets/eirinchan-public.css", "/stylesheets/eirinchan-bant.css"]
@@ -81,6 +82,54 @@ defmodule EirinchanWeb.PublicControllerHelpers do
   end
 
   def extra_stylesheets, do: @public_extra_stylesheets
+
+  def public_shell_assigns(conn, active_page, opts \\ []) do
+    %{
+      watcher_count: watcher_count,
+      watcher_unread_count: watcher_unread_count,
+      watcher_you_count: watcher_you_count
+    } = watcher_metrics(conn)
+
+    head_meta_opts =
+      [
+        resource_version: conn.assigns[:asset_version],
+        theme_label: conn.assigns[:theme_label],
+        theme_options: conn.assigns[:theme_options],
+        browser_timezone: conn.assigns[:browser_timezone],
+        browser_timezone_offset_minutes: conn.assigns[:browser_timezone_offset_minutes],
+        watcher_count: watcher_count,
+        watcher_unread_count: watcher_unread_count,
+        watcher_you_count: watcher_you_count
+      ]
+      |> Keyword.merge(Keyword.get(opts, :head_meta_opts, []))
+
+    assigns = [
+      public_shell: true,
+      show_nav_arrows_page: Keyword.get(opts, :show_nav_arrows_page, true),
+      viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",
+      base_stylesheet: "/stylesheets/style.css",
+      body_data_stylesheet: data_stylesheet(conn),
+      watcher_count: watcher_count,
+      watcher_unread_count: watcher_unread_count,
+      watcher_you_count: watcher_you_count,
+      head_meta: PublicShell.head_meta(active_page, head_meta_opts),
+      primary_stylesheet: primary_stylesheet(conn),
+      primary_stylesheet_id: "stylesheet",
+      extra_stylesheets: Keyword.get(opts, :extra_stylesheets, extra_stylesheets()),
+      hide_theme_switcher: true,
+      skip_app_stylesheet: true
+    ]
+
+    case Keyword.get(opts, :javascript_config) do
+      nil ->
+        Keyword.put(assigns, :javascript_urls, PublicShell.javascript_urls(active_page))
+
+      config ->
+        assigns
+        |> Keyword.put(:eager_javascript_urls, PublicShell.eager_javascript_urls(active_page, config))
+        |> Keyword.put(:javascript_urls, PublicShell.javascript_urls(active_page, config))
+    end
+  end
 
   defp own_post_ids_stamp(%MapSet{} = ids), do: :erlang.phash2(ids)
   defp own_post_ids_stamp(ids) when is_list(ids), do: ids |> Enum.sort() |> :erlang.phash2()

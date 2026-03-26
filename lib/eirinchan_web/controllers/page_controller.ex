@@ -21,7 +21,6 @@ defmodule EirinchanWeb.PageController do
   alias EirinchanWeb.HtmlSanitizer
   alias EirinchanWeb.PostView
   alias EirinchanWeb.PublicControllerHelpers
-  alias EirinchanWeb.PublicShell
   alias EirinchanWeb.ShowYous
   alias Eirinchan.ThreadPaths
 
@@ -336,7 +335,7 @@ defmodule EirinchanWeb.PageController do
     boards = Boards.list_boards()
     primary_board = Enum.find(boards, &(&1.uri == "bant")) || %{uri: "bant"}
     common_assigns =
-      common_public_shell_assigns(conn, active_page,
+      PublicControllerHelpers.public_shell_assigns(conn, active_page,
         extra_stylesheets: PublicControllerHelpers.extra_stylesheets()
       )
 
@@ -363,42 +362,6 @@ defmodule EirinchanWeb.PageController do
 
   defp maybe_global_message_html(boards, opts) do
     if Keyword.get(opts, :include_global_message, true), do: current_global_message_html(boards)
-  end
-
-  defp common_public_shell_assigns(conn, active_page, opts) do
-    %{
-      watcher_count: watcher_count,
-      watcher_unread_count: watcher_unread_count,
-      watcher_you_count: watcher_you_count
-    } = PublicControllerHelpers.watcher_metrics(conn)
-
-    [
-      public_shell: true,
-      show_nav_arrows_page: active_page in ["index", "catalog", "ukko", :index, :catalog, :ukko],
-      viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",
-      base_stylesheet: "/stylesheets/style.css",
-      body_data_stylesheet: PublicControllerHelpers.data_stylesheet(conn),
-      watcher_count: watcher_count,
-      watcher_unread_count: watcher_unread_count,
-      watcher_you_count: watcher_you_count,
-      head_meta:
-        PublicShell.head_meta(active_page,
-          resource_version: conn.assigns[:asset_version],
-          theme_label: conn.assigns[:theme_label],
-          theme_options: conn.assigns[:theme_options],
-          browser_timezone: conn.assigns[:browser_timezone],
-          browser_timezone_offset_minutes: conn.assigns[:browser_timezone_offset_minutes],
-          watcher_count: watcher_count,
-          watcher_unread_count: watcher_unread_count,
-          watcher_you_count: watcher_you_count
-        ),
-      javascript_urls: PublicShell.javascript_urls(active_page),
-      primary_stylesheet: PublicControllerHelpers.primary_stylesheet(conn),
-      primary_stylesheet_id: "stylesheet",
-      extra_stylesheets: Keyword.get(opts, :extra_stylesheets, PublicControllerHelpers.extra_stylesheets()),
-      hide_theme_switcher: true,
-      skip_app_stylesheet: true
-    ]
   end
 
   defp current_sticker_config do
@@ -505,7 +468,10 @@ defmodule EirinchanWeb.PageController do
       show_footer: true,
       page_title: "Recent Posts",
       body_class: nil
-    ] ++ common_public_shell_assigns(conn, active_page, extra_stylesheets: ["/recent.css"])
+    ] ++ PublicControllerHelpers.public_shell_assigns(conn, active_page,
+      extra_stylesheets: ["/recent.css"],
+      show_nav_arrows_page: false
+    )
   end
 
   defp recent_theme_images(settings) do

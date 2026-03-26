@@ -11,7 +11,6 @@ defmodule EirinchanWeb.ThreadController do
   alias EirinchanWeb.BoardChrome
   alias EirinchanWeb.PostView
   alias EirinchanWeb.PublicControllerHelpers
-  alias EirinchanWeb.PublicShell
   alias EirinchanWeb.ShowYous
 
   plug EirinchanWeb.Plugs.LoadBoard
@@ -89,34 +88,13 @@ defmodule EirinchanWeb.ThreadController do
                 boards,
                 chrome.boardlist_groups || PostView.boardlist_groups(boards)
               ),
-            public_shell: true,
-            show_nav_arrows_page: true,
-            viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",
-            base_stylesheet: "/stylesheets/style.css",
             body_class: PublicControllerHelpers.moderator_body_class(conn, "active-thread"),
-            body_data_stylesheet: PublicControllerHelpers.data_stylesheet(conn),
-            head_meta:
-              PublicShell.head_meta("thread",
-                board_name: board.uri,
-                thread_id: PublicIds.public_id(summary.thread),
-                resource_version: conn.assigns[:asset_version],
-                theme_label: conn.assigns[:theme_label],
-                theme_options: conn.assigns[:theme_options],
-                browser_timezone: conn.assigns[:browser_timezone],
-                browser_timezone_offset_minutes: conn.assigns[:browser_timezone_offset_minutes],
-                watcher_count: watcher_count,
-                watcher_unread_count: watcher_unread_count,
-                watcher_you_count: watcher_you_count
-              ),
-            head_extra_meta_tags: PublicShell.thread_meta(board, summary.thread, config),
-            eager_javascript_urls: PublicShell.eager_javascript_urls(:thread, config),
-            javascript_urls: PublicShell.javascript_urls(:thread, config),
-            primary_stylesheet: PublicControllerHelpers.primary_stylesheet(conn),
-            primary_stylesheet_id: "stylesheet",
-            extra_stylesheets: PublicControllerHelpers.extra_stylesheets(),
-            hide_theme_switcher: true,
-            skip_app_stylesheet: true
-          ]
+            head_extra_meta_tags: EirinchanWeb.PublicShell.thread_meta(board, summary.thread, config)
+          ] ++
+            PublicControllerHelpers.public_shell_assigns(conn, :thread,
+              javascript_config: config,
+              head_meta_opts: [board_name: board.uri, thread_id: PublicIds.public_id(summary.thread)]
+            )
 
           quick_reply_html =
             Phoenix.Template.render_to_string(
