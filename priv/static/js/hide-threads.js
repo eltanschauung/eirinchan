@@ -78,9 +78,10 @@ $(document).ready(function(){
 				hidden_div.html(hidden_div.html().replace(' [] ', ' '));
 				hidden_div.html(hidden_div.html().replace(' [] ', ' '));
 				
-				$('<a class="unhide-thread-link" style="margin-right:5px;" href="javascript:void(0)">[+]</a><span> </span>')
+				$('<a class="unhide-thread-link" style="margin-right:5px;" href="#">[+]</a><span> </span>')
 					.insertBefore(hidden_div.find(':first'))
-					.click(function() {
+					.click(function(e) {
+						e.preventDefault();
 						delete hidden_data[board][id];
 						store_data();
 						thread_container.find(fields_to_hide).show();

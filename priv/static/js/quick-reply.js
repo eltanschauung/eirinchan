@@ -299,8 +299,9 @@
   var floating_link = function() {
     if (!settings.get('floating_link', false)) return;
 
-    $('<a href="javascript:void(0)" class="quick-reply-btn">' + _('Quick Reply') + '</a>')
-      .click(function() {
+    $('<a href="#" class="quick-reply-btn">' + _('Quick Reply') + '</a>')
+      .click(function(e) {
+        e.preventDefault();
         show_quick_reply();
         $(this).remove();
       }).appendTo($('body'));

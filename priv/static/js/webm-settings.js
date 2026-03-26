@@ -42,7 +42,7 @@ if (window.Options) {
   $(settingsMenu).appendTo(tab.content);
 }
 else {
-  prefix = '<a class="unimportant" href="javascript:void(0)">'+_('WebM Settings')+'</a>';
+  prefix = '<a class="unimportant" href="#">'+_('WebM Settings')+'</a>';
   settingsMenu.style.textAlign = "right";
   settingsMenu.style.background = "inherit";
   suffix = '</div>';
@@ -85,6 +85,11 @@ for (var i = 0; i < settingsItems.length; i++) {
 }
 
 if (settingsMenu.addEventListener && !window.Options) {
+    settingsMenu.addEventListener("click", function(e) {
+        if (e.target && e.target.tagName === "A") {
+            e.preventDefault();
+        }
+    }, false);
     settingsMenu.addEventListener("mouseover", function(e) {
         refreshSettings();
         settingsMenu.getElementsByTagName("a")[0].style.fontWeight = "bold";
