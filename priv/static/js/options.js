@@ -12,6 +12,9 @@
 
 var options_button, admin_button, watcher_button, options_links, options_handler, options_background, options_div
   , options_close, options_tablist, options_tabs, options_current_tab, options_exit;
+var action_link = function(attrs, html) {
+  return $("<a href='#'></a>", attrs).html(html);
+};
 
 var Options = {};
 window.Options = Options;
@@ -123,16 +126,22 @@ if (!options_handler.length) {
   options_handler = $("<div id='options_handler'></div>").css("display", "none");
   $("<div id='options_background'></div>").appendTo(options_handler);
   options_div = $("<div id='options_div'></div>").appendTo(options_handler);
-  $("<a id='options_close' href='javascript:void(0)'><i class='fa fa-times'></i></a>").appendTo(options_div);
+  action_link({id: "options_close"}, "<i class='fa fa-times'></i>").appendTo(options_div);
   $("<div id='options_tablist'></div>").appendTo(options_div);
   $("<div id='options-exit-tab' class='options_tab_icon options_exit_tab'><div>"+_("Exit")+"</div></div>").appendTo($("#options_tablist", options_handler));
 }
 
 options_background = $("#options_background", options_handler).off("click").on("click", Options.hide);
 options_div = $("#options_div", options_handler);
-options_close = $("#options_close", options_handler).off("click").on("click", Options.hide);
+options_close = $("#options_close", options_handler).off("click").on("click", function(e) {
+  e.preventDefault();
+  Options.hide();
+});
 options_tablist = $("#options_tablist", options_handler);
-options_exit = $("#options-exit-tab", options_handler).off("click").on("click", Options.hide);
+options_exit = $("#options-exit-tab", options_handler).off("click").on("click", function(e) {
+  e.preventDefault();
+  Options.hide();
+});
 
 
 $(function(){
@@ -143,7 +152,7 @@ $(function(){
   }
   options_button = $("#options-link");
   if (!options_button.length) {
-    options_button = $("<a id='options-link' href='javascript:void(0)' title='"+_("Options")+"'>["+_("Options")+"]</a>");
+    options_button = action_link({id: "options-link", title: _("Options")}, "["+_("Options")+"]");
   }
   admin_button = $("#admin-link");
   if (!admin_button.length) {
@@ -155,7 +164,7 @@ $(function(){
   if (isNaN(watcherYouCount)) watcherYouCount = 0;
   watcher_button = $("#watcher-link");
   if (!mobileClient && !watcher_button.length) {
-    watcher_button = $("<a id='watcher-link' href='javascript:void(0)' title='"+_("Watcher")+"' aria-label='"+_("Watcher")+"'>👁</a>");
+    watcher_button = action_link({id: "watcher-link", title: _("Watcher"), "aria-label": _("Watcher")}, "👁");
   }
   if (watcher_button.length) {
     watcher_button.toggleClass('replies-quoting-you', watcherYouCount > 0);

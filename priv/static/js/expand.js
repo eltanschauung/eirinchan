@@ -29,8 +29,9 @@ window.EirinchanInitExpand = function(root) {
 		}
 
 		$(this)
-			.html($(this).text().replace(_("Click reply to view."), '<a href="javascript:void(0)">'+_("Click to expand")+'</a>.'))
-			.find('a').click(window.expand_fun = function() {
+			.html($(this).text().replace(_("Click reply to view."), '<a href="#">'+_("Click to expand")+'</a>.'))
+			.find('a').click(window.expand_fun = function(e) {
+				e.preventDefault();
 				var thread = $(this).parents('[id^="thread_"]');
 				var id = thread.attr('id').replace(/^thread_/, '');
 				$.ajax({
@@ -62,9 +63,10 @@ window.EirinchanInitExpand = function(root) {
 							insertionPoint = thread.find('.op div.body').last();
 						}
 
-						$('<span class="omitted hide-expanded"><a href="javascript:void(0)">' + _('Hide expanded replies') + '</a>.</span>')
+						$('<span class="omitted hide-expanded"><a href="#">' + _('Hide expanded replies') + '</a>.</span>')
 							.insertAfter(insertionPoint)
-							.click(function() {
+							.click(function(e) {
+								e.preventDefault();
 								thread.find('.expanded').remove();
 								thread.find(".omitted:not(.hide-expanded)").css('display', '');
 								thread.find(".hide-expanded").remove();
