@@ -1360,7 +1360,7 @@ defmodule Eirinchan.PostsTest do
     assert thread.flag_alts == ["Sauce", "Space"]
   end
 
-  test "create_post de-duplicates repeated multi flags using countFlags-style normalization" do
+  test "create_post preserves repeated multi flags in order" do
     board =
       board_fixture(%{
         config_overrides: %{
@@ -1382,8 +1382,8 @@ defmodule Eirinchan.PostsTest do
                request: post_request(board.uri)
              )
 
-    assert thread.flag_codes == ["sau", "spc"]
-    assert thread.flag_alts == ["Sauce", "Space"]
+    assert thread.flag_codes == ["sau", "spc", "sau", "spc"]
+    assert thread.flag_alts == ["Sauce", "Space", "Sauce", "Space"]
   end
 
   test "create_post rejects overlong multiple flag input" do

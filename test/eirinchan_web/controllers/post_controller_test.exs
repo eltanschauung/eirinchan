@@ -1143,7 +1143,7 @@ defmodule EirinchanWeb.PostControllerTest do
     assert %{"error" => "Invalid flag selection."} = json_response(conn, 422)
   end
 
-  test "posting accepts deduplicated multiple user flags", %{conn: conn} do
+  test "posting preserves repeated multiple user flags", %{conn: conn} do
     board =
       board_fixture(%{
         config_overrides: %{
@@ -1171,8 +1171,8 @@ defmodule EirinchanWeb.PostControllerTest do
       |> get("/#{board.uri}/res/#{thread_id}.html")
       |> html_response(200)
 
-    assert thread_page =~ ~s(title="Sauce")
-    assert thread_page =~ ~s(title="Space")
+    assert length(Regex.scan(~r/title="Sauce"/, thread_page)) == 2
+    assert length(Regex.scan(~r/title="Space"/, thread_page)) == 1
   end
 
   test "posting auto-injects country flags from connection metadata", %{conn: conn} do
