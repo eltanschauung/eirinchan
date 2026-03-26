@@ -360,8 +360,9 @@ $(function(){
 
     var boardconfig = storage()[board] || {};
     
-    $('hr:first').before('<div id="watch-thread" style="text-align:right"><a class="unimportant" href="javascript:void(0)">-</a></div>');
-    $('#watch-thread a').html(is_threadwatched(boardconfig, thread) ? _("Stop watching this thread") : _("Watch this thread")).click(function() {
+    $('hr:first').before('<div id="watch-thread" style="text-align:right"><a class="unimportant" href="#">-</a></div>');
+    $('#watch-thread a').html(is_threadwatched(boardconfig, thread) ? _("Stop watching this thread") : _("Watch this thread")).click(function(e) {
+      e.preventDefault();
       $(this).html(toggle_threadwatched(board, thread) ? _("Stop watching this thread") : _("Watch this thread"));
       update_pinned();
     });
@@ -371,15 +372,17 @@ $(function(){
 
     var boardconfig = storage()[board] || {};
 
-    $('hr:first').before('<div id="watch-pin" style="text-align:right"><a class="unimportant" href="javascript:void(0)">-</a></div>');
-    $('#watch-pin a').html(is_pinned(boardconfig) ? _("Unpin this board") : _("Pin this board")).click(function() {
+    $('hr:first').before('<div id="watch-pin" style="text-align:right"><a class="unimportant" href="#">-</a></div>');
+    $('#watch-pin a').html(is_pinned(boardconfig) ? _("Unpin this board") : _("Pin this board")).click(function(e) {
+      e.preventDefault();
       $(this).html(toggle_pinned(board) ? _("Unpin this board") : _("Pin this board"));
       $('#watch-board a').html(is_boardwatched(boardconfig) ? _("Stop watching this board") : _("Watch this board"));
       update_pinned();
     });
 
-    $('hr:first').before('<div id="watch-board" style="text-align:right"><a class="unimportant" href="javascript:void(0)">-</a></div>');
-    $('#watch-board a').html(is_boardwatched(boardconfig) ? _("Stop watching this board") : _("Watch this board")).click(function() {
+    $('hr:first').before('<div id="watch-board" style="text-align:right"><a class="unimportant" href="#">-</a></div>');
+    $('#watch-board a').html(is_boardwatched(boardconfig) ? _("Stop watching this board") : _("Watch this board")).click(function(e) {
+      e.preventDefault();
       $(this).html(toggle_boardwatched(board) ? _("Stop watching this board") : _("Watch this board"));
       $('#watch-pin a').html(is_pinned(boardconfig) ? _("Unpin this board") : _("Pin this board"));
       update_pinned();

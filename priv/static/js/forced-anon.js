@@ -75,12 +75,13 @@ $(document).ready(function() {
 	}
 	else {
 		var s1 = '#hide-ids', s2 = '#forced-anon', e = 'click';
-		$('hr:first').before('<div id="hide-ids" style="text-align:right"><a class="unimportant" href="javascript:void(0)">Hide IDs</a></div>');
-		$('hr:first').before('<div id="forced-anon" style="text-align:right"><a class="unimportant" href="javascript:void(0)">-</a></div>');
+		$('hr:first').before('<div id="hide-ids" style="text-align:right"><a class="unimportant" href="#">Hide IDs</a></div>');
+		$('hr:first').before('<div id="forced-anon" style="text-align:right"><a class="unimportant" href="#">-</a></div>');
 		$('div#forced-anon a').text(_('Forced anonymity')+' (' + (forced_anon ? _('enabled') : _('disabled')) + ')');
 	}
 	
 	$(s1).on(e, function(e) {
+		if (e.type === 'click') e.preventDefault();
 		if (!localStorage.hideids || localStorage.hideids == 'false') {
 			localStorage.hideids = 'true';
 			if (window.Options && Options.get_tab('general')) e.target.checked = true;
@@ -91,7 +92,8 @@ $(document).ready(function() {
 		$('.poster_id').each(toggle_id);
 	});
 	
-	$(s2).on(e, function() {
+	$(s2).on(e, function(event) {
+		if (event.type === 'click') event.preventDefault();
 		forced_anon = !forced_anon;
 		if (forced_anon) {
 			$('div#forced-anon a').text(_('Forced anonymity')+' ('+_('enabled')+')');
@@ -125,4 +127,3 @@ $(document).ready(function() {
 			$(post).find('.poster_id').each(toggle_id);
 	});
 });
-

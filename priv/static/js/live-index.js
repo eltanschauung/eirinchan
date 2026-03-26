@@ -69,23 +69,29 @@ if (active_page == 'index' && (""+document.location).match(/\/(index\.html)?(\?|
 
   var update_new_threads = function(i) {
     var msg = i ?
-      (fmt(_("There are {0} new threads."), [i]) + " <a href='javascript:void(0)'>"+_("Click to expand")+"</a>.") :
+      (fmt(_("There are {0} new threads."), [i]) + " <a href='#'>"+_("Click to expand")+"</a>.") :
       _("No new threads.");
 
     if ($(".new-threads").html() != msg) {
       $(".new-threads").html(msg);
-      $(".new-threads a").click(fetch_new_threads);
+      $(".new-threads a").click(function(e) {
+        e.preventDefault();
+        fetch_new_threads();
+      });
     }
   };
 
   var update_new_posts = function(i, th) {
     var msg = (i>0) ?
-      (fmt(_("There are {0} new posts in this thread."), [i])+" <a href='javascript:void(0)'>"+_("Click to expand")+"</a>.") :
+      (fmt(_("There are {0} new posts in this thread."), [i])+" <a href='#'>"+_("Click to expand")+"</a>.") :
       _("No new posts.");
 
     if ($(th).find(".new-posts").html() != msg) {
       $(th).find(".new-posts").html(msg);
-      $(th).find(".new-posts a").click(window.expand_fun);
+      $(th).find(".new-posts a").click(function(e) {
+        e.preventDefault();
+        window.expand_fun.call(this, e);
+      });
     }
   };
 

@@ -9,10 +9,11 @@ if (active_page == 'thread' || active_page == 'index') {
 		else {
 			var selector = '#color-ids';
 			var e = 'click';
-			$('hr:first').before('<div id="color-ids" style="text-align:right"><a class="unimportant" href="javascript:void(0)">'+_('Color IDs')+'</a></div>')
+			$('hr:first').before('<div id="color-ids" style="text-align:right"><a class="unimportant" href="#">'+_('Color IDs')+'</a></div>')
 		}
 
-		$(selector).on(e, function() {
+		$(selector).on(e, function(event) {
+			if (e === 'click') event.preventDefault();
 			if (localStorage.color_ids === 'true') {
 				localStorage.color_ids = 'false';
 			} else {

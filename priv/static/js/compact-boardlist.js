@@ -60,8 +60,11 @@ if (device_type == 'desktop') {
           .appendTo(topbl)
       }
       else {
-        $("<a class='cb-item cb-cat' href='javascript:void(0)'>"+item.name+"</a>")
+        $("<a class='cb-item cb-cat' href='#'>"+item.name+"</a>")
  	  .appendTo(topbl)
+	  .click(function(e) {
+	    e.preventDefault();
+	  })
 	  .mouseenter(function() {
 	    var list = $("<div class='boardlist top cb-menu'></div>")
 	      .css("top", $(this).position().top + 13 + $(this).height())

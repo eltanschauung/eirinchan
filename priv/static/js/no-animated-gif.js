@@ -76,10 +76,11 @@ if (active_page == 'thread' || active_page == 'index' || active_page == 'ukko' |
 		else {
 			selector = '#no-animated-gif';
 			event = 'click';
-			$('hr:first').before('<div id="no-animated-gif" style="text-align:right"><a class="unimportant" href="javascript:void(0)">'+_('Unanimate GIFs')+'</a></div>')
+			$('hr:first').before('<div id="no-animated-gif" style="text-align:right"><a class="unimportant" href="#">'+_('Unanimate GIFs')+'</a></div>')
 		}
 
-		$(selector).on(event, function() {
+		$(selector).on(event, function(e) {
+			if (event === 'click') e.preventDefault();
 			if (localStorage.no_animated_gif === 'true') {
 				animated_gif();
 			} else {

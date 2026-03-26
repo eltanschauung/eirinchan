@@ -48,9 +48,10 @@ $(document).ready(function(){
 			hidden_data[board] = {}; // id : timestamp
 		}
 		
-		var replacement = $('<span>'+_('File')+' <small>(<a class="hide-image-link" href="javascript:void(0)">'+_('hide')+'</a>)</small>: </span>');
+		var replacement = $('<span>'+_('File')+' <small>(<a class="hide-image-link" href="#">'+_('hide')+'</a>)</small>: </span>');
 				
-		replacement.find('a').click(function() {
+		replacement.find('a').click(function(e) {
+			e.preventDefault();
 			if (hidden_data[board][id]) {
 				hidden_data[board][id]['ts'] = Math.round(Date.now() / 1000);
 				if (hidden_data[board][id]['index'].indexOf(index) === -1)
@@ -60,7 +61,8 @@ $(document).ready(function(){
 			}
 			store_data();
 			
-			var show_link = $('<a class="show-image-link" href="javascript:void(0)">'+_('show')+'</a>').click(function() {
+			var show_link = $('<a class="show-image-link" href="#">'+_('show')+'</a>').click(function(e) {
+				e.preventDefault();
 				var i = hidden_data[board][id]['index'].indexOf(index);
 				if (i > -1) hidden_data[board][id]['index'].splice(i,1);
 				

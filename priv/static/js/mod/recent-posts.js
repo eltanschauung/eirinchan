@@ -48,9 +48,10 @@ $(document).ready(function(){
 			hidden_data[board] = {};
 		}
 
-		$('<a class="hide-post-link" href="javascript:void(0)"> Dismiss </a>')
+		$('<a class="hide-post-link" href="#"> Dismiss </a>')
 		.insertBefore(post_container.find('a.eita-link:first'))
-		.click(function(){
+		.click(function(e){
+			e.preventDefault();
 			hidden_data[board][id] = Math.round(Date.now() / 1000);
 			store_data_posts();
 

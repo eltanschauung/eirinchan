@@ -3,8 +3,9 @@ $(function(){
 
   var gallery_view = false;
 
-  $('hr:first').before('<div id="gallery-view" style="text-align:right"><a class="unimportant" href="javascript:void(0)">-</a></div>');
-  $('#gallery-view a').html(gallery_view ? _("Disable gallery mode") : _("Enable gallery mode")).click(function() {
+  $('hr:first').before('<div id="gallery-view" style="text-align:right"><a class="unimportant" href="#">-</a></div>');
+  $('#gallery-view a').html(gallery_view ? _("Disable gallery mode") : _("Enable gallery mode")).click(function(e) {
+    e.preventDefault();
     gallery_view = !gallery_view;
     $(this).html(gallery_view ? _("Disable gallery mode") : _("Enable gallery mode"));
     toggle_gview(document);
@@ -69,8 +70,11 @@ $(function(){
       });
     });
 
-    $("<a href='javascript:void(0)'><i class='fa fa-times'></i></div>")
-    .click(close_gallery).appendTo(toolbar);
+    $("<a href='#'><i class='fa fa-times'></i></div>")
+    .click(function(e) {
+      e.preventDefault();
+      close_gallery();
+    }).appendTo(toolbar);
 
     $('body').on('keydown.gview', function(e) {
       if (e.which == 39 || e.which == 40) { // right or down arrow

@@ -9,7 +9,6 @@ defmodule EirinchanWeb.ThreadController do
   alias Eirinchan.ThreadPaths
   alias EirinchanWeb.Announcements
   alias EirinchanWeb.BoardChrome
-  alias EirinchanWeb.PostView
   alias EirinchanWeb.PublicControllerHelpers
   alias EirinchanWeb.ShowYous
 
@@ -86,7 +85,7 @@ defmodule EirinchanWeb.ThreadController do
             global_boardlist_groups:
               BoardChrome.boardlist_groups(
                 boards,
-                chrome.boardlist_groups || PostView.boardlist_groups(boards)
+                chrome.boardlist_groups
               ),
             body_class: PublicControllerHelpers.moderator_body_class(conn, "active-thread"),
             head_extra_meta_tags: EirinchanWeb.PublicShell.thread_meta(board, summary.thread, config)

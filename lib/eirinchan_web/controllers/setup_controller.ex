@@ -3,7 +3,6 @@ defmodule EirinchanWeb.SetupController do
 
   alias Eirinchan.Boards
   alias Eirinchan.Installation
-  alias EirinchanWeb.PostView
 
   plug :assign_setup_shell
 
@@ -57,6 +56,6 @@ defmodule EirinchanWeb.SetupController do
 
   defp shell_boardlist_groups do
     Boards.list_boards()
-    |> PostView.boardlist_groups()
+    |> EirinchanWeb.BoardChrome.boardlist_groups(nil)
   end
 end

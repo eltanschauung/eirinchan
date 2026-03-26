@@ -43,17 +43,18 @@ $(document).ready(function(){
                 event = 'change';
                 Options.extend_tab("general", "<label id='toggle-locked-threads'><input type='checkbox' /> "+_('Hide locked threads')+"</label>");
         }
-        else {
+		else {
                 selector = '#toggle-locked-threads a';
                 event = 'click';
-		$('hr:first').before('<div id="toggle-locked-threads" style="text-align:right"><a class="unimportant" href="javascript:void(0)">-</a></div>');
+		$('hr:first').before('<div id="toggle-locked-threads" style="text-align:right"><a class="unimportant" href="#">-</a></div>');
         }
 	
 	$('div#toggle-locked-threads a')
 		.text(hide_locked_threads ? _('Show locked threads') : _('Hide locked threads'));
 
 	$(selector)
-		.on(event, function() {
+		.on(event, function(e) {
+			if (event === 'click') e.preventDefault();
 			hide_locked_threads = !hide_locked_threads;
 			if (hide_locked_threads) {
 				$('img.icon[title="Locked"], i.fa-lock.fa').each(function() {
@@ -87,4 +88,3 @@ $(document).ready(function(){
 		}
 	});
 });
-
