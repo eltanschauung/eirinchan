@@ -8,7 +8,6 @@ defmodule EirinchanWeb.BoardController do
   alias EirinchanWeb.BoardChrome
   alias EirinchanWeb.PostView
   alias EirinchanWeb.PublicControllerHelpers
-  alias EirinchanWeb.PublicShell
   alias EirinchanWeb.ShowYous
 
   plug EirinchanWeb.Plugs.RenderOverboard when action in [:show, :show_page]
@@ -142,36 +141,16 @@ defmodule EirinchanWeb.BoardController do
               boards,
               chrome.boardlist_groups || PostView.boardlist_groups(boards)
             ),
-          public_shell: true,
-          show_nav_arrows_page: true,
-          viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",
-          base_stylesheet: "/stylesheets/style.css",
           body_class:
             PublicControllerHelpers.moderator_body_class(conn, "active-catalog",
               extra_classes: ["theme-catalog"]
             ),
-          body_data_stylesheet: PublicControllerHelpers.data_stylesheet(conn),
-          page_title: "#{board.uri} - Catalog",
-          head_meta:
-            PublicShell.head_meta("catalog",
-              board_name: board.uri,
-              resource_version: conn.assigns[:asset_version],
-              theme_label: conn.assigns[:theme_label],
-              theme_options: conn.assigns[:theme_options],
-              browser_timezone: conn.assigns[:browser_timezone],
-              browser_timezone_offset_minutes: conn.assigns[:browser_timezone_offset_minutes],
-              watcher_count: watcher_count,
-              watcher_unread_count: watcher_unread_count,
-              watcher_you_count: watcher_you_count
-            ),
-          eager_javascript_urls: PublicShell.eager_javascript_urls(:catalog, config),
-          javascript_urls: PublicShell.javascript_urls(:catalog, config),
-          primary_stylesheet: PublicControllerHelpers.primary_stylesheet(conn),
-          primary_stylesheet_id: "stylesheet",
-          extra_stylesheets: PublicControllerHelpers.extra_stylesheets(),
-          hide_theme_switcher: true,
-          skip_app_stylesheet: true
-        ]
+          page_title: "#{board.uri} - Catalog"
+        ] ++
+          PublicControllerHelpers.public_shell_assigns(conn, :catalog,
+            javascript_config: config,
+            head_meta_opts: [board_name: board.uri]
+          )
 
         fragment_md5 =
           PublicControllerHelpers.render_fragment_md5(
@@ -278,32 +257,12 @@ defmodule EirinchanWeb.BoardController do
               boards,
               chrome.boardlist_groups || PostView.boardlist_groups(boards)
             ),
-          public_shell: true,
-          show_nav_arrows_page: true,
-          viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",
-          base_stylesheet: "/stylesheets/style.css",
-          body_class: PublicControllerHelpers.moderator_body_class(conn, "active-index"),
-          body_data_stylesheet: PublicControllerHelpers.data_stylesheet(conn),
-          head_meta:
-            PublicShell.head_meta("index",
-              board_name: board.uri,
-              resource_version: conn.assigns[:asset_version],
-              theme_label: conn.assigns[:theme_label],
-              theme_options: conn.assigns[:theme_options],
-              browser_timezone: conn.assigns[:browser_timezone],
-              browser_timezone_offset_minutes: conn.assigns[:browser_timezone_offset_minutes],
-              watcher_count: watcher_count,
-              watcher_unread_count: watcher_unread_count,
-              watcher_you_count: watcher_you_count
-            ),
-          eager_javascript_urls: PublicShell.eager_javascript_urls(:index, config),
-          javascript_urls: PublicShell.javascript_urls(:index, config),
-          primary_stylesheet: PublicControllerHelpers.primary_stylesheet(conn),
-          primary_stylesheet_id: "stylesheet",
-          extra_stylesheets: PublicControllerHelpers.extra_stylesheets(),
-          hide_theme_switcher: true,
-          skip_app_stylesheet: true
-        ]
+          body_class: PublicControllerHelpers.moderator_body_class(conn, "active-index")
+        ] ++
+          PublicControllerHelpers.public_shell_assigns(conn, :index,
+            javascript_config: config,
+            head_meta_opts: [board_name: board.uri]
+          )
 
         fragment_md5 =
           PublicControllerHelpers.render_fragment_md5(
