@@ -15,6 +15,7 @@ defmodule EirinchanWeb.ThreadController do
   plug EirinchanWeb.Plugs.LoadBoard
 
   def show(conn, %{"thread_id" => thread_id}) do
+    started_at = System.monotonic_time(:microsecond)
     board = conn.assigns.current_board
     config = conn.assigns.current_board_config
     {normalized_thread_id, noko50?} = parse_thread_request(thread_id)
@@ -118,11 +119,28 @@ defmodule EirinchanWeb.ThreadController do
           else
             conn = if fragment?, do: put_root_layout(conn, false), else: conn
 
-            render(
-              conn,
-              if(fragment?, do: :thread_fragment, else: :show),
-              Keyword.put(render_assigns, :fragment_md5, fragment_md5)
+            conn =
+              render(
+                conn,
+                if(fragment?, do: :thread_fragment, else: :show),
+                Keyword.put(render_assigns, :fragment_md5, fragment_md5)
+              )
+
+            PublicControllerHelpers.maybe_log_page_performance(
+              "thread.show",
+              started_at,
+              %{
+                board: board.uri,
+                thread_id: PublicIds.public_id(summary.thread),
+                fragment: fragment?,
+                noko50: noko50?,
+                reply_count: length(summary.replies),
+                has_noko50: summary.has_noko50
+              },
+              config
             )
+
+            conn
           end
         end
 

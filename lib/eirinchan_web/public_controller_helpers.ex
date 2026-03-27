@@ -1,12 +1,15 @@
 defmodule EirinchanWeb.PublicControllerHelpers do
   @moduledoc false
 
+  alias Eirinchan.LogSystem
+  alias Eirinchan.Settings
   alias Eirinchan.ThreadWatcher
   alias EirinchanWeb.FragmentHash
   alias EirinchanWeb.PublicShell
 
   @empty_watcher_metrics %{watcher_count: 0, watcher_unread_count: 0, watcher_you_count: 0}
   @public_extra_stylesheets ["/stylesheets/eirinchan-public.css", "/stylesheets/eirinchan-bant.css"]
+  @slow_page_log_ms 250
 
   def fragment_options(params) do
     [fragment?: fragment_request?(params), fragment_md5?: fragment_md5_request?(params)]
@@ -82,6 +85,23 @@ defmodule EirinchanWeb.PublicControllerHelpers do
   end
 
   def extra_stylesheets, do: @public_extra_stylesheets
+
+  def maybe_log_page_performance(page, started_at_us, metadata, config \\ nil)
+      when is_binary(page) and is_integer(started_at_us) and is_map(metadata) do
+    total_ms = round((System.monotonic_time(:microsecond) - started_at_us) / 1000)
+
+    if total_ms >= @slow_page_log_ms do
+      LogSystem.log(
+        :info,
+        "page.performance",
+        "page.performance",
+        Map.merge(metadata, %{page: page, total_ms: total_ms, log_format: "json"}),
+        config || Settings.current_instance_config()
+      )
+    end
+
+    :ok
+  end
 
   def public_shell_assigns(conn, active_page, opts \\ []) do
     %{
