@@ -75,6 +75,7 @@ defmodule EirinchanWeb.BoardController do
   end
 
   defp render_catalog_page(conn, page_num, opts) do
+    started_at = System.monotonic_time(:microsecond)
     board = conn.assigns.current_board
     config = conn.assigns.current_board_config
     boards = Boards.list_boards()
@@ -164,11 +165,27 @@ defmodule EirinchanWeb.BoardController do
         else
           conn = if fragment?, do: put_root_layout(conn, false), else: conn
 
-          render(
-            conn,
-            if(fragment?, do: :catalog_fragment, else: :catalog),
-            Keyword.put(render_assigns, :fragment_md5, fragment_md5)
+          conn =
+            render(
+              conn,
+              if(fragment?, do: :catalog_fragment, else: :catalog),
+              Keyword.put(render_assigns, :fragment_md5, fragment_md5)
+            )
+
+          PublicControllerHelpers.maybe_log_page_performance(
+            "board.catalog",
+            started_at,
+            %{
+              board: board.uri,
+              page_num: page_num,
+              fragment: fragment?,
+              thread_count: length(page_data.threads),
+              total_pages: page_data.total_pages
+            },
+            config
           )
+
+          conn
         end
 
       {:error, :not_found} ->
@@ -206,6 +223,7 @@ defmodule EirinchanWeb.BoardController do
   defp normalize_catalog_search(_value), do: ""
 
   defp render_page(conn, page, opts) do
+    started_at = System.monotonic_time(:microsecond)
     board = conn.assigns.current_board
     config = conn.assigns.current_board_config
     boards = Boards.list_boards()
@@ -276,11 +294,30 @@ defmodule EirinchanWeb.BoardController do
         else
           conn = if fragment?, do: put_root_layout(conn, false), else: conn
 
-          render(
-            conn,
-            if(fragment?, do: :index_fragment, else: :show),
-            Keyword.put(render_assigns, :fragment_md5, fragment_md5)
+          conn =
+            render(
+              conn,
+              if(fragment?, do: :index_fragment, else: :show),
+              Keyword.put(render_assigns, :fragment_md5, fragment_md5)
+            )
+
+          PublicControllerHelpers.maybe_log_page_performance(
+            "board.index",
+            started_at,
+            %{
+              board: board.uri,
+              page_num: page,
+              fragment: fragment?,
+              thread_count: length(page_data.threads),
+              post_count:
+                Enum.reduce(page_data.threads, 0, fn summary, acc ->
+                  acc + 1 + length(summary.replies)
+                end)
+            },
+            config
           )
+
+          conn
         end
 
       {:error, :not_found} ->

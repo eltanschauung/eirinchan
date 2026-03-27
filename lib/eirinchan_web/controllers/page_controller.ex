@@ -32,16 +32,36 @@ defmodule EirinchanWeb.PageController do
         render_recent_theme(conn, "index")
       else
         config = Settings.current_instance_config()
+        started_at = System.monotonic_time(:microsecond)
+        boards = Boards.list_boards()
+        news_entries = NewsBlotter.entries(config, limit: 5)
 
-        render(
-          conn,
-          :home,
-          Keyword.merge(
-            public_page_assigns(conn, "active-page", "index", include_global_message: false),
-            layout: false,
-            news_entries: NewsBlotter.entries(config, limit: 5)
+        conn =
+          render(
+            conn,
+            :home,
+            Keyword.merge(
+              public_page_assigns(conn, "active-page", "index",
+                include_global_message: false,
+                boards: boards
+              ),
+              layout: false,
+              news_entries: news_entries
+            )
           )
+
+        PublicControllerHelpers.maybe_log_page_performance(
+          "home",
+          started_at,
+          %{
+            board_count: length(boards),
+            news_entry_count: length(news_entries),
+            theme: "default"
+          },
+          config
         )
+
+        conn
       end
     end
   end
@@ -332,7 +352,7 @@ defmodule EirinchanWeb.PageController do
   end
 
   defp public_page_assigns(conn, page_kind, active_page, opts \\ []) do
-    boards = Boards.list_boards()
+    boards = Keyword.get_lazy(opts, :boards, &Boards.list_boards/0)
     primary_board = Enum.find(boards, &(&1.uri == "bant")) || %{uri: "bant"}
     common_assigns =
       PublicControllerHelpers.public_shell_assigns(conn, active_page,
@@ -444,24 +464,43 @@ defmodule EirinchanWeb.PageController do
 
   defp render_recent_theme(conn, active_page) do
     settings = Themes.theme_settings("recent")
+    started_at = System.monotonic_time(:microsecond)
+    boards = Boards.list_boards()
+    board_ids = recent_board_ids(settings, boards)
+    content = recent_theme_content(settings, board_ids)
+    stats = recent_theme_stats(board_ids)
 
-    render(
+    conn =
+      render(
       conn,
       :recent,
       Keyword.merge(
-        recent_theme_assigns(conn, active_page, settings),
+        recent_theme_assigns(conn, active_page, boards),
         layout: false,
         recent_settings: settings,
-        recent_images: recent_theme_images(settings),
-        recent_posts: recent_theme_posts(settings),
-        stats: recent_theme_stats(settings)
+        recent_images: content.recent_images,
+        recent_posts: content.recent_posts,
+        stats: stats
       )
     )
+
+    PublicControllerHelpers.maybe_log_page_performance(
+      if(active_page == "index", do: "home", else: "recent"),
+      started_at,
+      %{
+        active_page: active_page,
+        board_count: length(boards),
+        board_ids_count: length(board_ids),
+        recent_image_count: length(content.recent_images),
+        recent_post_count: length(content.recent_posts),
+        theme: "recent"
+      }
+    )
+
+    conn
   end
 
-  defp recent_theme_assigns(conn, active_page, _settings) do
-    boards = Boards.list_boards()
-
+  defp recent_theme_assigns(conn, active_page, boards) do
     [
       boards: boards,
       global_boardlist_groups: PostView.boardlist_groups(boards),
@@ -474,31 +513,27 @@ defmodule EirinchanWeb.PageController do
     )
   end
 
-  defp recent_theme_images(settings) do
-    limit = recent_integer_setting(settings, "limit_images", 3)
-    board_ids = recent_board_ids(settings)
-    posts = Posts.list_recent_posts(limit: max(limit * 25, limit), board_ids: board_ids)
+  defp recent_theme_content(settings, board_ids) do
+    image_limit = recent_integer_setting(settings, "limit_images", 3)
+    post_limit = recent_integer_setting(settings, "limit_posts", 30)
+    fetch_limit = Enum.max([post_limit, max(image_limit * 25, image_limit)])
+    posts = Posts.list_recent_posts(limit: fetch_limit, board_ids: board_ids)
     noko50_paths = recent_noko50_paths(posts)
 
-    posts
-    |> Enum.filter(&recent_image_post?/1)
-    |> Enum.take(limit)
-    |> Enum.map(&recent_image_summary(&1, noko50_paths))
+    %{
+      recent_images:
+        posts
+        |> Enum.filter(&recent_image_post?/1)
+        |> Enum.take(image_limit)
+        |> Enum.map(&recent_image_summary(&1, noko50_paths)),
+      recent_posts:
+        posts
+        |> Enum.take(post_limit)
+        |> Enum.map(&recent_post_summary(&1, noko50_paths))
+    }
   end
 
-  defp recent_theme_posts(settings) do
-    limit = recent_integer_setting(settings, "limit_posts", 30)
-    board_ids = recent_board_ids(settings)
-    posts = Posts.list_recent_posts(limit: limit, board_ids: board_ids)
-    noko50_paths = recent_noko50_paths(posts)
-
-    posts
-    |> Enum.map(&recent_post_summary(&1, noko50_paths))
-  end
-
-  defp recent_theme_stats(settings) do
-    board_ids = recent_board_ids(settings)
-
+  defp recent_theme_stats(board_ids) do
     week_cutoff = DateTime.utc_now() |> DateTime.add(-7 * 24 * 60 * 60, :second)
 
     total_posts =
@@ -533,16 +568,12 @@ defmodule EirinchanWeb.PageController do
 
     %{
       total_posts: number_with_delimiters(total_posts),
-      unique_posters: "many",
-      posts_perhour: "n/a",
-      users_10minutes: "n/a",
       posts_week: number_with_delimiters(posts_week),
-      posters_week: "many",
       active_content: PostView.file_size_text(%{file_size: primary_bytes + extra_bytes})
     }
   end
 
-  defp recent_board_ids(settings) do
+  defp recent_board_ids(settings, boards) do
     excluded =
       settings
       |> Map.get("exclude", "")
@@ -550,7 +581,7 @@ defmodule EirinchanWeb.PageController do
       |> String.split(~r/\s+/, trim: true)
       |> MapSet.new()
 
-    Boards.list_boards()
+    boards
     |> Enum.reject(&MapSet.member?(excluded, &1.uri))
     |> Enum.map(& &1.id)
   end
