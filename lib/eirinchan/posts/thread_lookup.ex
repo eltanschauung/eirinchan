@@ -7,6 +7,7 @@ defmodule Eirinchan.Posts.ThreadLookup do
   alias Eirinchan.Posts.Post
   alias Eirinchan.Repo
   alias Eirinchan.ThreadPaths
+  alias EirinchanWeb.FragmentCache
 
   @spec get_thread(BoardRecord.t(), String.t() | integer(), keyword()) ::
           {:ok, [Post.t()]} | {:error, :not_found}
@@ -75,8 +76,11 @@ defmodule Eirinchan.Posts.ThreadLookup do
     config = Keyword.fetch!(opts, :config)
     last_posts = normalize_last_posts(Keyword.get(opts, :last_posts), config)
 
-    with {:ok, [thread | replies]} <- get_thread(board, thread_id, repo: repo) do
-      build_thread_view(thread, replies, config, last_posts)
+    with {:ok, normalized_thread_id} <- normalize_thread_id(thread_id),
+         %Post{} = thread <- fetch_thread_record(repo, board, normalized_thread_id) do
+      build_thread_view_cached(board, thread, config, last_posts, repo)
+    else
+      _ -> {:error, :not_found}
     end
   end
 
@@ -85,9 +89,34 @@ defmodule Eirinchan.Posts.ThreadLookup do
     config = Keyword.fetch!(opts, :config)
     last_posts = normalize_last_posts(Keyword.get(opts, :last_posts), config)
 
-    with {:ok, [thread | replies]} <- get_thread_by_internal_id(board, thread_id, repo: repo) do
-      build_thread_view(thread, replies, config, last_posts)
+    with {:ok, normalized_thread_id} <- normalize_internal_thread_id(thread_id),
+         %Post{} = thread <-
+           repo.one(
+             from post in Post,
+               where:
+                 post.id == ^normalized_thread_id and post.board_id == ^board.id and
+                   is_nil(post.thread_id)
+           ) do
+      build_thread_view_cached(board, thread, config, last_posts, repo)
+    else
+      _ -> {:error, :not_found}
     end
+  end
+
+  defp build_thread_view_cached(board, thread, config, last_posts, repo) do
+    stats = thread_view_cache_stats(repo, board.id, thread.id)
+
+    FragmentCache.fetch_or_store(thread_view_cache_key(thread, stats, last_posts), fn ->
+      replies =
+        repo.all(
+          from post in Post,
+            where: post.board_id == ^board.id and post.thread_id == ^thread.id,
+            order_by: [asc: post.inserted_at, asc: post.id]
+        )
+        |> repo.preload(:extra_files)
+
+      build_thread_view(repo.preload(thread, :extra_files), replies, config, last_posts)
+    end)
   end
 
   defp build_thread_view(thread, replies, config, last_posts) do
@@ -120,6 +149,26 @@ defmodule Eirinchan.Posts.ThreadLookup do
        is_noko50: not is_nil(last_posts) and has_noko50,
        last_count: last_posts || config.noko50_count
      }}
+  end
+
+  defp thread_view_cache_stats(repo, board_id, thread_id) do
+    repo.one(
+      from post in Post,
+        where: post.board_id == ^board_id and post.thread_id == ^thread_id,
+        select: %{reply_count: count(post.id), latest_updated_at: max(post.updated_at)}
+    ) || %{reply_count: 0, latest_updated_at: nil}
+  end
+
+  defp thread_view_cache_key(thread, stats, last_posts) do
+    {
+      :thread_view,
+      thread.id,
+      last_posts,
+      thread.updated_at,
+      thread.bump_at,
+      stats.reply_count,
+      stats.latest_updated_at
+    }
   end
 
   @spec fetch_thread(BoardRecord.t(), String.t() | integer() | nil, module()) ::
