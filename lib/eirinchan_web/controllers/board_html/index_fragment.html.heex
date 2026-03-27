@@ -11,10 +11,11 @@
     <input type="hidden" name="board" value={@board.uri} />
 
     <div id="board-threads">
-      <%= for summary <- @page_data.threads do %>
-        <% thread = summary.thread %>
-        <% thread_public_id = PostView.public_post_id(thread) %>
-        <% watch = Map.get(@thread_watch_state, thread_public_id, %{watched: false, unread_count: 0}) %>
+        <%= for summary <- @page_data.threads do %>
+          <% thread = summary.thread %>
+          <% thread_public_id = PostView.public_post_id(thread) %>
+          <% preferred_thread_path = PostView.thread_summary_path(@board, summary, @config) %>
+          <% watch = Map.get(@thread_watch_state, thread_public_id, %{watched: false, unread_count: 0}) %>
         <div
           class="thread"
           id={"thread_#{thread_public_id}"}
@@ -62,8 +63,8 @@
               </label>
               <.post_number_links
                 post_id={thread_public_id}
-                post_href={PostView.thread_path(@board, thread, @config) <> "##{thread_public_id}"}
-                quote_href={PostView.reply_path(@board, thread, thread, @config, :quote)}
+                post_href={preferred_thread_path <> "##{thread_public_id}"}
+                quote_href={preferred_thread_path <> "#q#{thread_public_id}"}
                 quote_to={thread_public_id}
                 quick_reply_thread={thread_public_id}
                 quote_mode={:navigate}
@@ -82,7 +83,7 @@
               <span :if={thread.locked} style="display:none">[Locked]</span>
               <span :if={thread.cycle} style="display:none">[Cyclical]</span>
               <span :if={thread.sage} style="display:none">[Bumplocked]</span>
-              <a href={PostView.thread_path(@board, thread, @config)}>[Reply]</a>
+              <a href={preferred_thread_path}>[Reply]</a>
               <%= if summary.has_noko50 do %>
                 <a href={Eirinchan.ThreadPaths.thread_path(@board, thread, @config, noko50: true)}>
                   [Last <%= summary.last_count %> Posts]
@@ -136,8 +137,8 @@
                 </label>
                 <.post_number_links
                   post_id={reply_public_id}
-                  post_href={PostView.thread_path(@board, thread, @config) <> "##{reply_public_id}"}
-                  quote_href={PostView.reply_path(@board, thread, reply, @config, :quote)}
+                  post_href={preferred_thread_path <> "##{reply_public_id}"}
+                  quote_href={preferred_thread_path <> "#q#{reply_public_id}"}
                   quote_to={reply_public_id}
                   quote_mode={:navigate}
                 />
