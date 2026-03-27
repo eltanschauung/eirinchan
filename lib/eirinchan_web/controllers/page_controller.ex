@@ -18,11 +18,14 @@ defmodule EirinchanWeb.PageController do
   alias Eirinchan.Settings
   alias Eirinchan.Themes
   alias EirinchanWeb.{Announcements, BoardChrome, BoardRuntime}
+  alias EirinchanWeb.FragmentCache
   alias EirinchanWeb.HtmlSanitizer
   alias EirinchanWeb.PostView
   alias EirinchanWeb.PublicControllerHelpers
   alias EirinchanWeb.ShowYous
   alias Eirinchan.ThreadPaths
+
+  @recent_theme_cache_bucket_seconds 30
 
   def home(conn, _params) do
     if Installation.setup_required?() do
@@ -467,8 +470,8 @@ defmodule EirinchanWeb.PageController do
     started_at = System.monotonic_time(:microsecond)
     boards = Boards.list_boards()
     board_ids = recent_board_ids(settings, boards)
-    content = recent_theme_content(settings, board_ids)
-    stats = recent_theme_stats(board_ids)
+    content = cached_recent_theme_content(settings, board_ids)
+    stats = cached_recent_theme_stats(board_ids)
 
     conn =
       render(
@@ -498,6 +501,18 @@ defmodule EirinchanWeb.PageController do
     )
 
     conn
+  end
+
+  defp cached_recent_theme_content(settings, board_ids) do
+    FragmentCache.fetch_or_store(recent_theme_content_cache_key(settings, board_ids), fn ->
+      recent_theme_content(settings, board_ids)
+    end)
+  end
+
+  defp cached_recent_theme_stats(board_ids) do
+    FragmentCache.fetch_or_store(recent_theme_stats_cache_key(board_ids), fn ->
+      recent_theme_stats(board_ids)
+    end)
   end
 
   defp recent_theme_assigns(conn, active_page, boards) do
@@ -570,6 +585,23 @@ defmodule EirinchanWeb.PageController do
       total_posts: number_with_delimiters(total_posts),
       posts_week: number_with_delimiters(posts_week),
       active_content: PostView.file_size_text(%{file_size: primary_bytes + extra_bytes})
+    }
+  end
+
+  defp recent_theme_content_cache_key(settings, board_ids) do
+    {
+      :recent_theme_content,
+      :erlang.phash2(settings),
+      board_ids,
+      div(System.system_time(:second), @recent_theme_cache_bucket_seconds)
+    }
+  end
+
+  defp recent_theme_stats_cache_key(board_ids) do
+    {
+      :recent_theme_stats,
+      board_ids,
+      div(System.system_time(:second), @recent_theme_cache_bucket_seconds)
     }
   end
 
