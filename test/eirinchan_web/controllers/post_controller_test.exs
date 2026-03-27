@@ -1,10 +1,10 @@
 defmodule EirinchanWeb.PostControllerTest do
   use EirinchanWeb.ConnCase, async: true
 
-  import ExUnit.CaptureLog
   import Ecto.Query
 
   alias Eirinchan.Moderation.LogEntry
+  alias Eirinchan.PostFailureLog
   alias Eirinchan.Posts.Post
   alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Repo
@@ -831,21 +831,7 @@ defmodule EirinchanWeb.PostControllerTest do
   end
 
   test "invalid image failures log decoder diagnostics and quarantine the upload", %{conn: conn} do
-    log_path =
-      Path.join(
-        System.tmp_dir!(),
-        "post-failure-details-#{System.unique_integer([:positive])}.log"
-      )
-
-    on_exit(fn -> File.rm(log_path) end)
-
-    board =
-      board_fixture(%{
-        config_overrides: %{
-          force_image_op: true,
-          log_system: %{type: "file", file_path: log_path}
-        }
-      })
+    board = board_fixture(%{config_overrides: %{force_image_op: true}})
 
     unique_name = "diag-#{System.unique_integer([:positive])}.png"
 
@@ -861,20 +847,31 @@ defmodule EirinchanWeb.PostControllerTest do
 
     assert %{"error" => "Invalid image."} = json_response(conn, 422)
 
-    log_line =
-      log_path
-      |> File.stream!()
-      |> Enum.reverse()
-      |> Enum.find(fn line ->
-        String.contains?(line, "\"event\":\"post.failure_details\"") and
-          String.contains?(line, "\"board\":\"#{board.uri}\"") and String.contains?(line, unique_name)
-      end)
+    log =
+      Repo.one!(
+        from entry in PostFailureLog,
+          where: entry.event == "post.failure_details" and entry.board_uri == ^board.uri,
+          order_by: [desc: entry.inserted_at],
+          limit: 1
+      )
 
-    assert is_binary(log_line)
+    metadata = log.metadata
+    [diagnostic] = metadata["invalid_image_diagnostics"]
 
-    decoded = Jason.decode!(log_line)
-    [diagnostic] = decoded["metadata"]["invalid_image_diagnostics"]
-
+    assert metadata["branch"] == "post"
+    assert metadata["content_type"] =~ "multipart/"
+    assert metadata["browser_token_present"] == true
+    assert metadata["post_context"]["body"] == "first post"
+    assert metadata["post_context"]["body_length"] == 10
+    assert metadata["post_context"]["has_upload"] == true
+    assert metadata["post_context"]["uploads"] == [
+             %{
+               "filename" => unique_name,
+               "content_type" => "image/png",
+               "size" => 12
+             }
+           ]
+    assert metadata["params"]["body"] == "first post"
     assert diagnostic["filename"] == unique_name
     assert diagnostic["content_type"] == "image/png"
     assert diagnostic["magic_bytes_hex"] == Base.encode16("not-an-image", case: :lower)
@@ -1213,29 +1210,34 @@ defmodule EirinchanWeb.PostControllerTest do
         }
       })
 
+    conn =
+      conn
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post(~p"/#{board.uri}/post", %{
+        "body" => "first post",
+        "json_response" => "1",
+        "post" => "New Topic"
+      })
+
+    assert %{
+             "error" => "Captcha validation failed.",
+             "error_code" => "invalid_captcha",
+             "refresh_captcha" => true,
+             "captcha_provider" => "hcaptcha",
+             "captcha_field" => "h-captcha-response",
+             "captcha_refresh_token" => _
+           } = json_response(conn, 422)
+
     log =
-      capture_log(fn ->
-        conn =
-          conn
-          |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
-          |> post(~p"/#{board.uri}/post", %{
-            "body" => "first post",
-            "json_response" => "1",
-            "post" => "New Topic"
-          })
+      Repo.one!(
+        from entry in PostFailureLog,
+          where: entry.event == "post.error" and entry.board_uri == ^board.uri,
+          order_by: [desc: entry.inserted_at],
+          limit: 1
+      )
 
-        assert %{
-                 "error" => "Captcha validation failed.",
-                 "error_code" => "invalid_captcha",
-                 "refresh_captcha" => true,
-                 "captcha_provider" => "hcaptcha",
-                 "captcha_field" => "h-captcha-response",
-                 "captcha_refresh_token" => _
-               } = json_response(conn, 422)
-      end)
-
-    assert log =~ "post.error"
-    assert log =~ "reason=invalid_captcha"
+    assert log.metadata["reason"] == "invalid_captcha"
+    assert log.metadata["status"] == 422
   end
 
   test "posting validates hosted captcha providers over http", %{conn: conn} do

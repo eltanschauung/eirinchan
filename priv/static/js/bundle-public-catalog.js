@@ -19,6 +19,7 @@
 $(window).ready(function() {
 	var settings = new script_settings('ajax');
 	var do_not_ajax = false;
+	var csrfRefreshRequest = null;
 
 	var extractAjaxErrorMessage = function(xhr) {
 		if (xhr && xhr.responseJSON && xhr.responseJSON.error) {
@@ -36,6 +37,53 @@ $(window).ready(function() {
 		}
 
 		return null;
+	};
+
+	var currentCsrfToken = function() {
+		var meta = document.querySelector('meta[name="csrf-token"]');
+		if (meta && meta.content) {
+			return meta.content;
+		}
+
+		var field = document.querySelector('input[name="_csrf_token"]');
+		return field ? field.value : '';
+	};
+
+	var applyCsrfToken = function(token) {
+		if (!token) {
+			return;
+		}
+
+		var meta = document.querySelector('meta[name="csrf-token"]');
+
+		if (meta) {
+			meta.setAttribute('content', token);
+		}
+
+		$('input[name="_csrf_token"]').val(token);
+	};
+
+	var refreshCsrfToken = function() {
+		if (csrfRefreshRequest) {
+			return csrfRefreshRequest;
+		}
+
+		csrfRefreshRequest = $.getJSON('/csrf-token')
+			.then(function(response) {
+				var token = response && response.csrf_token;
+
+				if (!token) {
+					return $.Deferred().reject().promise();
+				}
+
+				applyCsrfToken(token);
+				return token;
+			})
+			.always(function() {
+				csrfRefreshRequest = null;
+			});
+
+		return csrfRefreshRequest;
 	};
 
 	// Enable submit button if disabled (cache problem)
@@ -139,12 +187,6 @@ $(window).ready(function() {
 					textarea[name="body"],input[type="file"]').val('').change();
 			};
 
-			var formData = new FormData(this);
-			formData.append('json_response', '1');
-			formData.append('post', submit_txt);
-
-			$(document).trigger("ajax_before_post", [formData, form]);
-
 			var updateProgress = function(e) {
 				var percentage;
 				if (e.position === undefined) { // Firefox
@@ -158,17 +200,25 @@ $(window).ready(function() {
 
 			$wrappedForm.data('ajax-posting', true);
 
-			$.ajax({
-				url: this.action,
-				type: 'POST',
-				xhr: function() {
-					var xhr = $.ajaxSettings.xhr();
-					if(xhr.upload) {
-						xhr.upload.addEventListener('progress', updateProgress, false);
-					}
-					return xhr;
-				},
-				success: function(post_response) {
+			var submitAjax = function(retryOnCsrfFailure) {
+				var formData = new FormData(form);
+				formData.set('_csrf_token', currentCsrfToken());
+				formData.set('json_response', '1');
+				formData.set('post', submit_txt);
+
+				$(document).trigger("ajax_before_post", [formData, form]);
+
+				$.ajax({
+					url: form.action,
+					type: 'POST',
+					xhr: function() {
+						var xhr = $.ajaxSettings.xhr();
+						if(xhr.upload) {
+							xhr.upload.addEventListener('progress', updateProgress, false);
+						}
+						return xhr;
+					},
+					success: function(post_response) {
 					if (post_response.error) {
 						if (post_response.banned) {
 							// You are banned. Must post the form normally so the user can see the ban message.
@@ -270,27 +320,43 @@ $(window).ready(function() {
 						alert(_('An unknown error occured when posting!'));
 						resetSubmit();
 					}
-				},
-				error: function(xhr, status, er) {
-					console.log(xhr);
-					var extracted = extractAjaxErrorMessage(xhr);
-					if (extracted) {
-						alert(extracted);
-					} else {
-						alert(_('The server took too long to submit your post. Your post was probably still submitted. If it wasn\'t, we might be experiencing issues right now -- please try your post again later.'));
+					},
+					error: function(xhr, status, er) {
+						console.log(xhr);
+
+						if (retryOnCsrfFailure && xhr && xhr.status === 403) {
+							refreshCsrfToken().done(function() {
+								submitAjax(false);
+							}).fail(function() {
+								alert(_('Your tab is out of date. Refresh the page and try again.'));
+								resetSubmit();
+							});
+							return;
+						}
+
+						var extracted = extractAjaxErrorMessage(xhr);
+						if (extracted) {
+							alert(extracted);
+						} else if (xhr && xhr.status === 403) {
+							alert(_('Your tab is out of date. Refresh the page and try again.'));
+						} else {
+							alert(_('The server took too long to submit your post. Your post was probably still submitted. If it wasn\'t, we might be experiencing issues right now -- please try your post again later.'));
+						}
+						resetSubmit();
+					},
+					data: formData,
+					cache: false,
+					contentType: false,
+					processData: false,
+					complete: function() {
+						if ($submit.val() !== _('Posted...')) {
+							$wrappedForm.removeData('ajax-posting');
+						}
 					}
-					resetSubmit();
-				},
-				data: formData,
-				cache: false,
-				contentType: false,
-				processData: false,
-				complete: function() {
-					if ($submit.val() !== _('Posted...')) {
-						$wrappedForm.removeData('ajax-posting');
-					}
-				}
-			}, 'json');
+				}, 'json');
+			};
+
+			submitAjax(true);
 			
 			$submit.val(_('Posting...'));
 			$submit.attr('disabled', true);

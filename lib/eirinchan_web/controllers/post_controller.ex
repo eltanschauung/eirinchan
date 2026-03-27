@@ -6,11 +6,12 @@ defmodule EirinchanWeb.PostController do
   alias Eirinchan.Antispam
   alias Eirinchan.Bans
   alias Eirinchan.IpAccessAuth
-  alias Eirinchan.LogSystem
   alias Eirinchan.ModerationLog
+  alias Eirinchan.PostFailureLog
   alias Eirinchan.PostOwnership
   alias Eirinchan.Posts
   alias Eirinchan.Posts.PublicIds
+  alias Eirinchan.Repo
   alias Eirinchan.Reports
   alias Eirinchan.ThreadWatcher
   alias Eirinchan.ThreadPaths
@@ -348,12 +349,11 @@ defmodule EirinchanWeb.PostController do
   end
 
   defp respond_changeset_error(conn, changeset) do
-    LogSystem.log(
+    persist_post_failure(
+      "post.changeset_error",
       :warning,
-      "post.changeset_error",
-      "post.changeset_error",
-      %{errors: inspect(changeset.errors), board: conn.assigns.current_board.uri},
-      conn.assigns.current_board_config
+      conn.assigns.current_board.uri,
+      %{errors: inspect(changeset.errors)}
     )
 
     respond_error(
@@ -772,13 +772,7 @@ defmodule EirinchanWeb.PostController do
       remote_ip: RequestMeta.effective_remote_ip(conn)
     }
 
-    LogSystem.log(
-      level,
-      "post.error",
-      "post.error",
-      metadata,
-      conn.assigns.current_board_config
-    )
+    persist_post_failure("post.error", level, conn.assigns.current_board.uri, metadata)
 
     log_post_failure_details(conn, metadata, level)
   end
@@ -805,20 +799,47 @@ defmodule EirinchanWeb.PostController do
         referer: List.first(get_req_header(conn, "referer")),
         origin: List.first(get_req_header(conn, "origin")),
         user_agent: List.first(get_req_header(conn, "user-agent")),
+        content_type: List.first(get_req_header(conn, "content-type")),
+        content_length: List.first(get_req_header(conn, "content-length")),
+        x_requested_with: List.first(get_req_header(conn, "x-requested-with")),
+        branch: branch(conn.params),
+        moderator: failure_moderator_metadata(conn.assigns[:current_moderator]),
+        browser_token_present: is_binary(conn.assigns[:browser_token]),
+        post_context: failure_post_context(conn.params),
         params: sanitize_failure_params(conn.params)
       }
       |> maybe_put_invalid_image_diagnostics(invalid_image_diagnostics)
 
-    LogSystem.log(
-      level,
-      "post.failure_details",
-      "post.failure_details",
-      Map.put(payload, :log_format, "json"),
-      conn.assigns.current_board_config
-    )
+    persist_post_failure("post.failure_details", level, conn.assigns.current_board.uri, payload)
 
     :ok
   end
+
+  defp persist_post_failure(event, level, board_uri, metadata) do
+    %PostFailureLog{}
+    |> PostFailureLog.changeset(%{
+      event: event,
+      level: Atom.to_string(level),
+      board_uri: board_uri,
+      metadata: json_failure_value(metadata)
+    })
+    |> Repo.insert()
+
+    :ok
+  rescue
+    _error ->
+      :ok
+  end
+
+  defp json_failure_value(value) when is_binary(value), do: value
+  defp json_failure_value(value) when is_integer(value), do: value
+  defp json_failure_value(value) when is_float(value), do: value
+  defp json_failure_value(value) when is_boolean(value), do: value
+  defp json_failure_value(nil), do: nil
+  defp json_failure_value(value) when is_atom(value), do: Atom.to_string(value)
+  defp json_failure_value(value) when is_map(value), do: Map.new(value, fn {k, v} -> {to_string(k), json_failure_value(v)} end)
+  defp json_failure_value(value) when is_list(value), do: Enum.map(value, &json_failure_value/1)
+  defp json_failure_value(value), do: inspect(value)
 
   defp sanitize_failure_params(params) when is_map(params) do
     Map.new(params, fn {key, value} -> {key, sanitize_failure_param(key, value)} end)
@@ -862,6 +883,75 @@ defmodule EirinchanWeb.PostController do
   end
 
   defp maybe_put_invalid_image_diagnostics(payload, _diagnostics), do: payload
+
+  defp failure_moderator_metadata(nil), do: nil
+
+  defp failure_moderator_metadata(moderator) do
+    %{
+      id: moderator.id,
+      username: moderator.username,
+      role: moderator.role
+    }
+  end
+
+  defp failure_post_context(params) when is_map(params) do
+    body = params["body"]
+    subject = params["subject"]
+
+    %{
+      thread: params["thread"] || params["thread_id"],
+      report_post_id: params["report_post_id"],
+      delete_post_id: params["delete_post_id"],
+      body: body,
+      body_length: text_length(body),
+      subject: subject,
+      subject_length: text_length(subject),
+      name: params["name"],
+      email: params["email"],
+      user_flag: params["user_flag"],
+      file_url: params["file_url"],
+      embed: params["embed"],
+      has_upload: has_upload_param?(params),
+      uploads: failure_upload_context(params)
+    }
+  end
+
+  defp failure_post_context(_params), do: nil
+
+  defp failure_upload_context(params) do
+    params
+    |> upload_params()
+    |> Enum.map(&failure_upload_metadata/1)
+  end
+
+  defp upload_params(params) do
+    [
+      Map.get(params, "file"),
+      Map.get(params, "files"),
+      Map.get(params, "files[]")
+    ]
+    |> List.flatten()
+    |> Enum.filter(&match?(%Plug.Upload{}, &1))
+  end
+
+  defp has_upload_param?(params), do: upload_params(params) != []
+
+  defp failure_upload_metadata(%Plug.Upload{} = upload) do
+    stat =
+      case File.stat(upload.path) do
+        {:ok, file_stat} -> file_stat
+        _ -> nil
+      end
+
+    %{
+      filename: upload.filename,
+      content_type: upload.content_type,
+      size: stat && stat.size
+    }
+  end
+
+  defp text_length(value) when is_binary(value), do: String.length(value)
+  defp text_length(_value), do: 0
 
   defp build_invalid_image_diagnostics(_params, %{reason: reason}) when reason != :invalid_image,
     do: nil

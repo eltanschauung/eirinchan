@@ -173,6 +173,7 @@ defmodule EirinchanWeb.Router do
   scope "/", EirinchanWeb do
     pipe_through :browser
 
+    get "/csrf-token", CsrfController, :show
     get "/mod.php", LegacyModController, :show
     get "/b.php", BannerController, :show
     get "/search.php", SearchController, :show

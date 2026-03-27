@@ -65,6 +65,7 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ ~s(name="eirinchan:active-page" content="index")
     assert page =~ ~s(name="eirinchan:board-name" content="")
     assert page =~ ~s(src="/main.js)
+    assert page =~ ~s(name="csrf-token" content=")
     assert page =~ ~s(id="options_handler")
     assert page =~ ~s(id="style-select")
     assert page =~ "Tinyboard + vichan 5.2.2 +"
