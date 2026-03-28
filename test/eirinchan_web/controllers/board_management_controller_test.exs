@@ -1,5 +1,6 @@
 defmodule EirinchanWeb.BoardManagementControllerTest do
   use EirinchanWeb.ConnCase, async: false
+  import Ecto.Query, only: [from: 2]
 
   alias Eirinchan.Posts.PublicIds
 
@@ -696,6 +697,39 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     assert page =~ ~s(class="quote")
     assert page =~ "second line"
     assert page =~ "<br/>"
+  end
+
+  test "catalog cards expose filter metadata for name trip subject comment and flags", %{conn: conn} do
+    :ok = Eirinchan.Themes.enable_page_theme("catalog")
+
+    board = board_fixture(%{uri: "catfilter", title: "Catalog Filter"})
+
+    thread =
+      thread_fixture(board, %{
+        name: "Alice",
+        subject: "Filter Subject",
+        body: "Filter comment body"
+      })
+
+    Eirinchan.Repo.update_all(
+      from(post in Eirinchan.Posts.Post, where: post.id == ^thread.id),
+      set: [tripcode: "!trip", flag_codes: ["country"], flag_alts: ["United States"]]
+    )
+
+    page =
+      conn
+      |> get("/#{board.uri}/catalog.html")
+      |> html_response(200)
+
+    assert page =~ ~s(data-board="#{board.uri}")
+    assert page =~ ~s(data-id="#{PublicIds.public_id(thread)}")
+    assert page =~ ~s(<div class="catalog-filter-meta" hidden>)
+    assert page =~ ~s(<span class="name">Alice</span>)
+    assert page =~ ~s(<span class="trip">!trip</span>)
+    assert page =~ ~s(title="United States")
+    assert page =~ ~s(<span class="subject">Filter Subject</span>)
+    assert page =~ ~s(<div class="body">)
+    assert page =~ "Filter comment body"
   end
 
   test "board page respects field disable flags and single-file selector mode", %{conn: conn} do

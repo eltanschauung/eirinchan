@@ -14,6 +14,7 @@
       <% post_public_id = PostView.public_post_id(post) %>
       <div
         class="mix"
+        data-board={@board.uri}
         data-reply={summary.reply_count}
         data-bump={PostView.unix_timestamp(post.bump_at || post.inserted_at)}
         data-time={PostView.unix_timestamp(post.inserted_at)}
@@ -41,6 +42,13 @@
             />
           </a>
           <div class="replies">
+            <div class="catalog-filter-meta" hidden>
+              <span class="name"><%= PostView.display_name(post, @config) %></span>
+              <span :if={post.tripcode} class="trip"><%= post.tripcode %></span>
+              <%= for flag <- PostView.post_flags(post, @config) do %>
+                <img class="flag" src={flag.src} alt={flag.alt} title={flag.alt} />
+              <% end %>
+            </div>
             <strong>R: <%= summary.reply_count %> / I: <%= summary.image_count %></strong>
             <.post_controls
               post={post}
@@ -55,7 +63,7 @@
               <br />
             <% end %>
             <.summary_body
-              class=""
+              class="body"
               post={post}
               board={@board}
               thread={post}

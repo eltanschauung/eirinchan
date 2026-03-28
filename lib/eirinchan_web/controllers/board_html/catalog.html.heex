@@ -284,11 +284,12 @@
       <%= for summary <- @threads do %>
         <% post = summary.thread %>
         <% post_public_id = PostView.public_post_id(post) %>
-        <div
-          class="mix"
-          data-reply={summary.reply_count}
-          data-bump={PostView.unix_timestamp(post.bump_at || post.inserted_at)}
-          data-time={PostView.unix_timestamp(post.inserted_at)}
+      <div
+        class="mix"
+        data-board={@board.uri}
+        data-reply={summary.reply_count}
+        data-bump={PostView.unix_timestamp(post.bump_at || post.inserted_at)}
+        data-time={PostView.unix_timestamp(post.inserted_at)}
           data-id={post_public_id}
           data-sticky={to_string(post.sticky || false)}
           data-locked={to_string(post.locked || false)}
@@ -321,10 +322,17 @@
                 title={PostView.formatted_timestamp(post, @config)}
               />
             </a>
-            <div class="replies">
-              <strong>R: <%= summary.reply_count %> / I: <%= summary.image_count %></strong>
-              <.post_controls
-                post={post}
+          <div class="replies">
+            <div class="catalog-filter-meta" hidden>
+              <span class="name"><%= PostView.display_name(post, @config) %></span>
+              <span :if={post.tripcode} class="trip"><%= post.tripcode %></span>
+              <%= for flag <- PostView.post_flags(post, @config) do %>
+                <img class="flag" src={flag.src} alt={flag.alt} title={flag.alt} />
+              <% end %>
+            </div>
+            <strong>R: <%= summary.reply_count %> / I: <%= summary.image_count %></strong>
+            <.post_controls
+              post={post}
                 board={@board}
                 moderator={@current_moderator}
                 secure_manage_token={@secure_manage_token}
@@ -335,11 +343,11 @@
               <%= if !PostView.catalog_label(post, @config) do %>
                 <br />
               <% end %>
-              <.summary_body
-                class=""
-                post={post}
-                board={@board}
-                thread={post}
+            <.summary_body
+              class="body"
+              post={post}
+              board={@board}
+              thread={post}
                 config={@config}
                 own_post_ids={@own_post_ids}
                 show_yous={@show_yous}
