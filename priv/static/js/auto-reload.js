@@ -262,6 +262,16 @@ $(document).ready(function(){
 		});
 	};
 
+	var has_expanded_inline_image = function() {
+		return Array.prototype.some.call(document.querySelectorAll('a[data-inline-expandable="true"]'), function(link) {
+			if (!link.offsetParent) return false;
+			if (link.dataset.expanded !== 'true') return false;
+
+			var fullImage = link.querySelector('img.full-image');
+			return !!(fullImage && fullImage.offsetParent);
+		});
+	};
+
 	var has_active_youtube_embed = function() {
 		return Array.prototype.some.call(document.querySelectorAll('.video-container iframe'), function(iframe) {
 			return !!iframe.offsetParent;
@@ -275,7 +285,7 @@ $(document).ready(function(){
 	};
 
 	var should_defer_for_media = function() {
-		return has_active_inline_video() || has_active_youtube_embed() || has_active_post_hover();
+		return has_expanded_inline_image() || has_active_inline_video() || has_active_youtube_embed() || has_active_post_hover();
 	};
 
 	var fragment_md5_url = function() {
