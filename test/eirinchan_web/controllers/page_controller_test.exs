@@ -587,6 +587,30 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ ~s(href="/recent.css)
   end
 
+  test "GET / recent images include video posts with thumbnails", %{conn: conn} do
+    moderator_fixture()
+    board = board_fixture(%{uri: "recentvid#{System.unique_integer([:positive])}", title: "Recent Video"})
+    thread = thread_fixture(board, %{subject: "Recent video thread", body: "Opening"})
+    reply = reply_fixture(board, thread, %{body: "Recent video reply"})
+
+    Repo.update_all(
+      from(post in Eirinchan.Posts.Post, where: post.id == ^reply.id),
+      set: [
+        file_type: "video/webm",
+        thumb_path: "/#{board.uri}/thumb/video-thumb.jpg",
+        image_width: 640,
+        image_height: 360
+      ]
+    )
+
+    page =
+      conn
+      |> get("/")
+      |> html_response(200)
+
+    assert page =~ "/#{board.uri}/thumb/video-thumb.jpg"
+  end
+
   test "GET /sitemap.xml renders board and thread urls", %{conn: conn} do
     :ok = Eirinchan.Themes.enable_page_theme("catalog")
     moderator_fixture()

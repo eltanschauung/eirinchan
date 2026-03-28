@@ -619,8 +619,14 @@ defmodule EirinchanWeb.PageController do
   end
 
   defp recent_image_post?(post) do
-    is_binary(post.thumb_path) and String.starts_with?(post.file_type || "", "image/")
+    is_binary(post.thumb_path) and recent_media_file_type?(post.file_type)
   end
+
+  defp recent_media_file_type?(file_type) when is_binary(file_type) do
+    String.starts_with?(file_type, "image/") or String.starts_with?(file_type, "video/")
+  end
+
+  defp recent_media_file_type?(_file_type), do: false
 
   defp recent_image_summary(post, noko50_paths) do
     {thumb_src, thumbwidth, thumbheight} = recent_thumb(post)
