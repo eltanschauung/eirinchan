@@ -8,6 +8,7 @@ defmodule Eirinchan.Posts.Persistence do
   alias Eirinchan.Posts.NntpReference
   alias Eirinchan.Posts.Post
   alias Eirinchan.Posts.PostFile
+  alias Eirinchan.Posts
   alias Eirinchan.Uploads
 
   @spec create_post_record(
@@ -29,7 +30,8 @@ defmodule Eirinchan.Posts.Persistence do
                 {:ok, post} <- insert_post(locked_board, thread, attrs, repo, config, now),
                 {:ok, post} <- maybe_store_uploads(board, post, upload_entries, repo, config),
                 :ok <- store_citations(locked_board, post, repo),
-                :ok <- after_insert.() do
+                :ok <- after_insert.(),
+                :ok <- Posts.sync_thread_metrics(locked_board, post.thread_id || post.id, repo: repo) do
              post
            else
              {:error, reason} -> repo.rollback(reason)
