@@ -25,6 +25,9 @@ defmodule Eirinchan.Posts.Post do
     field :image_height, :integer
     field :spoiler, :boolean, default: false
     field :bump_at, :utc_datetime_usec
+    field :cached_reply_count, :integer, default: 0
+    field :cached_image_count, :integer, default: 0
+    field :cached_last_reply_at, :utc_datetime
     field :sticky, :boolean, default: false
     field :locked, :boolean, default: false
     field :cycle, :boolean, default: false
@@ -67,6 +70,9 @@ defmodule Eirinchan.Posts.Post do
       :image_height,
       :spoiler,
       :bump_at,
+      :cached_reply_count,
+      :cached_image_count,
+      :cached_last_reply_at,
       :sticky,
       :locked,
       :cycle,

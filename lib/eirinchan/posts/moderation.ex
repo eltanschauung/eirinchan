@@ -25,6 +25,7 @@ defmodule Eirinchan.Posts.Moderation do
          file_paths <- post_delete_file_paths(post, repo),
          {:ok, _deleted_post} <- repo.delete(post) do
       _ = Posts.recalculate_thread_bump(board, post.thread_id, config: config, repo: repo)
+      _ = Posts.sync_thread_metrics(board, post.thread_id, repo: repo)
       Enum.each(file_paths, &Uploads.remove/1)
 
       result =
@@ -109,6 +110,7 @@ defmodule Eirinchan.Posts.Moderation do
            end) do
         {:ok, updated_post} ->
           Enum.each(file_paths, &Uploads.remove/1)
+          _ = Posts.sync_thread_metrics(board, updated_post.thread_id || updated_post.id, repo: repo)
           _ = Build.rebuild_after_post_update(board, updated_post, config: config, repo: repo)
           {:ok, updated_post}
 
@@ -138,6 +140,7 @@ defmodule Eirinchan.Posts.Moderation do
          {:ok, normalized_index} <- normalize_file_index(file_index),
          {:ok, updated_post, file_paths} <- delete_single_post_file(post, normalized_index, repo) do
       Enum.each(file_paths, &Uploads.remove/1)
+      _ = Posts.sync_thread_metrics(board, updated_post.thread_id || updated_post.id, repo: repo)
       _ = Build.rebuild_after_post_update(board, updated_post, config: config, repo: repo)
       {:ok, updated_post}
     else
@@ -173,6 +176,7 @@ defmodule Eirinchan.Posts.Moderation do
             :ok = Uploads.write_spoiler_thumbnail(post_file.thumb_path, config)
           end)
 
+          _ = Posts.sync_thread_metrics(board, updated_post.thread_id || updated_post.id, repo: repo)
           _ = Build.rebuild_after_post_update(board, updated_post, config: config, repo: repo)
           {:ok, updated_post}
 
@@ -192,6 +196,7 @@ defmodule Eirinchan.Posts.Moderation do
          {:ok, normalized_index} <- normalize_file_index(file_index),
          {:ok, updated_post, thumb_paths} <- spoiler_single_post_file(post, normalized_index, repo) do
       Enum.each(thumb_paths, &Uploads.write_spoiler_thumbnail(&1, config))
+      _ = Posts.sync_thread_metrics(board, updated_post.thread_id || updated_post.id, repo: repo)
       _ = Build.rebuild_after_post_update(board, updated_post, config: config, repo: repo)
       {:ok, updated_post}
     else
@@ -245,6 +250,7 @@ defmodule Eirinchan.Posts.Moderation do
                  Enum.find(updated_posts, &is_nil(&1.thread_id))
                end) do
             {:ok, moved_thread} ->
+              _ = Posts.sync_thread_metrics(target_board, moved_thread.id, repo: repo)
               _ = Build.rebuild_after_delete(source_board, {:thread, thread}, config: source_config, repo: repo)
               _ = Build.rebuild_after_post(target_board, moved_thread, config: target_config, repo: repo)
               {:ok, repo.preload(moved_thread, :extra_files, force: true)}
@@ -296,6 +302,8 @@ defmodule Eirinchan.Posts.Moderation do
                  end
                end) do
             {:ok, moved_reply} ->
+              _ = Posts.sync_thread_metrics(source_board, reply.thread_id, repo: repo)
+              _ = Posts.sync_thread_metrics(target_board, target_thread.id, repo: repo)
               _ = Build.rebuild_after_delete(source_board, {:reply, reply.thread_id}, config: source_config, repo: repo)
               _ = Build.rebuild_after_post(target_board, moved_reply, config: target_config, repo: repo)
               {:ok, repo.preload(moved_reply, :extra_files, force: true)}

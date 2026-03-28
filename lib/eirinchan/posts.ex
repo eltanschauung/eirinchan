@@ -201,6 +201,7 @@ defmodule Eirinchan.Posts do
          file_paths <- post_delete_file_paths(post, repo),
          {:ok, _deleted_post} <- repo.delete(post) do
       _ = maybe_recalculate_thread_bump_after_delete(post, config, repo)
+      _ = sync_thread_metrics(board, post.thread_id, repo: repo)
       Enum.each(file_paths, &Uploads.remove/1)
 
       result =
@@ -326,6 +327,32 @@ defmodule Eirinchan.Posts do
       else
         _ -> :ok
       end
+    end
+  end
+
+  @spec sync_thread_metrics(BoardRecord.t(), String.t() | integer() | nil, keyword()) :: :ok
+  def sync_thread_metrics(board, thread_id, opts \\ [])
+  def sync_thread_metrics(_board, nil, _opts), do: :ok
+
+  def sync_thread_metrics(%BoardRecord{} = board, thread_id, opts) do
+    repo = Keyword.get(opts, :repo, Repo)
+
+    with {:ok, %Post{} = thread} <- PostsThreadLookup.fetch_thread_by_internal_id(board, thread_id, repo) do
+      metrics = thread_metrics(repo, board.id, thread.id)
+
+      _ =
+        thread
+        |> Ecto.Changeset.change(
+          cached_reply_count: metrics.reply_count,
+          cached_image_count: metrics.image_count,
+          cached_last_reply_at: metrics.last_reply_at,
+          updated_at: DateTime.utc_now() |> DateTime.truncate(:second)
+        )
+        |> repo.update()
+
+      :ok
+    else
+      _ -> :ok
     end
   end
 
@@ -801,12 +828,6 @@ defmodule Eirinchan.Posts do
     sort_by = normalize_catalog_sort(Keyword.get(opts, :sort_by, "bump:desc"))
     search_term = normalize_catalog_search(Keyword.get(opts, :search, ""))
 
-    reply_counts_query =
-      from post in Post,
-        where: post.board_id == ^board.id and not is_nil(post.thread_id),
-        group_by: post.thread_id,
-        select: %{thread_id: post.thread_id, reply_count: count(post.id)}
-
     base_query =
       from post in Post,
         where: post.board_id == ^board.id and is_nil(post.thread_id)
@@ -846,12 +867,7 @@ defmodule Eirinchan.Posts do
       offset = (page - 1) * page_size
 
       thread_query =
-        from post in base_query,
-          left_join: reply_count in subquery(reply_counts_query),
-          on: reply_count.thread_id == post.id
-
-      thread_query =
-        thread_query
+        base_query
         |> order_catalog_threads(sort_by)
         |> then(fn query -> from q in query, limit: ^page_size, offset: ^offset end)
 
@@ -873,15 +889,15 @@ defmodule Eirinchan.Posts do
   end
 
   defp order_catalog_threads(query, "time:desc") do
-    from [post, _reply_count] in query,
+    from post in query,
       order_by: [desc: post.sticky, desc: post.inserted_at, desc: post.id]
   end
 
   defp order_catalog_threads(query, "reply:desc") do
-    from [post, reply_count] in query,
+    from post in query,
       order_by: [
         desc: post.sticky,
-        desc: fragment("COALESCE(?, 0)", reply_count.reply_count),
+        desc: post.cached_reply_count,
         desc_nulls_last: post.bump_at,
         desc: post.inserted_at,
         desc: post.id
@@ -889,7 +905,7 @@ defmodule Eirinchan.Posts do
   end
 
   defp order_catalog_threads(query, _sort_by) do
-    from [post, _reply_count] in query,
+    from post in query,
       order_by: [desc: post.sticky, desc_nulls_last: post.bump_at, desc: post.inserted_at, desc: post.id]
   end
 
@@ -1287,55 +1303,13 @@ defmodule Eirinchan.Posts do
 
   defp build_thread_summaries(board, threads, config, repo, opts) do
     include_replies = Keyword.get(opts, :include_replies, true)
-    thread_ids = Enum.map(threads, & &1.id)
-
-    reply_stats =
-      repo.all(
-        from post in Post,
-          where: post.board_id == ^board.id and post.thread_id in ^thread_ids,
-          group_by: post.thread_id,
-          select:
-            {post.thread_id, count(post.id), max(post.inserted_at),
-             fragment(
-               "COALESCE(SUM(CASE WHEN ? LIKE 'image/%' THEN 1 ELSE 0 END), 0)",
-               post.file_type
-             )}
-      )
-      |> Map.new(fn {thread_id, reply_count, latest_inserted_at, image_count} ->
-        {thread_id,
-         %{
-           reply_count: reply_count,
-           latest_inserted_at: latest_inserted_at,
-           image_count: image_count || 0
-         }}
-      end)
-
-    reply_extra_image_counts =
-      repo.all(
-        from post_file in PostFile,
-          join: post in Post,
-          on: post_file.post_id == post.id,
-          where:
-            post.board_id == ^board.id and post.thread_id in ^thread_ids and
-              like(post_file.file_type, "image/%"),
-          group_by: post.thread_id,
-          select: {post.thread_id, count(post_file.id)}
-      )
-      |> Map.new()
 
     Enum.map(threads, fn thread ->
-      stats =
-        Map.get(reply_stats, thread.id, %{
-          reply_count: 0,
-          latest_inserted_at: nil,
-          image_count: 0
-        })
-
-      reply_extra_image_count = Map.get(reply_extra_image_counts, thread.id, 0)
+      stats = thread_summary_stats(thread)
       preview_count = if include_replies, do: thread_preview_count(thread, config), else: 0
 
       FragmentCache.fetch_or_store(
-        thread_summary_cache_key(thread, stats, reply_extra_image_count, preview_count, include_replies),
+        thread_summary_cache_key(thread, stats, preview_count, include_replies),
         fn ->
           replies =
             if include_replies do
@@ -1344,7 +1318,7 @@ defmodule Eirinchan.Posts do
               []
             end
 
-          build_thread_summary(thread, replies, stats, reply_extra_image_count, config)
+          build_thread_summary(thread, replies, stats, config)
         end
       )
     end)
@@ -1364,10 +1338,10 @@ defmodule Eirinchan.Posts do
 
   defp fetch_preview_replies(_repo, _board_id, _thread_id, _preview_count), do: []
 
-  defp build_thread_summary(thread, replies, stats, reply_extra_image_count, config) do
+  defp build_thread_summary(thread, replies, stats, config) do
     reply_count = stats.reply_count
-    reply_image_count = stats.image_count
-    last_modified = latest_activity_at(stats.latest_inserted_at, thread.bump_at, thread.inserted_at)
+    image_count = stats.image_count
+    last_modified = latest_activity_at(stats.last_reply_at, thread.bump_at, thread.inserted_at)
 
     %{
       thread: thread,
@@ -1375,11 +1349,11 @@ defmodule Eirinchan.Posts do
       reply_count: reply_count,
       has_noko50: reply_count >= config.noko50_min,
       last_count: config.noko50_count,
-      image_count: reply_image_count + reply_extra_image_count + post_image_count(thread),
+      image_count: image_count,
       omitted_posts: max(reply_count - length(replies), 0),
       omitted_images:
         max(
-          reply_image_count + reply_extra_image_count -
+          image_count - post_image_count(thread) -
             Enum.sum(Enum.map(replies, &post_image_count/1)),
           0
         ),
@@ -1387,13 +1361,7 @@ defmodule Eirinchan.Posts do
     }
   end
 
-  defp thread_summary_cache_key(
-         thread,
-         stats,
-         reply_extra_image_count,
-         preview_count,
-         include_replies
-       ) do
+  defp thread_summary_cache_key(thread, stats, preview_count, include_replies) do
     {
       :thread_summary,
       thread.id,
@@ -1402,9 +1370,8 @@ defmodule Eirinchan.Posts do
       thread.updated_at,
       thread.bump_at,
       stats.reply_count,
-      stats.latest_inserted_at,
-      stats.image_count,
-      reply_extra_image_count
+      stats.last_reply_at,
+      stats.image_count
     }
   end
 
@@ -1425,6 +1392,70 @@ defmodule Eirinchan.Posts do
   end
 
   defp thread_preview_count(_thread, config), do: config.threads_preview
+
+  defp thread_summary_stats(thread) do
+    %{
+      reply_count: thread.cached_reply_count || 0,
+      last_reply_at: thread.cached_last_reply_at,
+      image_count: cached_thread_image_count(thread)
+    }
+  end
+
+  defp cached_thread_image_count(%Post{} = thread) do
+    cached = thread.cached_image_count
+    minimum = post_image_count(thread)
+
+    if is_integer(cached) and cached >= minimum do
+      cached
+    else
+      minimum
+    end
+  end
+
+  defp thread_metrics(repo, board_id, thread_id) do
+    reply_stats =
+      repo.one(
+        from post in Post,
+          where: post.board_id == ^board_id and post.thread_id == ^thread_id,
+          select: %{
+            reply_count: count(post.id),
+            last_reply_at: max(post.inserted_at)
+          }
+      ) || %{reply_count: 0, last_reply_at: nil}
+
+    primary_image_count =
+      repo.aggregate(
+        from(post in Post,
+          where:
+            post.board_id == ^board_id and
+              (post.id == ^thread_id or post.thread_id == ^thread_id) and
+              not is_nil(post.file_path) and post.file_path != "deleted" and like(post.file_type, "image/%")
+        ),
+        :count,
+        :id
+      )
+
+    extra_image_count =
+      repo.aggregate(
+        from(post_file in PostFile,
+          join: post in Post,
+          on: post_file.post_id == post.id,
+          where:
+            post.board_id == ^board_id and
+              (post.id == ^thread_id or post.thread_id == ^thread_id) and
+              not is_nil(post_file.file_path) and post_file.file_path != "deleted" and
+              like(post_file.file_type, "image/%")
+        ),
+        :count,
+        :id
+      )
+
+    %{
+      reply_count: reply_stats.reply_count || 0,
+      last_reply_at: reply_stats.last_reply_at,
+      image_count: (primary_image_count || 0) + (extra_image_count || 0)
+    }
+  end
 
   defp post_delete_file_paths(%Post{thread_id: nil, id: thread_id} = thread, repo) do
     reply_paths =
