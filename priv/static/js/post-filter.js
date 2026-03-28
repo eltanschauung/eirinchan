@@ -180,6 +180,10 @@ if (active_page === 'thread' || active_page === 'index' || active_page === 'cata
 				return;
 
 			$(ele).data('hidden', true);
+			if ($ele.hasClass('mix')) {
+				$ele.hide();
+				return;
+			}
 			if ($ele.hasClass('op')) {
 				$ele.parent().addClass('thread-filter-hidden');
 				$ele.parent().find('.body, .files, .video-container').not($ele.children('.reply').children()).hide();
@@ -195,6 +199,10 @@ if (active_page === 'thread' || active_page === 'index' || active_page === 'cata
 			var $ele = $(ele);
 
 			$(ele).data('hidden', false);
+			if ($ele.hasClass('mix')) {
+				$ele.show();
+				return;
+			}
 			if ($ele.hasClass('op')) {
 				$ele.parent().removeClass('thread-filter-hidden');
 				$ele.parent().find('.body, .files, .video-container').show();
@@ -402,9 +410,11 @@ if (active_page === 'thread' || active_page === 'index' || active_page === 'cata
 		 */
 		function filter(post, threadId, pageData) {
 			var $post = $(post);
+			var isCatalogThread = $post.hasClass('mix');
+			var $filterRoot = isCatalogThread ? $post : $post;
 
 			var list = getList();
-			var postId = $post.find('.post_no').not('[id]').text();
+			var postId = isCatalogThread ? String($post.data('id') || '') : $post.find('.post_no').not('[id]').text();
 			var name, trip, uid, subject, comment, flag;
 			var i, length, array, rule, pattern;  // temp variables
 
@@ -416,9 +426,9 @@ if (active_page === 'thread' || active_page === 'index' || active_page === 'cata
 			var hasUID      = pageData.hasUID;
 			var forcedAnon  = pageData.forcedAnon;
 
-			var hasTrip = ($post.find('.trip').length > 0);
-			var hasSub = ($post.find('.subject').length > 0);
-			var hasFlag = ($post.find('.flag').length > 0);
+			var hasTrip = ($filterRoot.find('.trip').length > 0);
+			var hasSub = ($filterRoot.find('.subject').length > 0);
+			var hasFlag = ($filterRoot.find('.flag').length > 0);
 
 			$post.data('hidden', false);
 			$post.data('hiddenByUid', false);
@@ -433,7 +443,7 @@ if (active_page === 'thread' || active_page === 'index' || active_page === 'cata
 			if (hasUID &&
 				typeof list.postFilter[boardId] != 'undefined' &&
 				typeof list.postFilter[boardId][threadId] != 'undefined') {
-				uid = $post.find('.poster_id').text();
+				uid = $filterRoot.find('.poster_id').text();
 				array = list.postFilter[boardId][threadId];
 
 				for (i=0; i<array.length; i++) {
@@ -456,20 +466,20 @@ if (active_page === 'thread' || active_page === 'index' || active_page === 'cata
 
 			// matches generalFilter
 			if (!forcedAnon)
-				name = (typeof $post.find('.name').contents()[0] == 'undefined') ? '' : nameSpanToString($post.find('.name')[0]);
+				name = (typeof $filterRoot.find('.name').contents()[0] == 'undefined') ? '' : nameSpanToString($filterRoot.find('.name')[0]);
 			if (!forcedAnon && hasTrip)
-				trip = $post.find('.trip').text();
+				trip = $filterRoot.find('.trip').text();
 			if (hasSub)
-				subject = $post.find('.subject').text();
+				subject = $filterRoot.find('.subject').first().text();
 
-			array = $post.find('.body').contents().filter(function () {if ($(this).text() !== '') return true;}).toArray();
+			array = $filterRoot.find('.body').first().contents().filter(function () {if ($(this).text() !== '') return true;}).toArray();
 			array = $.map(array, function (ele) {
 				return $(ele).text().trim();
 			});
 			comment = array.join(' ');
 
 			if (hasFlag)
-				flag = $post.find('.flag').attr('title')
+				flag = $filterRoot.find('.flag').first().attr('title')
 
 			for (i = 0, length = list.generalFilter.length; i < length; i++) {
 				rule = list.generalFilter[i];
@@ -615,18 +625,22 @@ if (active_page === 'thread' || active_page === 'index' || active_page === 'cata
 				var postFilter = list.postFilter[pageData.boardId];
 				var $collection = $('.mix');
 
-				if ($.isEmptyObject(postFilter))
-					return;
-
-				// for each thread that has filtering rules
-				// check if filter contains thread OP and remove the thread from catalog
-				$.each(postFilter, function (key, thread) {
-					var threadId = key;
-					$.each(thread, function () {
-						if (this.post == threadId) {
-							$collection.filter('[data-id='+ threadId +']').remove();
-						}
+				if (!$.isEmptyObject(postFilter)) {
+					// for each thread that has filtering rules
+					// check if filter contains thread OP and remove the thread from catalog
+					$.each(postFilter, function (key, thread) {
+						var threadId = key;
+						$.each(thread, function () {
+							if (this.post == threadId) {
+								$collection.filter('[data-id='+ threadId +']').remove();
+							}
+						});
 					});
+				}
+
+				$collection.each(function () {
+					var threadId = String($(this).data('id') || '');
+					filter(this, threadId, pageData);
 				});
 			}
 		 }
