@@ -46,7 +46,7 @@ defmodule EirinchanWeb.SearchController do
           {:ok, posts} ->
             results =
               posts
-              |> BrowserEntries.post_entries(boards, RequestMeta.request_host(conn))
+              |> BrowserEntries.post_entries(boards, conn, instance_config: instance_overrides)
 
             render_search(conn, query, board, boards, results, nil, config)
         end
@@ -69,8 +69,7 @@ defmodule EirinchanWeb.SearchController do
       results: results,
       result_count: length(results),
       board_chrome: EirinchanWeb.BoardChrome.default(config),
-      error: error,
-      result_config: config
+      error: error
     )
   end
 

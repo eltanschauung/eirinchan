@@ -1,7 +1,9 @@
 defmodule EirinchanWeb.SearchControllerTest do
   use EirinchanWeb.ConnCase, async: false
+  import Ecto.Query, only: [from: 2]
 
   alias Eirinchan.Posts.PublicIds
+  alias Eirinchan.Repo
 
   test "public search returns matching posts only for the selected board", %{conn: conn} do
     board = board_fixture(%{uri: "tea#{System.unique_integer([:positive, :monotonic])}", title: "Tea"})
@@ -165,6 +167,36 @@ defmodule EirinchanWeb.SearchControllerTest do
     assert page =~ "reply body match"
     assert page =~ "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html"
     assert page =~ "1 result in"
+  end
+
+  test "public search renders visible timestamps using the browser timezone cookie", %{conn: conn} do
+    board = board_fixture(%{uri: "searchzone#{System.unique_integer([:positive, :monotonic])}", title: "Search Zone"})
+
+    {:ok, thread, _meta} =
+      Eirinchan.Posts.create_post(
+        board,
+        %{
+          "name" => "Op",
+          "subject" => "Thread subject",
+          "body" => "search timezone body",
+          "post" => "New Topic"
+        },
+        config: Eirinchan.Runtime.Config.compose(nil, %{}, board.config_overrides),
+        request: %{referer: "http://example.test/#{board.uri}/index.html"}
+      )
+
+    inserted_at = ~U[2026-03-13 12:00:00Z]
+
+    Repo.update_all(from(post in Eirinchan.Posts.Post, where: post.id == ^thread.id), set: [inserted_at: inserted_at])
+
+    page =
+      conn
+      |> put_req_cookie("timezone_offset", "-180")
+      |> get("/search.php", %{"search" => "timezone", "board" => board.uri})
+      |> html_response(200)
+
+    assert page =~ "03/13/26 (Fri) 09:00:00"
+    refute page =~ "03/13/26 (Fri) 12:00:00"
   end
 
   test "public search supports wildcard and phrase search semantics", %{conn: conn} do

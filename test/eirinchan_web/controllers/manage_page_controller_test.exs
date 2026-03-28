@@ -100,6 +100,25 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     end)
   end
 
+  test "recent posts browser renders visible timestamps using the browser timezone cookie", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+    board = board_fixture(%{uri: "recentzone#{System.unique_integer([:positive])}", title: "Recent Zone"})
+    thread = thread_fixture(board, %{body: "Recent timezone"})
+    inserted_at = ~U[2026-03-13 12:00:00Z]
+
+    Repo.update_all(from(p in Eirinchan.Posts.Post, where: p.id == ^thread.id), set: [inserted_at: inserted_at])
+
+    page =
+      conn
+      |> put_req_cookie("timezone_offset", "-180")
+      |> login_moderator(moderator)
+      |> get("/manage/recent-posts/browser?board=#{board.uri}")
+      |> html_response(200)
+
+    assert page =~ "03/13/26 (Fri) 09:00:00"
+    refute page =~ "03/13/26 (Fri) 12:00:00"
+  end
+
   test "admin can clear stored post IPs", %{conn: conn} do
     moderator = moderator_fixture(%{role: "admin"})
     board = board_fixture()

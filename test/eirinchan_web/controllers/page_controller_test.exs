@@ -485,6 +485,25 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ ~s(class="post-btn" title="Post menu" data-post-target="reply_#{PublicIds.public_id(reply)}")
   end
 
+  test "GET /ukko renders visible timestamps using the browser timezone cookie", %{conn: conn} do
+    moderator_fixture()
+    board = board_fixture(%{uri: "ukkozone#{System.unique_integer([:positive])}", title: "Ukko Zone"})
+    thread = thread_fixture(board, %{subject: "Ukko timezone", body: "Ukko body"})
+    inserted_at = ~U[2026-03-13 12:00:00Z]
+
+    from(post in Eirinchan.Posts.Post, where: post.id == ^thread.id)
+    |> Repo.update_all(set: [inserted_at: inserted_at])
+
+    page =
+      conn
+      |> put_req_cookie("timezone_offset", "-180")
+      |> get("/ukko")
+      |> html_response(200)
+
+    assert page =~ "03/13/26 (Fri) 09:00:00"
+    refute page =~ "03/13/26 (Fri) 12:00:00"
+  end
+
   test "configurable overboard uri redirects /ukko and renders at configured path", %{conn: conn} do
     moderator_fixture()
     board = board_fixture(%{uri: "okuutest#{System.unique_integer([:positive])}", title: "Okuu"})
