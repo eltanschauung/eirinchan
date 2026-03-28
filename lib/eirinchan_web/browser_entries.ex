@@ -10,14 +10,14 @@ defmodule EirinchanWeb.BrowserEntries do
   alias Eirinchan.ThreadPaths
   alias EirinchanWeb.BoardRuntime
 
-  @spec post_entries([Post.t()], [BoardRecord.t()] | map(), String.t() | nil, keyword()) :: [map()]
-  def post_entries(posts, boards, request_host, opts \\ []) when is_list(posts) do
+  @spec post_entries([Post.t()], [BoardRecord.t()] | map(), term(), keyword()) :: [map()]
+  def post_entries(posts, boards, request_host_or_conn, opts \\ []) when is_list(posts) do
     repo = Keyword.get(opts, :repo, Repo)
     posts = ensure_post_preloads(posts, repo)
 
     board_map = normalize_board_map(posts, boards, repo)
     thread_map = load_thread_map(posts, repo)
-    config_map = build_config_map(board_map, request_host)
+    config_map = build_config_map(board_map, request_host_or_conn, opts)
     preferred_thread_paths = build_preferred_thread_paths(posts, thread_map, board_map, config_map, repo)
 
     Enum.map(posts, fn post ->
@@ -34,11 +34,11 @@ defmodule EirinchanWeb.BrowserEntries do
     end)
   end
 
-  @spec grouped_post_entries([Post.t()], [BoardRecord.t()] | map(), String.t() | nil, keyword()) ::
+  @spec grouped_post_entries([Post.t()], [BoardRecord.t()] | map(), term(), keyword()) ::
           [%{board: BoardRecord.t(), entries: [map()]}]
-  def grouped_post_entries(posts, boards, request_host, opts \\ []) do
+  def grouped_post_entries(posts, boards, request_host_or_conn, opts \\ []) do
     posts
-    |> post_entries(boards, request_host, opts)
+    |> post_entries(boards, request_host_or_conn, opts)
     |> Enum.group_by(& &1.board.id)
     |> Enum.sort_by(fn {board_id, _entries} -> board_id end)
     |> Enum.map(fn {_board_id, entries} ->
@@ -113,10 +113,13 @@ defmodule EirinchanWeb.BrowserEntries do
     end
   end
 
-  defp build_config_map(board_map, request_host) do
+  defp build_config_map(board_map, request_host_or_conn, opts) do
     board_map
     |> Map.values()
-    |> BoardRuntime.config_map(request_host, instance_config: Settings.current_instance_config())
+    |> BoardRuntime.config_map(
+      request_host_or_conn,
+      instance_config: Keyword.get(opts, :instance_config, Settings.current_instance_config())
+    )
   end
 
   defp build_preferred_thread_paths(posts, thread_map, board_map, config_map, repo) do

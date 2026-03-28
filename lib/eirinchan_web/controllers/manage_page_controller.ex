@@ -1246,7 +1246,7 @@ defmodule EirinchanWeb.ManagePageController do
       |> render(:recent_posts,
         moderator: moderator,
         boards: boards,
-        entries: recent_post_entries(posts, boards, EirinchanWeb.RequestMeta.request_host(conn)),
+        entries: recent_post_entries(posts, boards, conn),
         filters: %{
           "board" => params["board"],
           "query" => params["query"],
@@ -3133,8 +3133,8 @@ defmodule EirinchanWeb.ManagePageController do
   defp accessible_appeal_count(nil), do: 0
   defp accessible_appeal_count(moderator), do: moderator |> accessible_appeals() |> length()
 
-  defp recent_post_entries(posts, boards, host) do
-    BrowserEntries.post_entries(posts, boards, host)
+  defp recent_post_entries(posts, boards, conn) do
+    BrowserEntries.post_entries(posts, boards, conn)
   end
 
   defp recent_posts_cutoff(nil), do: nil

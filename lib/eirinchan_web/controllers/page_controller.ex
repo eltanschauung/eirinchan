@@ -298,7 +298,7 @@ defmodule EirinchanWeb.PageController do
   def render_overboard(conn, page \\ 1) do
     settings = Themes.theme_settings("ukko")
     boards = Boards.list_boards()
-    case overboard_threads(settings, boards, page) do
+    case overboard_threads(settings, boards, page, conn) do
       {:ok, overboard_page} ->
         threads = overboard_page.threads
         posts = Enum.flat_map(threads, fn %{summary: summary} -> [summary.thread | summary.replies] end)
@@ -830,10 +830,10 @@ defmodule EirinchanWeb.PageController do
     end)
   end
 
-  defp overboard_threads(settings, boards, page) do
+  defp overboard_threads(settings, boards, page, conn) do
     config_by_board =
       boards
-      |> Enum.map(fn board -> {board.id, board_config(board)} end)
+      |> Enum.map(fn board -> {board.id, board_config(board, conn)} end)
       |> Map.new()
 
     Posts.list_overboard_page(boards, page,
@@ -885,8 +885,8 @@ defmodule EirinchanWeb.PageController do
   defp maybe_add_path(paths, true, path), do: paths ++ [path]
   defp maybe_add_path(paths, false, _path), do: paths
 
-  defp board_config(%BoardRecord{} = board) do
-    BoardRuntime.board_config(board, nil)
+  defp board_config(%BoardRecord{} = board, request_host_or_conn \\ nil) do
+    BoardRuntime.board_config(board, request_host_or_conn)
   end
 
   defp overboard_thread_limit(settings) do
