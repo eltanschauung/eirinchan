@@ -1138,10 +1138,12 @@ defmodule EirinchanWeb.PostView do
         %{}
 
       is_integer(board.id) ->
-        board
-        |> Posts.public_posts_map(ids)
+        quoted_posts = Posts.public_posts_map(board, ids)
+        tail_reply_ids = local_quote_tail_reply_ids(board, Map.values(quoted_posts), config)
+
+        quoted_posts
         |> Enum.into(%{}, fn {public_id, post} ->
-          {public_id, local_quote_ref(board, post, config)}
+          {public_id, local_quote_ref(board, post, config, tail_reply_ids)}
         end)
 
       match?(%Post{}, thread) ->
@@ -1168,22 +1170,62 @@ defmodule EirinchanWeb.PostView do
 
   defp local_quote_ref(%Boards.BoardRecord{} = board, %Post{thread_id: nil} = post, config) do
     %{
-      href: ThreadPaths.thread_path(board, post, config) <> "##{PublicIds.public_id(post)}",
+      href:
+        ThreadPaths.preferred_thread_path(board, post, config,
+          reply_count: post.cached_reply_count || 0
+        ) <> "##{PublicIds.public_id(post)}",
       thread_public_id: PublicIds.public_id(post)
     }
   end
 
-  defp local_quote_ref(%Boards.BoardRecord{} = board, %Post{} = post, config) do
+  defp local_quote_ref(%Boards.BoardRecord{} = board, %Post{thread_id: nil} = post, config, _tail_reply_ids) do
+    local_quote_ref(board, post, config)
+  end
+
+  defp local_quote_ref(%Boards.BoardRecord{} = board, %Post{} = post, config, tail_reply_ids) do
     thread =
       case post.thread do
         %Post{} = thread -> thread
         _ -> post
       end
 
+    use_noko50 =
+      local_quote_reply_uses_noko50?(post, thread, config, tail_reply_ids)
+
     %{
-      href: ThreadPaths.thread_path(board, thread, config) <> "##{PublicIds.public_id(post)}",
+      href: ThreadPaths.thread_path(board, thread, config, noko50: use_noko50) <> "##{PublicIds.public_id(post)}",
       thread_public_id: PublicIds.public_id(thread)
     }
+  end
+
+  defp local_quote_tail_reply_ids(%Boards.BoardRecord{} = board, posts, config) do
+    thread_ids =
+      posts
+      |> Enum.flat_map(fn
+        %Post{thread_id: nil, cached_reply_count: reply_count, id: id}
+        when is_integer(id) and is_integer(reply_count) and reply_count >= config.noko50_min ->
+          [id]
+
+        %Post{thread: %Post{id: id, cached_reply_count: reply_count}}
+        when is_integer(id) and is_integer(reply_count) and reply_count >= config.noko50_min ->
+          [id]
+
+        _ ->
+          []
+      end)
+      |> Enum.uniq()
+
+    Posts.tail_reply_public_ids_map(board, thread_ids, config.noko50_count)
+  end
+
+  defp local_quote_reply_uses_noko50?(%Post{thread_id: nil}, _thread, _config, _tail_reply_ids), do: false
+
+  defp local_quote_reply_uses_noko50?(%Post{} = post, %Post{} = thread, config, tail_reply_ids) do
+    reply_count = thread.cached_reply_count || 0
+
+    reply_count >= config.noko50_min and
+      Map.get(tail_reply_ids, thread.id, MapSet.new())
+      |> MapSet.member?(PublicIds.public_id(post))
   end
 
   defp local_cross_thread_quote?(quote_hrefs, post_id, current_thread_public_id) do
