@@ -275,6 +275,7 @@
         <% thread = summary.thread %>
         <% thread_public_id = PostView.public_post_id(thread) %>
         <% preferred_thread_path = PostView.thread_summary_path(@board, summary, @config) %>
+        <% thread_path = Eirinchan.ThreadPaths.thread_path(@board, thread, @config) %>
         <% watch = Map.get(@thread_watch_state, thread_public_id, %{watched: false, unread_count: 0}) %>
         <div
           class="thread"
@@ -343,7 +344,7 @@
               <span :if={thread.locked} style="display:none">[Locked]</span>
               <span :if={thread.cycle} style="display:none">[Cyclical]</span>
               <span :if={thread.sage} style="display:none">[Bumplocked]</span>
-              <a href={preferred_thread_path}>[Reply]</a>
+              <a href={thread_path}>[Reply]</a>
               <%= if summary.has_noko50 do %>
                 <a href={Eirinchan.ThreadPaths.thread_path(@board, thread, @config, noko50: true)}>
                   [Last <%= summary.last_count %> Posts]
