@@ -210,6 +210,66 @@ defmodule EirinchanWeb.ThreadControllerTest do
     assert page =~ ~s(title="Sauce")
   end
 
+  test "cross-thread quote links use noko50 when the cited reply is in the tail", %{conn: conn} do
+    board =
+      board_fixture(%{
+        uri: "ctnoko#{System.unique_integer([:positive])}",
+        config_overrides: %{noko50_min: 1, noko50_count: 2}
+      })
+
+    config = Config.compose(nil, %{}, board.config_overrides, request_host: "www.example.com")
+    target_thread = thread_fixture(board, %{body: "Target thread"})
+    _older_reply = reply_fixture(board, target_thread, %{body: "Older reply"})
+    tail_reply = reply_fixture(board, target_thread, %{body: "Tail reply"})
+    quoting_thread = thread_fixture(board, %{body: "Quoting thread"})
+    quoting_reply = reply_fixture(board, quoting_thread, %{body: ">>#{PublicIds.public_id(tail_reply)}"})
+
+    page =
+      conn
+      |> get("/#{board.uri}/res/#{PublicIds.public_id(quoting_thread)}.html")
+      |> html_response(200)
+
+    assert page =~
+             ~s(href="#{ThreadPaths.thread_path(board, target_thread, config, noko50: true)}##{PublicIds.public_id(tail_reply)}")
+
+    assert page =~ "<small>(Cross-Thread)</small>"
+    assert page =~ "&gt;&gt;#{PublicIds.public_id(tail_reply)}"
+    assert page =~ "#{PublicIds.public_id(quoting_reply)}"
+  end
+
+  test "cross-thread quote links stay on the full thread when the cited reply is outside the tail", %{
+    conn: conn
+  } do
+    board =
+      board_fixture(%{
+        uri: "ctfull#{System.unique_integer([:positive])}",
+        config_overrides: %{noko50_min: 1, noko50_count: 2}
+      })
+
+    config = Config.compose(nil, %{}, board.config_overrides, request_host: "www.example.com")
+    target_thread = thread_fixture(board, %{body: "Target thread"})
+    old_reply = reply_fixture(board, target_thread, %{body: "Old reply"})
+    _tail_reply_one = reply_fixture(board, target_thread, %{body: "Tail one"})
+    _tail_reply_two = reply_fixture(board, target_thread, %{body: "Tail two"})
+    quoting_thread = thread_fixture(board, %{body: "Quoting thread"})
+
+    _quoting_reply =
+      reply_fixture(board, quoting_thread, %{body: ">>#{PublicIds.public_id(old_reply)}"})
+
+    page =
+      conn
+      |> get("/#{board.uri}/res/#{PublicIds.public_id(quoting_thread)}.html")
+      |> html_response(200)
+
+    assert page =~
+             ~s(href="#{ThreadPaths.thread_path(board, target_thread, config)}##{PublicIds.public_id(old_reply)}")
+
+    refute page =~
+             ~s(href="#{ThreadPaths.thread_path(board, target_thread, config, noko50: true)}##{PublicIds.public_id(old_reply)}")
+
+    assert page =~ "<small>(Cross-Thread)</small>"
+  end
+
   test "thread pages hide rendered flags when display_flags is disabled", %{conn: conn} do
     board =
       board_fixture(%{

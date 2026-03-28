@@ -259,6 +259,44 @@ defmodule Eirinchan.Posts do
     end
   end
 
+  def tail_reply_public_ids_map(%BoardRecord{} = board, thread_ids, count, opts \\ [])
+      when is_list(thread_ids) do
+    repo = Keyword.get(opts, :repo, Repo)
+
+    normalized_thread_ids =
+      thread_ids
+      |> Enum.filter(&is_integer/1)
+      |> Enum.uniq()
+
+    cond do
+      normalized_thread_ids == [] ->
+        %{}
+
+      not is_integer(count) or count <= 0 ->
+        %{}
+
+      true ->
+        from(post in Post,
+          where: post.board_id == ^board.id and post.thread_id in ^normalized_thread_ids,
+          windows: [
+            thread_window: [
+              partition_by: post.thread_id,
+              order_by: [desc: post.inserted_at, desc: post.id]
+            ]
+          ],
+          select: {post.thread_id, post.public_id, over(row_number(), :thread_window)}
+        )
+        |> repo.all()
+        |> Enum.reduce(%{}, fn
+          {thread_id, public_id, rank}, acc when rank <= count ->
+            Map.update(acc, thread_id, MapSet.new([public_id]), &MapSet.put(&1, public_id))
+
+          _, acc ->
+            acc
+        end)
+    end
+  end
+
   @spec get_post_by_internal_id(BoardRecord.t(), String.t() | integer(), keyword()) ::
           {:ok, Post.t()} | {:error, :not_found}
   def get_post_by_internal_id(%BoardRecord{} = board, post_id, opts \\ []) do
