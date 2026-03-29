@@ -3328,7 +3328,7 @@ defmodule EirinchanWeb.ManagePageController do
           |> String.replace("%LENGTH%", String.upcase(length_text))
 
         updated_body =
-          [post.body, "[Ban message] #{public_message}"]
+          [post.body, ~s(<tinyboard ban message>#{public_message}</tinyboard>)]
           |> Enum.reject(&is_nil/1)
           |> Enum.reject(&(&1 == ""))
           |> Enum.join("\n")

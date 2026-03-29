@@ -893,19 +893,22 @@ defmodule EirinchanWeb.PostComponents do
   end
 
   def formatted_body_segments_html(assigns) do
-    assigns.post
-    |> PostView.body_segments(
-      assigns.board,
-      assigns.thread,
-      assigns.config,
-      own_post_ids: Map.get(assigns, :own_post_ids, MapSet.new()),
-      show_yous: Map.get(assigns, :show_yous, false)
-    )
-    |> Enum.with_index()
-    |> Enum.map_join(fn
-      {segment, 0} -> segment
-      {segment, _index} -> "<br/>" <> segment
-    end)
+    body_html =
+      assigns.post
+      |> PostView.body_segments(
+        assigns.board,
+        assigns.thread,
+        assigns.config,
+        own_post_ids: Map.get(assigns, :own_post_ids, MapSet.new()),
+        show_yous: Map.get(assigns, :show_yous, false)
+      )
+      |> Enum.with_index()
+      |> Enum.map_join(fn
+        {segment, 0} -> segment
+        {segment, _index} -> "<br/>" <> segment
+      end)
+
+    body_html <> (PostView.public_ban_message_html(assigns.post) || "")
   end
 
   # Compatibility wrapper for builder/test paths that still consume binary HTML.

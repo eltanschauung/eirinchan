@@ -1416,7 +1416,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert redirected_to(create_conn) == "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html"
 
     {:ok, updated_thread} = Eirinchan.Posts.get_post(board, PublicIds.public_id(thread))
-    assert updated_thread.body =~ "USER WAS BANNED FOR THIS POST"
+    assert updated_thread.body =~ "&lt;tinyboard ban message>USER WAS BANNED FOR THIS POST&lt;/tinyboard&gt;"
   end
 
   test "browser IP history page supports notes and delete-by-ip actions", %{conn: conn} do
