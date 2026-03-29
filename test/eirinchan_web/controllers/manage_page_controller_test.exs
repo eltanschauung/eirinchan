@@ -1395,6 +1395,30 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert DateTime.diff(ban.expires_at, DateTime.utc_now(), :second) in 3598..3602
   end
 
+  test "browser post ban can attach the public ban message to the post", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+    board = board_fixture(%{uri: "banmsg#{System.unique_integer([:positive])}", title: "Ban Msg"})
+    thread = thread_fixture(board, %{body: "Thread body", ip_subnet: "198.51.100.7"})
+
+    create_conn =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> post("/manage/boards/#{board.uri}/posts/#{PublicIds.public_id(thread)}/ban/browser", %{
+        "ip" => "198.51.100.7",
+        "reason" => "Spam",
+        "length" => "",
+        "board" => board.uri,
+        "public_message" => "1",
+        "message" => "USER WAS BANNED FOR THIS POST"
+      })
+
+    assert redirected_to(create_conn) == "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html"
+
+    {:ok, updated_thread} = Eirinchan.Posts.get_post(board, PublicIds.public_id(thread))
+    assert updated_thread.body =~ "USER WAS BANNED FOR THIS POST"
+  end
+
   test "browser IP history page supports notes and delete-by-ip actions", %{conn: conn} do
     with_instance_config(%{}, fn ->
       moderator = moderator_fixture(%{role: "admin"})
