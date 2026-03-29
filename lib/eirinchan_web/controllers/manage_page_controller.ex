@@ -3337,7 +3337,7 @@ defmodule EirinchanWeb.ManagePageController do
                board,
                post.id,
                %{"body" => updated_body},
-               config: board_config(board, host)
+               config: effective_board_config(board, host)
              ) do
           {:ok, _updated_post} -> :ok
           {:error, reason} -> {:error, reason}
