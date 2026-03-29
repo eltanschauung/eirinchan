@@ -7,6 +7,7 @@ defmodule Eirinchan.Posts.Validation do
   alias Eirinchan.Posts.Post
   alias Eirinchan.Posts.PostFile
   alias Eirinchan.Uploads
+  alias Eirinchan.WhaleStickers
 
   def validate_body(op?, attrs, config) do
     require_body = if(op?, do: config.force_body_op, else: config.force_body)
@@ -43,9 +44,10 @@ defmodule Eirinchan.Posts.Validation do
   def validate_upload(op?, attrs, config, request) do
     entries = Map.get(attrs, "__upload_entries__", [])
     embed? = present_embed?(attrs)
+    sticker_op? = op? and config.allow_sticker_op and WhaleStickers.contains_sticker?(attrs["body"], config)
 
     cond do
-      op? and config.force_image_op and entries == [] and not embed? ->
+      op? and config.force_image_op and entries == [] and not embed? and not sticker_op? ->
         {:error, :file_required}
 
       op? and length(entries) > 1 and AccessList.enabled?() and

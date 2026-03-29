@@ -429,6 +429,28 @@ defmodule Eirinchan.PostsTest do
     assert thread.embed == "https://youtu.be/dQw4w9WgXcQ"
   end
 
+  test "create_post allows sticker-only OPs when force_image_op and allow_sticker_op are enabled" do
+    board =
+      board_fixture(%{
+        config_overrides: %{force_image_op: true, allow_sticker_op: true, force_body_op: false}
+      })
+
+    config = post_config(board.config_overrides)
+
+    assert {:ok, thread, _meta} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => ":gojo:",
+                 "post" => config.button_newtopic
+               },
+               config: config,
+               request: post_request(board.uri)
+             )
+
+    assert thread.body == ":gojo:"
+  end
+
   test "create_post moves upload temp files into board storage" do
     board = board_fixture()
     upload = upload_fixture("moved.png", "move-me")
