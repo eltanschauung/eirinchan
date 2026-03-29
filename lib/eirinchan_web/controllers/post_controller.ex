@@ -647,7 +647,13 @@ defmodule EirinchanWeb.PostController do
   defp error_message(:image_too_large, config), do: config.error.image_too_large
   defp error_message(:duplicate_file, config), do: config.error.duplicate_file
   defp error_message(:body_required, config), do: config.error.tooshort_body
-  defp error_message(:file_required, config), do: config.error.file_required
+  defp error_message(:file_required, config) do
+    if config.force_image_op and config.allow_sticker_op do
+      "File or sticker required."
+    else
+      config.error.file_required
+    end
+  end
   defp error_message(:invalid_file_type, config), do: config.error.filetype
   defp error_message(:mime_exploit, config), do: config.error.mime_exploit
   defp error_message(:file_too_large, config), do: config.error.file_too_large
