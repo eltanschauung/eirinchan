@@ -350,6 +350,7 @@ defmodule Eirinchan.Runtime.ConfigTest do
           maxBody: 99,
           maxLines: 4,
           forceImageOp: true,
+          allowStickerOp: true,
           countryFlags: true,
           allowNoCountry: true,
           geoip2DatabasePath: "/tmp/GeoLite2-Country.mmdb",
@@ -374,6 +375,7 @@ defmodule Eirinchan.Runtime.ConfigTest do
     assert config.max_body == 99
     assert config.maximum_lines == 4
     assert config.force_image_op
+    assert config.allow_sticker_op
     assert config.country_flags
     assert config.allow_no_country
     assert config.geoip2_database_path == "/tmp/GeoLite2-Country.mmdb"

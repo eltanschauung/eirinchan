@@ -54,6 +54,14 @@ defmodule Eirinchan.WhaleStickers do
 
   def replace_line(line, _config), do: line
 
+  def contains_sticker?(body, config) when is_binary(body) do
+    body
+    |> String.split("\n")
+    |> Enum.any?(fn line -> sticker_match(line, entries(config)) != nil end)
+  end
+
+  def contains_sticker?(_body, _config), do: false
+
   defp normalize_entries(entries, fallback) when is_list(entries) do
     normalized =
       entries
