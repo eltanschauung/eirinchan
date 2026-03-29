@@ -76,6 +76,15 @@ defmodule EirinchanWeb.PostViewTest do
     assert html =~ ~s(<img src="/whalestickers/gojo.png" title=":gojo:">waow)
   end
 
+  test "body_html appends gap warning for inactive OP threads" do
+    config = Config.compose(%{early_404_gap: true})
+    post = %Post{body: "waow", inactive: true, thread_id: nil}
+
+    html = PostView.body_html(post, %BoardRecord{uri: "bant"}, post, config)
+
+    assert html == "waow<br/>This thread is inactive and will enter a gap soon."
+  end
+
   test "body_html marks owned quote targets server-side" do
     config = Config.compose()
     post = %Post{body: ">>123"}

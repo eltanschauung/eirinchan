@@ -31,6 +31,7 @@ defmodule Eirinchan.Posts.Post do
     field :sticky, :boolean, default: false
     field :locked, :boolean, default: false
     field :cycle, :boolean, default: false
+    field :inactive, :boolean, default: false
     field :sage, :boolean, default: false
     field :slug, :string
     field :public_id, :integer
@@ -76,6 +77,7 @@ defmodule Eirinchan.Posts.Post do
       :sticky,
       :locked,
       :cycle,
+      :inactive,
       :sage,
       :slug,
       :public_id,
@@ -95,7 +97,7 @@ defmodule Eirinchan.Posts.Post do
 
   def thread_state_changeset(post, attrs) do
     post
-    |> cast(attrs, [:sticky, :locked, :cycle, :sage])
+    |> cast(attrs, [:sticky, :locked, :cycle, :inactive, :sage])
   end
 
   defp normalize_string(nil), do: nil
