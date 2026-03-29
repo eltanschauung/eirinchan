@@ -830,6 +830,21 @@ defmodule EirinchanWeb.PostControllerTest do
     assert %{"error" => "Invalid image."} = json_response(invalid_image, 422)
   end
 
+  test "posting reports file or sticker required when allow_sticker_op is enabled", %{conn: conn} do
+    board = board_fixture(%{config_overrides: %{force_image_op: true, allow_sticker_op: true}})
+
+    missing_file =
+      conn
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post(~p"/#{board.uri}/post", %{
+        "body" => "first post",
+        "json_response" => "1",
+        "post" => "New Topic"
+      })
+
+    assert %{"error" => "File or sticker required."} = json_response(missing_file, 422)
+  end
+
   test "invalid image failures log decoder diagnostics and quarantine the upload", %{conn: conn} do
     board = board_fixture(%{config_overrides: %{force_image_op: true}})
 
