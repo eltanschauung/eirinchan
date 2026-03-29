@@ -678,7 +678,8 @@ defmodule EirinchanWeb.PostView do
         local_quote_hrefs(post, board, thread, config)
       end)
 
-    display_body(post, config)
+    post
+    |> display_body(config)
     |> Kernel.||("")
     |> String.replace("\r\n", "\n")
     |> String.replace("\r", "\n")
@@ -688,16 +689,52 @@ defmodule EirinchanWeb.PostView do
     |> Enum.map(&format_body_line(&1, board, thread, config, opts))
   end
 
+  def public_ban_message_html(post) do
+    case extract_public_ban_message(post.body) do
+      nil -> nil
+      message -> ~s|<span class="public_ban">(#{html_escape_to_string(message)})</span>|
+    end
+  end
+
   defp display_body(post, config) do
+    body =
+      post.body
+      |> Kernel.||("")
+      |> strip_public_ban_message()
+
     if Map.get(config, :early_404_gap, false) and Map.get(post, :inactive, false) and
          is_nil(Map.get(post, :thread_id)) do
-      [post.body, "This thread is inactive and will enter a gap soon."]
+      [body, "This thread is inactive and will enter a gap soon."]
       |> Enum.reject(&(&1 in [nil, ""]))
       |> Enum.join("\n")
     else
-      post.body
+      body
     end
   end
+
+  defp extract_public_ban_message(body) when is_binary(body) do
+    case Regex.run(
+           ~r/(?:<|&lt;)tinyboard ban message>(.*?)(?:<\/tinyboard>|&lt;\/tinyboard&gt;)/us,
+           body,
+           capture: :all_but_first
+         ) do
+      [message] -> String.trim(message)
+      _ -> nil
+    end
+  end
+
+  defp extract_public_ban_message(_body), do: nil
+
+  defp strip_public_ban_message(body) when is_binary(body) do
+    body
+    |> String.replace(
+      ~r/\n?(?:<|&lt;)tinyboard ban message>.*?(?:<\/tinyboard>|&lt;\/tinyboard&gt;)/us,
+      ""
+    )
+    |> String.trim_trailing()
+  end
+
+  defp strip_public_ban_message(body), do: body
 
   # Compatibility wrapper for builder/test paths that still consume binary HTML.
   def body_container_html(post, board, thread, config, opts \\ []) do

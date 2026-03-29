@@ -85,6 +85,15 @@ defmodule EirinchanWeb.PostViewTest do
     assert html == "waow<br/>This thread is inactive and will enter a gap soon."
   end
 
+  test "body_html renders public ban messages like vichan and strips the hidden tag from body text" do
+    config = Config.compose()
+    post = %Post{body: "waow\n<tinyboard ban message>USER WAS BANNED FOR THIS POST</tinyboard>"}
+
+    html = PostView.body_html(post, %BoardRecord{uri: "bant"}, post, config)
+
+    assert html == ~s|waow<span class="public_ban">(USER WAS BANNED FOR THIS POST)</span>|
+  end
+
   test "body_html marks owned quote targets server-side" do
     config = Config.compose()
     post = %Post{body: ">>123"}
