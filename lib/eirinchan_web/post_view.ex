@@ -696,20 +696,19 @@ defmodule EirinchanWeb.PostView do
     end
   end
 
-  defp display_body(post, config) do
-    body =
-      post.body
-      |> Kernel.||("")
-      |> strip_public_ban_message()
-
+  def public_gap_warning_html(post, config) do
     if Map.get(config, :early_404_gap, false) and Map.get(post, :inactive, false) and
          is_nil(Map.get(post, :thread_id)) do
-      [body, "This thread is inactive and will enter a gap soon."]
-      |> Enum.reject(&(&1 in [nil, ""]))
-      |> Enum.join("\n")
-    else
-      body
+      ~s|<span class="public_ban">(This thread is inactive and will enter a gap soon.)</span>|
     end
+  end
+
+  defp display_body(post, config) do
+    _config = config
+
+    post.body
+    |> Kernel.||("")
+    |> strip_public_ban_message()
   end
 
   defp extract_public_ban_message(body) when is_binary(body) do

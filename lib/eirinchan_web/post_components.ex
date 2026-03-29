@@ -908,7 +908,9 @@ defmodule EirinchanWeb.PostComponents do
         {segment, _index} -> "<br/>" <> segment
       end)
 
-    body_html <> (PostView.public_ban_message_html(assigns.post) || "")
+    body_html <>
+      (PostView.public_ban_message_html(assigns.post) || "") <>
+      (PostView.public_gap_warning_html(assigns.post, assigns.config) || "")
   end
 
   # Compatibility wrapper for builder/test paths that still consume binary HTML.

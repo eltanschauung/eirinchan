@@ -76,13 +76,14 @@ defmodule EirinchanWeb.PostViewTest do
     assert html =~ ~s(<img src="/whalestickers/gojo.png" title=":gojo:">waow)
   end
 
-  test "body_html appends gap warning for inactive OP threads" do
+  test "body_html renders inactive OP gap warnings with the public ban styling" do
     config = Config.compose(%{early_404_gap: true})
     post = %Post{body: "waow", inactive: true, thread_id: nil}
 
     html = PostView.body_html(post, %BoardRecord{uri: "bant"}, post, config)
 
-    assert html == "waow<br/>This thread is inactive and will enter a gap soon."
+    assert html ==
+             ~s|waow<span class="public_ban">(This thread is inactive and will enter a gap soon.)</span>|
   end
 
   test "body_html renders public ban messages like vichan and strips the hidden tag from body text" do
