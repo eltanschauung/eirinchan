@@ -85,7 +85,7 @@ defmodule Eirinchan.UploadsFixtures do
     }
   end
 
-  def video_upload_fixture(filename \\ "sample.mp4") do
+  def video_upload_fixture(filename \\ "sample.mp4", opts \\ []) do
     path =
       Path.join(
         System.tmp_dir!(),
@@ -95,6 +95,8 @@ defmodule Eirinchan.UploadsFixtures do
     ext = filename |> Path.extname() |> String.downcase()
     video_codec = if ext == ".webm", do: "libvpx-vp9", else: "libx264"
     pixel_format = if ext == ".webm", do: [], else: ["-pix_fmt", "yuv420p"]
+    geometry = Keyword.get(opts, :geometry, "64x48")
+    duration = Keyword.get(opts, :duration, 1)
 
     args =
       [
@@ -102,7 +104,7 @@ defmodule Eirinchan.UploadsFixtures do
         "-f",
         "lavfi",
         "-i",
-        "color=c=red:s=64x48:d=1",
+        "color=c=red:s=#{geometry}:d=#{duration}",
         "-f",
         "lavfi",
         "-i",

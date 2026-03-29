@@ -1258,8 +1258,8 @@ defmodule Eirinchan.Uploads do
     max_height = if op?, do: config.thumb_op_height, else: config.thumb_height
 
     case fit_dimensions(
-           Map.get(metadata, :image_width),
-           Map.get(metadata, :image_height),
+           media_dimension(metadata, :image_width, :width),
+           media_dimension(metadata, :image_height, :height),
            max_width,
            max_height
          ) do
@@ -1267,6 +1267,15 @@ defmodule Eirinchan.Uploads do
       nil -> {max_width, max_height}
     end
   end
+
+  defp media_dimension(metadata, primary_key, fallback_key) when is_map(metadata) do
+    Map.get(metadata, primary_key) ||
+      Map.get(metadata, fallback_key) ||
+      Map.get(metadata, Atom.to_string(primary_key)) ||
+      Map.get(metadata, Atom.to_string(fallback_key))
+  end
+
+  defp media_dimension(_metadata, _primary_key, _fallback_key), do: nil
 
   defp fit_dimensions(nil, _height, _max_width, _max_height), do: nil
   defp fit_dimensions(_width, nil, _max_width, _max_height), do: nil

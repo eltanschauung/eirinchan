@@ -654,6 +654,34 @@ defmodule Eirinchan.PostsTest do
     assert thread.image_height == 48
   end
 
+  test "create_post keeps video thumbnail aspect ratio within configured bounds" do
+    board =
+      board_fixture(%{
+        config_overrides: %{
+          thumb_width: 40,
+          thumb_height: 40,
+          thumb_op_width: 80,
+          thumb_op_height: 80
+        }
+      })
+
+    upload = video_upload_fixture("clip.mp4", geometry: "160x120")
+
+    assert {:ok, thread, %{noko: false}} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "video post",
+                 "file" => upload,
+                 "post" => "New Topic"
+               },
+               config: post_config(board.config_overrides),
+               request: post_request(board.uri)
+             )
+
+    assert identify_value(Eirinchan.Uploads.filesystem_path(thread.thumb_path), "%wx%h") == "80x60"
+  end
+
   test "create_post generates thumbnails for animated webp uploads" do
     board = board_fixture()
     upload = animated_webp_upload_fixture("clip.webp")
