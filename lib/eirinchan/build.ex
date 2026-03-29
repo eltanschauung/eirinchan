@@ -433,7 +433,7 @@ defmodule Eirinchan.Build do
                 Map.get(summary, :reply_count, 0) >= Map.get(config, :noko50_min, 0)
               end)
           )
-        badges = render_thread_badges(summary.thread)
+        badges = render_thread_badges(summary.thread, config)
         delete_form = render_delete_form(board, PublicIds.public_id(summary.thread))
 
         ~s(<article id="p#{PublicIds.public_id(summary.thread)}"><h2><a href="#{thread_path}">#{title}</a></h2>#{badges}#{media}#{render_post_identity(summary.thread, board, config)}#{render_body_container(summary.thread, board, summary.thread, config)}#{render_post_flags(summary.thread)}#{delete_form}#{omitted}#{replies}</article>)
@@ -486,7 +486,7 @@ defmodule Eirinchan.Build do
     <article id="p#{PublicIds.public_id(summary.thread)}">
     <h1>/#{html_escape(board.uri)}/ - #{html_escape(PostView.post_title(board, summary.thread, config))}</h1>
     #{boardlist}
-    #{render_thread_badges(summary.thread)}
+    #{render_thread_badges(summary.thread, config)}
     #{render_media(summary.thread, config)}
     #{render_post_identity(summary.thread, board, config)}
     #{render_body_container(summary.thread, board, summary.thread, config)}
@@ -518,7 +518,7 @@ defmodule Eirinchan.Build do
                 Map.get(summary, :reply_count, 0) >= Map.get(config, :noko50_min, 0)
               end)
           )
-        badges = render_thread_badges(summary.thread)
+        badges = render_thread_badges(summary.thread, config)
         delete_form = render_delete_form(board, PublicIds.public_id(summary.thread))
 
         ~s(<article id="catalog-#{PublicIds.public_id(summary.thread)}"><h2><a href="#{thread_path}">#{title}</a></h2>#{badges}#{media}#{render_post_identity(summary.thread, board, config)}#{render_body_container(summary.thread, board, summary.thread, config)}#{render_post_flags(summary.thread)}#{delete_form}<p>#{summary.reply_count} replies</p></article>)
@@ -636,12 +636,13 @@ defmodule Eirinchan.Build do
     end
   end
 
-  defp render_thread_badges(thread) do
+  defp render_thread_badges(thread, config) do
     labels =
       []
       |> maybe_add_badge(thread.sticky, "Sticky")
       |> maybe_add_badge(thread.locked, "Locked")
       |> maybe_add_badge(thread.cycle, "Cyclical")
+      |> maybe_add_badge(thread.inactive and config.early_404_gap, "Gap soon")
       |> maybe_add_badge(thread.sage, "Bumplocked")
 
     case labels do

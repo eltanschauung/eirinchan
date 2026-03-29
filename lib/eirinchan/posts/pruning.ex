@@ -10,12 +10,14 @@ defmodule Eirinchan.Posts.Pruning do
   def prune(%BoardRecord{} = board, config, repo, delete_thread_fun) when is_function(delete_thread_fun, 1) do
     prune_overflow_threads(board, config, repo, delete_thread_fun)
     prune_early_404_threads(board, config, repo, delete_thread_fun)
+    prune_gap_threads(board, config, repo, delete_thread_fun)
     :ok
   end
 
   def prune(%BoardRecord{} = board, config, repo, delete_thread_fun) when is_function(delete_thread_fun, 2) do
     prune_overflow_threads(board, config, repo, delete_thread_fun)
     prune_early_404_threads(board, config, repo, delete_thread_fun)
+    prune_gap_threads(board, config, repo, delete_thread_fun)
     :ok
   end
 
@@ -80,6 +82,63 @@ defmodule Eirinchan.Posts.Pruning do
   end
 
   defp prune_early_404_threads(_board, _config, _repo, _delete_thread_fun), do: :ok
+
+  defp prune_gap_threads(board, %{early_404_gap: true} = config, repo, delete_thread_fun) do
+    reply_metrics =
+      from(reply in Post,
+        where: not is_nil(reply.thread_id),
+        group_by: reply.thread_id,
+        select: %{
+          thread_id: reply.thread_id,
+          reply_count: count(reply.id),
+          image_count: filter(count(reply.id), not is_nil(reply.file_path))
+        }
+      )
+
+    repo.all(
+      from thread in Post,
+        left_join: metrics in subquery(reply_metrics),
+        on: metrics.thread_id == thread.id,
+        where: thread.board_id == ^board.id and is_nil(thread.thread_id) and not thread.sticky,
+        select: %{
+          thread_id: thread.id,
+          inserted_at: thread.inserted_at,
+          inactive: thread.inactive,
+          reply_count: coalesce(metrics.reply_count, 0),
+          image_count: coalesce(metrics.image_count, 0)
+        }
+    )
+    |> Enum.each(fn row ->
+      if row.reply_count > 0 or row.image_count > 0 do
+        score = gap_score(row.inserted_at, row.reply_count, row.image_count)
+        warning? = score <= config.early_404_gap_warning
+        deletion? = score <= config.early_404_gap_deletion
+
+        if row.inactive != warning? and not deletion? do
+          repo.update_all(
+            from(post in Post, where: post.id == ^row.thread_id),
+            set: [inactive: warning?]
+          )
+        end
+
+        if deletion? do
+          invoke_delete(delete_thread_fun, row.thread_id, {:early_404_gap, score})
+        end
+      end
+    end)
+  end
+
+  defp prune_gap_threads(_board, _config, _repo, _delete_thread_fun), do: :ok
+
+  defp gap_score(inserted_at, reply_count, image_count) do
+    age_seconds =
+      inserted_at
+      |> DateTime.diff(DateTime.utc_now(), :second)
+      |> Kernel.abs()
+      |> max(1)
+
+    ceil((2 * (reply_count + image_count * 3)) / (age_seconds / 3600) * 100)
+  end
 
   defp invoke_delete(delete_thread_fun, thread_id, reason) do
     case :erlang.fun_info(delete_thread_fun, :arity) do

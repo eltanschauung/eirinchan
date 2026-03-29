@@ -423,6 +423,19 @@ defmodule Eirinchan.Posts do
     end
   end
 
+  defp maybe_log_early_404(board, thread, new_post, {:early_404_gap, score})
+       when is_integer(score) do
+    if not is_nil(new_post.thread_id) do
+      :ok
+    else
+      ModerationLog.log_action(%{
+        board_uri: board.uri,
+        text:
+          "Automatically deleting thread ##{PublicIds.public_id(thread)} due to new thread ##{PublicIds.public_id(new_post)} (gap pruning is set, ##{PublicIds.public_id(thread)} scored #{score})"
+      })
+    end
+  end
+
   defp maybe_log_early_404(_board, _thread, _new_post, _reason), do: :ok
 
   @spec update_post(BoardRecord.t(), String.t() | integer(), map(), keyword()) ::

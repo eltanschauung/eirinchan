@@ -4536,7 +4536,7 @@ if (typeof _ == 'undefined') {
 var defaultSettings = {
     "videoexpand": true,
     "videohover": false,
-    "videovolume": 1.0
+    "videovolume": 0.4
 };
 
 // Non-persistent settings for when localStorage is absent/disabled

@@ -83,6 +83,7 @@
               <span :if={thread.sticky} style="display:none">[Sticky]</span>
               <span :if={thread.locked} style="display:none">[Locked]</span>
               <span :if={thread.cycle} style="display:none">[Cyclical]</span>
+              <span :if={@config.early_404_gap and thread.inactive} style="display:none">[Gap soon]</span>
               <span :if={thread.sage} style="display:none">[Bumplocked]</span>
               <a href={thread_path}>[Reply]</a>
               <%= if summary.has_noko50 do %>

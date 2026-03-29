@@ -246,6 +246,11 @@ defmodule EirinchanWeb.PostView do
     |> maybe_add_icon(post.sticky, config.image_sticky, "Important")
     |> maybe_add_icon(post.locked, config.image_locked, "Locked")
     |> maybe_add_icon(post.cycle, config.image_cyclical, "Cyclical")
+    |> maybe_add_icon(
+      Map.get(config, :early_404_gap, false) and post.inactive,
+      config.image_gap,
+      "This thread is inactive and will enter a gap soon."
+    )
   end
 
   def formatted_timestamp(post, config \\ %{})
@@ -673,7 +678,7 @@ defmodule EirinchanWeb.PostView do
         local_quote_hrefs(post, board, thread, config)
       end)
 
-    post.body
+    display_body(post, config)
     |> Kernel.||("")
     |> String.replace("\r\n", "\n")
     |> String.replace("\r", "\n")
@@ -681,6 +686,17 @@ defmodule EirinchanWeb.PostView do
     |> safe_to_string()
     |> String.split("\n", trim: false)
     |> Enum.map(&format_body_line(&1, board, thread, config, opts))
+  end
+
+  defp display_body(post, config) do
+    if Map.get(config, :early_404_gap, false) and Map.get(post, :inactive, false) and
+         is_nil(Map.get(post, :thread_id)) do
+      [post.body, "This thread is inactive and will enter a gap soon."]
+      |> Enum.reject(&(&1 in [nil, ""]))
+      |> Enum.join("\n")
+    else
+      post.body
+    end
   end
 
   # Compatibility wrapper for builder/test paths that still consume binary HTML.

@@ -114,6 +114,9 @@ defmodule Eirinchan.Runtime.Config do
     early_404_page: 3,
     early_404_replies: 5,
     early_404_staged: false,
+    early_404_gap: false,
+    early_404_gap_warning: 3,
+    early_404_gap_deletion: 1,
     noko50_count: 50,
     noko50_min: 100,
     force_body: false,
@@ -378,6 +381,9 @@ defmodule Eirinchan.Runtime.Config do
     "early404Page" => :early_404_page,
     "early404Replies" => :early_404_replies,
     "early404Staged" => :early_404_staged,
+    "early404Gap" => :early_404_gap,
+    "early404GapWarning" => :early_404_gap_warning,
+    "early404GapDeletion" => :early_404_gap_deletion,
     "uploadByUrlEnabled" => :upload_by_url_enabled,
     "uploadByUrlTimeoutMs" => :upload_by_url_timeout_ms,
     "generationStrategy" => :generation_strategy,
@@ -568,6 +574,7 @@ defmodule Eirinchan.Runtime.Config do
     |> Map.put_new(:image_bumplocked, path_join(static_dir, "sage.gif"))
     |> Map.put_new(:image_deleted, path_join(static_dir, "deleted.png"))
     |> Map.put_new(:image_cyclical, path_join(static_dir, "cycle.png"))
+    |> Map.put_new(:image_gap, path_join(static_dir, "gap.png"))
   end
 
   defp apply_board_paths(config, nil), do: config
