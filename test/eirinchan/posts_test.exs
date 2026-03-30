@@ -1187,6 +1187,68 @@ defmodule Eirinchan.PostsTest do
     assert updated_thread.inactive
   end
 
+  test "create_post replies do not trigger board-wide gap pruning" do
+    board =
+      board_fixture(%{
+        config_overrides: %{
+          early_404_gap: true,
+          early_404_gap_warning: 10,
+          early_404_gap_deletion: 1,
+          threads_per_page: 10,
+          max_pages: 10,
+          flood_time: 0,
+          flood_time_ip: 0,
+          flood_time_same: 0
+        }
+      })
+
+    config = post_config(board.config_overrides)
+    request = Map.put(post_request(board.uri), :remote_ip, {203, 0, 113, 142})
+
+    {:ok, old_thread, _meta} =
+      Posts.create_post(
+        board,
+        %{"body" => "old", "post" => "New Topic"},
+        config: config,
+        request: request,
+        repo: Repo
+      )
+
+    old_timestamp =
+      DateTime.add(DateTime.utc_now(), -(72 * 60 * 60), :second) |> DateTime.truncate(:second)
+
+    Repo.update_all(
+      from(post in Post, where: post.id == ^old_thread.id),
+      set: [inserted_at: old_timestamp, bump_at: old_timestamp]
+    )
+
+    {:ok, _reply, _meta} =
+      Posts.create_post(
+        board,
+        %{"body" => "bump", "thread" => Integer.to_string(old_thread.id), "post" => "Reply"},
+        config: config,
+        request: request,
+        repo: Repo
+      )
+
+    assert {:ok, still_active_thread} =
+             Posts.get_post(board, PublicIds.public_id(old_thread), repo: Repo)
+
+    refute still_active_thread.inactive
+
+    {:ok, _new_thread, _meta} =
+      Posts.create_post(
+        board,
+        %{"body" => "new", "post" => "New Topic"},
+        config: config,
+        request: request,
+        repo: Repo
+      )
+
+    assert {:ok, warning_thread} = Posts.get_post(board, PublicIds.public_id(old_thread), repo: Repo)
+    assert warning_thread.inactive
+  end
+
   test "create_post gap pruning deletes very old low-activity threads" do
     board =
       board_fixture(%{
