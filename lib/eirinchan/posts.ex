@@ -96,20 +96,13 @@ defmodule Eirinchan.Posts do
                        board
                      ),
                    :ok <- PostsRequestGuards.validate_captcha(attrs, config, request, board, op?),
-                   :ok <- PostsRequestGuards.validate_ipaccess(attrs, request, config, board),
-                   :ok <- PostsRequestGuards.validate_ban(request, board),
                    :ok <- PostsRequestGuards.validate_board_lock(config, request, board) do
                 :ok
               end
             end)
 
-          {dnsbl_us, dnsbl_result} =
-            timed_continue(request_guards_result, fn ->
-              PostsRequestGuards.validate_dnsbl(attrs, request, config)
-            end)
-
           {validation_base_us, validation_base_result} =
-            timed_continue(dnsbl_result, fn ->
+            timed_continue(request_guards_result, fn ->
               with :ok <- PostsValidation.validate_body(op?, attrs, config),
                    :ok <- PostsValidation.validate_body_limits(attrs, config),
                    :ok <- PostsValidation.validate_upload(op?, attrs, config, request),
@@ -142,8 +135,24 @@ defmodule Eirinchan.Posts do
               end
             end)
 
+          {abuse_guards_us, abuse_guards_result} =
+            timed_continue(thread_guard_result, fn %{attrs: attrs} = context ->
+              with :ok <- PostsRequestGuards.validate_ipaccess(attrs, request, config, board),
+                   :ok <- PostsRequestGuards.validate_ban(request, board) do
+                {:ok, context}
+              end
+            end)
+
+          {dnsbl_us, dnsbl_result} =
+            timed_continue(abuse_guards_result, fn %{attrs: attrs} = context ->
+              case PostsRequestGuards.validate_dnsbl(attrs, request, config) do
+                :ok -> {:ok, context}
+                error -> error
+              end
+            end)
+
           {metadata_us, metadata_result} =
-            timed_continue(thread_guard_result, fn %{attrs: attrs, thread: thread} ->
+            timed_continue(dnsbl_result, fn %{attrs: attrs, thread: thread} ->
               case normalize_post_metadata(attrs, config, request, op?) do
                 {:ok, normalized_attrs} -> {:ok, %{attrs: normalized_attrs, thread: thread}}
                 error -> error
@@ -184,7 +193,7 @@ defmodule Eirinchan.Posts do
 
           timings = %{
             prepare_us: prepare_us,
-            request_guards_us: request_guards_us + thread_guard_us,
+            request_guards_us: request_guards_us + thread_guard_us + abuse_guards_us,
             metadata_us: metadata_us,
             antispam_us: antispam_us,
             validation_base_us: validation_base_us,
@@ -229,10 +238,11 @@ defmodule Eirinchan.Posts do
                       config,
                       validation_failure_stage(
                         request_guards_result,
-                        dnsbl_result,
                         validation_base_result,
                         thread_result,
                         thread_guard_result,
+                        abuse_guards_result,
+                        dnsbl_result,
                         metadata_result,
                         antispam_result,
                         reply_limit_result,
@@ -267,10 +277,11 @@ defmodule Eirinchan.Posts do
                   config,
                   validation_failure_stage(
                     request_guards_result,
-                    dnsbl_result,
                     validation_base_result,
                     thread_result,
                     thread_guard_result,
+                    abuse_guards_result,
+                    dnsbl_result,
                     metadata_result,
                     antispam_result,
                     reply_limit_result,
@@ -2028,10 +2039,11 @@ defmodule Eirinchan.Posts do
 
   defp validation_failure_stage(
          request_guards_result,
-         dnsbl_result,
          validation_base_result,
          thread_result,
          thread_guard_result,
+         abuse_guards_result,
+         dnsbl_result,
          metadata_result,
          antispam_result,
          reply_limit_result,
@@ -2040,10 +2052,11 @@ defmodule Eirinchan.Posts do
        ) do
     case [
            {"request_guards", request_guards_result},
-           {"dnsbl", dnsbl_result},
            {"validation_base", validation_base_result},
            {"thread_lookup", thread_result},
            {"thread_lock", thread_guard_result},
+           {"abuse_guards", abuse_guards_result},
+           {"dnsbl", dnsbl_result},
            {"metadata", metadata_result},
            {"antispam", antispam_result},
            {"reply_limit", reply_limit_result},
