@@ -152,6 +152,31 @@ defmodule EirinchanWeb.ThreadControllerTest do
     assert thread_pos < form_pos
   end
 
+  test "thread pages derive watcher paths client-side instead of embedding per-thread watch urls", %{
+    conn: conn
+  } do
+    board = board_fixture()
+    thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
+    _reply = reply_fixture(board, thread, %{body: "Reply body"})
+
+    page = get(conn, "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html") |> html_response(200)
+
+    refute page =~ "data-watch-url="
+    refute page =~ "data-unwatch-url="
+  end
+
+  test "thread pages derive post menu targets client-side instead of embedding per-post targets", %{
+    conn: conn
+  } do
+    board = board_fixture()
+    thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
+    _reply = reply_fixture(board, thread, %{body: "Reply body"})
+
+    page = get(conn, "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html") |> html_response(200)
+
+    refute page =~ "data-post-target="
+  end
+
   test "plain thread urls redirect to the canonical slug path", %{conn: conn} do
     board = board_fixture(%{config_overrides: %{slugify: true}})
     config = Config.compose(nil, %{}, board.config_overrides, request_host: "www.example.com")
@@ -457,7 +482,7 @@ defmodule EirinchanWeb.ThreadControllerTest do
     assert page =~ ~s(data-thread-id="#{PublicIds.public_id(thread)}")
     refute page =~ ~s(class="thread-watch-toggle")
     refute page =~ "[Unwatch]"
-    assert page =~ ~s(data-watch-url="/watcher/#{board.uri}/#{PublicIds.public_id(thread)}")
+    refute page =~ "data-watch-url="
   end
 
   test "thread pages render stored OP tags", %{conn: conn} do
@@ -831,6 +856,6 @@ defmodule EirinchanWeb.ThreadControllerTest do
 
     assert page =~ ~s(data-watcher-count="1")
     assert page =~ ~s(data-thread-id="#{PublicIds.public_id(thread)}")
-    assert page =~ ~s(data-watch-url="/watcher/#{board.uri}/#{PublicIds.public_id(thread)}")
+    refute page =~ "data-watch-url="
   end
 end

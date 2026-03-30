@@ -36,10 +36,8 @@
       preferred_thread_path={preferred_thread_path}
       thread_attrs={
         %{
-          "data-board-uri" => board.uri,
+          "data-board" => board.uri,
           "data-thread-id" => thread_public_id,
-          "data-watch-url" => "/watcher/#{board.uri}/#{thread_public_id}",
-          "data-unwatch-url" => "/watcher/#{board.uri}/#{thread_public_id}",
           "data-watched" => to_string(watch.watched)
         }
       }
@@ -47,9 +45,7 @@
     >
       <:op_prefix>
         <.thread_top_controls
-          board_uri={board.uri}
           thread_id={thread_public_id}
-          post_target={"op_#{thread_public_id}"}
           watch={watch}
           show_hide={true}
         />

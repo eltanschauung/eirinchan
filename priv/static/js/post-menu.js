@@ -154,10 +154,6 @@ function buildMenu(e) {
 		$menu = $('<div id="post-menu-root" class="post-menu hidden" hidden></div>').appendTo('body');
 	}
 
-	if (!$post.length && e.target.dataset.postTarget) {
-		$post = $('#' + e.target.dataset.postTarget).closest('.post.reply, .post.op, .post');
-	}
-
 	$menu.empty().append(mainMenu.list_items());
 	menuBackground = resolveMenuBackground($target, $post);
 	$menu.css('--post-menu-bg-local', menuBackground);
@@ -222,7 +218,7 @@ $('.reply:not(.hidden), .thread>.op').each(function () {
   */
 $(document).on('click', '.post-btn', function (e) {
 	e.preventDefault();
-	var post = e.target.dataset.postTarget ? document.getElementById(e.target.dataset.postTarget) : $(e.target).closest('.post')[0];
+	var post = $(e.target).closest('.post')[0];
 	if (!post) {
 		return;
 	}

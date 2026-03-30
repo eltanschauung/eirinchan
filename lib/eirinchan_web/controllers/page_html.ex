@@ -37,10 +37,8 @@ defmodule EirinchanWeb.PageHTML do
                   <a
                     href="#"
                     data-thread-watch
-                    data-board-uri={watch.board_uri}
+                    data-board={watch.board_uri}
                     data-thread-id={watch.thread_id}
-                    data-watch-url={"/watcher/" <> watch.board_uri <> "/" <> Integer.to_string(watch.thread_id)}
-                    data-unwatch-url={"/watcher/" <> watch.board_uri <> "/" <> Integer.to_string(watch.thread_id)}
                     data-watched="true"
                   >
                     [Unwatch<%= if watch.unread_count > 0, do: " (#{watch.unread_count})", else: "" %>]

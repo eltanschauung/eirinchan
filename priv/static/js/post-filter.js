@@ -235,9 +235,7 @@ if (active_page === 'thread' || active_page === 'index' || active_page === 'cata
 				submenu.add_item('filter-remove-trip', _('Tripcode'));
 
 			Menu.onclick(function (e, $buffer) {
-				var ele = e.target.dataset.postTarget
-					? document.getElementById(e.target.dataset.postTarget)
-					: $(e.target).closest('.post')[0];
+				var ele = $(e.target).closest('.post')[0];
 				var $ele = $(ele);
 				var $thread = $ele.closest('.thread');
 

@@ -236,10 +236,7 @@
   class="thread"
   id={"thread_#{PostView.public_post_id(post)}"}
   data-board={@board.uri}
-  data-board-uri={@board.uri}
   data-thread-id={PostView.public_post_id(post)}
-  data-watch-url={"/watcher/#{@board.uri}/#{PostView.public_post_id(post)}"}
-  data-unwatch-url={"/watcher/#{@board.uri}/#{PostView.public_post_id(post)}"}
   data-watched={to_string(@thread_watch.watched)}
 >
     <a id={to_string(PostView.public_post_id(post))} class="post_anchor"></a>
@@ -270,9 +267,7 @@
           id={"delete_#{PostView.public_post_id(post)}"}
         />
         <.thread_top_controls
-          board_uri={@board.uri}
           thread_id={PostView.public_post_id(post)}
-          post_target={"op_#{PostView.public_post_id(post)}"}
           watch={@thread_watch}
         />
         <label for={"delete_#{PostView.public_post_id(post)}"}>
@@ -356,7 +351,7 @@
               name={"delete_#{reply_public_id}"}
               id={"delete_#{reply_public_id}"}
             />
-            <.reply_post_button post_target={"reply_#{reply_public_id}"} />
+            <.reply_post_button />
             <label for={"delete_#{reply_public_id}"}>
               <.post_identity
                 post={reply}

@@ -327,11 +327,9 @@ defmodule EirinchanWeb.PostComponents do
     """
   end
 
-  attr :post_target, :string, required: true
-
   def reply_post_button(assigns) do
     ~H"""
-    <a href="#" class="post-btn" title="Post menu" data-post-target={@post_target}>▶</a>
+    <a href="#" class="post-btn" title="Post menu">▶</a>
     """
   end
 
@@ -409,9 +407,7 @@ defmodule EirinchanWeb.PostComponents do
 
   defp backlink_base_href(_assigns), do: ""
 
-  attr :board_uri, :string, required: true
   attr :thread_id, :integer, required: true
-  attr :post_target, :string, required: true
   attr :watch, :map, default: %{watched: false, unread_count: 0}
   attr :show_hide, :boolean, default: false
 
@@ -424,16 +420,13 @@ defmodule EirinchanWeb.PostComponents do
       <button :if={@show_hide} type="button" class="hide-thread-link js-link-button" title="Hide thread">
         [–]
       </button>
-      <a href="#" class="post-btn" title="Post menu" data-post-target={@post_target}>▶</a>
+      <a href="#" class="post-btn" title="Post menu">▶</a>
       <button
         type="button"
         class={["watch-thread-link", "js-link-button", @watched && "watched"]}
         title={if @watched, do: "Unwatch Thread", else: "Watch Thread"}
         data-thread-watch
-        data-board-uri={@board_uri}
         data-thread-id={@thread_id}
-        data-watch-url={"/watcher/#{@board_uri}/#{@thread_id}"}
-        data-unwatch-url={"/watcher/#{@board_uri}/#{@thread_id}"}
         data-watched={to_string(@watched)}
       >
       </button>
