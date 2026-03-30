@@ -8,7 +8,7 @@ defmodule Eirinchan.Uploads do
 
   @image_extensions [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"]
   @video_extensions [".webm", ".mp4"]
-  @jpeg_thumbnail_quality 70
+  @jpeg_thumbnail_quality 85
 
   @spec describe(Plug.Upload.t(), map()) :: {:ok, map()} | {:error, atom()}
   def describe(%Plug.Upload{} = upload, config) do
