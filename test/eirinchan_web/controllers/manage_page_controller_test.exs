@@ -722,6 +722,32 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert redirected_to(conn) == "/manage/login"
   end
 
+  test "browser logout redirects back to the current site page when referer is same-host", %{
+    conn: conn
+  } do
+    moderator = moderator_fixture(%{role: "admin"})
+
+    conn =
+      conn
+      |> login_moderator(moderator)
+      |> put_req_header("referer", "http://www.example.com/bant/res/312650-sage+50.html?foo=1")
+      |> delete("/manage/logout/browser")
+
+    assert redirected_to(conn) == "/bant/res/312650-sage+50.html?foo=1"
+  end
+
+  test "browser logout falls back to login when referer is external", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+
+    conn =
+      conn
+      |> login_moderator(moderator)
+      |> put_req_header("referer", "https://evil.example/bant/res/312650-sage+50.html")
+      |> delete("/manage/logout/browser")
+
+    assert redirected_to(conn) == "/manage/login"
+  end
+
   test "admin browser dashboard creates boards", %{conn: conn} do
     moderator = moderator_fixture(%{role: "admin"})
     uri = "tea#{System.unique_integer([:positive])}"

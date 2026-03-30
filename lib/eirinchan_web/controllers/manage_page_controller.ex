@@ -2407,11 +2407,12 @@ defmodule EirinchanWeb.ManagePageController do
 
   def delete_session(conn, _params) do
     ModerationAudit.log(conn, "Logged out")
+    redirect_path = logout_redirect_path(conn)
 
     conn
     |> clear_session()
     |> configure_session(drop: true)
-    |> redirect(to: ~p"/manage/login")
+    |> redirect(to: redirect_path)
   end
 
   defp establish_moderator_session(conn, moderator, remote_ip) do
@@ -2430,6 +2431,44 @@ defmodule EirinchanWeb.ManagePageController do
     |> put_session(:moderator_session_issued_at, issued_at)
     |> put_session(:moderator_session_last_seen_at, issued_at)
   end
+
+  defp logout_redirect_path(conn) do
+    conn
+    |> get_req_header("referer")
+    |> List.first()
+    |> safe_logout_return_to(conn.host)
+  end
+
+  defp safe_logout_return_to(nil, _host), do: ~p"/manage/login"
+  defp safe_logout_return_to("", _host), do: ~p"/manage/login"
+
+  defp safe_logout_return_to(referer, host) do
+    uri = URI.parse(referer)
+
+    case uri do
+      %URI{host: ^host, path: path} ->
+        safe_logout_path(path, uri)
+
+      %URI{host: nil, path: path, query: query} ->
+        safe_logout_path(path, %URI{path: path, query: query})
+
+      _ ->
+        ~p"/manage/login"
+    end
+  end
+
+  defp safe_logout_path(path, uri) when is_binary(path) do
+    if String.starts_with?(path, "/") do
+      path <> query_string_fragment(uri)
+    else
+      ~p"/manage/login"
+    end
+  end
+
+  defp safe_logout_path(_path, _uri), do: ~p"/manage/login"
+
+  defp query_string_fragment(%URI{query: query}) when is_binary(query) and query != "", do: "?" <> query
+  defp query_string_fragment(_uri), do: ""
 
   defp handle_failed_browser_login(conn, username, remote_ip, config) do
     case ManageLoginThrottle.record_failure(username, remote_ip, config) do
