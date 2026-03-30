@@ -540,6 +540,21 @@
     return stored;
   }
 
+  function applyPersistedUserFlag(form) {
+    var field = form && form.elements ? form.elements["user_flag"] : null;
+    if (!field) {
+      return null;
+    }
+
+    var value = persistedUserFlag(form);
+    if (value === null) {
+      return null;
+    }
+
+    field.value = value;
+    return value;
+  }
+
   function anySelectedFile(form) {
     return Array.prototype.some.call(form.querySelectorAll('input[type="file"]'), function (field) {
       return (field.files && field.files.length > 0) || Boolean(field.value);
@@ -880,9 +895,7 @@
       form.elements["email"].value = localStorage.email;
     }
 
-    if (form.elements["user_flag"]) {
-      form.elements["user_flag"].value = persistedUserFlag(form);
-    }
+    applyPersistedUserFlag(form);
 
     bindIdentityPersistence(form);
     persistIdentityFields(form);
@@ -1164,6 +1177,8 @@
     window.EirinchanFrontend.dispatchNewPost || dispatchNewPost;
   window.EirinchanFrontend.dispatchAjaxAfterPostSuccess =
     window.EirinchanFrontend.dispatchAjaxAfterPostSuccess || dispatchAjaxAfterPostSuccess;
+  window.EirinchanFrontend.applyPersistedUserFlag =
+    window.EirinchanFrontend.applyPersistedUserFlag || applyPersistedUserFlag;
   window.ready =
     window.ready ||
     function () {

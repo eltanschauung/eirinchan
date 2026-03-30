@@ -1279,6 +1279,19 @@ $(document).ready(function(){
     });
   };
 
+  var apply_persisted_user_flag = function($origPostForm, $postForm) {
+    var frontend = window.EirinchanFrontend || {};
+    if (typeof frontend.applyPersistedUserFlag !== 'function') return;
+
+    if ($origPostForm && $origPostForm.length) {
+      frontend.applyPersistedUserFlag($origPostForm[0]);
+    }
+
+    if ($postForm && $postForm.length) {
+      frontend.applyPersistedUserFlag($postForm[0]);
+    }
+  };
+
   var init_drag = function($postForm) {
     if (typeof $postForm.draggable === 'undefined') return;
 
@@ -1391,6 +1404,7 @@ $(document).ready(function(){
 
     var $existingPostForm = get_live_quick_reply();
     if ($existingPostForm.length) {
+      apply_persisted_user_flag($('form[name="post"]:first'), $existingPostForm);
       return $existingPostForm;
     }
 
@@ -1404,6 +1418,7 @@ $(document).ready(function(){
     var $origPostForm = $('form[name="post"]:first');
 
     bind_sync($origPostForm, $postForm);
+    apply_persisted_user_flag($origPostForm, $postForm);
 
     $postForm.find('textarea[name="body"]').on('focus', function() {
       activate_quick_reply_body($origPostForm, $postForm);

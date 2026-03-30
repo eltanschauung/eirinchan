@@ -1,4 +1,12 @@
 (function () {
+  function applyPersistedUserFlag(form) {
+    const frontend = window.EirinchanFrontend || {};
+
+    if (typeof frontend.applyPersistedUserFlag === "function") {
+      frontend.applyPersistedUserFlag(form);
+    }
+  }
+
   function readJSON(storage, key) {
     try {
       return JSON.parse(storage.getItem(key) || "{}");
@@ -48,6 +56,8 @@
         field.value = value;
       }
     });
+
+    applyPersistedUserFlag(form);
   }
 
   function persistFormState(form) {
