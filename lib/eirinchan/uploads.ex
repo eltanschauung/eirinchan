@@ -8,6 +8,7 @@ defmodule Eirinchan.Uploads do
 
   @image_extensions [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"]
   @video_extensions [".webm", ".mp4"]
+  @jpeg_thumbnail_quality 70
 
   @spec describe(Plug.Upload.t(), map()) :: {:ok, map()} | {:error, atom()}
   def describe(%Plug.Upload{} = upload, config) do
@@ -855,14 +856,16 @@ defmodule Eirinchan.Uploads do
   defp generate_thumbnail(source, destination, config, metadata, op?) do
     cond do
       image?(metadata) ->
-        with :ok <- generate_image_thumbnail(source, destination, config, op?) do
+        with :ok <- generate_image_thumbnail(source, destination, config, op?),
+             :ok <- maybe_compress_jpeg_thumbnail(destination) do
           if Map.get(metadata, :spoiler),
             do: generate_spoiler_thumbnail(destination, config),
             else: :ok
         end
 
       video_extension?(metadata.ext) and get_in(config, [:webm, :use_ffmpeg]) ->
-        with :ok <- generate_video_thumbnail(source, destination, config, metadata, op?) do
+        with :ok <- generate_video_thumbnail(source, destination, config, metadata, op?),
+             :ok <- maybe_compress_jpeg_thumbnail(destination) do
           if Map.get(metadata, :spoiler),
             do: generate_spoiler_thumbnail(destination, config),
             else: :ok
@@ -1071,6 +1074,23 @@ defmodule Eirinchan.Uploads do
       _ ->
         _ = File.rm(temp_destination)
         {:error, :upload_failed}
+    end
+  end
+
+  defp maybe_compress_jpeg_thumbnail(destination) do
+    case String.downcase(Path.extname(destination)) do
+      ext when ext in [".jpg", ".jpeg"] ->
+        case System.cmd(
+               "mogrify",
+               ["-strip", "-quality", Integer.to_string(@jpeg_thumbnail_quality), destination],
+               stderr_to_stdout: true
+             ) do
+          {_output, 0} -> :ok
+          _ -> {:error, :upload_failed}
+        end
+
+      _ ->
+        :ok
     end
   end
 
