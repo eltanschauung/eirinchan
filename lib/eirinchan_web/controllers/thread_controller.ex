@@ -118,6 +118,7 @@ defmodule EirinchanWeb.ThreadController do
             text(conn, fragment_md5)
           else
             conn = if fragment?, do: put_root_layout(conn, false), else: conn
+            conn = Plug.Conn.put_private(conn, :public_document_etag, fragment_md5)
 
             conn =
               render(

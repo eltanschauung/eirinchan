@@ -98,6 +98,39 @@ defmodule EirinchanWeb.ThreadControllerTest do
     refute md5_before == md5_after
   end
 
+  test "thread pages return an etag and honor if-none-match", %{conn: conn} do
+    board = board_fixture()
+    thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
+    _reply = reply_fixture(board, thread, %{body: "Reply body"})
+
+    _first_conn = get(conn, "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html")
+
+    settled_conn =
+      conn
+      |> recycle()
+      |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html")
+
+    assert settled_conn.status == 200
+
+    etag =
+      settled_conn
+      |> get_resp_header("etag")
+      |> List.first()
+
+    assert is_binary(etag)
+    assert get_resp_header(settled_conn, "cache-control") == ["private, no-cache"]
+
+    second_conn =
+      settled_conn
+      |> recycle()
+      |> put_req_header("if-none-match", etag)
+      |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html")
+
+    assert second_conn.status == 304
+    assert second_conn.resp_body == ""
+    assert get_resp_header(second_conn, "etag") == [etag]
+  end
+
   test "plain thread urls redirect to the canonical slug path", %{conn: conn} do
     board = board_fixture(%{config_overrides: %{slugify: true}})
     config = Config.compose(nil, %{}, board.config_overrides, request_host: "www.example.com")

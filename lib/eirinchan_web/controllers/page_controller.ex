@@ -40,8 +40,9 @@ defmodule EirinchanWeb.PageController do
         news_entries = NewsBlotter.entries(config, limit: 5)
 
         conn =
-          render(
-            conn,
+          conn
+          |> put_public_document_etag({:home_default, home_board_etag_data(boards), news_entries})
+          |> render(
             :home,
             Keyword.merge(
               public_page_assigns(conn, "active-page", "index",
@@ -74,14 +75,16 @@ defmodule EirinchanWeb.PageController do
       redirect(conn, to: ~p"/setup")
     else
       config = Settings.current_instance_config()
+      news_entries = NewsBlotter.entries(config, limit: 100)
 
-      render(
-        conn,
+      conn
+      |> put_public_document_etag({:news, news_entries})
+      |> render(
         :news,
         Keyword.merge(
           public_page_assigns(conn, "active-page", "news", include_global_message: false),
           layout: false,
-          news_entries: NewsBlotter.entries(config, limit: 100)
+          news_entries: news_entries
         )
       )
     end
@@ -435,6 +438,8 @@ defmodule EirinchanWeb.PageController do
         extra_stylesheets: extra_stylesheets
       )
 
+    conn = put_public_document_etag(conn, {:custom_page, page_cache_key(page)})
+
     case page.slug do
       "flags" -> render(conn, :flag, assigns)
       "faq" -> render(conn, :faq, assigns)
@@ -449,6 +454,24 @@ defmodule EirinchanWeb.PageController do
     do: stylesheets ++ ["/faq/recent.css"]
 
   defp maybe_add_page_stylesheet(stylesheets, _page), do: stylesheets
+
+  defp put_public_document_etag(conn, term) do
+    hash =
+      term
+      |> :erlang.term_to_binary()
+      |> then(&:crypto.hash(:md5, &1))
+      |> Base.encode16(case: :lower)
+
+    Plug.Conn.put_private(conn, :public_document_etag, hash)
+  end
+
+  defp home_board_etag_data(boards) do
+    Enum.map(boards, &{&1.id, &1.uri, &1.title, &1.next_public_post_id})
+  end
+
+  defp page_cache_key(page) do
+    {page.slug, page.title, page.body, Map.get(page, :updated_at), Map.get(page, :inserted_at)}
+  end
 
   defp flag_assets do
     compiled_dir = Path.join([:code.priv_dir(:eirinchan), "static", "flags", "compiled"])
@@ -474,18 +497,24 @@ defmodule EirinchanWeb.PageController do
     stats = cached_recent_theme_stats(board_ids)
 
     conn =
-      render(
-      conn,
-      :recent,
-      Keyword.merge(
-        recent_theme_assigns(conn, active_page, boards),
-        layout: false,
-        recent_settings: settings,
-        recent_images: content.recent_images,
-        recent_posts: content.recent_posts,
-        stats: stats
+      conn
+      |> put_public_document_etag({
+        :recent_theme,
+        active_page,
+        recent_theme_content_cache_key(settings, board_ids),
+        recent_theme_stats_cache_key(board_ids)
+      })
+      |> render(
+        :recent,
+        Keyword.merge(
+          recent_theme_assigns(conn, active_page, boards),
+          layout: false,
+          recent_settings: settings,
+          recent_images: content.recent_images,
+          recent_posts: content.recent_posts,
+          stats: stats
+        )
       )
-    )
 
     PublicControllerHelpers.maybe_log_page_performance(
       if(active_page == "index", do: "home", else: "recent"),
