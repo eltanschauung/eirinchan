@@ -555,10 +555,6 @@ defmodule EirinchanWeb.PostComponents do
           aria-label="Download"
         ></a>
         <span>(<%= PostView.file_inline_details_text(@file) %>)</span>
-        <span :if={@video_file?} class="video-loop-controls" data-video-loop-controls>
-          <span class="video-loop-control" data-video-loop-mode="once">[play once]</span>
-          <span class="video-loop-control active" data-video-loop-mode="loop">[loop]</span>
-        </span>
         <.file_controls
           post={@post}
           file={@file}
