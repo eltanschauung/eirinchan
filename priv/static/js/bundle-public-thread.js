@@ -4031,7 +4031,17 @@ onReady(function() {
 				let url = href.replace(/#.*$/, '');
 
 				if ($.inArray(url, dontFetchAgain) != -1) {
-					return;
+					post = $(hoverSelector(board, id, link.is('[data-thread]')));
+					if (post.length > 0) {
+						if (hovering) {
+							startHover(link);
+						}
+						return;
+					}
+
+					dontFetchAgain = $.grep(dontFetchAgain, function(seenUrl) {
+						return seenUrl != url;
+					});
 				}
 				dontFetchAgain.push(url);
 
