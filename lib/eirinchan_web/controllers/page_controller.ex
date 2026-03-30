@@ -212,6 +212,19 @@ defmodule EirinchanWeb.PageController do
     if Installation.setup_required?() do
       redirect(conn, to: ~p"/setup")
     else
+      watcher_metrics = PublicControllerHelpers.watcher_metrics(conn)
+
+      conn =
+        conn
+        |> put_resp_header("cache-control", "no-store, max-age=0")
+        |> put_resp_header("pragma", "no-cache")
+        |> put_resp_header("x-watcher-count", Integer.to_string(watcher_metrics.watcher_count))
+        |> put_resp_header(
+          "x-watcher-unread-count",
+          Integer.to_string(watcher_metrics.watcher_unread_count)
+        )
+        |> put_resp_header("x-watcher-you-count", Integer.to_string(watcher_metrics.watcher_you_count))
+
       html(
         conn,
         render_to_string(EirinchanWeb.PageHTML, "watcher_fragment", "html",

@@ -147,6 +147,13 @@ void 0!==c?e&&"set"in e&&void 0!==(d=e.set(a,c,b))?d:a[b]=c:e&&"get"in e&&null!=
     watcherTab = Options.add_tab('watcher', 'eye', _('Watcher'));
     watcherContent = $('#watcher-tab-content');
 
+    if (watcherTab && watcherTab.content && watcherTab.content.length) {
+      var heading = watcherTab.content.children('h2').first();
+      if (heading.length) {
+        heading.html('Watcher | <a id="watcher-unwatch-all" href="#" style="color: inherit;">Unwatch All</a>');
+      }
+    }
+
     if (!watcherContent.length) {
       watcherContent = $('<div id="watcher-tab-content"><div class="watcher-loading">Loading...</div></div>');
       watcherContent.appendTo(watcherTab.content);
@@ -166,9 +173,15 @@ void 0!==c?e&&"set"in e&&void 0!==(d=e.set(a,c,b))?d:a[b]=c:e&&"get"in e&&null!=
 
     return fetch('/watcher/fragment', {
       headers: {'x-requested-with': 'XMLHttpRequest'},
-      credentials: 'same-origin'
+      credentials: 'same-origin',
+      cache: 'no-store'
     }).then(function(response) {
       if (!response.ok) throw new Error('watcher fragment failed');
+      setWatcherCount(
+        parseInt(response.headers.get('x-watcher-count') || '', 10),
+        parseInt(response.headers.get('x-watcher-you-count') || '', 10),
+        parseInt(response.headers.get('x-watcher-unread-count') || '', 10)
+      );
       return response.text();
     }).then(function(html) {
       watcherContent.html(html);
@@ -199,6 +212,36 @@ void 0!==c?e&&"set"in e&&void 0!==(d=e.set(a,c,b))?d:a[b]=c:e&&"get"in e&&null!=
       return;
     }
 
+    var unwatchAllLink = event.target.closest('#watcher-unwatch-all');
+    if (unwatchAllLink) {
+      event.preventDefault();
+
+      var token = csrfToken(unwatchAllLink);
+      if (!token) return;
+
+      fetch('/watcher', {
+        method: 'DELETE',
+        headers: {
+          'x-csrf-token': token,
+          'x-requested-with': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin'
+      }).then(function(response) {
+        if (!response.ok) throw new Error('watch clear failed');
+        return response.json();
+      }).then(function(payload) {
+        if (typeof payload.watcher_count === 'number') {
+          setWatcherCount(payload.watcher_count, payload.watcher_you_count, payload.watcher_unread_count);
+        }
+        if (watcherContent && watcherContent.length) {
+          watcherContent.html('<div class="post reply watcher-entry"><p class="body">No watched threads yet.</p></div>');
+        }
+      }).catch(function() {
+        if (typeof alert === 'function') alert('Watcher update failed.');
+      });
+      return;
+    }
+
     var link = event.target.closest('[data-thread-watch]');
     if (!link) return;
 
@@ -207,6 +250,8 @@ void 0!==c?e&&"set"in e&&void 0!==(d=e.set(a,c,b))?d:a[b]=c:e&&"get"in e&&null!=
     if (link.dataset.pending === 'true') return;
 
     var watched = link.dataset.watched === 'true';
+    var watcherEntry = link.closest('.watcher-thread');
+    var inWatcherTab = !!watcherEntry;
     var boardUri = boardUriFor(link);
     var threadId = link.dataset.threadId;
     var url = boardUri && threadId ? '/watcher/' + encodeURIComponent(boardUri) + '/' + encodeURIComponent(threadId) : null;
@@ -225,10 +270,31 @@ void 0!==c?e&&"set"in e&&void 0!==(d=e.set(a,c,b))?d:a[b]=c:e&&"get"in e&&null!=
       },
       credentials: 'same-origin'
     }).then(function(response) {
-      if (!response.ok) throw new Error('watch request failed');
+      if (!response.ok) {
+        if (response.status === 404 && inWatcherTab && watched) {
+          watcherEntry.remove();
+          return refreshWatcherTab().then(function() {
+            return null;
+          });
+        }
+        throw new Error('watch request failed');
+      }
       return response.json();
     }).then(function(payload) {
-      syncWatchLinks(payload.board, payload.thread_id, !!payload.watched);
+      if (!payload) {
+        return;
+      }
+
+      if (inWatcherTab && watched && !payload.watched) {
+        watcherEntry.remove();
+
+        if (watcherContent && watcherContent.length && !watcherContent.find('.watcher-thread').length) {
+          watcherContent.html('<div class="post reply watcher-entry"><p class="body">No watched threads yet.</p></div>');
+        }
+      } else {
+        syncWatchLinks(payload.board, payload.thread_id, !!payload.watched);
+      }
+
       if (typeof payload.watcher_count === 'number') {
         setWatcherCount(payload.watcher_count, payload.watcher_you_count, payload.watcher_unread_count);
       }

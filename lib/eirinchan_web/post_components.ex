@@ -191,7 +191,9 @@ defmodule EirinchanWeb.PostComponents do
           </div>
         </div>
         <div id="options-tab-watcher" class="options_tab" style="display:none">
-          <h2>Watcher</h2>
+          <h2>
+            Watcher | <a id="watcher-unwatch-all" href="#" style="color: inherit;">Unwatch All</a>
+          </h2>
           <div id="watcher-tab-content">
             <div class="watcher-loading">Loading...</div>
           </div>
