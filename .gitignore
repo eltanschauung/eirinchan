@@ -97,3 +97,9 @@ html_size_reduction_plan.txt
 /priv/static/js/treeview.js
 /priv/static/js/watch.js
 /priv/static/js/webm/playersettings.js
+
+# dead legacy js
+/priv/static/js/captcha.js
+/priv/static/js/instance.settings.js
+/priv/static/js/show-op.js
+/priv/static/js/style-select.js
