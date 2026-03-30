@@ -43,7 +43,9 @@ run = fn board_uri, thread_id ->
     |> Kernel.abs()
     |> max(1)
 
-  eligible = metrics.reply_count > 0 or metrics.image_count > 0
+  eligible =
+    (metrics.reply_count > 0 or metrics.image_count > 0) and
+      metrics.reply_count < config.early_404_gap_max
 
   score =
     if eligible do
@@ -62,6 +64,7 @@ run = fn board_uri, thread_id ->
     inactive: thread.inactive,
     eligible: eligible,
     score: score,
+    max_replies: config.early_404_gap_max,
     warning_threshold: config.early_404_gap_warning,
     deletion_threshold: config.early_404_gap_deletion,
     would_warn: eligible and not thread.sticky and score <= config.early_404_gap_warning,
