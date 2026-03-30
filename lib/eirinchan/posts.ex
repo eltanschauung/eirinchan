@@ -108,8 +108,18 @@ defmodule Eirinchan.Posts do
               PostsRequestGuards.validate_dnsbl(attrs, request, config)
             end)
 
-          {thread_lookup_us, thread_result} =
+          {validation_base_us, validation_base_result} =
             timed_continue(dnsbl_result, fn ->
+              with :ok <- PostsValidation.validate_body(op?, attrs, config),
+                   :ok <- PostsValidation.validate_body_limits(attrs, config),
+                   :ok <- PostsValidation.validate_upload(op?, attrs, config, request),
+                   :ok <- PostsValidation.validate_image_dimensions(attrs, config) do
+                {:ok, attrs}
+              end
+            end)
+
+          {thread_lookup_us, thread_result} =
+            timed_continue(validation_base_result, fn attrs ->
               case PostsThreadLookup.fetch_thread(board, thread_param, repo) do
                 {:ok, thread} -> {:ok, %{attrs: attrs, thread: thread}}
                 error -> error
@@ -140,18 +150,8 @@ defmodule Eirinchan.Posts do
               end
             end)
 
-          {validation_base_us, validation_base_result} =
-            timed_continue(antispam_result, fn %{attrs: attrs, thread: thread} ->
-              with :ok <- PostsValidation.validate_body(op?, attrs, config),
-                   :ok <- PostsValidation.validate_body_limits(attrs, config),
-                   :ok <- PostsValidation.validate_upload(op?, attrs, config, request),
-                   :ok <- PostsValidation.validate_image_dimensions(attrs, config) do
-                {:ok, %{attrs: attrs, thread: thread}}
-              end
-            end)
-
           {reply_limit_us, reply_limit_result} =
-            timed_continue(validation_base_result, fn %{attrs: attrs, thread: thread} ->
+            timed_continue(antispam_result, fn %{attrs: attrs, thread: thread} ->
               case PostsValidation.validate_reply_limit(board, thread, config, repo) do
                 :ok -> {:ok, %{attrs: attrs, thread: thread}}
                 error -> error
@@ -222,11 +222,11 @@ defmodule Eirinchan.Posts do
                       validation_failure_stage(
                         request_guards_result,
                         dnsbl_result,
+                        validation_base_result,
                         thread_result,
                         thread_guard_result,
                         metadata_result,
                         antispam_result,
-                        validation_base_result,
                         reply_limit_result,
                         image_limit_result,
                         validation_result
@@ -260,11 +260,11 @@ defmodule Eirinchan.Posts do
                   validation_failure_stage(
                     request_guards_result,
                     dnsbl_result,
+                    validation_base_result,
                     thread_result,
                     thread_guard_result,
                     metadata_result,
                     antispam_result,
-                    validation_base_result,
                     reply_limit_result,
                     image_limit_result,
                     validation_result
@@ -2021,11 +2021,11 @@ defmodule Eirinchan.Posts do
   defp validation_failure_stage(
          request_guards_result,
          dnsbl_result,
+         validation_base_result,
          thread_result,
          thread_guard_result,
          metadata_result,
          antispam_result,
-         validation_base_result,
          reply_limit_result,
          image_limit_result,
          validation_result
@@ -2033,11 +2033,11 @@ defmodule Eirinchan.Posts do
     case [
            {"request_guards", request_guards_result},
            {"dnsbl", dnsbl_result},
+           {"validation_base", validation_base_result},
            {"thread_lookup", thread_result},
            {"thread_lock", thread_guard_result},
            {"metadata", metadata_result},
            {"antispam", antispam_result},
-           {"validation_base", validation_base_result},
            {"reply_limit", reply_limit_result},
            {"image_limit", image_limit_result},
            {"duplicate_upload", validation_result}
