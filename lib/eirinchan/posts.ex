@@ -120,17 +120,25 @@ defmodule Eirinchan.Posts do
 
           {thread_lookup_us, thread_result} =
             timed_continue(validation_base_result, fn attrs ->
-              case PostsThreadLookup.fetch_thread(board, thread_param, repo) do
-                {:ok, thread} -> {:ok, %{attrs: attrs, thread: thread}}
-                error -> error
+              if op? do
+                {:ok, %{attrs: attrs, thread: nil}}
+              else
+                case PostsThreadLookup.fetch_thread(board, thread_param, repo) do
+                  {:ok, thread} -> {:ok, %{attrs: attrs, thread: thread}}
+                  error -> error
+                end
               end
             end)
 
           {thread_guard_us, thread_guard_result} =
             timed_continue(thread_result, fn %{thread: thread} = context ->
-              case PostsRequestGuards.validate_thread_lock(thread, request, board) do
-                :ok -> {:ok, context}
-                error -> error
+              if op? do
+                {:ok, context}
+              else
+                case PostsRequestGuards.validate_thread_lock(thread, request, board) do
+                  :ok -> {:ok, context}
+                  error -> error
+                end
               end
             end)
 
