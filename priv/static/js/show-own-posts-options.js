@@ -1,4 +1,4 @@
-if (active_page === 'thread' || active_page === 'index' || active_page === 'catalog' || active_page === 'ukko') {
+if (active_page === 'thread' || active_page === 'index' || active_page === 'catalog' || active_page === 'ukko' || active_page === 'search') {
   document.addEventListener('DOMContentLoaded', function () {
     if (!(window.Options && Options.get_tab('general'))) return;
     var runtime = window.EirinchanRuntime || {};

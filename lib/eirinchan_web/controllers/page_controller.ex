@@ -22,7 +22,6 @@ defmodule EirinchanWeb.PageController do
   alias EirinchanWeb.HtmlSanitizer
   alias EirinchanWeb.PostView
   alias EirinchanWeb.PublicControllerHelpers
-  alias EirinchanWeb.ShowYous
   alias Eirinchan.ThreadPaths
 
   @recent_theme_cache_bucket_seconds 30
@@ -329,8 +328,6 @@ defmodule EirinchanWeb.PageController do
                 do: overboard_page_link(overboard_page.page + 1),
                 else: nil
               ),
-            own_post_ids: ShowYous.owned_post_ids(conn, posts),
-            show_yous: ShowYous.enabled?(conn),
             backlinks_map: Posts.backlinks_map_for_posts(posts),
             thread_watch_state_by_board: overboard_thread_watch_state(conn, threads),
             current_moderator: conn.assigns[:current_moderator],

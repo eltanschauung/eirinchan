@@ -10,7 +10,6 @@ defmodule EirinchanWeb.ThreadController do
   alias EirinchanWeb.Announcements
   alias EirinchanWeb.BoardChrome
   alias EirinchanWeb.PublicControllerHelpers
-  alias EirinchanWeb.ShowYous
 
   plug EirinchanWeb.Plugs.LoadBoard
 
@@ -54,9 +53,6 @@ defmodule EirinchanWeb.ThreadController do
           } =
             PublicControllerHelpers.watcher_metrics(conn)
 
-          own_post_ids = ShowYous.owned_post_ids(conn, [summary.thread | summary.replies])
-          show_yous = ShowYous.enabled?(conn)
-
           fragment? = PublicControllerHelpers.fragment_request?(conn.params)
           fragment_md5? = PublicControllerHelpers.fragment_md5_request?(conn.params)
 
@@ -68,8 +64,6 @@ defmodule EirinchanWeb.ThreadController do
               "/#{board.uri}/ - #{summary.thread.subject || summary.thread.body || PublicIds.public_id(summary.thread)}",
             summary: summary,
             backlinks_map: backlinks_map,
-            own_post_ids: own_post_ids,
-            show_yous: show_yous,
             thread_watch: thread_watch,
             watcher_count: watcher_count,
             watcher_unread_count: watcher_unread_count,

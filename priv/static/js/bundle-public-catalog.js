@@ -2897,42 +2897,159 @@ initImageHover();
 
 +function(){
 
+function parsePostId(value) {
+  var parsed = parseInt(value, 10);
+  return isNaN(parsed) ? null : parsed;
+}
 
-var update_own = function() {
-  if ($(this).is('.you')) return;
-
-  var thread = $(this).parents('[id^="thread_"]').first();
-  if (!thread.length) {
-    thread = $(this);
+function loadOwnPosts() {
+  try {
+    return JSON.parse(localStorage.own_posts || '{}');
+  } catch (_error) {
+    return {};
   }
+}
 
-  var board = thread.attr('data-board');
-  var posts = JSON.parse(localStorage.own_posts || '{}');
+function storeOwnPosts(posts) {
+  localStorage.own_posts = JSON.stringify(posts);
+}
 
-  var id = $(this).attr('id').split('_')[1];
+function mergeStoredPosts(board, ids) {
+  if (!board || !ids.length) return;
 
-  if (posts[board] && posts[board].indexOf(id) !== -1) { // Own post!
-    $(this).addClass('you');
-    $(this).find('span.name').first().append(' <span class="own_post">'+_('(You)')+'</span>');
-  }
+  var posts = loadOwnPosts();
+  var existing = posts[board] || [];
 
-  // Update references
-  $(this).find('div.body:first a:not([rel="nofollow"])').each(function() {
-    var postID;
-
-    if(postID = $(this).text().match(/^>>(\d+)$/))
-      postID = postID[1];
-    else
-      return;
-
-    if (posts[board] && posts[board].indexOf(postID) !== -1) {
-      $(this).after(' <small>'+_('(You)')+'</small>');
+  ids.forEach(function(id) {
+    var normalized = String(id);
+    if (existing.indexOf(normalized) === -1) {
+      existing.push(normalized);
     }
   });
+
+  posts[board] = existing;
+  storeOwnPosts(posts);
+}
+
+function boardForElement(element) {
+  var $element = $(element);
+  var $thread = $element.is('.thread[data-board]') ? $element : $element.closest('.thread[data-board]');
+  return $thread.attr('data-board') || null;
+}
+
+function collectPostIds(container) {
+  var ids = {};
+
+  $(container).find('.post_no[id^="post_no_"], a[data-cite-reply], a[data-highlight-reply]').each(function() {
+    var id = null;
+
+    if (this.hasAttribute('data-cite-reply')) {
+      id = parsePostId(this.getAttribute('data-cite-reply'));
+    } else if (this.hasAttribute('data-highlight-reply')) {
+      id = parsePostId(this.getAttribute('data-highlight-reply'));
+    } else {
+      id = parsePostId((this.id || '').replace('post_no_', ''));
+    }
+
+    if (id !== null) {
+      ids[id] = true;
+    }
+  });
+
+  return Object.keys(ids);
+}
+
+function appendOwnLabel($post) {
+  if ($post.is('.you')) return;
+  $post.addClass('you');
+
+  if ($post.find('.own_post').length) return;
+
+  var $name = $post.find('span.name').first();
+  if ($name.length) {
+    $name.append(' <span class="own_post">'+_('(You)')+'</span>');
+  }
+}
+
+function appendQuoteMarker(link) {
+  var next = link.nextSibling;
+
+  while (next && next.nodeType === 3 && /^\s*$/.test(next.nodeValue)) {
+    next = next.nextSibling;
+  }
+
+  if (next && next.nodeType === 1 && next.tagName === 'SMALL' && $(next).text() === _('(You)')) {
+    return;
+  }
+
+  $(link).after(' <small>'+_('(You)')+'</small>');
+}
+
+function applyQuoteMarkers(links, owned) {
+  $(links).each(function() {
+    var postID = this.getAttribute('data-cite-reply') || this.getAttribute('data-highlight-reply');
+    if (postID && owned[postID]) {
+      appendQuoteMarker(this);
+    }
+  });
+}
+
+function applyOwnMarkers(scope, board, ids) {
+  var owned = {};
+  ids.forEach(function(id) {
+    owned[String(id)] = true;
+  });
+
+  $(scope).find('.post.op, .post.reply').each(function() {
+    var match = (this.id || '').match(/^(?:op|reply)_(\d+)$/);
+    if (match && owned[match[1]]) {
+      appendOwnLabel($(this));
+    }
+  });
+
+  applyQuoteMarkers($(scope).find('div.body a[data-cite-reply], div.body a[data-highlight-reply]'), owned);
+  applyQuoteMarkers($(scope).find('span.mentioned a[data-highlight-reply]'), owned);
+
+  if (board && ids.length) {
+    mergeStoredPosts(board, ids);
+  }
+}
+
+function applyStoredOwnMarkers(scope, board) {
+  var posts = loadOwnPosts();
+  var owned = posts[board] || [];
+  if (owned.length) {
+    applyOwnMarkers(scope, board, owned);
+  }
+}
+
+function syncOwnMarkersFor(scope) {
+  var board = boardForElement(scope);
+  var ids = collectPostIds(scope);
+
+  if (!board || !ids.length) return;
+
+  applyStoredOwnMarkers(scope, board);
+
+  $.ajax({
+    type: 'POST',
+    url: '/api/you-markers/' + encodeURIComponent(board),
+    contentType: 'application/json',
+    dataType: 'json',
+    data: JSON.stringify({post_ids: ids})
+  }).done(function(response) {
+    if (!response || response.enabled === false) return;
+    applyOwnMarkers(scope, board, response.post_ids || []);
+  });
+}
+
+
+var update_own = function() {
+  syncOwnMarkersFor(this);
 };
 
 var update_all = function() {
-  $('div[id^="thread_"], div.post.reply').each(update_own);
+  $('.thread[data-board]').each(update_own);
 };
 
 var board = null;
@@ -2944,21 +3061,13 @@ $(function() {
 });
 
 $(document).on('ajax_after_post', function(e, r) {
-  var posts = JSON.parse(localStorage.own_posts || '{}');
-  posts[board] = posts[board] || [];
-  posts[board].push(r.id);
-  localStorage.own_posts = JSON.stringify(posts);
+  if (!board) return;
+  mergeStoredPosts(board, [r.id]);
 });
 
 $(document).on('new_post', function(e,post) {
-  var $post = $(post);
-  if ($post.is('div.post.reply')) { // it's a reply
-    $post.each(update_own);
-  }
-  else {
-    $post.each(update_own); // first OP
-    $post.find('div.post.reply').each(update_own); // then replies
-  }
+  var thread = $(post).closest('.thread[data-board]')[0] || post;
+  update_own.call(thread);
 });
 
 
@@ -2967,7 +3076,7 @@ $(document).on('new_post', function(e,post) {
 /* End js/show-own-posts.js */
 
 /* Begin js/show-own-posts-options.js */
-if (active_page === 'thread' || active_page === 'index' || active_page === 'catalog' || active_page === 'ukko') {
+if (active_page === 'thread' || active_page === 'index' || active_page === 'catalog' || active_page === 'ukko' || active_page === 'search') {
   document.addEventListener('DOMContentLoaded', function () {
     if (!(window.Options && Options.get_tab('general'))) return;
     var runtime = window.EirinchanRuntime || {};
