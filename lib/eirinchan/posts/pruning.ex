@@ -21,6 +21,15 @@ defmodule Eirinchan.Posts.Pruning do
     :ok
   end
 
+  @spec prune_after_post(BoardRecord.t(), Post.t(), map(), module(), function()) :: :ok
+  def prune_after_post(%BoardRecord{} = board, %Post{thread_id: nil}, config, repo, delete_thread_fun)
+      when is_function(delete_thread_fun, 1) or is_function(delete_thread_fun, 2) do
+    prune(board, config, repo, delete_thread_fun)
+    :ok
+  end
+
+  def prune_after_post(%BoardRecord{}, %Post{}, _config, _repo, _delete_thread_fun), do: :ok
+
   defp prune_overflow_threads(board, config, repo, delete_thread_fun) do
     max_threads = max(config.threads_per_page * config.max_pages, 0)
 

@@ -535,7 +535,7 @@ defmodule Eirinchan.Posts do
   end
 
   defp maybe_prune_threads(board, new_post, config, repo) do
-    PostsPruning.prune(board, config, repo, fn thread_id, reason ->
+    PostsPruning.prune_after_post(board, new_post, config, repo, fn thread_id, reason ->
       case get_post_by_internal_id(board, thread_id, repo: repo) do
         {:ok, thread} ->
           _ = maybe_log_early_404(board, thread, new_post, reason)
