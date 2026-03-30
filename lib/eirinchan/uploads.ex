@@ -42,7 +42,8 @@ defmodule Eirinchan.Uploads do
     op? = Keyword.get(opts, :op?, false)
     normalized_name = normalized_input_filename(upload.filename)
 
-    with {:ok, initial_metadata} <- describe_without_normalizing(upload, normalized_name, config),
+    with :ok <- validate_upload_size_early(upload, config),
+         {:ok, initial_metadata} <- describe_without_normalizing(upload, normalized_name, config),
          {:ok, staged_path} <- create_staged_upload_path(initial_metadata.ext) do
       with :ok <- File.cp(upload.path, staged_path),
            :ok <- normalize_stored_upload(staged_path, config, initial_metadata),
@@ -97,6 +98,20 @@ defmodule Eirinchan.Uploads do
       ) do
     _ = upload
     finalize(board, post, config, metadata, suffix)
+  end
+
+  defp validate_upload_size_early(%Plug.Upload{path: path}, config) do
+    max_filesize = config[:max_filesize] || 10 * 1024 * 1024
+
+    if is_integer(max_filesize) and max_filesize > 0 do
+      case File.stat(path) do
+        {:ok, %{size: size}} when size > max_filesize -> {:error, :file_too_large}
+        {:ok, _stat} -> :ok
+        {:error, _reason} -> {:error, :upload_failed}
+      end
+    else
+      :ok
+    end
   end
 
   @spec finalize(BoardRecord.t(), Post.t(), map(), map(), String.t() | nil) ::
