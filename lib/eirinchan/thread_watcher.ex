@@ -10,6 +10,8 @@ defmodule Eirinchan.ThreadWatcher do
   alias Eirinchan.ThreadWatcher.Watch
 
   def list_watches(browser_token) when is_binary(browser_token) do
+    reconcile_moved_watches(browser_token)
+
     Watch
     |> where([watch], watch.browser_token == ^browser_token)
     |> order_by([watch], asc: watch.board_uri, desc: watch.updated_at)
@@ -101,6 +103,8 @@ defmodule Eirinchan.ThreadWatcher do
 
   def watched_thread_ids(browser_token, board_uri)
       when is_binary(browser_token) and is_binary(board_uri) do
+    reconcile_moved_watches(browser_token, board_uri)
+
     Watch
     |> where([watch], watch.browser_token == ^browser_token and watch.board_uri == ^board_uri)
     |> select([watch], watch.thread_id)
@@ -110,6 +114,7 @@ defmodule Eirinchan.ThreadWatcher do
 
   def watch_state_for_board(browser_token, board_uri)
       when is_binary(browser_token) and is_binary(board_uri) do
+    reconcile_moved_watches(browser_token, board_uri)
     purge_missing_watches(browser_token, board_uri)
 
     watches =
@@ -144,6 +149,7 @@ defmodule Eirinchan.ThreadWatcher do
   end
 
   def watch_count(browser_token) when is_binary(browser_token) do
+    reconcile_moved_watches(browser_token)
     purge_missing_watches(browser_token)
 
     Watch
@@ -154,6 +160,7 @@ defmodule Eirinchan.ThreadWatcher do
   end
 
   def watch_metrics(browser_token) when is_binary(browser_token) do
+    reconcile_moved_watches(browser_token)
     purge_missing_watches(browser_token)
     watches = list_watches(browser_token)
 
@@ -229,6 +236,14 @@ defmodule Eirinchan.ThreadWatcher do
       )
 
     {:ok, count}
+  end
+
+  def reconcile_moved_watches(browser_token, board_uri \\ nil)
+      when is_binary(browser_token) and (is_binary(board_uri) or is_nil(board_uri)) do
+    moved_watch_rows(browser_token, board_uri)
+    |> Enum.each(&reconcile_moved_watch/1)
+
+    :ok
   end
 
   def purge_missing_watches(browser_token, board_uri \\ nil)
@@ -376,6 +391,61 @@ defmodule Eirinchan.ThreadWatcher do
       {{watch.board_uri, watch.thread_id}, public_ids}
     end)
     |> Map.new()
+  end
+
+  defp moved_watch_rows(browser_token, board_uri) do
+    query =
+      from watch in Watch,
+        join: thread in Post,
+        on: thread.id == watch.thread_id and is_nil(thread.thread_id),
+        join: board in BoardRecord,
+        on: board.id == thread.board_id,
+        where: watch.browser_token == ^browser_token and watch.board_uri != board.uri,
+        select: %{
+          id: watch.id,
+          browser_token: watch.browser_token,
+          stored_board_uri: watch.board_uri,
+          actual_board_uri: board.uri,
+          thread_id: watch.thread_id
+        }
+
+    query =
+      if is_binary(board_uri) do
+        from row in subquery(query),
+          where: row.stored_board_uri == ^board_uri or row.actual_board_uri == ^board_uri
+      else
+        query
+      end
+
+    Repo.all(query)
+  end
+
+  defp reconcile_moved_watch(%{
+         id: watch_id,
+         browser_token: browser_token,
+         stored_board_uri: stored_board_uri,
+         actual_board_uri: actual_board_uri,
+         thread_id: thread_id
+       }) do
+    case Repo.get_by(Watch,
+           browser_token: browser_token,
+           board_uri: actual_board_uri,
+           thread_id: thread_id
+         ) do
+      %Watch{} ->
+        Repo.delete_all(
+          from watch in Watch,
+            where:
+              watch.id == ^watch_id and watch.browser_token == ^browser_token and
+                watch.board_uri == ^stored_board_uri and watch.thread_id == ^thread_id
+        )
+
+      nil ->
+        Repo.update_all(
+          from(watch in Watch, where: watch.id == ^watch_id),
+          set: [board_uri: actual_board_uri, updated_at: DateTime.utc_now()]
+        )
+    end
   end
 
   defp excerpt(body) when is_binary(body) do
