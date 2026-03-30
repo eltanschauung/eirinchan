@@ -9,6 +9,7 @@ defmodule EirinchanWeb.ThreadController do
   alias Eirinchan.ThreadPaths
   alias EirinchanWeb.Announcements
   alias EirinchanWeb.BoardChrome
+  alias EirinchanWeb.ErrorPages
   alias EirinchanWeb.PublicControllerHelpers
 
   plug EirinchanWeb.Plugs.LoadBoard
@@ -140,7 +141,7 @@ defmodule EirinchanWeb.ThreadController do
         end
 
       {:error, :not_found} ->
-        send_resp(conn, :not_found, "Thread not found")
+        ErrorPages.not_found(conn)
     end
   end
 

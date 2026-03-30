@@ -17,6 +17,7 @@ defmodule EirinchanWeb.PageController do
   alias Eirinchan.Repo
   alias Eirinchan.Settings
   alias Eirinchan.Themes
+  alias EirinchanWeb.ErrorPages
   alias EirinchanWeb.{Announcements, BoardChrome, BoardRuntime}
   alias EirinchanWeb.FragmentCache
   alias EirinchanWeb.HtmlSanitizer
@@ -104,7 +105,7 @@ defmodule EirinchanWeb.PageController do
           )
         )
       else
-        send_resp(conn, :not_found, "Page not found")
+        ErrorPages.not_found(conn)
       end
     end
   end
@@ -120,7 +121,7 @@ defmodule EirinchanWeb.PageController do
           redirect(conn, to: Themes.overboard_path())
         end
       else
-        send_resp(conn, :not_found, "Page not found")
+        ErrorPages.not_found(conn)
       end
     end
   end
@@ -132,7 +133,7 @@ defmodule EirinchanWeb.PageController do
       if Themes.page_theme_enabled?("recent") do
         render_recent_theme(conn, "recent")
       else
-        send_resp(conn, :not_found, "Page not found")
+        ErrorPages.not_found(conn)
       end
     end
   end
@@ -171,7 +172,7 @@ defmodule EirinchanWeb.PageController do
         |> put_resp_content_type("application/xml")
         |> send_resp(200, xml)
       else
-        send_resp(conn, :not_found, "Page not found")
+        ErrorPages.not_found(conn)
       end
     end
   end
@@ -182,7 +183,7 @@ defmodule EirinchanWeb.PageController do
     else
       case CustomPages.get_page_by_slug(slug) do
         nil ->
-          send_resp(conn, :not_found, "Page not found")
+          ErrorPages.not_found(conn)
 
         page ->
           render_custom_page(conn, page)
@@ -245,7 +246,7 @@ defmodule EirinchanWeb.PageController do
     else
       case CustomPages.get_page_by_slug("flags") do
         nil ->
-          send_resp(conn, :not_found, "Page not found")
+          ErrorPages.not_found(conn)
 
         page ->
           render_custom_page(conn, page)
@@ -336,7 +337,7 @@ defmodule EirinchanWeb.PageController do
         )
 
       {:error, :not_found} ->
-        send_resp(conn, :not_found, "Page not found")
+        ErrorPages.not_found(conn)
     end
   end
 
@@ -346,13 +347,15 @@ defmodule EirinchanWeb.PageController do
     else
       case Boards.get_board_by_uri(uri) do
         nil ->
-          send_resp(conn, :not_found, "Page not found")
+          ErrorPages.not_found(conn)
 
         _board ->
           redirect(conn, to: ~p"/flags")
       end
     end
   end
+
+  def not_found(conn, _params), do: ErrorPages.not_found(conn)
 
   defp public_page_assigns(conn, page_kind, active_page, opts \\ []) do
     boards = Keyword.get_lazy(opts, :boards, &Boards.list_boards/0)

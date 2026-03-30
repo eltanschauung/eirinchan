@@ -140,6 +140,26 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ ~s(href="https://github.com/username/eirinchan-v1")
   end
 
+  test "unknown public paths render the shared 404 page with fixed yotsuba styling", %{conn: conn} do
+    moderator_fixture()
+    board_fixture(%{uri: "bant", title: "International Random"})
+    board_fixture(%{uri: "qa", title: "Question & Answer"})
+
+    page =
+      conn
+      |> get("/totally/missing/page")
+      |> html_response(404)
+
+    assert page =~ "Error 404"
+    assert page =~ "Not found. What is blud doing?"
+    assert page =~ "/error_pages/sanae.png"
+    assert page =~ ~s(class="boardlist")
+    assert page =~ ~s(href="/stylesheets/style.css)
+    assert page =~ ~s(id="stylesheet" href="/stylesheets/yotsuba.css)
+    assert page =~ ~s(data-stylesheet="yotsuba.css")
+    refute page =~ ~s(id="style-select")
+  end
+
   test "GET / returns an etag and honors if-none-match", %{conn: conn} do
     moderator_fixture()
     board = board_fixture(%{uri: "etaghome#{System.unique_integer([:positive])}", title: "ETag Home"})

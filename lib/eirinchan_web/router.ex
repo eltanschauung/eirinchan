@@ -294,6 +294,7 @@ defmodule EirinchanWeb.Router do
     get "/:board", BoardController, :show
     post "/:board/post", PostController, :create
     get "/:board/res/:thread_id", ThreadController, :show
+    match :*, "/*path", PageController, :not_found
   end
 
   defp put_html_no_store(conn, _opts) do

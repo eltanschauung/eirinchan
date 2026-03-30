@@ -6,6 +6,7 @@ defmodule EirinchanWeb.BoardController do
   alias Eirinchan.Posts
   alias EirinchanWeb.Announcements
   alias EirinchanWeb.BoardChrome
+  alias EirinchanWeb.ErrorPages
   alias EirinchanWeb.PublicControllerHelpers
 
   plug EirinchanWeb.Plugs.RenderOverboard when action in [:show, :show_page]
@@ -38,7 +39,7 @@ defmodule EirinchanWeb.BoardController do
     if is_integer(page_num) and page_num > 0 do
       render_page(conn, page_num, PublicControllerHelpers.fragment_options(conn.params))
     else
-      send_resp(conn, :not_found, "Page not found")
+      ErrorPages.not_found(conn)
     end
   end
 
@@ -69,7 +70,7 @@ defmodule EirinchanWeb.BoardController do
         Keyword.put(PublicControllerHelpers.fragment_options(conn.params), :params, conn.params)
       )
     else
-      send_resp(conn, :not_found, "Page not found")
+      ErrorPages.not_found(conn)
     end
   end
 
@@ -185,7 +186,7 @@ defmodule EirinchanWeb.BoardController do
         end
 
       {:error, :not_found} ->
-        send_resp(conn, :not_found, "Page not found")
+        ErrorPages.not_found(conn)
     end
   end
 
@@ -314,7 +315,7 @@ defmodule EirinchanWeb.BoardController do
         end
 
       {:error, :not_found} ->
-        send_resp(conn, :not_found, "Page not found")
+        ErrorPages.not_found(conn)
     end
   end
 

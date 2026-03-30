@@ -111,8 +111,8 @@ defmodule EirinchanWeb.PublicControllerHelpers do
     head_meta_opts =
       [
         resource_version: conn.assigns[:asset_version],
-        theme_label: conn.assigns[:theme_label],
-        theme_options: conn.assigns[:theme_options],
+        theme_label: Keyword.get(opts, :theme_label, conn.assigns[:theme_label]),
+        theme_options: Keyword.get(opts, :theme_options, conn.assigns[:theme_options]),
         browser_timezone: conn.assigns[:browser_timezone],
         browser_timezone_offset_minutes: conn.assigns[:browser_timezone_offset_minutes],
         watcher_count: watcher_count,
@@ -125,16 +125,19 @@ defmodule EirinchanWeb.PublicControllerHelpers do
       public_shell: true,
       show_nav_arrows_page: Keyword.get(opts, :show_nav_arrows_page, true),
       viewport_content: "width=device-width, initial-scale=1, user-scalable=yes",
-      base_stylesheet: "/stylesheets/style.css",
-      body_data_stylesheet: data_stylesheet(conn),
+      base_stylesheet: Keyword.get(opts, :base_stylesheet, "/stylesheets/style.css"),
+      body_data_stylesheet: Keyword.get(opts, :body_data_stylesheet, data_stylesheet(conn)),
       watcher_count: watcher_count,
       watcher_unread_count: watcher_unread_count,
       watcher_you_count: watcher_you_count,
       head_meta: PublicShell.head_meta(active_page, head_meta_opts),
-      primary_stylesheet: primary_stylesheet(conn),
+      primary_stylesheet: Keyword.get(opts, :primary_stylesheet, primary_stylesheet(conn)),
       primary_stylesheet_id: "stylesheet",
       extra_stylesheets: Keyword.get(opts, :extra_stylesheets, extra_stylesheets()),
-      hide_theme_switcher: true,
+      theme_label: Keyword.get(opts, :theme_label, conn.assigns[:theme_label]),
+      theme_options: Keyword.get(opts, :theme_options, conn.assigns[:theme_options]),
+      hide_theme_switcher: Keyword.get(opts, :hide_theme_switcher, true),
+      show_options_shell: Keyword.get(opts, :show_options_shell, true),
       skip_app_stylesheet: true
     ]
 
