@@ -6,12 +6,8 @@
   <% end %>
 </div>
 <div id="board-refresh-target" data-fragment-md5={@fragment_md5}>
-  <form name="postcontrols" action="/post.php" method="post">
-    <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
-    <input type="hidden" name="board" value={@board.uri} />
-
-    <div id="board-threads">
-        <%= for summary <- @page_data.threads do %>
+  <div id="board-threads">
+    <%= for summary <- @page_data.threads do %>
           <% thread = summary.thread %>
           <% thread_public_id = PostView.public_post_id(thread) %>
           <% preferred_thread_path = PostView.thread_summary_path(@board, summary, @config) %>
@@ -180,9 +176,37 @@
           <br class="clear" />
         </div>
         <hr />
-      <% end %>
-    </div>
+    <% end %>
+  </div>
 
-    <.board_pages page_data={@page_data} board_uri={@board.uri} config={@config} />
+  <form name="postcontrols" action="/post.php" method="post">
+    <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+    <input type="hidden" name="board" value={@board.uri} />
+    <input type="hidden" name="delete_post_id" value="" />
+    <input type="hidden" name="report_post_id" value="" />
+
+    <div id="post-moderation-fields">
+      <div id="delete-fields">
+        Delete Post [<input title="Delete file only" type="checkbox" name="file" id="delete_file" />
+        <label for="delete_file">File</label>] <label for="password">Password</label>
+        <input
+          id="password"
+          type="password"
+          name="password"
+          size="12"
+          maxlength="18"
+          autocomplete="off"
+        />
+        <input type="submit" name="delete" value="Delete" />
+      </div>
+
+      <div id="report-fields">
+        <label for="reason">Reason</label>
+        <input id="reason" type="text" name="reason" size="20" maxlength="30" />
+        <input type="submit" name="report" value="Report" />
+      </div>
+    </div>
   </form>
+
+  <.board_pages page_data={@page_data} board_uri={@board.uri} config={@config} />
 </div>

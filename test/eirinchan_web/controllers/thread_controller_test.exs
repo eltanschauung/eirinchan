@@ -131,6 +131,27 @@ defmodule EirinchanWeb.ThreadControllerTest do
     assert get_resp_header(second_conn, "etag") == [etag]
   end
 
+  test "thread pages keep the shared postcontrols form outside the rendered thread tree", %{
+    conn: conn
+  } do
+    board = board_fixture()
+    thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
+    _reply = reply_fixture(board, thread, %{body: "Reply body"})
+
+    page = get(conn, "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html") |> html_response(200)
+
+    assert page =~ ~s(<div class="thread")
+    assert page =~ ~s(<form name="postcontrols" id="thread-post-controls" action="/post.php" method="post">)
+    assert page =~ ~s(name="delete_post_id")
+    assert page =~ ~s(name="report_post_id")
+
+    {thread_pos, _} = :binary.match(page, ~s(<div class="thread"))
+    {form_pos, _} =
+      :binary.match(page, ~s(<form name="postcontrols" id="thread-post-controls" action="/post.php" method="post">))
+
+    assert thread_pos < form_pos
+  end
+
   test "plain thread urls redirect to the canonical slug path", %{conn: conn} do
     board = board_fixture(%{config_overrides: %{slugify: true}})
     config = Config.compose(nil, %{}, board.config_overrides, request_host: "www.example.com")

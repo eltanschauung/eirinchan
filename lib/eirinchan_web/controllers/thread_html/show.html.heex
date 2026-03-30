@@ -232,12 +232,6 @@
   <% end %>
 </div>
 
-<form name="postcontrols" id="thread-post-controls" action="/post.php" method="post">
-  <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
-  <input type="hidden" name="board" value={@board.uri} />
-  <input type="hidden" id="thread_delete_post_id" name="delete_post_id" value="" />
-  <input type="hidden" id="thread_report_post_id" name="report_post_id" value="" />
-
 <div
   class="thread"
   id={"thread_#{PostView.public_post_id(post)}"}
@@ -418,6 +412,12 @@
     <hr />
   </div>
 
+  <form name="postcontrols" id="thread-post-controls" action="/post.php" method="post">
+    <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+    <input type="hidden" name="board" value={@board.uri} />
+    <input type="hidden" id="thread_delete_post_id" name="delete_post_id" value="" />
+    <input type="hidden" id="thread_report_post_id" name="report_post_id" value="" />
+
   <div id="thread-interactions">
     <span id="thread-links">
       <a
@@ -480,7 +480,7 @@
   </div>
 
   <div class="clearfix"></div>
-</form>
+  </form>
 
 <a name="bottom" id="bottom"></a>
 <.boardlist
