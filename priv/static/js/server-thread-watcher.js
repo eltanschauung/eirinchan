@@ -42,14 +42,23 @@
     }
   };
 
-  var syncWatchLinks = function(boardUri, threadId, watched) {
-    var selector = '[data-thread-watch][data-thread-id="' + threadId + '"]';
+  var boardUriFor = function(element) {
+    if (!element) return '';
 
-    if (boardUri) {
-      selector += '[data-board-uri="' + boardUri + '"]';
+    if (element.dataset) {
+      if (element.dataset.boardUri) return element.dataset.boardUri;
+      if (element.dataset.board) return element.dataset.board;
     }
 
-    document.querySelectorAll(selector).forEach(function(link) {
+    var container = element.closest && element.closest('[data-board],[data-board-uri]');
+    if (!container || !container.dataset) return '';
+
+    return container.dataset.boardUri || container.dataset.board || '';
+  };
+
+  var syncWatchLinks = function(boardUri, threadId, watched) {
+    document.querySelectorAll('[data-thread-watch][data-thread-id="' + threadId + '"]').forEach(function(link) {
+      if (boardUri && boardUriFor(link) !== boardUri) return;
       link.dataset.watched = watched ? 'true' : 'false';
       if (link.classList.contains('watch-thread-link')) {
         link.classList.toggle('watched', watched);
@@ -59,13 +68,8 @@
       }
     });
 
-    var threadSelector = '.thread[data-thread-id="' + threadId + '"]';
-
-    if (boardUri) {
-      threadSelector += '[data-board-uri="' + boardUri + '"]';
-    }
-
-    document.querySelectorAll(threadSelector).forEach(function(thread) {
+    document.querySelectorAll('.thread[data-thread-id="' + threadId + '"]').forEach(function(thread) {
+      if (boardUri && boardUriFor(thread) !== boardUri) return;
       thread.dataset.watched = watched ? 'true' : 'false';
     });
   };
@@ -192,7 +196,9 @@
     if (link.dataset.pending === 'true') return;
 
     var watched = link.dataset.watched === 'true';
-    var url = watched ? link.dataset.unwatchUrl : link.dataset.watchUrl;
+    var boardUri = boardUriFor(link);
+    var threadId = link.dataset.threadId;
+    var url = boardUri && threadId ? '/watcher/' + encodeURIComponent(boardUri) + '/' + encodeURIComponent(threadId) : null;
     var method = watched ? 'DELETE' : 'POST';
     var token = csrfToken(link);
 

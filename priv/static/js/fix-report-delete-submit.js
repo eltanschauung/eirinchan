@@ -59,10 +59,10 @@ function prepareSharedActionForm($form, postId, action) {
 }
 	
 if ($('#delete-fields #password').length) {
-	Menu.add_item("delete_post_menu", _("Delete post"));
+Menu.add_item("delete_post_menu", _("Delete post"));
 	Menu.add_item("delete_file_menu", _("Delete file"));
 Menu.onclick(function(e, $buf) {
-		var ele = e.target.dataset.postTarget ? document.getElementById(e.target.dataset.postTarget) : $(e.target).closest('.post')[0];
+		var ele = $(e.target).closest('.post')[0];
 		var $ele = $(ele);
 		var postId = $ele.find('.post_no').not('[id]').text();
 		var hasFiles = $ele.find('.files .file, .files .multifile').length > 0;
@@ -103,7 +103,7 @@ Menu.onclick(function(e, $buf) {
 Menu.add_item("report_menu", _("Report"));
 //Menu.add_item("global_report_menu", _("Global report"));
 Menu.onclick(function(e, $buf) {
-	var ele = e.target.dataset.postTarget ? document.getElementById(e.target.dataset.postTarget) : $(e.target).closest('.post')[0];
+	var ele = $(e.target).closest('.post')[0];
 	var $ele = $(ele);
 	var postId = $ele.find('.post_no').not('[id]').text();
 

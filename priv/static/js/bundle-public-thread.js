@@ -1709,10 +1709,6 @@ function buildMenu(e) {
 		$menu = $('<div id="post-menu-root" class="post-menu hidden" hidden></div>').appendTo('body');
 	}
 
-	if (!$post.length && e.target.dataset.postTarget) {
-		$post = $('#' + e.target.dataset.postTarget).closest('.post.reply, .post.op, .post');
-	}
-
 	$menu.empty().append(mainMenu.list_items());
 	menuBackground = resolveMenuBackground($target, $post);
 	$menu.css('--post-menu-bg-local', menuBackground);
@@ -1777,7 +1773,7 @@ $('.reply:not(.hidden), .thread>.op').each(function () {
   */
 $(document).on('click', '.post-btn', function (e) {
 	e.preventDefault();
-	var post = e.target.dataset.postTarget ? document.getElementById(e.target.dataset.postTarget) : $(e.target).closest('.post')[0];
+	var post = $(e.target).closest('.post')[0];
 	if (!post) {
 		return;
 	}
@@ -2049,9 +2045,7 @@ if (active_page === 'thread' || active_page === 'index' || active_page === 'cata
 				submenu.add_item('filter-remove-trip', _('Tripcode'));
 
 			Menu.onclick(function (e, $buffer) {
-				var ele = e.target.dataset.postTarget
-					? document.getElementById(e.target.dataset.postTarget)
-					: $(e.target).closest('.post')[0];
+				var ele = $(e.target).closest('.post')[0];
 				var $ele = $(ele);
 				var $thread = $ele.closest('.thread');
 
@@ -4249,10 +4243,10 @@ function prepareSharedActionForm($form, postId, action) {
 }
 	
 if ($('#delete-fields #password').length) {
-	Menu.add_item("delete_post_menu", _("Delete post"));
+Menu.add_item("delete_post_menu", _("Delete post"));
 	Menu.add_item("delete_file_menu", _("Delete file"));
 Menu.onclick(function(e, $buf) {
-		var ele = e.target.dataset.postTarget ? document.getElementById(e.target.dataset.postTarget) : $(e.target).closest('.post')[0];
+		var ele = $(e.target).closest('.post')[0];
 		var $ele = $(ele);
 		var postId = $ele.find('.post_no').not('[id]').text();
 		var hasFiles = $ele.find('.files .file, .files .multifile').length > 0;
@@ -4293,7 +4287,7 @@ Menu.onclick(function(e, $buf) {
 Menu.add_item("report_menu", _("Report"));
 //Menu.add_item("global_report_menu", _("Global report"));
 Menu.onclick(function(e, $buf) {
-	var ele = e.target.dataset.postTarget ? document.getElementById(e.target.dataset.postTarget) : $(e.target).closest('.post')[0];
+	var ele = $(e.target).closest('.post')[0];
 	var $ele = $(ele);
 	var postId = $ele.find('.post_no').not('[id]').text();
 

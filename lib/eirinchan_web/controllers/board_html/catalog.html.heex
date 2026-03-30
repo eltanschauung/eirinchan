@@ -298,10 +298,8 @@
           <div
             class="thread grid-li grid-size-large"
             id={"catalog-#{post_public_id}"}
-            data-board-uri={@board.uri}
+            data-board={@board.uri}
             data-thread-id={post_public_id}
-            data-watch-url={"/watcher/#{@board.uri}/#{post_public_id}"}
-            data-unwatch-url={"/watcher/#{@board.uri}/#{post_public_id}"}
             data-watched={to_string(watch.watched)}
           >
             <a href={PostView.thread_summary_path(@board, summary, @config)}>

@@ -43,4 +43,27 @@ defmodule EirinchanWeb.BoardControllerTest do
 
     assert threads_pos < form_pos
   end
+
+  test "board index derives watcher paths client-side instead of embedding per-thread watch urls", %{
+    conn: conn
+  } do
+    board = board_fixture()
+    _thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
+
+    page = get(conn, "/#{board.uri}") |> html_response(200)
+
+    refute page =~ "data-watch-url="
+    refute page =~ "data-unwatch-url="
+  end
+
+  test "board index derives post menu targets client-side instead of embedding per-post targets", %{
+    conn: conn
+  } do
+    board = board_fixture()
+    _thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
+
+    page = get(conn, "/#{board.uri}") |> html_response(200)
+
+    refute page =~ "data-post-target="
+  end
 end
