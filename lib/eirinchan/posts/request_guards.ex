@@ -52,7 +52,7 @@ defmodule Eirinchan.Posts.RequestGuards do
       ipaccess_reply_bypass?(attrs, config) ->
         :ok
 
-      ipaccess_bypass?(attrs, config) ->
+      ip_nulling_bypass?(attrs, config) ->
         :ok
 
       AccessList.allowed_for_posting?(request[:remote_ip] || request["remote_ip"]) ->
@@ -71,7 +71,7 @@ defmodule Eirinchan.Posts.RequestGuards do
       ipaccess_reply_bypass?(attrs, config) ->
         :ok
 
-      ipaccess_bypass?(attrs, config) ->
+      ip_nulling_bypass?(attrs, config) ->
         :ok
 
       true ->
@@ -153,7 +153,7 @@ defmodule Eirinchan.Posts.RequestGuards do
     end
   end
 
-  def validate_ban(request, board) do
+  def validate_ban(_attrs, request, board, _config) do
     if moderator_board_access?(request, board) do
       :ok
     else
@@ -195,7 +195,7 @@ defmodule Eirinchan.Posts.RequestGuards do
 
   defp request_moderator(request), do: request[:moderator] || request["moderator"]
 
-  defp ipaccess_bypass?(attrs, config) do
+  def ip_nulling_bypass?(attrs, config) do
     case Map.get(config, :ip_nulling_flags, 0) do
       threshold when is_integer(threshold) and threshold > 0 ->
         submitted_flag_length(attrs) >= threshold

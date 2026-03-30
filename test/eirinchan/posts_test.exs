@@ -2644,6 +2644,82 @@ defmodule Eirinchan.PostsTest do
              )
   end
 
+  test "create_post still enforces active bans when the flag threshold is met" do
+    board = board_fixture()
+
+    Repo.insert!(
+      %Eirinchan.Bans.Ban{
+        board_id: board.id,
+        ip_subnet: "203.0.113.0/24",
+        reason: "flag bypass test",
+        active: true
+      }
+    )
+
+    config =
+      post_config(%{
+        ip_nulling_flags: 8
+      })
+
+    assert {:error, :banned} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "ban still enforced",
+                 "post" => "New Topic",
+                 "user_flag" => "country,mokou"
+               },
+               config: config,
+               request: %{
+                 referer: "http://example.test/#{board.uri}/index.html",
+                 remote_ip: {203, 0, 113, 9}
+               }
+             )
+  end
+
+  test "create_post bypasses antispam and does not log flood entries when the flag threshold is met" do
+    board =
+      board_fixture(%{config_overrides: %{flood_time: 60, flood_time_ip: 0, flood_time_same: 0}})
+
+    config =
+      post_config(
+        board.config_overrides
+        |> Kernel.||(%{})
+        |> Map.put(:ip_nulling_flags, 8)
+      )
+
+    request = %{
+      referer: "http://example.test/#{board.uri}/index.html",
+      remote_ip: {203, 0, 113, 11}
+    }
+
+    attrs = %{
+      "body" => "first body",
+      "post" => "New Topic",
+      "user_flag" => "country,mokou"
+    }
+
+    assert {:ok, _thread, _meta} =
+             Posts.create_post(
+               board,
+               attrs,
+               config: config,
+               request: request,
+               repo: Repo
+             )
+
+    assert {:ok, _thread, _meta} =
+             Posts.create_post(
+               board,
+               %{attrs | "body" => "second body"},
+               config: config,
+               request: request,
+               repo: Repo
+             )
+
+    assert Antispam.list_flood_entries("203.0.113.11", repo: Repo) == []
+  end
+
   test "reply bumping reorders threads unless the reply is sage" do
     board = board_fixture()
     config = post_config(board.config_overrides)

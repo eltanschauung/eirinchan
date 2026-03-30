@@ -7,6 +7,7 @@ defmodule Eirinchan.Build do
   alias Eirinchan.Boards
   alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.BuildQueue
+  alias Eirinchan.Locking
   alias Eirinchan.Posts
   alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Purge
@@ -313,12 +314,11 @@ defmodule Eirinchan.Build do
         :ok
 
       _ ->
-        run_async(fn ->
-          with :ok <- build_thread(board, thread_id, config: config, repo: repo),
-               :ok <- build_indexes(board, config: config, repo: repo) do
-            :ok
-          end
-        end)
+        with {:ok, _thread_job} <-
+               BuildQueue.enqueue_thread(board, thread_id, repo: repo, config: config),
+             {:ok, _index_job} <- BuildQueue.enqueue_indexes(board, repo: repo, config: config) do
+          drain_async(board, config, repo)
+        end
     end
   end
 
@@ -337,8 +337,18 @@ defmodule Eirinchan.Build do
         :ok
 
       _ ->
-        run_async(fn -> build_indexes(board, config: config, repo: repo) end)
+        with {:ok, _job} <- BuildQueue.enqueue_indexes(board, repo: repo, config: config) do
+          drain_async(board, config, repo)
+        end
     end
+  end
+
+  defp drain_async(board, config, repo) do
+    run_async(fn ->
+      Locking.with_exclusive_lock(config, "build_drain:#{board.id}", fn ->
+        process_pending(board: board, config: config, repo: repo)
+      end)
+    end)
   end
 
   defp run_async(fun) when is_function(fun, 0) do
