@@ -118,7 +118,7 @@ defmodule Eirinchan.Posts.Pruning do
         }
     )
     |> Enum.each(fn row ->
-      if row.reply_count > 0 or row.image_count > 0 do
+      if gap_eligible?(row, config) do
         score = gap_score(row.inserted_at, row.reply_count, row.image_count)
         warning? = score <= config.early_404_gap_warning
         deletion? = score <= config.early_404_gap_deletion
@@ -138,6 +138,10 @@ defmodule Eirinchan.Posts.Pruning do
   end
 
   defp prune_gap_threads(_board, _config, _repo, _delete_thread_fun), do: :ok
+
+  defp gap_eligible?(row, config) do
+    (row.reply_count > 0 or row.image_count > 0) and row.reply_count < config.early_404_gap_max
+  end
 
   defp gap_score(inserted_at, reply_count, image_count) do
     age_seconds =

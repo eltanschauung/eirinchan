@@ -458,4 +458,18 @@ defmodule Eirinchan.Runtime.ConfigTest do
     assert config.error.mime_exploit ==
              "MIME type detection XSS exploit (IE) detected; post discarded."
   end
+
+  test "normalizes early404 gap max alias" do
+    config =
+      Config.compose(
+        %{
+          root: "/",
+          dir: %{img: "img/", thumb: "thumb/", res: "res/"}
+        },
+        %{},
+        %{"early404GapMax" => 25}
+      )
+
+    assert config.early_404_gap_max == 25
+  end
 end
