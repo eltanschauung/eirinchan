@@ -2434,6 +2434,8 @@ $(document).ready(function(){
 				var replacement = doc.querySelector('#board-refresh-target');
 				var current = document.querySelector('#board-refresh-target');
 				var currentThreads;
+				var currentPostControls;
+				var replacementPostControls;
 				var hiddenStateById = {};
 				var loaded_posts = 0;
 				var max_current_post_id = 0;
@@ -2482,6 +2484,13 @@ $(document).ready(function(){
 						loaded_posts++;
 					}
 				});
+
+				currentPostControls = current.querySelector('form[name="postcontrols"]');
+				replacementPostControls = replacement.querySelector('form[name="postcontrols"]');
+
+				if (currentPostControls && replacementPostControls) {
+					replacementPostControls.replaceWith(currentPostControls);
+				}
 
 				current.replaceWith(replacement);
 
