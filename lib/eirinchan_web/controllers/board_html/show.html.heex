@@ -266,12 +266,8 @@
 <p :if={@page_data.threads == []} class="unimportant">No threads yet.</p>
 
 <div id="board-refresh-target" data-fragment-md5={@fragment_md5}>
-  <form name="postcontrols" action="/post.php" method="post">
-    <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
-    <input type="hidden" name="board" value={@board.uri} />
-
-    <div id="board-threads">
-      <%= for summary <- @page_data.threads do %>
+  <div id="board-threads">
+    <%= for summary <- @page_data.threads do %>
         <% thread = summary.thread %>
         <% thread_public_id = PostView.public_post_id(thread) %>
         <% preferred_thread_path = PostView.thread_summary_path(@board, summary, @config) %>
@@ -437,9 +433,14 @@
           <br class="clear" />
           <hr />
         </div>
-      <% end %>
-    </div>
+    <% end %>
+  </div>
 
+  <form name="postcontrols" action="/post.php" method="post">
+    <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+    <input type="hidden" name="board" value={@board.uri} />
+    <input type="hidden" name="delete_post_id" value="" />
+    <input type="hidden" name="report_post_id" value="" />
     <div id="post-moderation-fields">
       <div id="delete-fields">
         Delete Post [<input title="Delete file only" type="checkbox" name="file" id="delete_file" />

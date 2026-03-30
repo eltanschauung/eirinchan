@@ -26,4 +26,21 @@ defmodule EirinchanWeb.BoardControllerTest do
     assert second_conn.resp_body == ""
     assert get_resp_header(second_conn, "etag") == [etag]
   end
+
+  test "board index keeps the shared postcontrols form outside the thread tree", %{conn: conn} do
+    board = board_fixture()
+    _thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
+
+    page = get(conn, "/#{board.uri}") |> html_response(200)
+
+    assert page =~ ~s(<div id="board-threads">)
+    assert page =~ ~s(<form name="postcontrols" action="/post.php" method="post">)
+    assert page =~ ~s(name="delete_post_id")
+    assert page =~ ~s(name="report_post_id")
+
+    {threads_pos, _} = :binary.match(page, ~s(<div id="board-threads">))
+    {form_pos, _} = :binary.match(page, ~s(<form name="postcontrols" action="/post.php" method="post">))
+
+    assert threads_pos < form_pos
+  end
 end
