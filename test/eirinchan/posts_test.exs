@@ -333,7 +333,7 @@ defmodule Eirinchan.PostsTest do
 
     assert thread.file_type == "image/jpeg"
     assert thread.thumb_path =~ ~r|^/#{board.uri}/thumb/\d+s\.jpg$|
-    assert identify_value(Eirinchan.Uploads.filesystem_path(thread.thumb_path), "%Q") == "70"
+    assert identify_value(Eirinchan.Uploads.filesystem_path(thread.thumb_path), "%Q") == "85"
   end
 
   test "create_post allows file-only replies without a body" do
@@ -653,7 +653,7 @@ defmodule Eirinchan.PostsTest do
     assert thread.thumb_path =~ ~r|^/#{board.uri}/thumb/\d+s\.jpg$|
     assert thread.image_width == 64
     assert thread.image_height == 48
-    assert identify_value(Eirinchan.Uploads.filesystem_path(thread.thumb_path), "%Q") == "70"
+    assert identify_value(Eirinchan.Uploads.filesystem_path(thread.thumb_path), "%Q") == "85"
   end
 
   test "create_post keeps video thumbnail aspect ratio within configured bounds" do
