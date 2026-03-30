@@ -268,6 +268,7 @@
   document.addEventListener("click", function (event) {
     const link = event.target.closest("[data-quote-to]");
     if (!link) return;
+    if ((link.dataset.citeMode || "inline") === "navigate") return;
 
     const textarea = targetTextarea(link);
     if (!textarea) return;

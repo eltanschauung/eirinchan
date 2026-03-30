@@ -150,16 +150,13 @@
 
       var citeLink = event.target.closest('a[data-cite-reply]');
       if (citeLink) {
-        if (typeof window.citeReply !== 'function') return;
-
         var postId = citeLink.getAttribute('data-cite-reply');
         var mode = citeLink.getAttribute('data-cite-mode') || 'inline';
 
         if (mode !== 'navigate') {
+          if (typeof window.citeReply !== 'function') return;
           event.preventDefault();
           window.citeReply(postId, false);
-        } else {
-          window.citeReply(postId, true);
         }
 
         return;
