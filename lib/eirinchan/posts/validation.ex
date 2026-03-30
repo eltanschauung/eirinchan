@@ -92,12 +92,7 @@ defmodule Eirinchan.Posts.Validation do
     if config.reply_hard_limit in [0, nil] do
       :ok
     else
-      replies =
-        repo.aggregate(
-          from(post in Post, where: post.board_id == ^board.id and post.thread_id == ^thread.id),
-          :count,
-          :id
-        )
+      replies = cached_reply_count(thread) || live_reply_count(board, thread, repo)
 
       if replies >= config.reply_hard_limit, do: {:error, :reply_hard_limit}, else: :ok
     end
@@ -121,37 +116,17 @@ defmodule Eirinchan.Posts.Validation do
         |> Map.get("__upload_entries__", [])
         |> Enum.count(fn %{metadata: metadata} -> Uploads.image?(metadata) end)
 
-      images =
-        repo.aggregate(
-          from(
-            post in Post,
-            where:
-              post.board_id == ^board.id and
-                (post.id == ^thread.id or post.thread_id == ^thread.id) and
-                like(post.file_type, "image/%")
-          ),
-          :count,
-          :id
-        )
+      cond do
+        additional_images == 0 ->
+          :ok
 
-      extra_images =
-        repo.aggregate(
-          from(
-            post_file in PostFile,
-            join: post in Post,
-            on: post_file.post_id == post.id,
-            where:
-              post.board_id == ^board.id and
-                (post.id == ^thread.id or post.thread_id == ^thread.id) and
-                like(post_file.file_type, "image/%")
-          ),
-          :count,
-          :id
-        )
+        true ->
+          current_images = cached_image_count(thread) || live_image_count(board, thread, repo)
 
-      if images + extra_images + additional_images > config.image_hard_limit,
-        do: {:error, :image_hard_limit},
-        else: :ok
+          if current_images + additional_images > config.image_hard_limit,
+            do: {:error, :image_hard_limit},
+            else: :ok
+      end
     end
   end
 
@@ -159,53 +134,145 @@ defmodule Eirinchan.Posts.Validation do
       when not is_map_key(attrs, "__upload_entries__"),
       do: :ok
 
+  def validate_duplicate_upload(_board, _thread, %{"__upload_entries__" => []}, _config, _repo),
+    do: :ok
+
+  def validate_duplicate_upload(_board, _thread, attrs, config, _repo)
+      when config.duplicate_file_mode not in ["global", "thread"] do
+    duplicate_uploads?(attrs)
+  end
+
+  def validate_duplicate_upload(_board, thread, attrs, %{duplicate_file_mode: "thread"}, _repo)
+      when is_nil(thread) do
+    duplicate_uploads?(attrs)
+  end
+
   def validate_duplicate_upload(_board, thread, attrs, config, repo) do
-    md5s =
-      attrs
-      |> Map.get("__upload_entries__", [])
-      |> Enum.map(fn %{metadata: metadata} -> metadata.file_md5 end)
+    with :ok <- duplicate_uploads?(attrs),
+         md5s when md5s != [] <- upload_md5s(attrs) do
+      duplicate? =
+        case config.duplicate_file_mode do
+          "global" -> duplicate_md5_exists?(md5s, nil, repo)
+          "thread" -> duplicate_md5_exists?(md5s, thread.id, repo)
+          _ -> false
+        end
+
+      if duplicate?, do: {:error, :duplicate_file}, else: :ok
+    else
+      :ok -> :ok
+      [] -> :ok
+      {:error, :duplicate_file} = error -> error
+    end
+  end
+
+  defp cached_reply_count(%Post{cached_reply_count: count}) when is_integer(count) and count >= 0,
+    do: count
+
+  defp cached_reply_count(_thread), do: nil
+
+  defp live_reply_count(board, thread, repo) do
+    repo.aggregate(
+      from(post in Post, where: post.board_id == ^board.id and post.thread_id == ^thread.id),
+      :count,
+      :id
+    )
+  end
+
+  defp cached_image_count(%Post{} = thread) do
+    cached = thread.cached_image_count
+    minimum = primary_post_image_count(thread)
+
+    if is_integer(cached) and cached >= minimum do
+      cached
+    else
+      nil
+    end
+  end
+
+  defp primary_post_image_count(%Post{file_path: path, file_type: type})
+       when is_binary(path) and path != "deleted" and is_binary(type) do
+    if String.starts_with?(type, "image/"), do: 1, else: 0
+  end
+
+  defp primary_post_image_count(_thread), do: 0
+
+  defp live_image_count(board, thread, repo) do
+    images =
+      repo.aggregate(
+        from(
+          post in Post,
+          where:
+            post.board_id == ^board.id and
+              (post.id == ^thread.id or post.thread_id == ^thread.id) and
+              like(post.file_type, "image/%")
+        ),
+        :count,
+        :id
+      )
+
+    extra_images =
+      repo.aggregate(
+        from(
+          post_file in PostFile,
+          join: post in Post,
+          on: post_file.post_id == post.id,
+          where:
+            post.board_id == ^board.id and
+              (post.id == ^thread.id or post.thread_id == ^thread.id) and
+              like(post_file.file_type, "image/%")
+        ),
+        :count,
+        :id
+      )
+
+    images + extra_images
+  end
+
+  defp duplicate_uploads?(attrs) do
+    md5s = upload_md5s(attrs)
 
     if Enum.uniq(md5s) != md5s do
       {:error, :duplicate_file}
     else
-      Enum.reduce_while(md5s, :ok, fn md5, :ok ->
-        case config.duplicate_file_mode do
-          "global" ->
-            duplicate? =
-              repo.exists?(
-                from post in Post, where: post.file_md5 == ^md5 and not is_nil(post.file_md5)
-              ) or
-                repo.exists?(
-                  from post_file in PostFile,
-                    where: post_file.file_md5 == ^md5 and not is_nil(post_file.file_md5)
-                )
-
-            if duplicate?, do: {:halt, {:error, :duplicate_file}}, else: {:cont, :ok}
-
-          "thread" when not is_nil(thread) ->
-            duplicate? =
-              repo.exists?(
-                from post in Post,
-                  where:
-                    (post.id == ^thread.id or post.thread_id == ^thread.id) and
-                      post.file_md5 == ^md5 and not is_nil(post.file_md5)
-              ) or
-                repo.exists?(
-                  from post_file in PostFile,
-                    join: post in Post,
-                    on: post_file.post_id == post.id,
-                    where:
-                      (post.id == ^thread.id or post.thread_id == ^thread.id) and
-                        post_file.file_md5 == ^md5 and not is_nil(post_file.file_md5)
-                )
-
-            if duplicate?, do: {:halt, {:error, :duplicate_file}}, else: {:cont, :ok}
-
-          _ ->
-            {:cont, :ok}
-        end
-      end)
+      :ok
     end
+  end
+
+  defp upload_md5s(attrs) do
+    attrs
+    |> Map.get("__upload_entries__", [])
+    |> Enum.map(fn %{metadata: metadata} -> metadata.file_md5 end)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp duplicate_md5_exists?(md5s, nil, repo) do
+    repo.exists?(
+      from(post in Post, where: post.file_md5 in ^md5s and not is_nil(post.file_md5))
+    ) or
+      repo.exists?(
+        from(post_file in PostFile,
+          where: post_file.file_md5 in ^md5s and not is_nil(post_file.file_md5)
+        )
+      )
+  end
+
+  defp duplicate_md5_exists?(md5s, thread_id, repo) do
+    repo.exists?(
+      from(post in Post,
+        where:
+          (post.id == ^thread_id or post.thread_id == ^thread_id) and
+            post.file_md5 in ^md5s and not is_nil(post.file_md5)
+      )
+    ) or
+      repo.exists?(
+        from(post_file in PostFile,
+          join: post in Post,
+          on: post_file.post_id == post.id,
+          where:
+            (post.id == ^thread_id or post.thread_id == ^thread_id) and
+              post_file.file_md5 in ^md5s and not is_nil(post_file.file_md5)
+        )
+      )
   end
 
   defp present_embed?(attrs) when is_map(attrs) do
