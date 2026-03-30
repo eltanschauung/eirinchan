@@ -3,6 +3,7 @@ defmodule EirinchanWeb.Plugs.LoadBoard do
 
   alias Eirinchan.Boards
   alias Eirinchan.Runtime
+  alias EirinchanWeb.ErrorPages
 
   def init(opts), do: opts
 
@@ -30,9 +31,7 @@ defmodule EirinchanWeb.Plugs.LoadBoard do
       )
     else
       _ ->
-        conn
-        |> send_resp(:not_found, "Board not found")
-        |> halt()
+        ErrorPages.not_found(conn)
     end
   end
 

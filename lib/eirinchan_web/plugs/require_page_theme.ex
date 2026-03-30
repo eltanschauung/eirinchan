@@ -1,9 +1,8 @@
 defmodule EirinchanWeb.Plugs.RequirePageTheme do
   @moduledoc false
 
-  import Plug.Conn
-
   alias Eirinchan.Themes
+  alias EirinchanWeb.ErrorPages
 
   def init(opts), do: opts
 
@@ -13,9 +12,7 @@ defmodule EirinchanWeb.Plugs.RequirePageTheme do
     if Themes.page_theme_enabled?(theme) do
       conn
     else
-      conn
-      |> send_resp(:not_found, "Page not found")
-      |> halt()
+      ErrorPages.not_found(conn)
     end
   end
 end

@@ -1,0 +1,65 @@
+# The directory Mix will write compiled artifacts to.
+/_build/
+
+# If you run "mix test --cover", coverage assets end up here.
+/cover/
+
+# The directory Mix downloads your dependencies sources to.
+/deps/
+
+# Where 3rd-party dependencies like ExDoc output generated docs.
+/doc/
+
+# Ignore .fetch files in case you like to edit your project deps locally.
+/.fetch
+
+# If the VM crashes, it generates a dump, let's ignore it too.
+erl_crash.dump
+
+# This is old now
+retrospective_design_audit.md
+skeleton.txt
+spec.md
+features.txt
+.gitignore
+
+# Also ignore archive artifacts (built via "mix archive.build").
+*.ez
+
+# Temporary files, for example, from tests.
+/tmp/
+
+# Ignore package tarball (built via "mix hex.build").
+eirinchan-*.tar
+
+AGENTS.md
+/faq
+/flags
+security_skeleton.txt
+/priv/static/whalestickers/
+
+js_migration_plan.txt
+thread_watcher_spec.md
+/priv/static/static/banners/
+/priv/static/favicon.ico
+/priv/static/site_logo.png
+/priv/static/site_logo2.png
+/priv/static/site_logo2_recent.png
+/priv/static/whales.jpg
+/priv/static/error_pages/*.png
+/priv/static/stylesheets/keyedfrog.css
+/static/stylesheets/keyedfrog.css
+
+thread_watcher_spec.md
+
+# Local runtime state
+/access.conf
+/var/settings.json
+/var/install.json
+/var/access.conf
+/priv/static/secret_bfc.png
+
+posting_pipeline_examination.txt
+posting_pipeline_speedup_plan.txt
+html_size_findings.txt
+html_size_reduction_plan.txt

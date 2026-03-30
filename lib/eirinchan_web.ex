@@ -21,6 +21,7 @@ defmodule EirinchanWeb do
     do: ~w(
         assets
         auth
+        error_pages
         faq
         flag
         flags

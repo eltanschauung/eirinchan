@@ -82,7 +82,9 @@ defmodule EirinchanWeb.ThemeManagementControllerTest do
       |> recycle()
       |> get("/#{board.uri}/catalog.html")
 
-    assert response(disabled_conn, 404)
+    disabled_html = html_response(disabled_conn, 404)
+    assert disabled_html =~ "Error 404"
+    assert disabled_html =~ "Not found. What is blud doing?"
 
     install_conn =
       conn
@@ -128,7 +130,9 @@ defmodule EirinchanWeb.ThemeManagementControllerTest do
       |> recycle()
       |> get("/#{board.uri}/catalog.html")
 
-    assert response(missing_catalog_conn, 404)
+    missing_catalog_html = html_response(missing_catalog_conn, 404)
+    assert missing_catalog_html =~ "Error 404"
+    assert missing_catalog_html =~ "Not found. What is blud doing?"
   end
 
   test "admin can install and uninstall faq theme", %{conn: conn} do

@@ -1,0 +1,19 @@
+<.board_banner show={@primary_board && @primary_board.uri == "bant"} />
+
+<header>
+  <h1>Error 404</h1>
+  <div class="subtitle"></div>
+</header>
+
+<div class="ban">
+  <header>
+    <h1><%= @message || "Not found. What is blud doing?" %></h1>
+    <div id="box" style="max-width:600px;text-align:center;">
+      <img src="/error_pages/sanae.png" style="text-align:center;max-width:28em;margin-top:20px;" alt="404" />
+    </div>
+  </header>
+</div>
+
+<%= if @board_chrome.show_footer do %>
+  <EirinchanWeb.PostComponents.site_footer />
+<% end %>
