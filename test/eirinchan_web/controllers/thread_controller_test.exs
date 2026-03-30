@@ -405,7 +405,7 @@ defmodule EirinchanWeb.ThreadControllerTest do
     assert page =~ "img.youtube.com/vi/dQw4w9WgXcQ/0.jpg"
   end
 
-  test "thread pages render video loop controls in initial html", %{conn: conn} do
+  test "thread pages do not render video loop controls in initial html", %{conn: conn} do
     board = board_fixture()
     upload = video_upload_fixture("clip.webm")
 
@@ -427,9 +427,9 @@ defmodule EirinchanWeb.ThreadControllerTest do
       |> get("/#{board.uri}/res/#{id}.html")
       |> html_response(200)
 
-    assert page =~ ~s(class="video-loop-controls")
-    assert page =~ ~s(data-video-loop-mode="once")
-    assert page =~ ~s(data-video-loop-mode="loop")
+    refute page =~ ~s(class="video-loop-controls")
+    refute page =~ ~s(data-video-loop-mode="once")
+    refute page =~ ~s(data-video-loop-mode="loop")
   end
 
   test "thread pages embed a server rendered quick reply template", %{conn: conn} do

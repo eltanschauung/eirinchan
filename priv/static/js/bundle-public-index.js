@@ -4649,6 +4649,32 @@ function setupVideo(thumb, url) {
 	let loopControls = [];
 	let mouseDown = false;
 
+	function ensureLoopControls() {
+		if (!fileInfo || fileInfo.querySelector("[data-video-loop-controls]")) {
+			return;
+		}
+
+		let controls = document.createElement("span");
+		controls.className = "video-loop-controls";
+		controls.setAttribute("data-video-loop-controls", "");
+
+		let once = document.createElement("span");
+		once.className = "video-loop-control";
+		once.setAttribute("data-video-loop-mode", "once");
+		once.textContent = "[play once]";
+
+		let loopControl = document.createElement("span");
+		loopControl.className = "video-loop-control active";
+		loopControl.setAttribute("data-video-loop-mode", "loop");
+		loopControl.textContent = "[loop]";
+
+		controls.appendChild(document.createTextNode(" "));
+		controls.appendChild(once);
+		controls.appendChild(document.createTextNode(" "));
+		controls.appendChild(loopControl);
+		fileInfo.appendChild(controls);
+	}
+
 	function unexpand() {
 		if (expanded) {
 			expanded = false;
@@ -4884,6 +4910,7 @@ function setupVideo(thumb, url) {
 	}
 
 	if (fileInfo) {
+		ensureLoopControls();
 		loopControls = Array.prototype.slice.call(fileInfo.querySelectorAll("[data-video-loop-mode]"));
 		if (loopControls.length === 2) {
 			for (let i = 0; i < loopControls.length; i++) {
