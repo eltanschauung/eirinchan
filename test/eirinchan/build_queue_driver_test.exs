@@ -1,7 +1,11 @@
 defmodule Eirinchan.BuildQueueDriverTest do
   use Eirinchan.DataCase, async: false
 
+  import Ecto.Query
+
   alias Eirinchan.BuildQueue
+  alias Eirinchan.Repo
+  alias Eirinchan.BuildQueue.Job
 
   test "filesystem queue driver enqueues, lists, and marks jobs done" do
     board = board_fixture()
@@ -35,5 +39,20 @@ defmodule Eirinchan.BuildQueueDriverTest do
 
     assert {:ok, _job} = BuildQueue.enqueue_thread(board, 1, config: config)
     assert BuildQueue.list_pending(config: config, board_id: board.id) == []
+  end
+
+  test "db queue driver deduplicates pending jobs" do
+    board = board_fixture()
+
+    assert {:ok, _job} = BuildQueue.enqueue_thread(board, 123)
+    assert {:ok, _job} = BuildQueue.enqueue_thread(board, 123)
+    assert {:ok, _job} = BuildQueue.enqueue_indexes(board)
+    assert {:ok, _job} = BuildQueue.enqueue_indexes(board)
+
+    pending =
+      Repo.all(from job in Job, where: job.board_id == ^board.id and job.status == "pending")
+
+    assert Enum.count(pending, &(&1.kind == "thread" and &1.thread_id == 123)) == 1
+    assert Enum.count(pending, &(&1.kind == "indexes")) == 1
   end
 end

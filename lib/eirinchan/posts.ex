@@ -82,6 +82,8 @@ defmodule Eirinchan.Posts do
       case prepare_result do
         {:ok, attrs} ->
           now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
+          ip_nulling_bypass? = PostsRequestGuards.ip_nulling_bypass?(attrs, config)
+
           {request_guards_us, request_guards_result} =
             timed(fn ->
               with :ok <- PostsRequestGuards.validate_post_button(op?, attrs, config),
@@ -138,7 +140,7 @@ defmodule Eirinchan.Posts do
           {abuse_guards_us, abuse_guards_result} =
             timed_continue(validation_base_result, fn %{attrs: attrs} = context ->
               with :ok <- PostsRequestGuards.validate_ipaccess(attrs, request, config, board),
-                   :ok <- PostsRequestGuards.validate_ban(request, board) do
+                   :ok <- PostsRequestGuards.validate_ban(attrs, request, board, config) do
                 {:ok, context}
               end
             end)
@@ -161,9 +163,13 @@ defmodule Eirinchan.Posts do
 
           {antispam_us, antispam_result} =
             timed_continue(metadata_result, fn %{attrs: attrs, thread: thread} = context ->
-              case Antispam.check_post(board, attrs, request, config, repo: repo) do
-                :ok -> {:ok, %{context | thread: thread}}
-                error -> error
+              if ip_nulling_bypass? do
+                {:ok, %{context | thread: thread}}
+              else
+                case Antispam.check_post(board, attrs, request, config, repo: repo) do
+                  :ok -> {:ok, %{context | thread: thread}}
+                  error -> error
+                end
               end
             end)
 
@@ -224,7 +230,12 @@ defmodule Eirinchan.Posts do
                 case persistence_result do
                   {:ok, post} ->
                     {pruning_us, _} = timed(fn -> maybe_prune_threads(board, post, config, repo) end)
-                    _ = Antispam.log_post(board, attrs, request, repo: repo)
+                    _ =
+                      if ip_nulling_bypass? do
+                        :ok
+                      else
+                        Antispam.log_post(board, attrs, request, repo: repo)
+                      end
 
                     {build_dispatch_us, _} =
                       timed(fn -> Build.rebuild_after_post(board, post, config: config, repo: repo) end)

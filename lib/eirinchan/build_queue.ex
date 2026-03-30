@@ -13,34 +13,26 @@ defmodule Eirinchan.BuildQueue do
   def enqueue_thread(%BoardRecord{} = board, thread_id, opts \\ []) do
     case driver(opts) do
       "fs" ->
-        enqueue_fs(%{board_id: board.id, kind: "thread", thread_id: thread_id}, opts)
+        enqueue_pending(%{board_id: board.id, kind: "thread", thread_id: thread_id}, opts)
 
       "none" ->
         {:ok, %Job{board_id: board.id, kind: "thread", thread_id: thread_id, status: "pending"}}
 
       _ ->
-        repo = Keyword.get(opts, :repo, Repo)
-
-        %Job{}
-        |> Job.changeset(%{board_id: board.id, kind: "thread", thread_id: thread_id})
-        |> repo.insert()
+        enqueue_pending(%{board_id: board.id, kind: "thread", thread_id: thread_id}, opts)
     end
   end
 
   def enqueue_indexes(%BoardRecord{} = board, opts \\ []) do
     case driver(opts) do
       "fs" ->
-        enqueue_fs(%{board_id: board.id, kind: "indexes"}, opts)
+        enqueue_pending(%{board_id: board.id, kind: "indexes"}, opts)
 
       "none" ->
         {:ok, %Job{board_id: board.id, kind: "indexes", status: "pending"}}
 
       _ ->
-        repo = Keyword.get(opts, :repo, Repo)
-
-        %Job{}
-        |> Job.changeset(%{board_id: board.id, kind: "indexes"})
-        |> repo.insert()
+        enqueue_pending(%{board_id: board.id, kind: "indexes"}, opts)
     end
   end
 
@@ -96,6 +88,78 @@ defmodule Eirinchan.BuildQueue do
         repo = Keyword.get(opts, :repo, Repo)
         job |> Job.done_changeset() |> repo.update()
     end
+  end
+
+  defp enqueue_pending(payload, opts) do
+    if pending_exists?(payload, opts) do
+      {:ok,
+       %Job{
+         board_id: payload.board_id,
+         kind: payload.kind,
+         thread_id: payload[:thread_id],
+         status: "pending"
+       }}
+    else
+      do_enqueue_pending(payload, opts)
+    end
+  end
+
+  defp do_enqueue_pending(payload, opts) do
+    case driver(opts) do
+      "fs" ->
+        enqueue_fs(payload, opts)
+
+      _ ->
+        repo = Keyword.get(opts, :repo, Repo)
+
+        %Job{}
+        |> Job.changeset(%{
+          board_id: payload.board_id,
+          kind: payload.kind,
+          thread_id: payload[:thread_id]
+        })
+        |> repo.insert()
+    end
+  end
+
+  defp pending_exists?(payload, opts) do
+    case driver(opts) do
+      "fs" ->
+        opts
+        |> list_pending_fs()
+        |> Enum.any?(&matches_payload?(&1, payload))
+
+      "none" ->
+        false
+
+      _ ->
+        repo = Keyword.get(opts, :repo, Repo)
+        thread_id = Map.get(payload, :thread_id)
+
+        query =
+          from(
+            job in Job,
+            where:
+              job.board_id == ^payload.board_id and
+                job.kind == ^payload.kind and
+                job.status == "pending"
+          )
+
+        query =
+          if is_nil(thread_id) do
+            from(job in query, where: is_nil(job.thread_id))
+          else
+            from(job in query, where: job.thread_id == ^thread_id)
+          end
+
+        repo.exists?(query)
+    end
+  end
+
+  defp matches_payload?(%Job{} = job, payload) do
+    job.board_id == payload.board_id and
+      job.kind == payload.kind and
+      job.thread_id == Map.get(payload, :thread_id)
   end
 
   defp enqueue_fs(payload, opts) do
