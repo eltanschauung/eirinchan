@@ -27,8 +27,6 @@ defmodule EirinchanWeb.PublicControllerHelpers do
 
   def dynamic_fragment_stamp(assigns, watch_key) do
     {
-      own_post_ids_stamp(Keyword.get(assigns, :own_post_ids, MapSet.new())),
-      Keyword.get(assigns, :show_yous, false),
       :erlang.phash2(Keyword.get(assigns, watch_key, %{})),
       moderator_stamp(Keyword.get(assigns, :current_moderator)),
       Keyword.get(assigns, :secure_manage_token),
@@ -150,10 +148,6 @@ defmodule EirinchanWeb.PublicControllerHelpers do
         |> Keyword.put(:javascript_urls, PublicShell.javascript_urls(active_page, config))
     end
   end
-
-  defp own_post_ids_stamp(%MapSet{} = ids), do: :erlang.phash2(ids)
-  defp own_post_ids_stamp(ids) when is_list(ids), do: ids |> Enum.sort() |> :erlang.phash2()
-  defp own_post_ids_stamp(_ids), do: 0
 
   defp moderator_stamp(nil), do: nil
   defp moderator_stamp(moderator), do: {moderator.id, moderator.role}

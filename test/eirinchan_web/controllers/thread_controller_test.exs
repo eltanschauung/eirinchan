@@ -642,7 +642,7 @@ defmodule EirinchanWeb.ThreadControllerTest do
     assert Floki.find(document, ~s(form#reply-form input[type="text"][name="password"])) != []
   end
 
-  test "thread pages render (You) markers from browser token ownership", %{conn: conn} do
+  test "thread pages do not render (You) markers in initial html", %{conn: conn} do
     board = board_fixture(%{uri: "showyous", title: "Show Yous"})
     thread = thread_fixture(board, %{body: "Opening body"})
     reply = reply_fixture(board, thread, %{body: ">>#{PublicIds.public_id(thread)}"})
@@ -658,8 +658,8 @@ defmodule EirinchanWeb.ThreadControllerTest do
       |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html")
       |> html_response(200)
 
-    assert page =~ ~s|<span class="own_post">(You)</span>|
-    assert page =~ ~s|<small>(You)</small>|
+    refute page =~ ~s|<span class="own_post">(You)</span>|
+    refute page =~ ~s|<small>(You)</small>|
   end
 
   test "thread pages render poster tripcodes", %{conn: conn} do

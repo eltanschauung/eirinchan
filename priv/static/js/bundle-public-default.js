@@ -592,13 +592,68 @@ initImageHover();
 onReady(function() {
 	let dontFetchAgain = [];
 	let hoverTargets = 'div.body a:not([rel="nofollow"]), p.intro span.mentioned a';
+	let cacheRoot = function() {
+		let root = $('form[name="postcontrols"]').first();
+		if (!root.length) {
+			root = $('body').first();
+		}
+		return root;
+	};
+
+	let insertHiddenReplies = function(board, threadid, replies) {
+		let thread = $('[data-board="' + board + '"]#thread_' + threadid);
+		if (!thread.length) {
+			return;
+		}
+
+		let firstReply = thread.find('.post.reply:first');
+		if (firstReply.length) {
+			replies.each(function() {
+				if ($('[data-board="' + board + '"] #' + $(this).attr('id')).length == 0) {
+					firstReply.before($(this).hide().addClass('hidden'));
+				}
+			});
+			return;
+		}
+
+		let refreshTarget = thread.find('#thread-refresh-target');
+		if (refreshTarget.length) {
+			replies.each(function() {
+				if ($('[data-board="' + board + '"] #' + $(this).attr('id')).length == 0) {
+					refreshTarget.append($(this).hide().addClass('hidden'));
+				}
+			});
+		}
+	};
+	let cacheFetchedPost = function(board, id, fetchedPost) {
+		if (!fetchedPost || !fetchedPost.length) {
+			return $();
+		}
+
+		let existing = $(hoverSelector(board, id, true));
+		if (existing.length) {
+			return existing.first();
+		}
+
+		let cached = fetchedPost
+			.first()
+			.clone(true, true)
+			.hide()
+			.attr('data-cached', 'yes')
+			.attr('data-board', board);
+		cacheRoot().prepend(cached);
+		return cached;
+	};
 	let hoverSelector = function(board, id, includeThread) {
 		let selectors = [
+			'div.post#reply_' + id + '[data-board="' + board + '"]',
+			'div.post#op_' + id + '[data-board="' + board + '"]',
 			'[data-board="' + board + '"] div.post#reply_' + id,
 			'[data-board="' + board + '"] div.post#op_' + id
 		];
 
 		if (includeThread) {
+			selectors.push('div#thread_' + id + '[data-board="' + board + '"]');
 			selectors.push('[data-board="' + board + '"] div#thread_' + id);
 		}
 
@@ -706,25 +761,27 @@ onReady(function() {
 					url: url,
 					context: document.body,
 					success: function(data) {
-						let mythreadid = $(data).find('div[id^="thread_"]').attr('id').replace("thread_", "");
+						let fetchedThread = $(data).find('div[id^="thread_"]').first();
+						if (!fetchedThread.length) {
+							return;
+						}
+
+						let mythreadid = fetchedThread.attr('id').replace("thread_", "");
+						let fetchedReplies = $(data).find('div.post.reply');
+						let fetchedTarget = $(data).find('#reply_' + id + ', #op_' + id).first();
 
 						if (mythreadid == threadid && parentboard == board) {
-							$(data).find('div.post.reply').each(function() {
-								if ($('[data-board="' + board + '"] #' + $(this).attr('id')).length == 0) {
-									$('[data-board="' + board + '"]#thread_' + threadid + " .post.reply:first").before($(this).hide().addClass('hidden'));
-								}
-							});
+							insertHiddenReplies(board, threadid, fetchedReplies);
 						} else if ($('[data-board="' + board + '"]#thread_' + mythreadid).length > 0) {
-							$(data).find('div.post.reply').each(function() {
-								if ($('[data-board="' + board + '"] #' + $(this).attr('id')).length == 0) {
-									$('[data-board="' + board + '"]#thread_' + mythreadid + " .post.reply:first").before($(this).hide().addClass('hidden'));
-								}
-							});
+							insertHiddenReplies(board, mythreadid, fetchedReplies);
 						} else {
-							$(data).find('div[id^="thread_"]').hide().attr('data-cached', 'yes').prependTo('form[name="postcontrols"]');
+							fetchedThread.hide().attr('data-cached', 'yes').prependTo(cacheRoot());
 						}
 
 						post = $(hoverSelector(board, id, link.is('[data-thread]')));
+						if (!post.length) {
+							post = cacheFetchedPost(board, id, fetchedTarget);
+						}
 
 						if (hovering && post.length > 0) {
 							startHover(link);

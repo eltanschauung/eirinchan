@@ -28,7 +28,6 @@
             config={@config}
             board={@board}
             moderator={@current_moderator}
-            own={@show_yous and MapSet.member?(@own_post_ids, reply_public_id)}
           />
         </label>
         <.post_number_links
@@ -59,8 +58,6 @@
         board={@board}
         thread={@summary.thread}
         config={@config}
-        own_post_ids={@own_post_ids}
-        show_yous={@show_yous}
       />
     </div>
     <br class="clear" />

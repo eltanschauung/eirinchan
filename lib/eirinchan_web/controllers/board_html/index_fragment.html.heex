@@ -50,7 +50,6 @@
                   config={@config}
                   board={@board}
                   moderator={@current_moderator}
-                  own={@show_yous and MapSet.member?(@own_post_ids, thread_public_id)}
                 />
               </label>
               <.post_number_links
@@ -97,8 +96,6 @@
               config={@config}
               op?={true}
               hide_fileboard={true}
-              own_post_ids={@own_post_ids}
-              show_yous={@show_yous}
             />
           </div>
 
@@ -125,7 +122,6 @@
                     config={@config}
                     board={@board}
                     moderator={@current_moderator}
-                    own={@show_yous and MapSet.member?(@own_post_ids, reply_public_id)}
                   />
                 </label>
                 <.post_number_links
@@ -157,14 +153,12 @@
                 moderator={@current_moderator}
                 secure_manage_token={@secure_manage_token}
               />
-              <.body_container
-                post={reply}
-                board={@board}
-                thread={thread}
-                config={@config}
-                own_post_ids={@own_post_ids}
-                show_yous={@show_yous}
-              />
+                <.body_container
+                  post={reply}
+                  board={@board}
+                  thread={thread}
+                  config={@config}
+                />
             </div>
             <br />
           <% end %>

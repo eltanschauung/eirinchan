@@ -7,7 +7,6 @@ defmodule EirinchanWeb.BoardController do
   alias EirinchanWeb.Announcements
   alias EirinchanWeb.BoardChrome
   alias EirinchanWeb.PublicControllerHelpers
-  alias EirinchanWeb.ShowYous
 
   plug EirinchanWeb.Plugs.RenderOverboard when action in [:show, :show_page]
   plug EirinchanWeb.Plugs.LoadBoard when action in [:show]
@@ -107,8 +106,6 @@ defmodule EirinchanWeb.BoardController do
         } =
           PublicControllerHelpers.watcher_metrics(conn)
 
-        own_post_ids = ShowYous.owned_post_ids(conn, Enum.map(page_data.threads, & &1.thread))
-        show_yous = ShowYous.enabled?(conn)
         fragment? = Keyword.get(opts, :fragment?, false)
         fragment_md5? = Keyword.get(opts, :fragment_md5?, false)
 
@@ -125,8 +122,6 @@ defmodule EirinchanWeb.BoardController do
           watcher_count: watcher_count,
           watcher_unread_count: watcher_unread_count,
           watcher_you_count: watcher_you_count,
-          own_post_ids: own_post_ids,
-          show_yous: show_yous,
           mobile_client?: conn.assigns[:mobile_client?] || false,
           current_moderator: conn.assigns[:current_moderator],
           secure_manage_token: conn.assigns[:secure_manage_token],
@@ -243,8 +238,6 @@ defmodule EirinchanWeb.BoardController do
         } =
           PublicControllerHelpers.watcher_metrics(conn)
 
-        own_post_ids = own_post_ids(conn, page_data)
-        show_yous = ShowYous.enabled?(conn)
         fragment? = Keyword.get(opts, :fragment?, false)
         fragment_md5? = Keyword.get(opts, :fragment_md5?, false)
 
@@ -255,8 +248,6 @@ defmodule EirinchanWeb.BoardController do
           page_title: "/#{board.uri}/ - #{board.title}",
           page_data: page_data,
           backlinks_map: backlinks_map,
-          own_post_ids: own_post_ids,
-          show_yous: show_yous,
           thread_watch_state: thread_watch_state,
           watcher_count: watcher_count,
           watcher_unread_count: watcher_unread_count,
@@ -358,11 +349,4 @@ defmodule EirinchanWeb.BoardController do
     EirinchanWeb.Plugs.RequirePageTheme.call(conn, theme: "catalog")
   end
 
-  defp own_post_ids(conn, page_data) do
-    posts =
-      page_data.threads
-      |> Enum.flat_map(fn summary -> [summary.thread | summary.replies] end)
-
-    ShowYous.owned_post_ids(conn, posts)
-  end
 end

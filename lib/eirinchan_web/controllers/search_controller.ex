@@ -10,7 +10,6 @@ defmodule EirinchanWeb.SearchController do
   alias EirinchanWeb.BrowserEntries
   alias EirinchanWeb.PublicShell
   alias EirinchanWeb.RequestMeta
-  alias EirinchanWeb.ShowYous
 
   plug :assign_search_shell
 
@@ -54,18 +53,11 @@ defmodule EirinchanWeb.SearchController do
   end
 
   defp render_search(conn, query, board, boards, results, error, config) do
-    own_post_ids =
-      results
-      |> Enum.map(& &1.post)
-      |> then(&ShowYous.owned_post_ids(conn, &1))
-
     render(conn, :show,
       query: query,
       board: board,
       boards: boards,
       global_boardlist_groups: EirinchanWeb.PostView.boardlist_groups(boards),
-      own_post_ids: own_post_ids,
-      show_yous: ShowYous.enabled?(conn),
       results: results,
       result_count: length(results),
       board_chrome: EirinchanWeb.BoardChrome.default(config),

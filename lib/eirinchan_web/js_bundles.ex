@@ -91,7 +91,9 @@ defmodule EirinchanWeb.JsBundles do
       "js/inline-expanding.js",
       "js/expand.js",
       "js/image-hover.js",
-      "js/local-time.js"
+      "js/local-time.js",
+      "js/show-own-posts.js",
+      "js/show-own-posts-options.js"
     ]
   }
 

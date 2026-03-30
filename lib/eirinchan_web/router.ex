@@ -252,6 +252,7 @@ defmodule EirinchanWeb.Router do
   scope "/api", EirinchanWeb do
     pipe_through :api
 
+    post "/you-markers/:board", YouMarkersController, :show
     get "/boards.json", ApiController, :boards
     get "/:board/catalog.json", ApiController, :catalog
     get "/:board/threads.json", ApiController, :threads
