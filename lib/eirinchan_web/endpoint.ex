@@ -50,6 +50,7 @@ defmodule EirinchanWeb.Endpoint do
   plug Plug.MethodOverride
   plug Plug.Head
   plug Plug.Session, @session_options
+  plug EirinchanWeb.Plugs.PublicDocumentCache
   plug EirinchanWeb.Plugs.IpAccessAuthRewrite
   plug EirinchanWeb.Router
 end

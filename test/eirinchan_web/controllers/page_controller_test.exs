@@ -140,6 +140,34 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ ~s(href="https://github.com/username/eirinchan-v1")
   end
 
+  test "GET / returns an etag and honors if-none-match", %{conn: conn} do
+    moderator_fixture()
+    board = board_fixture(%{uri: "etaghome#{System.unique_integer([:positive])}", title: "ETag Home"})
+    thread = thread_fixture(board, %{subject: "Opening", body: "Alpha bravo charlie delta"})
+    reply_fixture(board, thread, %{body: "Recent reply body"})
+
+    first_conn = get(conn, "/")
+    assert first_conn.status == 200
+
+    etag =
+      first_conn
+      |> get_resp_header("etag")
+      |> List.first()
+
+    assert is_binary(etag)
+    assert get_resp_header(first_conn, "cache-control") == ["private, no-cache"]
+
+    second_conn =
+      conn
+      |> recycle()
+      |> put_req_header("if-none-match", etag)
+      |> get("/")
+
+    assert second_conn.status == 304
+    assert second_conn.resp_body == ""
+    assert get_resp_header(second_conn, "etag") == [etag]
+  end
+
   test "site-wide public static pages render global message stats placeholders and line breaks", %{conn: conn} do
     moderator_fixture()
     board = board_fixture(%{uri: "gmstats#{System.unique_integer([:positive])}", title: "GM Stats"})
