@@ -3,12 +3,14 @@ defmodule Eirinchan.Api do
   Minimal 4chan-style JSON translation for thread/page/catalog artifacts.
   """
 
+  alias Eirinchan.PosterIds
   alias Eirinchan.Posts.PublicIds
 
-  def thread_json(summary) do
+  def thread_json(summary, config \\ %{}) do
     %{
       posts: [
-        thread_post(summary) | Enum.map(summary.replies, &reply_post(&1, PublicIds.public_id(summary.thread)))
+        thread_post(summary, config) |
+          Enum.map(summary.replies, &reply_post(&1, PublicIds.public_id(summary.thread), config))
       ]
     }
   end
@@ -26,36 +28,37 @@ defmodule Eirinchan.Api do
     }
   end
 
-  def page_json(page_data) do
+  def page_json(page_data, config \\ %{}) do
     %{
-      threads: Enum.map(page_data.threads, &thread_json/1)
+      threads: Enum.map(page_data.threads, &thread_json(&1, config))
     }
   end
 
   def catalog_json(page_data_list, opts \\ []) do
     threads_page? = Keyword.get(opts, :threads_page, false)
+    config = Keyword.get(opts, :config, %{})
 
     Enum.with_index(page_data_list)
     |> Enum.map(fn {page_data, page_index} ->
       %{
         page: page_index,
-        threads: Enum.map(page_data.threads, &catalog_thread(&1, threads_page?))
+        threads: Enum.map(page_data.threads, &catalog_thread(&1, threads_page?, config))
       }
     end)
   end
 
-  defp catalog_thread(summary, true) do
+  defp catalog_thread(summary, true, _config) do
       %{
         no: PublicIds.public_id(summary.thread),
         last_modified: unix(summary.last_modified)
       }
   end
 
-  defp catalog_thread(summary, false) do
-    thread_post(summary)
+  defp catalog_thread(summary, false, config) do
+    thread_post(summary, config)
   end
 
-  defp thread_post(summary) do
+  defp thread_post(summary, config) do
     summary.thread
     |> base_post(0)
     |> maybe_put(:sub, summary.thread.subject)
@@ -63,7 +66,7 @@ defmodule Eirinchan.Api do
     |> maybe_put(:embed, summary.thread.embed)
     |> maybe_put(:name, summary.thread.name)
     |> maybe_put_country(summary.thread)
-    |> maybe_put_poster_id(summary.thread)
+    |> maybe_put_poster_id(summary.thread, config)
     |> Map.put(:time, unix(summary.thread.inserted_at))
     |> Map.put(:replies, summary.reply_count)
     |> Map.put(:images, summary.image_count)
@@ -79,7 +82,7 @@ defmodule Eirinchan.Api do
     |> Map.put(:last_modified, unix(summary.last_modified))
   end
 
-  defp reply_post(post, thread_id) do
+  defp reply_post(post, thread_id, config) do
     post
     |> base_post(thread_id)
     |> maybe_put(:sub, post.subject)
@@ -87,7 +90,7 @@ defmodule Eirinchan.Api do
     |> maybe_put(:embed, post.embed)
     |> maybe_put(:name, post.name)
     |> maybe_put_country(post)
-    |> maybe_put_poster_id(post)
+    |> maybe_put_poster_id(post, config)
     |> maybe_put_file(post)
     |> maybe_put_extra_files(post)
     |> Map.put(:time, unix(post.inserted_at))
@@ -121,12 +124,12 @@ defmodule Eirinchan.Api do
     end
   end
 
-  defp maybe_put_poster_id(map, %{board_id: board_id, ip_subnet: ip_subnet})
-       when is_integer(board_id) and is_binary(ip_subnet) and ip_subnet != "" do
-    Map.put(map, :id, poster_id(board_id, ip_subnet))
+  defp maybe_put_poster_id(map, post, config) do
+    case PosterIds.poster_id(post, config) do
+      id when is_binary(id) and id != "" -> Map.put(map, :id, id)
+      _ -> map
+    end
   end
-
-  defp maybe_put_poster_id(map, _post), do: map
 
   defp maybe_put_flag(map, _key, false), do: map
   defp maybe_put_flag(map, _key, nil), do: map
@@ -184,13 +187,6 @@ defmodule Eirinchan.Api do
   end
 
   defp country_code?(_code), do: false
-
-  defp poster_id(board_id, ip_subnet) do
-    :sha256
-    |> :crypto.hash("#{board_id}:#{ip_subnet}")
-    |> Base.encode16(case: :upper)
-    |> binary_part(0, 8)
-  end
 
   defp positive_or_nil(value) when is_integer(value) and value > 0, do: value
   defp positive_or_nil(_value), do: nil

@@ -271,6 +271,7 @@ defmodule EirinchanWeb.PostComponents do
       assigns
       |> assign(:visible_ip, visible_ip(assigns.post, assigns.board, assigns.moderator))
       |> assign(:flags, PostView.post_flags(assigns.post, assigns.config))
+      |> assign(:poster_id, PostView.poster_id(assigns.post, assigns.config))
 
     ~H"""
     <span :if={@post.subject} class="subject"><%= @post.subject %></span><%= if @post.subject, do: " " %>
@@ -303,7 +304,10 @@ defmodule EirinchanWeb.PostComponents do
       datetime={PostView.iso_timestamp(@post)}
       data-local="true"
       title={PostView.relative_timestamp(@post)}
-    ><%= PostView.formatted_timestamp(@post, @config) %></time>
+    ><%= PostView.formatted_timestamp(@post, @config) %></time><%= if @poster_id, do: " " %><span
+      :if={@poster_id}
+      class="poster_id"
+    ><%= @poster_id %></span>
     """
   end
 

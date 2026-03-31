@@ -153,6 +153,8 @@ defmodule Eirinchan.Runtime.Config do
     spoiler_image: "static/spoiler_skillet.png",
     cycle_limit: 1000,
     always_noko: false,
+    poster_ids: false,
+    poster_id_length: 5,
     secure_trip_salt: ")(*&^%$#@!98765432190zyxwvutsrqponmlkjihgfedcba",
     custom_tripcode: %{},
     slugify: false,
@@ -398,6 +400,8 @@ defmodule Eirinchan.Runtime.Config do
     "thumbOpHeight" => :thumb_op_height,
     "stripExif" => :strip_exif,
     "convertAutoOrient" => :convert_auto_orient,
+    "posterIds" => :poster_ids,
+    "posterIdLength" => :poster_id_length,
     "secureTripSalt" => :secure_trip_salt,
     "customTripcode" => :custom_tripcode
   }
