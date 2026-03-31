@@ -6,7 +6,7 @@ defmodule EirinchanWeb.PostView do
   @local_quote_regex ~r/(^|[\s(])&gt;&gt;(\d+?)((?=[\s,.)?!])|$)/m
   @raw_local_quote_regex ~r/(^|[\s(])>>(\d+?)((?=[\s,.)?!])|$)/m
 
-  alias Eirinchan.{Boardlist, Boards, Posts}
+  alias Eirinchan.{Boardlist, Boards, PosterIds, Posts}
   alias Eirinchan.Moderation
   alias Eirinchan.Posts.Post
   alias Eirinchan.Posts.PublicIds
@@ -130,6 +130,8 @@ defmodule EirinchanWeb.PostView do
       quick_reply_thread: Keyword.get(attrs, :data_quick_reply_thread)
     })
   end
+
+  def poster_id(post, config), do: PosterIds.poster_id(post, config)
 
   def backlinks_html(post, backlinks_map \\ %{}) do
     EirinchanWeb.PostComponents.backlinks_html(%{

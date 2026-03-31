@@ -1,6 +1,7 @@
 defmodule EirinchanWeb.ApiControllerTest do
   use EirinchanWeb.ConnCase, async: false
 
+  alias Eirinchan.PosterIds
   alias Eirinchan.Posts
   alias Eirinchan.Posts.PublicIds
 
@@ -213,14 +214,22 @@ defmodule EirinchanWeb.ApiControllerTest do
     assert hd(op["extra_files"])["spoiler"] == 1
   end
 
-  test "thread api exposes country fields and a stable poster id", %{conn: conn} do
-    board = board_fixture(%{config_overrides: %{country_flags: true}})
+  test "thread api exposes country fields and per-thread poster ids", %{conn: conn} do
+    config_overrides = %{
+      country_flags: true,
+      poster_ids: true,
+      poster_id_length: 5,
+      secure_trip_salt: "poster-id-test-salt"
+    }
+
+    board = board_fixture(%{config_overrides: config_overrides})
+    config = Eirinchan.Runtime.Config.compose(nil, %{}, config_overrides)
 
     {:ok, thread, _meta} =
       Posts.create_post(
         board,
         %{"body" => "Country body", "post" => "New Topic"},
-        config: Eirinchan.Runtime.Config.compose(nil, %{}, board.config_overrides),
+        config: config,
         request: %{
           referer: "http://www.example.com/#{board.uri}/index.html",
           remote_ip: {198, 51, 100, 22},
@@ -235,10 +244,7 @@ defmodule EirinchanWeb.ApiControllerTest do
       |> get("/api/#{board.uri}/res/#{thread.id}")
       |> json_response(200)
 
-    expected_id =
-      :crypto.hash(:sha256, "#{board.id}:198.51.100.22")
-      |> Base.encode16(case: :upper)
-      |> binary_part(0, 8)
+    expected_id = PosterIds.poster_id(thread, config)
 
     assert [op | _] = thread_json["posts"]
     assert op["country"] == "US"

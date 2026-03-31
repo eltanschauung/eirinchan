@@ -95,6 +95,56 @@ defmodule EirinchanWeb.PostViewTest do
     assert html == ~s|waow<span class="public_ban">(USER WAS BANNED FOR THIS POST)</span>|
   end
 
+  test "poster ids render in post identity and stay thread-local" do
+    config =
+      Config.compose(%{
+        poster_ids: true,
+        poster_id_length: 5,
+        secure_trip_salt: "poster-id-test-salt"
+      })
+
+    board = %BoardRecord{uri: "bant", title: "Bant"}
+
+    op = %Post{
+      id: 100,
+      thread_id: nil,
+      ip_subnet: "198.51.100.0/24",
+      inserted_at: ~N[2026-03-31 12:00:00]
+    }
+
+    reply_same_thread = %Post{
+      id: 101,
+      thread_id: 100,
+      ip_subnet: "198.51.100.0/24",
+      inserted_at: ~N[2026-03-31 12:01:00]
+    }
+
+    reply_other_thread = %Post{
+      id: 102,
+      thread_id: 200,
+      ip_subnet: "198.51.100.0/24",
+      inserted_at: ~N[2026-03-31 12:02:00]
+    }
+
+    op_id = PostView.poster_id(op, config)
+    same_thread_id = PostView.poster_id(reply_same_thread, config)
+    other_thread_id = PostView.poster_id(reply_other_thread, config)
+
+    assert op_id == same_thread_id
+    assert other_thread_id != same_thread_id
+    assert String.length(op_id) == 5
+
+    html =
+      PostComponents.post_identity_html(%{
+        post: reply_same_thread,
+        config: config,
+        board: board
+      })
+
+    assert html =~ ~s(class="poster_id")
+    assert html =~ same_thread_id
+  end
+
   test "body_html marks owned quote targets server-side" do
     config = Config.compose()
     post = %Post{body: ">>123"}
