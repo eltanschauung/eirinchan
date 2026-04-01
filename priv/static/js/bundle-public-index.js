@@ -4570,6 +4570,10 @@ function buildQuickActionForm($post, postId) {
 }
 
 function ensureQuickActionForm($post, postId) {
+	if (!$post.length || !postId) {
+		return $();
+	}
+
 	var $checkbox = $('#delete_' + postId);
 	if ($checkbox.length && !$checkbox.prop('checked')) {
 		$checkbox.prop('checked', true).trigger('change');
@@ -4581,56 +4585,26 @@ function ensureQuickActionForm($post, postId) {
 	}
 
 	$quickForm = buildQuickActionForm($post, postId);
-	if ($quickForm.length) {
-		return $quickForm;
-	}
-
-	var $sharedForm = $('form[name="postcontrols"]:first');
-	if ($sharedForm.length) {
-		if (!$sharedForm.find('input[name="delete_post_id"]').length) {
-			$sharedForm.prepend('<input type="hidden" name="delete_post_id" value="">');
-		}
-
-		if (!$sharedForm.find('input[name="report_post_id"]').length) {
-			$sharedForm.prepend('<input type="hidden" name="report_post_id" value="">');
-		}
-	}
-
-	return $sharedForm;
+	return $quickForm;
 }
 
-function prepareSharedActionForm($form, postId, action) {
-	if (!$form.length || $form.hasClass('post-actions')) {
-		return;
+function resolvePostId($post) {
+	if (!$post.length) {
+		return '';
 	}
 
-	var $deletePostId = $form.find('input[name="delete_post_id"]').first();
-	var $reportPostId = $form.find('input[name="report_post_id"]').first();
-
-	if (action === 'delete') {
-		$deletePostId.val('');
-		$reportPostId.val('');
-	} else if (action === 'report') {
-		$reportPostId.val(postId);
-		$deletePostId.val('');
-	}
-}
-
-function syncLegacyDeleteSelection($form, postId, enabled) {
-	if (!$form.length || !postId) {
-		return;
+	var elementId = ($post.attr('id') || '').match(/^(?:op|reply)_(\d+)$/);
+	if (elementId) {
+		return elementId[1];
 	}
 
-	$form.find('input[data-legacy-delete-selection="true"]').remove();
-
-	if (enabled) {
-		$('<input>', {
-			type: 'hidden',
-			name: 'delete_' + postId,
-			value: 'on',
-			'data-legacy-delete-selection': 'true'
-		}).appendTo($form);
+	var anchorId = ($post.find('a.post_anchor').attr('id') || '').match(/^(\d+)$/);
+	if (anchorId) {
+		return anchorId[1];
 	}
+
+	var textId = $.trim($post.find('.post_no').not('[id]').last().text() || '').match(/^(\d+)$/);
+	return textId ? textId[1] : '';
 }
 	
 if ($('#delete-fields #password').length) {
@@ -4639,7 +4613,7 @@ Menu.add_item("delete_post_menu", _("Delete post"));
 Menu.onclick(function(e, $buf) {
 		var ele = $(e.target).closest('.post')[0];
 		var $ele = $(ele);
-		var postId = $ele.find('.post_no').not('[id]').text();
+		var postId = resolvePostId($ele);
 		var hasFiles = $ele.find('.files .file, .files .multifile').length > 0;
 
 		if (!hasFiles) {
@@ -4653,9 +4627,6 @@ Menu.onclick(function(e, $buf) {
 			if (!$form.length) {
 				return;
 			}
-
-			prepareSharedActionForm($form, postId, 'delete');
-			syncLegacyDeleteSelection($form, postId, true);
 
 			var $fileToggle = $form.find('#delete_file_' + postId + ', #delete_file, input[name="file"]').first();
 			var $password = $form.find('input[name="password"]');
@@ -4681,7 +4652,7 @@ Menu.add_item("report_menu", _("Report"));
 Menu.onclick(function(e, $buf) {
 	var ele = $(e.target).closest('.post')[0];
 	var $ele = $(ele);
-	var postId = $ele.find('.post_no').not('[id]').text();
+	var postId = resolvePostId($ele);
 
 	$buf.find('#report_menu,#global_report_menu').click(function(e) {
 		e.preventDefault();
@@ -4691,8 +4662,6 @@ Menu.onclick(function(e, $buf) {
 			return;
 		}
 
-		syncLegacyDeleteSelection($form, postId, false);
-		prepareSharedActionForm($form, postId, 'report');
 		$form.find('input[name="reason"]').trigger('focus');
 	});
 });
