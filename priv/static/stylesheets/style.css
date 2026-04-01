@@ -1028,10 +1028,12 @@ pre {
 .poster_id:hover {
   color: #800000!important;
 }
-.poster_id::before {
-  content: " ID: ";
+.poster_id.april_fools_team:hover {
+  color: inherit!important;
 }
-
+.poster_id.april_fools_team::before {
+  content: "Team ";
+}
 pre {
 /* Better code tags */
   max-width: inherit;

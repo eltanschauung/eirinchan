@@ -131,7 +131,17 @@ defmodule EirinchanWeb.PostView do
     })
   end
 
+  def poster_identity_badge(post, config), do: PosterIds.badge(post, config)
   def poster_id(post, config), do: PosterIds.poster_id(post, config)
+
+  def poster_identity_class(%{class: class}) when is_binary(class) and class != "", do: class
+  def poster_identity_class(_badge), do: "poster_id"
+
+  def poster_identity_style(%{style: style}) when is_binary(style) and style != "", do: style
+  def poster_identity_style(_badge), do: nil
+
+  def poster_identity_label(%{label: label}) when is_binary(label), do: label
+  def poster_identity_label(_badge), do: nil
 
   def backlinks_html(post, backlinks_map \\ %{}) do
     EirinchanWeb.PostComponents.backlinks_html(%{

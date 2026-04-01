@@ -1,6 +1,7 @@
 defmodule EirinchanWeb.Announcements do
   @moduledoc false
 
+  alias Eirinchan.AprilFoolsTeams
   alias Eirinchan.NewsBlotter
   alias Eirinchan.Stats
   alias EirinchanWeb.FragmentCache
@@ -63,17 +64,31 @@ defmodule EirinchanWeb.Announcements do
     message
     |> maybe_replace_posts_perhour(opts)
     |> maybe_replace_users_10minutes()
+    |> maybe_replace_team_placeholders()
   end
 
   defp cacheable_aggregate_placeholders?(message, opts) do
-    aggregate_board_ids?(opts[:board_ids]) and stats_placeholder?(message)
+    case stats_placeholders(message) do
+      %{board_scoped?: true, team_scoped?: false} ->
+        aggregate_board_ids?(opts[:board_ids])
+
+      %{team_scoped?: true} ->
+        false
+
+      _ ->
+        false
+    end
   end
 
   defp aggregate_board_ids?(board_ids), do: is_list(board_ids) and board_ids != []
 
-  defp stats_placeholder?(message) do
-    String.contains?(message, "{stats.posts_perhour}") or
-      String.contains?(message, "{stats.users_10minutes}")
+  defp stats_placeholders(message) do
+    %{
+      board_scoped?:
+        String.contains?(message, "{stats.posts_perhour}") or
+          String.contains?(message, "{stats.users_10minutes}"),
+      team_scoped?: Regex.match?(~r/\{stats\.team_\d+\.(?:name|display_name|colour|color|html_colour|post_count)\}/u, message)
+    }
   end
 
   defp aggregate_cache_key(message, opts) do
@@ -81,7 +96,7 @@ defmodule EirinchanWeb.Announcements do
       :announcement_global_message,
       message,
       opts[:surround_hr] || false,
-      Enum.sort(opts[:board_ids]),
+      opts[:board_ids] |> List.wrap() |> Enum.sort(),
       div(System.system_time(:second), @aggregate_cache_bucket_seconds)
     }
   end
@@ -118,4 +133,33 @@ defmodule EirinchanWeb.Announcements do
       message
     end
   end
+
+  defp maybe_replace_team_placeholders(message) do
+    Regex.replace(
+      ~r/\{stats\.(team_\d+)\.(name|display_name|colour|color|html_colour|post_count)\}/u,
+      message,
+      fn _full, team_var, field ->
+        case Stats.team_variable(team_var) do
+          {_team_id, display_name, html_colour, post_count} ->
+            team_field_value(field, display_name, html_colour, post_count)
+
+          _ ->
+            "{stats.#{team_var}.#{field}}"
+        end
+      end
+    )
+  end
+
+  defp team_field_value(field, display_name, html_colour, post_count)
+
+  defp team_field_value(field, display_name, _html_colour, _post_count)
+       when field in ["name", "display_name"],
+       do: display_name
+
+  defp team_field_value(field, _display_name, html_colour, _post_count)
+       when field in ["colour", "color", "html_colour"],
+       do: html_colour
+
+  defp team_field_value("post_count", _display_name, _html_colour, post_count),
+    do: AprilFoolsTeams.silly_post_count(post_count)
 end

@@ -145,6 +145,28 @@ defmodule EirinchanWeb.PostViewTest do
     assert html =~ same_thread_id
   end
 
+  test "april fools teams replace poster ids with styled team badges" do
+    config = Config.compose(%{april_fools_teams: true})
+    board = %BoardRecord{uri: "bant", title: "Bant"}
+    post = %Post{
+      id: 100,
+      thread_id: nil,
+      team: 2,
+      ip_subnet: "198.51.100.0/24",
+      inserted_at: ~N[2026-03-31 12:00:00]
+    }
+
+    badge = PostView.poster_identity_badge(post, config)
+    html = PostComponents.post_identity_html(%{post: post, config: config, board: board})
+
+    assert PostView.poster_id(post, config) == "Judaism ✡"
+    assert badge.label == "Judaism ✡"
+    assert badge.class == "poster_id april_fools_team"
+    assert badge.style =~ "#000080"
+    assert html =~ ~s(class="poster_id april_fools_team")
+    assert html =~ "Judaism ✡"
+  end
+
   test "body_html marks owned quote targets server-side" do
     config = Config.compose()
     post = %Post{body: ">>123"}
