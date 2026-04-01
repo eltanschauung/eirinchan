@@ -1,7 +1,9 @@
 defmodule Eirinchan.StatsTest do
   use Eirinchan.DataCase
 
+  alias Eirinchan.AprilFoolsTeam
   alias Eirinchan.BrowserPresence
+  alias Eirinchan.Repo
   alias Eirinchan.Stats
 
   setup do
@@ -45,5 +47,13 @@ defmodule Eirinchan.StatsTest do
     BrowserPresence.touch("token-abcdefghijklmnop")
 
     assert Stats.users_10minutes() == 1
+  end
+
+  test "team_* helpers return the april fools team tuple" do
+    team = Repo.get!(AprilFoolsTeam, 2)
+
+    assert Stats.team_2() == {2, team.display_name, team.html_colour, team.post_count}
+    assert Stats.team_variable("team_2") == {2, team.display_name, team.html_colour, team.post_count}
+    assert Stats.team_variable("team_99") == nil
   end
 end

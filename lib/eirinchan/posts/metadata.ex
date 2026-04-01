@@ -9,6 +9,7 @@ defmodule Eirinchan.Posts.Metadata do
       attrs
       |> normalize_post_identity(config)
       |> put_request_ip(request)
+      |> Eirinchan.AprilFoolsTeams.assign_team(config)
 
     with {:ok, attrs} <- normalize_post_tag(attrs, config, op?),
          {:ok, attrs} <- normalize_proxy(attrs, config, request),

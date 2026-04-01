@@ -3,6 +3,7 @@ defmodule Eirinchan.Posts.Persistence do
 
   import Ecto.Query, only: [from: 2]
 
+  alias Eirinchan.AprilFoolsTeams
   alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.Posts.Cite
   alias Eirinchan.Posts.NntpReference
@@ -29,6 +30,7 @@ defmodule Eirinchan.Posts.Persistence do
                 {:ok, attrs} <- allocate_public_id(locked_board, attrs, repo),
                 {:ok, post} <- insert_post(locked_board, thread, attrs, repo, config, now),
                 {:ok, post} <- maybe_store_uploads(board, post, upload_entries, repo, config),
+                :ok <- maybe_increment_april_fools_team(post, config, repo),
                 :ok <- store_citations(locked_board, post, repo),
                 :ok <- after_insert.(),
                 :ok <- Posts.sync_thread_metrics(locked_board, post.thread_id || post.id, repo: repo) do
@@ -244,6 +246,16 @@ defmodule Eirinchan.Posts.Persistence do
   end
 
   defp request_ip_string(attrs, _config), do: Map.get(attrs, "ip_subnet")
+
+  defp maybe_increment_april_fools_team(%Post{} = post, config, repo) do
+    team = post.team
+
+    if AprilFoolsTeams.enabled?(config) and is_integer(team) do
+      AprilFoolsTeams.increment_post_count(team, AprilFoolsTeams.image_post?(post), repo)
+    else
+      :ok
+    end
+  end
 
   defp submitted_flag_length(attrs) do
     attrs

@@ -441,6 +441,31 @@ defmodule Eirinchan.Runtime.ConfigTest do
     assert enabled_config.ip_nulling_flags == 8
   end
 
+  test "defaults april_fools_teams to false and accepts instance override" do
+    default_config =
+      Config.compose(
+        %{
+          root: "/",
+          dir: %{img: "img/", thumb: "thumb/", res: "res/"}
+        },
+        %{},
+        %{}
+      )
+
+    enabled_config =
+      Config.compose(
+        %{
+          root: "/",
+          dir: %{img: "img/", thumb: "thumb/", res: "res/"}
+        },
+        %{"aprilFoolsTeams" => true},
+        %{}
+      )
+
+    refute default_config.april_fools_teams
+    assert enabled_config.april_fools_teams
+  end
+
   test "provides vichan xss mitigation defaults" do
     config =
       Config.compose(

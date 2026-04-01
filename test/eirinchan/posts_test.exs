@@ -28,6 +28,7 @@ end
 defmodule Eirinchan.PostsTest do
   use Eirinchan.DataCase, async: true
 
+  alias Eirinchan.AprilFoolsTeam
   alias Eirinchan.Antispam
   alias Eirinchan.Build
   alias Eirinchan.ModerationLog
@@ -177,6 +178,57 @@ defmodule Eirinchan.PostsTest do
              )
 
     assert thread.ip_subnet == nil
+  end
+
+  test "create_post assigns teams and applies the silly score math for text posts" do
+    board = board_fixture(%{config_overrides: %{april_fools_teams: true}})
+    request = Map.put(post_request(board.uri), :remote_ip, {203, 0, 113, 44})
+    config = post_config(board.config_overrides)
+    expected_team = :erlang.phash2("203.0.113.44", 6) + 1
+
+    Repo.get!(AprilFoolsTeam, expected_team)
+    |> Ecto.Changeset.change(post_count: 0)
+    |> Repo.update!()
+
+    assert {:ok, thread, %{noko: false}} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "team post",
+                 "post" => "New Topic"
+               },
+               config: config,
+               request: request
+             )
+
+    assert thread.team == expected_team
+    assert Repo.get!(AprilFoolsTeam, expected_team).post_count in 2..30
+  end
+
+  test "create_post uses the image multiplier range for april fools team scores" do
+    board = board_fixture(%{config_overrides: %{april_fools_teams: true}})
+    request = Map.put(post_request(board.uri), :remote_ip, {203, 0, 113, 45})
+    config = post_config(board.config_overrides)
+    expected_team = :erlang.phash2("203.0.113.45", 6) + 1
+
+    Repo.get!(AprilFoolsTeam, expected_team)
+    |> Ecto.Changeset.change(post_count: 0)
+    |> Repo.update!()
+
+    assert {:ok, thread, %{noko: false}} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "team image post",
+                 "file" => upload_fixture("team.png", "png-bytes"),
+                 "post" => "New Topic"
+               },
+               config: config,
+               request: request
+             )
+
+    assert thread.team == expected_team
+    assert Repo.get!(AprilFoolsTeam, expected_team).post_count in 6..60
   end
 
   test "create_post accepts legacy post parameter aliases and mode=regist" do
