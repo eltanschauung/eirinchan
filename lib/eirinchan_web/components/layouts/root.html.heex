@@ -129,7 +129,7 @@
         !assigns[:public_shell] && !assigns[:hide_theme_switcher] && assigns[:theme_options] &&
           assigns[:theme_options] != []
       }
-      class="boardlist bottom"
+      class="theme-switcher-shell"
     >
       <form action={~p"/theme"} method="post" class="theme-switcher">
         <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
