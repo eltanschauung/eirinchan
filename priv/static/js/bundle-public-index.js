@@ -301,7 +301,6 @@ b){return g(a,b,c)}};var k=["getTime","getTimezoneOffset","getDay","getDate","ge
  */
 
 $(window).ready(function() {
-	var settings = new script_settings('ajax');
 	var do_not_ajax = false;
 	var csrfRefreshRequest = null;
 
@@ -321,6 +320,20 @@ $(window).ready(function() {
 		}
 
 		return null;
+	};
+
+	var looksLikeCsrfFailure = function(xhr, extractedMessage) {
+		if (!xhr || xhr.status !== 403) {
+			return false;
+		}
+
+		var message = (extractedMessage || '').toLowerCase();
+		if (message && (message.indexOf('csrf') !== -1 || message.indexOf('forgery') !== -1 || message.indexOf('out of date') !== -1)) {
+			return true;
+		}
+
+		var text = (xhr.responseText || '').toLowerCase();
+		return text.indexOf('csrf') !== -1 || text.indexOf('forgery') !== -1;
 	};
 
 	var currentCsrfToken = function() {
@@ -352,7 +365,15 @@ $(window).ready(function() {
 			return csrfRefreshRequest;
 		}
 
-		csrfRefreshRequest = $.getJSON('/csrf-token')
+		csrfRefreshRequest = $.ajax({
+			url: '/csrf-token',
+			type: 'GET',
+			dataType: 'json',
+			cache: false,
+			headers: {
+				'Cache-Control': 'no-cache'
+			}
+		})
 			.then(function(response) {
 				var token = response && response.csrf_token;
 
@@ -495,6 +516,7 @@ $(window).ready(function() {
 				$.ajax({
 					url: form.action,
 					type: 'POST',
+					dataType: 'json',
 					xhr: function() {
 						var xhr = $.ajaxSettings.xhr();
 						if(xhr.upload) {
@@ -607,8 +629,10 @@ $(window).ready(function() {
 					},
 					error: function(xhr, status, er) {
 						console.log(xhr);
+						var extracted = extractAjaxErrorMessage(xhr);
+						var csrfFailure = looksLikeCsrfFailure(xhr, extracted);
 
-						if (retryOnCsrfFailure && xhr && xhr.status === 403) {
+						if (retryOnCsrfFailure && csrfFailure) {
 							refreshCsrfToken().done(function() {
 								submitAjax(false);
 							}).fail(function() {
@@ -618,11 +642,14 @@ $(window).ready(function() {
 							return;
 						}
 
-						var extracted = extractAjaxErrorMessage(xhr);
 						if (extracted) {
 							alert(extracted);
-						} else if (xhr && xhr.status === 403) {
+						} else if (csrfFailure) {
 							alert(_('Your tab is out of date. Refresh the page and try again.'));
+						} else if (xhr && xhr.status >= 400 && xhr.status < 500) {
+							alert(_('Your post was rejected by the server. Refresh and try again.'));
+						} else if (xhr && xhr.status >= 500) {
+							alert(_('The server hit an internal error while processing your post. Please try again in a moment.'));
 						} else {
 							alert(_('The server took too long to submit your post. Your post was probably still submitted. If it wasn\'t, we might be experiencing issues right now -- please try your post again later.'));
 						}
@@ -821,6 +848,7 @@ function init_file_selector(max_images, root) {
     }
   });
 
+  $(document).off('ajax_before_post' + selectorNamespace);
   $(document).on('ajax_before_post' + selectorNamespace, function(e, formData, form) {
     if (form !== $root[0]) {
       return;
@@ -840,6 +868,7 @@ function init_file_selector(max_images, root) {
     }
   });
 
+  $(document).off('ajax_after_post' + selectorNamespace);
   $(document).on('ajax_after_post' + selectorNamespace, function(e, response, form) {
     if (form !== $root[0]) {
       return;
@@ -3984,6 +4013,9 @@ initImageHover();
 onReady(function() {
 	let dontFetchAgain = [];
 	let hoverTargets = 'div.body a:not([rel="nofollow"]), p.intro span.mentioned a';
+	let hoverRoot = function() {
+		return $('body').first();
+	};
 	let cacheRoot = function() {
 		let root = $('form[name="postcontrols"]').first();
 		if (!root.length) {
@@ -4131,8 +4163,12 @@ onReady(function() {
 						.css('position', 'absolute')
 						.css('font-style', 'normal')
 						.css('z-index', '100')
-						.addClass('reply').addClass('post')
-						.insertAfter(link.parent())
+						.addClass('reply').addClass('post');
+
+					// Mount the floating hover at the page root so its absolute
+					// positioning always uses document coordinates, regardless of
+					// whether the source link came from the post body or intro.
+					hoverRoot().append(newPost);
 
 					link.trigger('mousemove');
 				}
@@ -4912,6 +4948,8 @@ function setupVideo(thumb, url) {
 	}
 	thumb.videoAlreadySetUp = true;
 
+	let isAudio = /\.(mp3|wav|flac)$/i.test((url || '').split('?')[0]);
+
 	let video = null;
 	let videoContainer, videoHide;
 	let expanded = false;
@@ -4975,13 +5013,17 @@ function setupVideo(thumb, url) {
 	// Create video element if does not exist yet
 	function getVideo() {
 		if (video == null) {
-			video = document.createElement("video");
+			video = document.createElement(isAudio ? "audio" : "video");
 			video.src = url;
 			video.loop = loop;
 			video.preload = "metadata";
-			video.setAttribute("playsinline", "");
-			video.setAttribute("webkit-playsinline", "");
-			video.innerText = _("Your browser does not support HTML5 video.");
+			if (!isAudio) {
+				video.setAttribute("playsinline", "");
+				video.setAttribute("webkit-playsinline", "");
+			}
+			video.innerText = isAudio
+				? _("Your browser does not support HTML5 audio.")
+				: _("Your browser does not support HTML5 video.");
 
 			videoHide = document.createElement("img");
 			videoHide.src = configRoot + "static/collapse.gif";
@@ -5018,7 +5060,7 @@ function setupVideo(thumb, url) {
 				mouseDown = false;
 			}, false);
 			video.addEventListener("mouseout", function(e) {
-				if (mouseDown && e.clientX - video.getBoundingClientRect().left <= 0) {
+				if (!isAudio && mouseDown && e.clientX - video.getBoundingClientRect().left <= 0) {
 					unexpand();
 				}
 				mouseDown = false;
@@ -5047,13 +5089,20 @@ function setupVideo(thumb, url) {
 			videoContainer.style.position = "static";
 			video.parentNode.parentNode.removeAttribute('style');
 			thumb.style.display = "none";
+			if (isAudio) {
+				video.style.width = "320px";
+				video.style.maxWidth = "100%";
+				video.style.maxHeight = "inherit";
+			}
 
 			setVolume();
 			video.controls = true;
-			if (video.readyState == 0) {
+			if (!isAudio && video.readyState == 0) {
 				video.addEventListener("loadedmetadata", expand2, false);
-			} else {
+			} else if (!isAudio) {
 				setTimeout(expand2, 0);
+			} else {
+				video.style.maxWidth = "100%";
 			}
 			let promise = video.play();
 			if (promise !== undefined) {
@@ -5081,7 +5130,7 @@ function setupVideo(thumb, url) {
 
 	// Hovering over thumbnail displays video
 	thumb.addEventListener("mouseover", function(e) {
-		if (setting("videohover")) {
+		if (!isAudio && setting("videohover")) {
 			getVideo();
 			expanded = false;
 			hovering = true;

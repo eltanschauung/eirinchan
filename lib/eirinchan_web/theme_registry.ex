@@ -9,6 +9,7 @@ defmodule EirinchanWeb.ThemeRegistry do
                           "contrast.css",
                           "feedback.css",
                           "ipaccessauth.css",
+                          "bluearchive.css",
                           "eirinchan-public.css",
                           "eirinchan-bant.css",
                           "eirinchan-mod.css"
@@ -17,6 +18,7 @@ defmodule EirinchanWeb.ThemeRegistry do
   @preferred_public_order [
     "default",
     "vichan",
+    "bluearchive",
     "christmas",
     "cirno",
     "hacker",
@@ -31,6 +33,7 @@ defmodule EirinchanWeb.ThemeRegistry do
     "default" => %{label: "Yotsuba", stylesheet: "/stylesheets/yotsuba.css"},
     "yotsuba" => %{label: "Yotsuba", stylesheet: "/stylesheets/yotsuba.css"},
     "vichan" => %{label: "Yotsuba B", stylesheet: "/stylesheets/style.css"},
+    "bluearchive" => %{label: "Blue Archive", stylesheet: "/stylesheets/bluearchive.css"},
     "contrast" => %{label: "Contrast", stylesheet: "/stylesheets/contrast.css"},
     "feedback" => %{label: "Feedback", stylesheet: "/stylesheets/feedback.css"},
     "ipaccessauth" => %{label: "IpAccessAuth", stylesheet: "/auth/yotsuba.css"},

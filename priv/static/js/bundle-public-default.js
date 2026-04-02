@@ -592,6 +592,9 @@ initImageHover();
 onReady(function() {
 	let dontFetchAgain = [];
 	let hoverTargets = 'div.body a:not([rel="nofollow"]), p.intro span.mentioned a';
+	let hoverRoot = function() {
+		return $('body').first();
+	};
 	let cacheRoot = function() {
 		let root = $('form[name="postcontrols"]').first();
 		if (!root.length) {
@@ -739,8 +742,12 @@ onReady(function() {
 						.css('position', 'absolute')
 						.css('font-style', 'normal')
 						.css('z-index', '100')
-						.addClass('reply').addClass('post')
-						.insertAfter(link.parent())
+						.addClass('reply').addClass('post');
+
+					// Mount the floating hover at the page root so its absolute
+					// positioning always uses document coordinates, regardless of
+					// whether the source link came from the post body or intro.
+					hoverRoot().append(newPost);
 
 					link.trigger('mousemove');
 				}

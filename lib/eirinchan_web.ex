@@ -38,6 +38,7 @@ defmodule EirinchanWeb do
         theme-thumbs
         whalestickers
         background_christmas.jpg
+        background_kivotos.jpg
         eientei_day.jpg
         eientei_night.jpg
         christmas_alice.png
@@ -46,6 +47,7 @@ defmodule EirinchanWeb do
         robots.txt
         spoiler_skillet.png
         tewi_down.png
+        yuuka.png
         whales.jpg
       )
 

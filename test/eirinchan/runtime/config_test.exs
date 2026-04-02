@@ -213,6 +213,31 @@ defmodule Eirinchan.Runtime.ConfigTest do
     assert config.cycle_limit == 1000
   end
 
+  test "defaults forced_theme to false and normalizes the deprecated alias" do
+    default_config =
+      Config.compose(
+        %{
+          root: "/",
+          dir: %{img: "img/", thumb: "thumb/", res: "res/"}
+        },
+        %{},
+        %{}
+      )
+
+    aliased_config =
+      Config.compose(
+        %{
+          root: "/",
+          dir: %{img: "img/", thumb: "thumb/", res: "res/"}
+        },
+        %{"forcedTheme" => "aya"},
+        %{}
+      )
+
+    assert default_config.forced_theme == false
+    assert aliased_config.forced_theme == "aya"
+  end
+
   test "defaults footer to the vichan-style disclaimer list" do
     config =
       Config.compose(
