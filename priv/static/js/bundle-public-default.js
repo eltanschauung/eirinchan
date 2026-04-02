@@ -263,6 +263,9 @@ $(document).ready(function(){
 	if (window.jQuery) {
 		window.bind_inline_expanding = bindInlineExpand;
 		bindInlineExpand(document.body);
+		$(document).on('fragment_init', function(e, root) {
+			bindInlineExpand(root);
+		});
 
 		// allow to work with auto-reload.js, etc.
 		$(document).on('new_post', function(e, post) {
@@ -358,6 +361,9 @@ window.EirinchanInitExpand = function(root) {
 
 $(document).ready(function(){
 	window.EirinchanInitExpand(document);
+	$(document).on('fragment_init', function(e, root) {
+		window.EirinchanInitExpand(root);
+	});
 
 	$(document).on("new_post", function(e, post) {
 		if (!$(post).hasClass("reply")) {
@@ -467,12 +473,21 @@ function initImageHover() { //Pashe, influenced by tux, et al, WTFPL
 		selectors.push(".thread-image");
 		$(".theme-catalog div.thread").css("position", "inherit");
 	}
+
+	var selectorString = selectors.join(", ");
 	
 	function bindEvents(el) {
-		$(el).find(selectors.join(", ")).each(function () {
+		if (!selectorString) { return; }
+
+		var $root = $(el);
+		var $targets = $root.filter(selectorString).add($root.find(selectorString));
+
+		$targets.each(function () {
 			if ($(this).parent().data("expanded")) {return;}
+			if (this.dataset.imageHoverBound === 'true') {return;}
 			
 			var $this = $(this);
+			this.dataset.imageHoverBound = 'true';
 			
 			$this.on("mousemove", imageHoverStart);
 			$this.on("mouseout",  imageHoverEnd);
@@ -483,6 +498,9 @@ function initImageHover() { //Pashe, influenced by tux, et al, WTFPL
 	window.bind_image_hover = bindEvents;
 
 	bindEvents(document.body);
+	$(document).on('fragment_init', function(e, root) {
+		bindEvents(root);
+	});
 	$(document).on('new_post', function(e, post) {
 		bindEvents(post);
 	});
@@ -663,7 +681,7 @@ onReady(function() {
 		return selectors.join(', ');
 	};
 
-	initHover = function() {
+	let initHover = function() {
 		let link = $(this);
 		let id;
 		let matches;
@@ -848,12 +866,29 @@ onReady(function() {
 		});
 	};
 
-	$(hoverTargets).each(initHover);
-	window.init_hover = initHover;
+	let bindHover = function(root) {
+		let $root = root ? $(root) : $(document);
+		let $targets = $root.filter(hoverTargets).add($root.find(hoverTargets));
+
+		$targets.each(function() {
+			if (this.dataset.postHoverBound === 'true') {
+				return;
+			}
+
+			this.dataset.postHoverBound = 'true';
+			initHover.call(this);
+		});
+	};
+
+	bindHover(document.body);
+	window.init_hover = bindHover;
+	$(document).on('fragment_init', function(e, root) {
+		bindHover(root);
+	});
 
 	// allow to work with auto-reload.js, etc.
 	$(document).on('new_post', function(e, post) {
-		$(post).find(hoverTargets).each(initHover);
+		bindHover(post);
 	});
 });
 /* End js/post-hover.js */
@@ -979,6 +1014,11 @@ $(document).ready(function(){
 
 	window.do_localtime = do_localtime;
 	syncTimezoneCookie();
+	do_localtime(document.body);
+
+	$(document).on('fragment_init', function(e, root) {
+		do_localtime(root);
+	});
 
 	$(document).on('new_post', function(e, post) {
 		do_localtime(post);

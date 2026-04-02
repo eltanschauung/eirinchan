@@ -87,7 +87,7 @@ onReady(function() {
 		return selectors.join(', ');
 	};
 
-	initHover = function() {
+	let initHover = function() {
 		let link = $(this);
 		let id;
 		let matches;
@@ -272,11 +272,28 @@ onReady(function() {
 		});
 	};
 
-	$(hoverTargets).each(initHover);
-	window.init_hover = initHover;
+	let bindHover = function(root) {
+		let $root = root ? $(root) : $(document);
+		let $targets = $root.filter(hoverTargets).add($root.find(hoverTargets));
+
+		$targets.each(function() {
+			if (this.dataset.postHoverBound === 'true') {
+				return;
+			}
+
+			this.dataset.postHoverBound = 'true';
+			initHover.call(this);
+		});
+	};
+
+	bindHover(document.body);
+	window.init_hover = bindHover;
+	$(document).on('fragment_init', function(e, root) {
+		bindHover(root);
+	});
 
 	// allow to work with auto-reload.js, etc.
 	$(document).on('new_post', function(e, post) {
-		$(post).find(hoverTargets).each(initHover);
+		bindHover(post);
 	});
 });

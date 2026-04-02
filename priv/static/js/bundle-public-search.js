@@ -263,6 +263,9 @@ $(document).ready(function(){
 	if (window.jQuery) {
 		window.bind_inline_expanding = bindInlineExpand;
 		bindInlineExpand(document.body);
+		$(document).on('fragment_init', function(e, root) {
+			bindInlineExpand(root);
+		});
 
 		// allow to work with auto-reload.js, etc.
 		$(document).on('new_post', function(e, post) {
@@ -358,6 +361,9 @@ window.EirinchanInitExpand = function(root) {
 
 $(document).ready(function(){
 	window.EirinchanInitExpand(document);
+	$(document).on('fragment_init', function(e, root) {
+		window.EirinchanInitExpand(root);
+	});
 
 	$(document).on("new_post", function(e, post) {
 		if (!$(post).hasClass("reply")) {
@@ -467,12 +473,21 @@ function initImageHover() { //Pashe, influenced by tux, et al, WTFPL
 		selectors.push(".thread-image");
 		$(".theme-catalog div.thread").css("position", "inherit");
 	}
+
+	var selectorString = selectors.join(", ");
 	
 	function bindEvents(el) {
-		$(el).find(selectors.join(", ")).each(function () {
+		if (!selectorString) { return; }
+
+		var $root = $(el);
+		var $targets = $root.filter(selectorString).add($root.find(selectorString));
+
+		$targets.each(function () {
 			if ($(this).parent().data("expanded")) {return;}
+			if (this.dataset.imageHoverBound === 'true') {return;}
 			
 			var $this = $(this);
+			this.dataset.imageHoverBound = 'true';
 			
 			$this.on("mousemove", imageHoverStart);
 			$this.on("mouseout",  imageHoverEnd);
@@ -483,6 +498,9 @@ function initImageHover() { //Pashe, influenced by tux, et al, WTFPL
 	window.bind_image_hover = bindEvents;
 
 	bindEvents(document.body);
+	$(document).on('fragment_init', function(e, root) {
+		bindEvents(root);
+	});
 	$(document).on('new_post', function(e, post) {
 		bindEvents(post);
 	});
@@ -694,6 +712,11 @@ $(document).ready(function(){
 
 	window.do_localtime = do_localtime;
 	syncTimezoneCookie();
+	do_localtime(document.body);
+
+	$(document).on('fragment_init', function(e, root) {
+		do_localtime(root);
+	});
 
 	$(document).on('new_post', function(e, post) {
 		do_localtime(post);
@@ -872,8 +895,13 @@ var update_own = function() {
   syncOwnMarkersFor(this);
 };
 
-var update_all = function() {
-  $('.thread[data-board]').each(update_own);
+var threads_for_scope = function(scope) {
+  var $scope = $(scope);
+  return $scope.filter('.thread[data-board]').add($scope.find('.thread[data-board]'));
+};
+
+var update_threads = function(scope) {
+  threads_for_scope(scope || document.body).each(update_own);
 };
 
 var board = null;
@@ -881,7 +909,7 @@ var board = null;
 $(function() {
   board = $('input[name="board"]').first().val();
 
-  update_all();
+  update_threads(document.body);
 });
 
 $(document).on('ajax_after_post', function(e, r) {
@@ -892,6 +920,10 @@ $(document).on('ajax_after_post', function(e, r) {
 $(document).on('new_post', function(e,post) {
   var thread = $(post).closest('.thread[data-board]')[0] || post;
   update_own.call(thread);
+});
+
+$(document).on('fragment_init', function(e, root) {
+  update_threads(root);
 });
 
 

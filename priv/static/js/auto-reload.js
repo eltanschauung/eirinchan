@@ -43,6 +43,15 @@ $(document).ready(function(){
 			$(document).trigger('new_post', post);
 		}
 	};
+	var initFragment = function(root, options) {
+		if (!root) {
+			return;
+		}
+
+		if (window.EirinchanFrontend && typeof window.EirinchanFrontend.initFragment === 'function') {
+			window.EirinchanFrontend.initFragment(root, options || {});
+		}
+	};
 	var queueNextPoll = function(delay) {
 		if ($('#auto_update_status').is(':checked')) {
 			poll_interval_delay = delay;
@@ -459,9 +468,7 @@ $(document).ready(function(){
 					currentGrid.insertBefore(cards_to_prepend[i], currentGrid.firstChild);
 				}
 
-				if (window.bind_image_hover) {
-					window.bind_image_hover(currentGrid);
-				}
+				initFragment(currentGrid, { reason: 'auto-reload-catalog' });
 
 				if (new_threads > 0) {
 					new_posts += new_threads;
@@ -517,6 +524,7 @@ $(document).ready(function(){
 				var replacementPostControls;
 				var hiddenStateById = {};
 				var loaded_posts = 0;
+				var insertedPostIds = [];
 				var max_current_post_id = 0;
 
 				if (!replacement || !current) {
@@ -561,6 +569,7 @@ $(document).ready(function(){
 				Array.prototype.forEach.call(replacement.querySelectorAll('.post[id]'), function(node) {
 					if (numeric_suffix(node.id) > max_current_post_id) {
 						loaded_posts++;
+						insertedPostIds.push(node.id);
 					}
 				});
 
@@ -572,20 +581,15 @@ $(document).ready(function(){
 				}
 
 				current.replaceWith(replacement);
+				initFragment(replacement, { reason: 'auto-reload-board' });
 
-				$(replacement).find('.post').each(function() {
-					dispatchNewPost(this);
+				insertedPostIds.forEach(function(id) {
+					var inserted = document.getElementById(id);
+					if (inserted) {
+						dispatchNewPost(inserted);
+					}
 				});
 
-				if (typeof window.EirinchanInitExpand === 'function') {
-					window.EirinchanInitExpand(replacement);
-				}
-				if (typeof window.bind_image_hover === 'function') {
-					window.bind_image_hover(replacement);
-				}
-				if (typeof window.bind_inline_expanding === 'function') {
-					window.bind_inline_expanding(replacement);
-				}
 				if (loaded_posts > 0) {
 					new_posts += loaded_posts;
 					update_title();

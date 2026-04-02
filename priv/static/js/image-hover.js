@@ -97,12 +97,21 @@ function initImageHover() { //Pashe, influenced by tux, et al, WTFPL
 		selectors.push(".thread-image");
 		$(".theme-catalog div.thread").css("position", "inherit");
 	}
+
+	var selectorString = selectors.join(", ");
 	
 	function bindEvents(el) {
-		$(el).find(selectors.join(", ")).each(function () {
+		if (!selectorString) { return; }
+
+		var $root = $(el);
+		var $targets = $root.filter(selectorString).add($root.find(selectorString));
+
+		$targets.each(function () {
 			if ($(this).parent().data("expanded")) {return;}
+			if (this.dataset.imageHoverBound === 'true') {return;}
 			
 			var $this = $(this);
+			this.dataset.imageHoverBound = 'true';
 			
 			$this.on("mousemove", imageHoverStart);
 			$this.on("mouseout",  imageHoverEnd);
@@ -113,6 +122,9 @@ function initImageHover() { //Pashe, influenced by tux, et al, WTFPL
 	window.bind_image_hover = bindEvents;
 
 	bindEvents(document.body);
+	$(document).on('fragment_init', function(e, root) {
+		bindEvents(root);
+	});
 	$(document).on('new_post', function(e, post) {
 		bindEvents(post);
 	});

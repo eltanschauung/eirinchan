@@ -81,6 +81,9 @@ window.EirinchanInitExpand = function(root) {
 
 $(document).ready(function(){
 	window.EirinchanInitExpand(document);
+	$(document).on('fragment_init', function(e, root) {
+		window.EirinchanInitExpand(root);
+	});
 
 	$(document).on("new_post", function(e, post) {
 		if (!$(post).hasClass("reply")) {

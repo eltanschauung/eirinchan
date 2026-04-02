@@ -263,6 +263,9 @@ $(document).ready(function(){
 	if (window.jQuery) {
 		window.bind_inline_expanding = bindInlineExpand;
 		bindInlineExpand(document.body);
+		$(document).on('fragment_init', function(e, root) {
+			bindInlineExpand(root);
+		});
 
 		// allow to work with auto-reload.js, etc.
 		$(document).on('new_post', function(e, post) {
@@ -1168,6 +1171,9 @@ window.EirinchanInitExpand = function(root) {
 
 $(document).ready(function(){
 	window.EirinchanInitExpand(document);
+	$(document).on('fragment_init', function(e, root) {
+		window.EirinchanInitExpand(root);
+	});
 
 	$(document).on("new_post", function(e, post) {
 		if (!$(post).hasClass("reply")) {
@@ -2984,6 +2990,11 @@ $(document).ready(function(){
 
 	window.do_localtime = do_localtime;
 	syncTimezoneCookie();
+	do_localtime(document.body);
+
+	$(document).on('fragment_init', function(e, root) {
+		do_localtime(root);
+	});
 
 	$(document).on('new_post', function(e, post) {
 		do_localtime(post);
@@ -3070,6 +3081,15 @@ $(document).ready(function(){
 			window.EirinchanFrontend.dispatchNewPost(post);
 		} else {
 			$(document).trigger('new_post', post);
+		}
+	};
+	var initFragment = function(root, options) {
+		if (!root) {
+			return;
+		}
+
+		if (window.EirinchanFrontend && typeof window.EirinchanFrontend.initFragment === 'function') {
+			window.EirinchanFrontend.initFragment(root, options || {});
 		}
 	};
 	var queueNextPoll = function(delay) {
@@ -3488,9 +3508,7 @@ $(document).ready(function(){
 					currentGrid.insertBefore(cards_to_prepend[i], currentGrid.firstChild);
 				}
 
-				if (window.bind_image_hover) {
-					window.bind_image_hover(currentGrid);
-				}
+				initFragment(currentGrid, { reason: 'auto-reload-catalog' });
 
 				if (new_threads > 0) {
 					new_posts += new_threads;
@@ -3546,6 +3564,7 @@ $(document).ready(function(){
 				var replacementPostControls;
 				var hiddenStateById = {};
 				var loaded_posts = 0;
+				var insertedPostIds = [];
 				var max_current_post_id = 0;
 
 				if (!replacement || !current) {
@@ -3590,6 +3609,7 @@ $(document).ready(function(){
 				Array.prototype.forEach.call(replacement.querySelectorAll('.post[id]'), function(node) {
 					if (numeric_suffix(node.id) > max_current_post_id) {
 						loaded_posts++;
+						insertedPostIds.push(node.id);
 					}
 				});
 
@@ -3601,20 +3621,15 @@ $(document).ready(function(){
 				}
 
 				current.replaceWith(replacement);
+				initFragment(replacement, { reason: 'auto-reload-board' });
 
-				$(replacement).find('.post').each(function() {
-					dispatchNewPost(this);
+				insertedPostIds.forEach(function(id) {
+					var inserted = document.getElementById(id);
+					if (inserted) {
+						dispatchNewPost(inserted);
+					}
 				});
 
-				if (typeof window.EirinchanInitExpand === 'function') {
-					window.EirinchanInitExpand(replacement);
-				}
-				if (typeof window.bind_image_hover === 'function') {
-					window.bind_image_hover(replacement);
-				}
-				if (typeof window.bind_inline_expanding === 'function') {
-					window.bind_inline_expanding(replacement);
-				}
 				if (loaded_posts > 0) {
 					new_posts += loaded_posts;
 					update_title();
@@ -3888,12 +3903,21 @@ function initImageHover() { //Pashe, influenced by tux, et al, WTFPL
 		selectors.push(".thread-image");
 		$(".theme-catalog div.thread").css("position", "inherit");
 	}
+
+	var selectorString = selectors.join(", ");
 	
 	function bindEvents(el) {
-		$(el).find(selectors.join(", ")).each(function () {
+		if (!selectorString) { return; }
+
+		var $root = $(el);
+		var $targets = $root.filter(selectorString).add($root.find(selectorString));
+
+		$targets.each(function () {
 			if ($(this).parent().data("expanded")) {return;}
+			if (this.dataset.imageHoverBound === 'true') {return;}
 			
 			var $this = $(this);
+			this.dataset.imageHoverBound = 'true';
 			
 			$this.on("mousemove", imageHoverStart);
 			$this.on("mouseout",  imageHoverEnd);
@@ -3904,6 +3928,9 @@ function initImageHover() { //Pashe, influenced by tux, et al, WTFPL
 	window.bind_image_hover = bindEvents;
 
 	bindEvents(document.body);
+	$(document).on('fragment_init', function(e, root) {
+		bindEvents(root);
+	});
 	$(document).on('new_post', function(e, post) {
 		bindEvents(post);
 	});
@@ -4084,7 +4111,7 @@ onReady(function() {
 		return selectors.join(', ');
 	};
 
-	initHover = function() {
+	let initHover = function() {
 		let link = $(this);
 		let id;
 		let matches;
@@ -4269,12 +4296,29 @@ onReady(function() {
 		});
 	};
 
-	$(hoverTargets).each(initHover);
-	window.init_hover = initHover;
+	let bindHover = function(root) {
+		let $root = root ? $(root) : $(document);
+		let $targets = $root.filter(hoverTargets).add($root.find(hoverTargets));
+
+		$targets.each(function() {
+			if (this.dataset.postHoverBound === 'true') {
+				return;
+			}
+
+			this.dataset.postHoverBound = 'true';
+			initHover.call(this);
+		});
+	};
+
+	bindHover(document.body);
+	window.init_hover = bindHover;
+	$(document).on('fragment_init', function(e, root) {
+		bindHover(root);
+	});
 
 	// allow to work with auto-reload.js, etc.
 	$(document).on('new_post', function(e, post) {
-		$(post).find(hoverTargets).each(initHover);
+		bindHover(post);
 	});
 });
 /* End js/post-hover.js */
@@ -4450,8 +4494,13 @@ var update_own = function() {
   syncOwnMarkersFor(this);
 };
 
-var update_all = function() {
-  $('.thread[data-board]').each(update_own);
+var threads_for_scope = function(scope) {
+  var $scope = $(scope);
+  return $scope.filter('.thread[data-board]').add($scope.find('.thread[data-board]'));
+};
+
+var update_threads = function(scope) {
+  threads_for_scope(scope || document.body).each(update_own);
 };
 
 var board = null;
@@ -4459,7 +4508,7 @@ var board = null;
 $(function() {
   board = $('input[name="board"]').first().val();
 
-  update_all();
+  update_threads(document.body);
 });
 
 $(document).on('ajax_after_post', function(e, r) {
@@ -4470,6 +4519,10 @@ $(document).on('ajax_after_post', function(e, r) {
 $(document).on('new_post', function(e,post) {
   var thread = $(post).closest('.thread[data-board]')[0] || post;
   update_own.call(thread);
+});
+
+$(document).on('fragment_init', function(e, root) {
+  update_threads(root);
 });
 
 
@@ -4814,15 +4867,30 @@ $(document).ready(function(){
 	};
 	
 	var init_qpc = function() {
+		if (this.dataset.quickPostControlsBound === 'true')
+			return;
+
+		this.dataset.quickPostControlsBound = 'true';
 		$(this).change(open_form);
 		if(this.checked)
 			$(this).trigger('change');
 	};
 
-	$('div.post input[type=checkbox].delete').each(init_qpc);
+	var bind_qpc = function(root) {
+		var $root = root ? $(root) : $(document);
+		$root
+			.filter('div.post input[type=checkbox].delete')
+			.add($root.find('div.post input[type=checkbox].delete'))
+			.each(init_qpc);
+	};
+
+	bind_qpc(document.body);
+	$(document).on('fragment_init', function(e, root) {
+		bind_qpc(root);
+	});
 
 	$(document).on('new_post', function(e, post) {
-		$(post).find('input[type=checkbox].delete').each(init_qpc);
+		bind_qpc(post);
 	});
 });
 /* End js/quick-post-controls.js */
