@@ -35,7 +35,7 @@ defmodule Eirinchan.Stats do
     AprilFoolsTeams.dynamic_team_variable(name)
   end
 
-  for team_id <- 1..6 do
+  for team_id <- 1..12 do
     def unquote(String.to_atom("team_#{team_id}"))() do
       AprilFoolsTeams.team_tuple(unquote(team_id))
     end

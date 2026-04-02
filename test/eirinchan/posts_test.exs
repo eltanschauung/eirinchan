@@ -29,6 +29,7 @@ defmodule Eirinchan.PostsTest do
   use Eirinchan.DataCase, async: true
 
   alias Eirinchan.AprilFoolsTeam
+  alias Eirinchan.AprilFoolsTeams
   alias Eirinchan.Antispam
   alias Eirinchan.Build
   alias Eirinchan.ModerationLog
@@ -180,11 +181,11 @@ defmodule Eirinchan.PostsTest do
     assert thread.ip_subnet == nil
   end
 
-  test "create_post assigns teams and applies the silly score math for text posts" do
+  test "create_post assigns the collapsed april fools teams for text posts" do
     board = board_fixture(%{config_overrides: %{april_fools_teams: true}})
     request = Map.put(post_request(board.uri), :remote_ip, {203, 0, 113, 44})
     config = post_config(board.config_overrides)
-    expected_team = :erlang.phash2("203.0.113.44", 6) + 1
+    expected_team = AprilFoolsTeams.team_for_ip("203.0.113.44")
 
     Repo.get!(AprilFoolsTeam, expected_team)
     |> Ecto.Changeset.change(post_count: 0)
@@ -202,14 +203,14 @@ defmodule Eirinchan.PostsTest do
              )
 
     assert thread.team == expected_team
-    assert Repo.get!(AprilFoolsTeam, expected_team).post_count in 2..30
+    assert Repo.get!(AprilFoolsTeam, expected_team).post_count in 1..6
   end
 
-  test "create_post uses the image multiplier range for april fools team scores" do
+  test "create_post uses the same collapsed team assignment for image posts" do
     board = board_fixture(%{config_overrides: %{april_fools_teams: true}})
     request = Map.put(post_request(board.uri), :remote_ip, {203, 0, 113, 45})
     config = post_config(board.config_overrides)
-    expected_team = :erlang.phash2("203.0.113.45", 6) + 1
+    expected_team = AprilFoolsTeams.team_for_ip("203.0.113.45")
 
     Repo.get!(AprilFoolsTeam, expected_team)
     |> Ecto.Changeset.change(post_count: 0)
@@ -228,7 +229,28 @@ defmodule Eirinchan.PostsTest do
              )
 
     assert thread.team == expected_team
-    assert Repo.get!(AprilFoolsTeam, expected_team).post_count in 6..60
+    assert Repo.get!(AprilFoolsTeam, expected_team).post_count in 1..6
+  end
+
+  test "team_for_ip maps rolls 1, 3, 6 to team 11 and 2, 4, 5 to team 12" do
+    ip_for_team_11 =
+      Enum.find_value(1..2000, fn n ->
+        ip = "198.51.100.#{n}"
+        roll = :erlang.phash2(ip, 6) + 1
+        if roll in [1, 3, 6], do: ip, else: nil
+      end)
+
+    ip_for_team_12 =
+      Enum.find_value(1..2000, fn n ->
+        ip = "198.51.101.#{n}"
+        roll = :erlang.phash2(ip, 6) + 1
+        if roll in [2, 4, 5], do: ip, else: nil
+      end)
+
+    assert is_binary(ip_for_team_11)
+    assert is_binary(ip_for_team_12)
+    assert AprilFoolsTeams.team_for_ip(ip_for_team_11) == 11
+    assert AprilFoolsTeams.team_for_ip(ip_for_team_12) == 12
   end
 
   test "create_post accepts legacy post parameter aliases and mode=regist" do

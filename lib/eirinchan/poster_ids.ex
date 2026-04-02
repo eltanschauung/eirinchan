@@ -33,8 +33,8 @@ defmodule Eirinchan.PosterIds do
 
   def badge(_post, _config), do: nil
 
-  defp april_fools_badge(%{team: team}) when is_integer(team) do
-    case AprilFoolsTeams.badge(team) do
+  defp april_fools_badge(%{} = post) do
+    case AprilFoolsTeams.badge(post) do
       %{label: label, html_colour: html_colour, text_colour: text_colour} ->
         %{
           label: label,
