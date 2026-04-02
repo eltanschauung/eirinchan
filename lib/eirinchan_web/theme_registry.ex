@@ -3,7 +3,6 @@ defmodule EirinchanWeb.ThemeRegistry do
 
   alias Eirinchan.Settings
 
-  @static_stylesheet_dir Application.app_dir(:eirinchan, "priv/static/stylesheets")
   @internal_stylesheets MapSet.new([
                           "style.css",
                           "contrast.css",
@@ -105,7 +104,7 @@ defmodule EirinchanWeb.ThemeRegistry do
   end
 
   defp detected_static_themes do
-    @static_stylesheet_dir
+    static_stylesheet_dir()
     |> File.ls!()
     |> Enum.filter(&String.ends_with?(&1, ".css"))
     |> Enum.reject(&MapSet.member?(@internal_stylesheets, &1))
@@ -113,6 +112,10 @@ defmodule EirinchanWeb.ThemeRegistry do
       name = Path.rootname(filename)
       {name, %{label: theme_label(name), stylesheet: "/stylesheets/#{filename}"}}
     end)
+  end
+
+  defp static_stylesheet_dir do
+    Application.app_dir(:eirinchan, "priv/static/stylesheets")
   end
 
   defp public_theme_names do
