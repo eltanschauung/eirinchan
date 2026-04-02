@@ -136,6 +136,7 @@ function init_file_selector(max_images, root) {
     }
   });
 
+  $(document).off('ajax_before_post' + selectorNamespace);
   $(document).on('ajax_before_post' + selectorNamespace, function(e, formData, form) {
     if (form !== $root[0]) {
       return;
@@ -155,6 +156,7 @@ function init_file_selector(max_images, root) {
     }
   });
 
+  $(document).off('ajax_after_post' + selectorNamespace);
   $(document).on('ajax_after_post' + selectorNamespace, function(e, response, form) {
     if (form !== $root[0]) {
       return;

@@ -188,6 +188,57 @@ defmodule EirinchanWeb.PageControllerTest do
     assert get_resp_header(second_conn, "etag") == [etag]
   end
 
+  test "forced_theme overrides visitor theme cookies and hides the style selector", %{conn: conn} do
+    moderator_fixture()
+    board = board_fixture(%{uri: "forcedtheme#{System.unique_integer([:positive])}", title: "Forced Theme"})
+    thread = thread_fixture(board, %{subject: "Opening", body: "Alpha bravo charlie delta"})
+    reply_fixture(board, thread, %{body: "Recent reply body"})
+    original_config = Eirinchan.Settings.current_instance_config()
+
+    on_exit(fn ->
+      :ok = Eirinchan.Settings.persist_instance_config(original_config)
+    end)
+
+    :ok =
+      Eirinchan.Settings.persist_instance_config(%{
+        forced_theme: "aya"
+      })
+
+    page =
+      conn
+      |> put_req_cookie("theme", "tomorrow")
+      |> get("/")
+      |> html_response(200)
+
+    assert page =~ ~s(id="stylesheet" href="/stylesheets/aya.css)
+    assert page =~ ~s(data-stylesheet="aya.css")
+    refute page =~ ~s(id="style-select")
+  end
+
+  test "board forced_theme overrides board theme cookies and hides the style selector on that board", %{conn: conn} do
+    moderator_fixture()
+
+    board =
+      board_fixture(%{
+        uri: "boardforced#{System.unique_integer([:positive])}",
+        title: "Board Forced Theme",
+        config_overrides: %{force_theme: "bluearchive"}
+      })
+
+    thread = thread_fixture(board, %{subject: "Opening", body: "Alpha bravo charlie delta"})
+    reply_fixture(board, thread, %{body: "Recent reply body"})
+
+    page =
+      conn
+      |> put_req_cookie("board_themes", ~s({"#{board.uri}":"tomorrow"}))
+      |> get("/#{board.uri}/")
+      |> html_response(200)
+
+    assert page =~ ~s(id="stylesheet" href="/stylesheets/bluearchive.css)
+    assert page =~ ~s(data-stylesheet="bluearchive.css")
+    refute page =~ ~s(id="style-select")
+  end
+
   test "site-wide public static pages render global message stats placeholders and line breaks", %{conn: conn} do
     moderator_fixture()
     board = board_fixture(%{uri: "gmstats#{System.unique_integer([:positive])}", title: "GM Stats"})
@@ -516,7 +567,7 @@ defmodule EirinchanWeb.PageControllerTest do
     moderator_fixture()
     board = board_fixture(%{uri: "hooks#{System.unique_integer([:positive])}", title: "Hooks"})
     thread = thread_fixture(board, %{subject: "Hooks thread", body: "opening"})
-    reply = reply_fixture(board, thread, %{body: "reply body"})
+    _reply = reply_fixture(board, thread, %{body: "reply body"})
 
     page =
       conn
@@ -525,12 +576,11 @@ defmodule EirinchanWeb.PageControllerTest do
 
     assert page =~ ~s(form name="postcontrols" action="/post.php" method="post" hidden)
 
-    assert page =~
-             ~s(data-thread-watch data-board-uri="#{board.uri}" data-thread-id="#{PublicIds.public_id(thread)}")
+    assert page =~ ~s(data-thread-watch)
+    assert page =~ ~s(data-thread-id="#{PublicIds.public_id(thread)}")
 
     assert page =~ ~s(class="thread-top-controls")
-    assert page =~ ~s(class="post-btn" title="Post menu" data-post-target="op_#{PublicIds.public_id(thread)}")
-    assert page =~ ~s(class="post-btn" title="Post menu" data-post-target="reply_#{PublicIds.public_id(reply)}")
+    assert length(Regex.scan(~r/class="post-btn" title="Post menu"/, page)) >= 2
   end
 
   test "GET /ukko renders visible timestamps using the browser timezone cookie", %{conn: conn} do

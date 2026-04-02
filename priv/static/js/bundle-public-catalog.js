@@ -17,7 +17,6 @@
  */
 
 $(window).ready(function() {
-	var settings = new script_settings('ajax');
 	var do_not_ajax = false;
 	var csrfRefreshRequest = null;
 
@@ -37,6 +36,20 @@ $(window).ready(function() {
 		}
 
 		return null;
+	};
+
+	var looksLikeCsrfFailure = function(xhr, extractedMessage) {
+		if (!xhr || xhr.status !== 403) {
+			return false;
+		}
+
+		var message = (extractedMessage || '').toLowerCase();
+		if (message && (message.indexOf('csrf') !== -1 || message.indexOf('forgery') !== -1 || message.indexOf('out of date') !== -1)) {
+			return true;
+		}
+
+		var text = (xhr.responseText || '').toLowerCase();
+		return text.indexOf('csrf') !== -1 || text.indexOf('forgery') !== -1;
 	};
 
 	var currentCsrfToken = function() {
@@ -68,7 +81,15 @@ $(window).ready(function() {
 			return csrfRefreshRequest;
 		}
 
-		csrfRefreshRequest = $.getJSON('/csrf-token')
+		csrfRefreshRequest = $.ajax({
+			url: '/csrf-token',
+			type: 'GET',
+			dataType: 'json',
+			cache: false,
+			headers: {
+				'Cache-Control': 'no-cache'
+			}
+		})
 			.then(function(response) {
 				var token = response && response.csrf_token;
 
@@ -211,6 +232,7 @@ $(window).ready(function() {
 				$.ajax({
 					url: form.action,
 					type: 'POST',
+					dataType: 'json',
 					xhr: function() {
 						var xhr = $.ajaxSettings.xhr();
 						if(xhr.upload) {
@@ -323,8 +345,10 @@ $(window).ready(function() {
 					},
 					error: function(xhr, status, er) {
 						console.log(xhr);
+						var extracted = extractAjaxErrorMessage(xhr);
+						var csrfFailure = looksLikeCsrfFailure(xhr, extracted);
 
-						if (retryOnCsrfFailure && xhr && xhr.status === 403) {
+						if (retryOnCsrfFailure && csrfFailure) {
 							refreshCsrfToken().done(function() {
 								submitAjax(false);
 							}).fail(function() {
@@ -334,11 +358,14 @@ $(window).ready(function() {
 							return;
 						}
 
-						var extracted = extractAjaxErrorMessage(xhr);
 						if (extracted) {
 							alert(extracted);
-						} else if (xhr && xhr.status === 403) {
+						} else if (csrfFailure) {
 							alert(_('Your tab is out of date. Refresh the page and try again.'));
+						} else if (xhr && xhr.status >= 400 && xhr.status < 500) {
+							alert(_('Your post was rejected by the server. Refresh and try again.'));
+						} else if (xhr && xhr.status >= 500) {
+							alert(_('The server hit an internal error while processing your post. Please try again in a moment.'));
 						} else {
 							alert(_('The server took too long to submit your post. Your post was probably still submitted. If it wasn\'t, we might be experiencing issues right now -- please try your post again later.'));
 						}
@@ -507,6 +534,7 @@ function init_file_selector(max_images, root) {
     }
   });
 
+  $(document).off('ajax_before_post' + selectorNamespace);
   $(document).on('ajax_before_post' + selectorNamespace, function(e, formData, form) {
     if (form !== $root[0]) {
       return;
@@ -526,6 +554,7 @@ function init_file_selector(max_images, root) {
     }
   });
 
+  $(document).off('ajax_after_post' + selectorNamespace);
   $(document).on('ajax_after_post' + selectorNamespace, function(e, response, form) {
     if (form !== $root[0]) {
       return;

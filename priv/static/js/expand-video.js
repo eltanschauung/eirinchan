@@ -13,6 +13,8 @@ function setupVideo(thumb, url) {
 	}
 	thumb.videoAlreadySetUp = true;
 
+	let isAudio = /\.(mp3|wav|flac)$/i.test((url || '').split('?')[0]);
+
 	let video = null;
 	let videoContainer, videoHide;
 	let expanded = false;
@@ -76,13 +78,17 @@ function setupVideo(thumb, url) {
 	// Create video element if does not exist yet
 	function getVideo() {
 		if (video == null) {
-			video = document.createElement("video");
+			video = document.createElement(isAudio ? "audio" : "video");
 			video.src = url;
 			video.loop = loop;
 			video.preload = "metadata";
-			video.setAttribute("playsinline", "");
-			video.setAttribute("webkit-playsinline", "");
-			video.innerText = _("Your browser does not support HTML5 video.");
+			if (!isAudio) {
+				video.setAttribute("playsinline", "");
+				video.setAttribute("webkit-playsinline", "");
+			}
+			video.innerText = isAudio
+				? _("Your browser does not support HTML5 audio.")
+				: _("Your browser does not support HTML5 video.");
 
 			videoHide = document.createElement("img");
 			videoHide.src = configRoot + "static/collapse.gif";
@@ -119,7 +125,7 @@ function setupVideo(thumb, url) {
 				mouseDown = false;
 			}, false);
 			video.addEventListener("mouseout", function(e) {
-				if (mouseDown && e.clientX - video.getBoundingClientRect().left <= 0) {
+				if (!isAudio && mouseDown && e.clientX - video.getBoundingClientRect().left <= 0) {
 					unexpand();
 				}
 				mouseDown = false;
@@ -148,13 +154,20 @@ function setupVideo(thumb, url) {
 			videoContainer.style.position = "static";
 			video.parentNode.parentNode.removeAttribute('style');
 			thumb.style.display = "none";
+			if (isAudio) {
+				video.style.width = "320px";
+				video.style.maxWidth = "100%";
+				video.style.maxHeight = "inherit";
+			}
 
 			setVolume();
 			video.controls = true;
-			if (video.readyState == 0) {
+			if (!isAudio && video.readyState == 0) {
 				video.addEventListener("loadedmetadata", expand2, false);
-			} else {
+			} else if (!isAudio) {
 				setTimeout(expand2, 0);
+			} else {
+				video.style.maxWidth = "100%";
 			}
 			let promise = video.play();
 			if (promise !== undefined) {
@@ -182,7 +195,7 @@ function setupVideo(thumb, url) {
 
 	// Hovering over thumbnail displays video
 	thumb.addEventListener("mouseover", function(e) {
-		if (setting("videohover")) {
+		if (!isAudio && setting("videohover")) {
 			getVideo();
 			expanded = false;
 			hovering = true;

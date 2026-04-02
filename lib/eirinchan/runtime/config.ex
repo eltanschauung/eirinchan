@@ -30,6 +30,7 @@ defmodule Eirinchan.Runtime.Config do
     show_styles_block: true,
     stylesheets_board: true,
     default_theme: nil,
+    forced_theme: false,
     file_mod: "mod.php",
     file_script: "main.js",
     additional_javascript: [
@@ -360,6 +361,9 @@ defmodule Eirinchan.Runtime.Config do
     "postFormEmbed" => :post_form_embed,
     "stylesheetsBoard" => :stylesheets_board,
     "defaultTheme" => :default_theme,
+    "force_theme" => :forced_theme,
+    "forceTheme" => :forced_theme,
+    "forcedTheme" => :forced_theme,
     "ipAccess" => :ipaccess,
     "ipAccessReplies" => :ipaccess_replies,
     "ipNulling" => :ip_nulling,

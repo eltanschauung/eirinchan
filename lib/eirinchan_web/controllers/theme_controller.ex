@@ -1,6 +1,8 @@
 defmodule EirinchanWeb.ThemeController do
   use EirinchanWeb, :controller
 
+  alias Eirinchan.Boards
+  alias Eirinchan.Settings
   alias EirinchanWeb.ThemeRegistry
 
   def update(conn, %{"theme" => theme} = params) do
@@ -13,20 +15,26 @@ defmodule EirinchanWeb.ThemeController do
 
     return_to = safe_return_to(params["return_to"])
     board = normalize_board(params["board"])
+    board_record = if board, do: Boards.get_board_by_uri(board), else: nil
+    forced_theme_identifier = forced_theme(board_record, Settings.current_instance_config())
 
     conn =
-      if board do
-        board_themes =
-          conn.cookies["board_themes"]
-          |> decode_board_themes_cookie()
-          |> Map.put(board, selected_theme)
-
-        put_resp_cookie(conn, "board_themes", Jason.encode!(board_themes),
-          max_age: 60 * 60 * 24 * 365,
-          path: "/"
-        )
+      if forced_theme_identifier do
+        conn
       else
-        put_resp_cookie(conn, "theme", selected_theme, max_age: 60 * 60 * 24 * 365, path: "/")
+        if board do
+          board_themes =
+            conn.cookies["board_themes"]
+            |> decode_board_themes_cookie()
+            |> Map.put(board, selected_theme)
+
+          put_resp_cookie(conn, "board_themes", Jason.encode!(board_themes),
+            max_age: 60 * 60 * 24 * 365,
+            path: "/"
+          )
+        else
+          put_resp_cookie(conn, "theme", selected_theme, max_age: 60 * 60 * 24 * 365, path: "/")
+        end
       end
 
     redirect(conn, to: return_to)
@@ -53,6 +61,43 @@ defmodule EirinchanWeb.ThemeController do
   end
 
   defp normalize_board(_value), do: nil
+
+  defp forced_theme(board, instance_config) do
+    board_forced_theme(board) || global_forced_theme(instance_config)
+  end
+
+  defp board_forced_theme(nil), do: nil
+
+  defp board_forced_theme(board) do
+    board.config_overrides
+    |> case do
+      overrides when is_map(overrides) ->
+        Map.get(overrides, :forced_theme) ||
+          Map.get(overrides, "forced_theme") ||
+          Map.get(overrides, :force_theme) ||
+          Map.get(overrides, "force_theme")
+
+      _ ->
+        nil
+    end
+    |> valid_forced_theme()
+  end
+
+  defp global_forced_theme(instance_config) do
+    Map.get(instance_config, :forced_theme)
+    |> valid_forced_theme()
+  end
+
+  defp valid_forced_theme(name) do
+    case name do
+      value when is_binary(value) ->
+        value = String.trim(value)
+        if value != "" and ThemeRegistry.valid_theme?(value), do: value, else: nil
+
+      _ ->
+        nil
+    end
+  end
 
   defp safe_return_to(nil), do: "/"
   defp safe_return_to(""), do: "/"
