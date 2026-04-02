@@ -259,6 +259,9 @@ $(document).ready(function(){
 	if (window.jQuery) {
 		window.bind_inline_expanding = bindInlineExpand;
 		bindInlineExpand(document.body);
+		$(document).on('fragment_init', function(e, root) {
+			bindInlineExpand(root);
+		});
 
 		// allow to work with auto-reload.js, etc.
 		$(document).on('new_post', function(e, post) {

@@ -118,6 +118,11 @@ $(document).ready(function(){
 
 	window.do_localtime = do_localtime;
 	syncTimezoneCookie();
+	do_localtime(document.body);
+
+	$(document).on('fragment_init', function(e, root) {
+		do_localtime(root);
+	});
 
 	$(document).on('new_post', function(e, post) {
 		do_localtime(post);

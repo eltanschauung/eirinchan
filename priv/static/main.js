@@ -916,6 +916,32 @@
     }
   }
 
+  function normalizeFragmentRoot(root) {
+    if (!root) return document.body;
+    if (root.nodeType) return root;
+    if (typeof window.jQuery !== 'undefined' && root.jquery) return root[0] || document.body;
+    if (typeof root.length === 'number' && root[0] && root[0].nodeType) return root[0];
+    return document.body;
+  }
+
+  function initFragment(root, options) {
+    var normalizedRoot = normalizeFragmentRoot(root);
+    var detail = {
+      root: normalizedRoot,
+      options: options || {}
+    };
+
+    if (typeof window.jQuery !== 'undefined') {
+      window.jQuery(document).trigger('fragment_init', [normalizedRoot, detail.options]);
+    }
+
+    if (typeof window.CustomEvent === 'function') {
+      document.dispatchEvent(new CustomEvent('eirinchan:fragment-init', { detail: detail }));
+    }
+
+    return normalizedRoot;
+  }
+
   function initPosts(posts) {
     if (!posts) return;
 
@@ -941,6 +967,9 @@
 
     if (window.EirinchanFrontend && typeof window.EirinchanFrontend.initPost === 'function') {
       window.EirinchanFrontend.initPost(post);
+      if (typeof window.EirinchanFrontend.initFragment === 'function') {
+        window.EirinchanFrontend.initFragment(post, { reason: 'new-post' });
+      }
       return;
     }
 
@@ -1171,6 +1200,7 @@
   window.EirinchanFrontend = window.EirinchanFrontend || {};
   window.EirinchanFrontend.initPost = window.EirinchanFrontend.initPost || initPost;
   window.EirinchanFrontend.initPosts = window.EirinchanFrontend.initPosts || initPosts;
+  window.EirinchanFrontend.initFragment = window.EirinchanFrontend.initFragment || initFragment;
   window.EirinchanFrontend.afterPostSuccess =
     window.EirinchanFrontend.afterPostSuccess || afterPostSuccess;
   window.EirinchanFrontend.dispatchNewPost =

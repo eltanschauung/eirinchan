@@ -168,8 +168,13 @@ var update_own = function() {
   syncOwnMarkersFor(this);
 };
 
-var update_all = function() {
-  $('.thread[data-board]').each(update_own);
+var threads_for_scope = function(scope) {
+  var $scope = $(scope);
+  return $scope.filter('.thread[data-board]').add($scope.find('.thread[data-board]'));
+};
+
+var update_threads = function(scope) {
+  threads_for_scope(scope || document.body).each(update_own);
 };
 
 var board = null;
@@ -177,7 +182,7 @@ var board = null;
 $(function() {
   board = $('input[name="board"]').first().val();
 
-  update_all();
+  update_threads(document.body);
 });
 
 $(document).on('ajax_after_post', function(e, r) {
@@ -188,6 +193,10 @@ $(document).on('ajax_after_post', function(e, r) {
 $(document).on('new_post', function(e,post) {
   var thread = $(post).closest('.thread[data-board]')[0] || post;
   update_own.call(thread);
+});
+
+$(document).on('fragment_init', function(e, root) {
+  update_threads(root);
 });
 
 

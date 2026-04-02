@@ -100,14 +100,29 @@ $(document).ready(function(){
 	};
 	
 	var init_qpc = function() {
+		if (this.dataset.quickPostControlsBound === 'true')
+			return;
+
+		this.dataset.quickPostControlsBound = 'true';
 		$(this).change(open_form);
 		if(this.checked)
 			$(this).trigger('change');
 	};
 
-	$('div.post input[type=checkbox].delete').each(init_qpc);
+	var bind_qpc = function(root) {
+		var $root = root ? $(root) : $(document);
+		$root
+			.filter('div.post input[type=checkbox].delete')
+			.add($root.find('div.post input[type=checkbox].delete'))
+			.each(init_qpc);
+	};
+
+	bind_qpc(document.body);
+	$(document).on('fragment_init', function(e, root) {
+		bind_qpc(root);
+	});
 
 	$(document).on('new_post', function(e, post) {
-		$(post).find('input[type=checkbox].delete').each(init_qpc);
+		bind_qpc(post);
 	});
 });
