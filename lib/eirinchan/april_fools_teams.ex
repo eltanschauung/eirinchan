@@ -8,14 +8,25 @@ defmodule Eirinchan.AprilFoolsTeams do
   alias Eirinchan.Posts.PostFile
   alias Eirinchan.Repo
 
+  @max_post_count 9_223_372_036_854_775_807
+  @team_6_cutover DateTime.utc_now() |> DateTime.truncate(:second)
+
   @badge_map %{
     1 => %{label: "Yukari Whale 🐋", html_colour: "#FFBF00"},
     2 => %{label: "Judaism ✡", html_colour: "#000080"},
     3 => %{label: "Otokonoko 🩰", html_colour: "#FF69B4"},
     4 => %{label: "Skuf 🍟", html_colour: "#013220"},
     5 => %{label: "Soyteen 💎", html_colour: "#A0BBC7"},
-    6 => %{label: "Finasteride 💊", html_colour: "#ADD8E6"}
+    6 => %{label: "Nofap 🔞", html_colour: "#abd0f5"},
+    7 => %{label: "FUTA 🍆", html_colour: "#9542f5"},
+    8 => %{label: "Touhou Project ☯ ⛩️", html_colour: "#E15467"},
+    9 => %{label: "Blue Archive ᕕ(◠ڼ◠)ᕗ 😭", html_colour: "#87CEEB"},
+    10 => %{label: "Limbus Company ⏰🔥", html_colour: "#d93c27"},
+    11 => %{label: "Cobson ♠️", html_colour: "#000000"},
+    12 => %{label: "Cobson Haters 🥊", html_colour: "#74eb34"}
   }
+
+  @legacy_team_6_badge %{label: "Finasteride 💊", html_colour: "#ADD8E6"}
 
   def enabled?(config) when is_map(config), do: Map.get(config, :april_fools_teams, false) == true
   def enabled?(_config), do: false
@@ -31,20 +42,27 @@ defmodule Eirinchan.AprilFoolsTeams do
     end
   end
 
-  def team_for_ip(ip) when is_binary(ip), do: :erlang.phash2(ip, 6) + 1
+  def team_for_ip(ip) when is_binary(ip) do
+    case :erlang.phash2(ip, 6) + 1 do
+      roll when roll in [1, 3, 6] -> 11
+      _ -> 12
+    end
+  end
+
+  def badge(%{team: 6} = post) when is_map(post) do
+    if legacy_team_6_post?(post) do
+      materialize_badge(@legacy_team_6_badge)
+    else
+      materialize_badge(Map.get(@badge_map, 6))
+    end
+  end
+
+  def badge(%{team: team_id}) when is_integer(team_id), do: badge(team_id)
 
   def badge(team_id) when is_integer(team_id) do
-    case Map.get(@badge_map, team_id) do
-      %{label: label, html_colour: html_colour} ->
-        %{
-          label: label,
-          html_colour: html_colour,
-          text_colour: contrast_text_colour(html_colour)
-        }
-
-      _ ->
-        nil
-    end
+    @badge_map
+    |> Map.get(team_id)
+    |> materialize_badge()
   end
 
   def badge(_team_id), do: nil
@@ -57,15 +75,16 @@ defmodule Eirinchan.AprilFoolsTeams do
 
   def increment_post_count(_team_id, _repo), do: :ok
 
-  def increment_post_count(team_id, image_post?, repo)
-      when is_integer(team_id) and is_boolean(image_post?) do
-    multiplier_range = if image_post?, do: 6..10, else: 2..5
+  def increment_post_count(team_id, _image_post?, repo)
+      when is_integer(team_id) do
     increment = Enum.random(1..6)
-    multiplier = Enum.random(multiplier_range)
 
     case repo.one(from team in AprilFoolsTeam, where: team.team == ^team_id, lock: "FOR UPDATE") do
       %AprilFoolsTeam{} = team ->
-        new_count = (team.post_count + increment) * multiplier
+        new_count =
+          team.post_count
+          |> Kernel.+(increment)
+          |> min(@max_post_count)
 
         team
         |> Ecto.Changeset.change(post_count: new_count)
@@ -158,6 +177,28 @@ defmodule Eirinchan.AprilFoolsTeams do
       4 -> "whale"
     end
   end
+
+  defp legacy_team_6_post?(%{inserted_at: %NaiveDateTime{} = inserted_at}) do
+    inserted_at
+    |> DateTime.from_naive!("Etc/UTC")
+    |> DateTime.compare(@team_6_cutover) == :lt
+  end
+
+  defp legacy_team_6_post?(%{inserted_at: %DateTime{} = inserted_at}) do
+    DateTime.compare(inserted_at, @team_6_cutover) == :lt
+  end
+
+  defp legacy_team_6_post?(_post), do: false
+
+  defp materialize_badge(%{label: label, html_colour: html_colour}) do
+    %{
+      label: label,
+      html_colour: html_colour,
+      text_colour: contrast_text_colour(html_colour)
+    }
+  end
+
+  defp materialize_badge(_badge), do: nil
 
   defp image_file?(%Post{file_type: file_type}), do: image_file_type?(file_type)
   defp image_file?(%PostFile{file_type: file_type}), do: image_file_type?(file_type)
