@@ -1,6 +1,6 @@
 body {
 	background-color: #171C4E;
-	background-image: url('img/luna_bg1.png'), url('img/luna_bg2.png');
+	background-image: url('/stylesheets/assets/luna_bg1.png'), url('/stylesheets/assets/luna_bg2.png');
 	background-repeat: no-repeat, repeat-x;
 	background-attachment: fixed, scroll;
 	background-position: right bottom, 0% 0%;

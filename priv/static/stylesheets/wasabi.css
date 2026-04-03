@@ -3,7 +3,7 @@
  * For AwsumChan by Circlepuller
  */
 body {
-	background: #F7F9B0 url('img/fade-yellow.png') repeat-x 50% 0%;
+	background: #F7F9B0 url('/stylesheets/assets/fade-yellow.png') repeat-x 50% 0%;
 	color: black;
 	font-family: arial, helvetica, sans-serif;
 	font-size: 10pt;

@@ -4,7 +4,7 @@
  * based on stripes.css by klaczy
  */
 body {
-        background: url('img/sisbg.png');
+        background: url('/stylesheets/assets/sisbg.png');
         color: #e3adff;
         font-family: 'Hevletica', sans-serif;
         font-size: 13px;
@@ -66,7 +66,7 @@ textarea {
 }
 input[type="submit"] {
         border: 1px solid rgb(204, 204, 204);
-        background: url('img/stripes_submit.png');
+        background: url('/stylesheets/assets/stripes_submit.png');
         height: 23px;
         margin-left: 0.5em;
 }
@@ -75,7 +75,7 @@ input[type="submit"] {
 }
 body::after {
         position: fixed !important;
-        content: url('img/kinoshita.png');
+        content: url('/stylesheets/assets/kinoshita.png');
         bottom: 0px !important;
         right: 10px !important;
         opacity:0.5;

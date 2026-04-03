@@ -1,6 +1,6 @@
 html, body {
 	background:#FFFEED !important;
-      background-image: url('img/bghead.png'), url('img/roachtlo.png') !important;
+      background-image: url('/stylesheets/assets/bghead.png'), url('/stylesheets/assets/roachtlo.png') !important;
       background-repeat: repeat-x, no-repeat !important;
       background-attachment: fixed, fixed !important;
 	  background-position:top, right bottom !important;

@@ -2,7 +2,7 @@
 
 body {
 	background: #ffe;
-	background-image: url('img/jungle_bg1.png'), url('img/jungle_bg.png');
+	background-image: url('/stylesheets/assets/jungle_bg1.png'), url('/stylesheets/assets/jungle_bg.png');
 	background-repeat: repeat-x, repeat;
 
 background-attachment: 	 scroll, scroll;
@@ -24,7 +24,7 @@ a.post_no {
 }
 
 desktop-style .bl-menu{
-	background-image: url('img/jungle_bg1.png'), url('img/jungle_bg.png');
+	background-image: url('/stylesheets/assets/jungle_bg1.png'), url('/stylesheets/assets/jungle_bg.png');
 	background-repeat: repeat-x, repeat;
 	background-attachment: 	 scroll, scroll;
 } 
@@ -38,7 +38,7 @@ font-weight: 600;
 
 
 div.post.reply {
-	background-image: url('img/jungle_td.png');
+	background-image: url('/stylesheets/assets/jungle_td.png');
 	border: 1px solid #E5D959;
 border-left: none;
 border-top: none;
@@ -51,7 +51,7 @@ border-radius: 5px;
 box-shadow: 0px 2px 3px rgba(0, 0, 0, 0.35);
 }
 div.post.reply.highlighted {
-	background-image: url('img/jungle_td2.png');
+	background-image: url('/stylesheets/assets/jungle_td2.png');
 	border: 1px solid #E5D959;
 border-left: none;
 border-top: none;
@@ -89,7 +89,7 @@ div.pages {
 	color: #054500;
 	font-size: 12pt;
 	
-	background-image: url('img/jungle_td.png');
+	background-image: url('/stylesheets/assets/jungle_td.png');
 	border-width: 1px;
 	border-style: inset;
 

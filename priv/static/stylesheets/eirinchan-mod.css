@@ -1,6 +1,6 @@
 body.mod-page,
 body.setup-page {
-  background: #ffe url('img/fade-yotsuba.png') repeat-x 50% 0% !important;
+  background: #ffe url('/stylesheets/assets/fade-yotsuba.png') repeat-x 50% 0% !important;
   color: #800000;
 }
 

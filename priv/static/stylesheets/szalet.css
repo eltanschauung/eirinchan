@@ -6,12 +6,12 @@ body {
 	color: #99938D;
 	
 	background-color: #1e1e1e;
-	background-image: url('img/szalet_bg.png');
+	background-image: url('/stylesheets/assets/szalet_bg.png');
 	background-repeat:  repeat;
 }
 
 .desktop-style .bl-menu{
-background-image: url('img/szalet_bg.png');
+background-image: url('/stylesheets/assets/szalet_bg.png');
 background-repeat:  repeat;
 /*background-color: #200000;*/
 } 
@@ -46,7 +46,7 @@ input {
         background: none !important;
 }
 textarea {
-        background: #dedede url('img/testorange_textarea_bg.gif') repeat-x;
+        background: #dedede url('/stylesheets/assets/testorange_textarea_bg.gif') repeat-x;
 }
 input, textarea {
 background:  #200000;
@@ -56,7 +56,7 @@ color: #99938D;
 hr {
         height: 3px;
 border-width: 0px;
-background: url('img/szalet_hr.png') center no-repeat;
+background: url('/stylesheets/assets/szalet_hr.png') center no-repeat;
 background-size: 100% 100%;
         overflow: hidden;
 }
