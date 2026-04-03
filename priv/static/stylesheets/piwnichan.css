@@ -6,7 +6,7 @@ body {
 	font-family: sans-serif;
 	font-size: 12px;
 	color:#47506F;
-	background:#000006 url('img/rect820.png') fixed top right no-repeat;
+	background:#000006 url('/stylesheets/assets/rect820.png') fixed top right no-repeat;
 }
 
 .desktop-style .bl-menu{
@@ -51,7 +51,7 @@ background: #000E3A;
  
 
 input, textarea {
-     background: url("img/rect821.png") no-repeat fixed right top #030511;
+     background: url("/stylesheets/assets/rect821.png") no-repeat fixed right top #030511;
     color: #47506F;
     
 }
@@ -180,7 +180,7 @@ span.omitted, .omittedposts {
 div.post.reply {
         padding: 5px;
               
-       background:#030511 url('img/rect821.png') fixed top right no-repeat;
+       background:#030511 url('/stylesheets/assets/rect821.png') fixed top right no-repeat;
 	color:#47506F;
 	border: 1px solid #000E3A!important;
        

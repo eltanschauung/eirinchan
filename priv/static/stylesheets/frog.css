@@ -575,7 +575,7 @@ table.mod.config-editor input[type="text"] {
   display: inline-block;
   text-indent: -9000px;
   width: 7px;
-  background: url('img/arrow.png') right center no-repeat;
+  background: url('/stylesheets/assets/arrow.png') right center no-repeat;
 }
 
 .desktop-style .sub .sub:hover,.desktop-style .sub .sub.hover {

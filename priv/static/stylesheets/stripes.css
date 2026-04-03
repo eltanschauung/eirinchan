@@ -3,7 +3,7 @@
  * for vichan by klaczy
  */
 body {
-	background: url('img/stripes_bg.png');
+	background: url('/stylesheets/assets/stripes_bg.png');
 	color: #BBB;
 	font-family: 'Hevletica', sans-serif;
 	font-size: 12px;
@@ -47,7 +47,7 @@ hr {
 	color: #FF66CC !important;
 }
 input, textarea {
-	background: url('img/stripes_textarea.png');
+	background: url('/stylesheets/assets/stripes_textarea.png');
 	border: 1px #CCC;
 	border-radius: 3px;
 	padding: 3px;
@@ -62,7 +62,7 @@ textarea {
 }
 input[type="submit"] {
 	border: 1px solid rgb(204, 204, 204);
-	background: url('img/stripes_submit.png');
+	background: url('/stylesheets/assets/stripes_submit.png');
 	height: 23px;
 	margin-left: 0.5em;
 }

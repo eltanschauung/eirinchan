@@ -2,7 +2,7 @@
 
 body {
   background: #000112;
-  background-image: url('img/dark_roach_top.png'), url('img/dark_roach_bg.png');
+  background-image: url('/stylesheets/assets/dark_roach_top.png'), url('/stylesheets/assets/dark_roach_bg.png');
 	background-repeat: repeat-x, no-repeat;
     background-attachment: fixed, fixed;
 	background-position: top, right bottom;

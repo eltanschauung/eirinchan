@@ -1,8 +1,8 @@
 /* rugby.css */
 body {
   background:
-	 url(img/rugby_rugbysta.png) no-repeat bottom right fixed,
-url(img/rugby_background2.jpg) no-repeat center center fixed;
+	 url(/stylesheets/assets/rugby_rugbysta.png) no-repeat bottom right fixed,
+url(/stylesheets/assets/rugby_background2.jpg) no-repeat center center fixed;
 /*    -moz-linear-gradient(top, #cfe7fa 0%, #6393c1 100%) fixed,
     linear-gradient(to bottom, #cfe7fa 0%,#6393c1 100%) fixed; */
   background-size: auto, cover;

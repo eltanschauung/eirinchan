@@ -3,7 +3,7 @@
  * For AwsumChan by Circlepuller
  */
 body {
-	background: #D2FFEE url('img/fade-miku.png') top repeat-x;
+	background: #D2FFEE url('/stylesheets/assets/fade-miku.png') top repeat-x;
 }
 
 a:link, a:visited {

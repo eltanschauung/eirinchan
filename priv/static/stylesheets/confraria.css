@@ -5,7 +5,7 @@
 body{
 	font-family: arial,helvetica,sans-serif;
 	font-size: 10pt;
-	background-image: url('img/confraria_hatstand.png'), url('img/confraria_foot.png'), url('img/confraria_bg.png');
+	background-image: url('/stylesheets/assets/confraria_hatstand.png'), url('/stylesheets/assets/confraria_foot.png'), url('/stylesheets/assets/confraria_bg.png');
 	background-repeat: no-repeat, repeat-x, repeat;
 	background-attachment: fixed, fixed, fixed;
 	background-position: 75% bottom, bottom center, top left;
