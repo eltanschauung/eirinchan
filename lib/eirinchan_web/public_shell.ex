@@ -64,6 +64,12 @@ defmodule EirinchanWeb.PublicShell do
         value -> to_string(value)
       end
 
+    theme_board_name =
+      case Keyword.get(opts, :theme_board_name, board_name) do
+        nil -> ""
+        value -> to_string(value)
+      end
+
     selected_style = Keyword.get(opts, :theme_label, "Yotsuba")
     resource_version = Keyword.get(opts, :resource_version, "")
     watcher_count = Keyword.get(opts, :watcher_count, 0)
@@ -92,6 +98,7 @@ defmodule EirinchanWeb.PublicShell do
     %{
       "eirinchan:active-page" => to_string(active_page || ""),
       "eirinchan:board-name" => to_string(board_name || ""),
+      "eirinchan:theme-board-name" => to_string(theme_board_name || ""),
       "eirinchan:thread-id" => to_string(Keyword.get(opts, :thread_id) || ""),
       "eirinchan:config-root" => "/",
       "eirinchan:resource-version" => to_string(resource_version || ""),

@@ -155,9 +155,13 @@ defmodule EirinchanWeb.PublicControllerHelpers do
   def public_page_assigns(conn, page_kind, active_page, opts \\ []) do
     boards = Keyword.get_lazy(opts, :boards, &Eirinchan.Boards.list_boards/0)
     primary_board = Enum.find(boards, &(&1.uri == "bant")) || %{uri: "bant"}
+    head_meta_opts =
+      [theme_board_name: Keyword.get(opts, :theme_board_name, "bant")]
+      |> Keyword.merge(Keyword.get(opts, :head_meta_opts, []))
 
     common_assigns =
       public_shell_assigns(conn, active_page,
+        head_meta_opts: head_meta_opts,
         extra_stylesheets: extra_stylesheets()
       )
 

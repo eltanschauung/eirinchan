@@ -36,11 +36,15 @@ defmodule EirinchanWeb.Plugs.FetchTheme do
   end
 
   defp resolve_theme_identifier(conn, board, true, instance_config) do
-    board_theme_identifier(conn, board) ||
-      global_theme_identifier(conn) ||
-      primary_public_board_theme_identifier(conn, board) ||
-      board_default_theme(board) ||
-      global_default_theme(instance_config)
+    if board do
+      board_theme_identifier(conn, board) ||
+        global_theme_identifier(conn) ||
+        board_default_theme(board) ||
+        global_default_theme(instance_config)
+    else
+      primary_public_board_theme_identifier(conn, nil) ||
+        global_default_theme(instance_config)
+    end
   end
 
   defp resolve_theme_identifier(conn, board, false, instance_config) do

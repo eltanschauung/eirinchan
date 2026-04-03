@@ -881,17 +881,32 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ ~s(class="feedback-textarea")
   end
 
-  test "public custom pages carry over the selected theme stylesheet", %{conn: conn} do
+  test "public custom pages use the saved bant board theme stylesheet", %{conn: conn} do
     moderator_fixture()
 
     page =
       conn
-      |> put_req_cookie("theme", "eientei1")
+      |> put_req_cookie("board_themes", ~s({"bant":"eientei1"}))
       |> get("/faq")
       |> html_response(200)
 
     assert page =~ ~s(id="stylesheet" href="/stylesheets/eientei1.css)
     assert page =~ ~s(data-stylesheet="eientei1.css")
+  end
+
+  test "public custom pages prefer the bant board theme over a stale global theme cookie", %{conn: conn} do
+    moderator_fixture()
+
+    page =
+      conn
+      |> put_req_cookie("theme", "yotsuba")
+      |> put_req_cookie("board_themes", ~s({"bant":"eientei1"}))
+      |> get("/formatting")
+      |> html_response(200)
+
+    assert page =~ ~s(id="stylesheet" href="/stylesheets/eientei1.css)
+    assert page =~ ~s(data-stylesheet="eientei1.css")
+    refute page =~ ~s(id="stylesheet" href="/stylesheets/yotsuba.css)
   end
 
   test "home and named public pages fall back to the saved bant board theme", %{conn: conn} do
