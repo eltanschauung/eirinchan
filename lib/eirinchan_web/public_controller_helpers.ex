@@ -152,10 +152,53 @@ defmodule EirinchanWeb.PublicControllerHelpers do
     end
   end
 
+  def public_page_assigns(conn, page_kind, active_page, opts \\ []) do
+    boards = Keyword.get_lazy(opts, :boards, &Eirinchan.Boards.list_boards/0)
+    primary_board = Enum.find(boards, &(&1.uri == "bant")) || %{uri: "bant"}
+
+    common_assigns =
+      public_shell_assigns(conn, active_page,
+        extra_stylesheets: extra_stylesheets()
+      )
+
+    [
+      boards: boards,
+      primary_board: primary_board,
+      board_chrome: EirinchanWeb.BoardChrome.for_board(primary_board),
+      global_message_html: maybe_global_message_html(boards, opts),
+      custom_pages: Eirinchan.CustomPages.list_pages(),
+      global_boardlist_groups:
+        EirinchanWeb.PostView.boardlist_groups(
+          boards,
+          mobile_client?: conn.assigns[:mobile_client?] || false
+        ),
+      body_class: public_body_class(page_kind)
+    ] ++ common_assigns
+  end
+
   defp moderator_stamp(nil), do: nil
   defp moderator_stamp(moderator), do: {moderator.id, moderator.role}
 
   defp empty_thread_watch(thread_id) do
     %{watched: false, unread_count: 0, last_seen_post_id: thread_id}
   end
+
+  defp current_global_message_html(boards) do
+    board_ids = Enum.map(boards, & &1.id)
+
+    EirinchanWeb.Announcements.global_message_html(
+      Settings.current_instance_config(),
+      surround_hr: true,
+      board_ids: board_ids
+    )
+  end
+
+  defp maybe_global_message_html(boards, opts) do
+    if Keyword.get(opts, :include_global_message, true), do: current_global_message_html(boards)
+  end
+
+  defp public_body_class("active-catalog"),
+    do: "8chan vichan is-not-moderator theme-catalog active-catalog"
+
+  defp public_body_class(page_kind), do: "8chan vichan is-not-moderator #{page_kind}"
 end

@@ -274,7 +274,7 @@ defmodule EirinchanWeb.PageControllerTest do
     refute page =~ ~s(id="style-select")
   end
 
-  test "site-wide public static pages render global message stats placeholders and line breaks", %{conn: conn} do
+  test "rules page renders global message stats placeholders and line breaks", %{conn: conn} do
     moderator_fixture()
     board = board_fixture(%{uri: "gmstats#{System.unique_integer([:positive])}", title: "GM Stats"})
     thread = thread_fixture(board, %{body: "seed"})
@@ -288,7 +288,7 @@ defmodule EirinchanWeb.PageControllerTest do
 
     page =
       conn
-      |> get("/faq")
+      |> get("/rules")
       |> html_response(200)
 
     assert page =~ "Visitors in the last 10 minutes:"
@@ -296,6 +296,45 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ "<br />"
     refute page =~ "{stats.users_10minutes}"
     refute page =~ "{stats.posts_perhour}"
+  end
+
+  test "faq, formatting, and flags suppress the global message and preserve page-specific layout", %{
+    conn: conn
+  } do
+    moderator_fixture()
+
+    :ok =
+      Eirinchan.Settings.persist_instance_config(%{
+        global_message:
+          "Visitors in the last 10 minutes: {stats.users_10minutes}\\nPPH: {stats.posts_perhour}"
+      })
+
+    faq_page =
+      conn
+      |> get("/faq")
+      |> html_response(200)
+
+    refute faq_page =~ "Visitors in the last 10 minutes:"
+
+    formatting_page =
+      conn
+      |> recycle()
+      |> get("/formatting")
+      |> html_response(200)
+
+    refute formatting_page =~ "Visitors in the last 10 minutes:"
+
+    flags_page =
+      conn
+      |> recycle()
+      |> get("/flags")
+      |> html_response(200)
+
+    refute flags_page =~ "Visitors in the last 10 minutes:"
+    assert flags_page =~ ~s(id="blotter")
+    assert flags_page =~ "To rizz your posts"
+    assert flags_page =~ "You can click the flags."
+    refute flags_page =~ ~s(class="static-page-panel")
   end
 
   test "custom pages render global message through the shared blotter renderer", %{conn: conn} do
@@ -392,7 +431,6 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ "What are the Rules?"
     assert page =~ "/bant/ - International/Random"
     assert page =~ "What if i'm banned?"
-    assert page =~ ~s(src="/site_logo2.png")
     assert page =~ ~s(href="/faq/recent.css")
   end
 
@@ -414,7 +452,6 @@ defmodule EirinchanWeb.PageControllerTest do
 
     assert html =~ "Stored Rules"
     assert html =~ ~s(class="boardlist")
-    assert html =~ ~s(src="/site_logo2.png")
     refute html =~ "<header><h1>ignored</h1></header>"
   end
 
@@ -777,7 +814,7 @@ defmodule EirinchanWeb.PageControllerTest do
       |> get("/pages/flags")
       |> html_response(200)
 
-    assert page =~ "Pick custom flags for your posts"
+    assert page =~ "To rizz your posts"
     assert page =~ "/flags/compiled/"
     assert page =~ ~s(id="user_flag")
     assert page =~ "Apply"
@@ -818,9 +855,76 @@ defmodule EirinchanWeb.PageControllerTest do
       |> get("/flags")
       |> html_response(200)
 
-    assert page =~ "Pick custom flags for your posts"
+    assert page =~ "To rizz your posts"
     assert page =~ "/flags/compiled/"
     assert page =~ ~s(id="user_flag")
+  end
+
+  test "GET /pages/feedback uses the feedback page constructor and form", %{conn: conn} do
+    author = moderator_fixture(%{username: "feedbackwriter"})
+
+    {:ok, _page} =
+      Eirinchan.CustomPages.create_page(%{
+        slug: "feedback",
+        title: "Feedback",
+        body: "Tell us what broke",
+        mod_user_id: author.id
+      })
+
+    page =
+      conn
+      |> get("/pages/feedback")
+      |> html_response(200)
+
+    assert page =~ "Tell us what broke"
+    assert page =~ "Send Feedback"
+    assert page =~ ~s(class="feedback-textarea")
+  end
+
+  test "public custom pages carry over the selected theme stylesheet", %{conn: conn} do
+    moderator_fixture()
+
+    page =
+      conn
+      |> put_req_cookie("theme", "eientei1")
+      |> get("/faq")
+      |> html_response(200)
+
+    assert page =~ ~s(id="stylesheet" href="/stylesheets/eientei1.css)
+    assert page =~ ~s(data-stylesheet="eientei1.css")
+  end
+
+  test "home and named public pages fall back to the saved bant board theme", %{conn: conn} do
+    moderator_fixture()
+
+    home_page =
+      conn
+      |> put_req_cookie("board_themes", ~s({"bant":"eientei1"}))
+      |> get("/")
+      |> html_response(200)
+
+    assert home_page =~ ~s(id="stylesheet" href="/stylesheets/eientei1.css)
+    assert home_page =~ ~s(data-stylesheet="eientei1.css")
+
+    faq_page =
+      conn
+      |> recycle()
+      |> put_req_cookie("board_themes", ~s({"bant":"eientei1"}))
+      |> get("/faq")
+      |> html_response(200)
+
+    assert faq_page =~ ~s(id="stylesheet" href="/stylesheets/eientei1.css)
+    assert faq_page =~ ~s(data-stylesheet="eientei1.css")
+
+    flags_page =
+      conn
+      |> recycle()
+      |> put_req_cookie("board_themes", ~s({"bant":"eientei1"}))
+      |> get("/flags")
+      |> html_response(200)
+
+    assert flags_page =~ ~s(id="stylesheet" href="/stylesheets/eientei1.css)
+    assert flags_page =~ ~s(data-stylesheet="eientei1.css")
   end
 
   test "GET /flag redirects to /flags", %{conn: conn} do

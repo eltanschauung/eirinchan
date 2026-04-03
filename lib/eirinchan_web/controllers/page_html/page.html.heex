@@ -1,20 +1,15 @@
-<header>
-  <h1><%= @page.title %></h1>
-  <div class="subtitle"><%= @board_chrome.subtitle || "Static page" %></div>
-  <.admin_shortcuts moderator={@current_moderator} />
-</header>
-
-<%= if @global_message_html && @global_message_html != "" do %>
-  <%= raw(@global_message_html) %>
-<% end %>
-
-<section class="public-panel static-page-panel">
-  <article>
-    <%= raw(@sanitized_body || "") %>
-    <p :if={@page.mod_user} class="unimportant">Updated by <%= @page.mod_user.username %></p>
-  </article>
-</section>
-
-<%= if @board_chrome.show_footer do %>
-  <EirinchanWeb.PostComponents.site_footer />
-<% end %>
+<.page_shell
+  page={@page}
+  subtitle={@page_subtitle || @board_chrome.subtitle}
+  global_message_html={@global_message_html}
+  current_moderator={@current_moderator}
+  board_chrome={@board_chrome}
+  show_global_message={@show_global_message}
+>
+  <section class="public-panel static-page-panel">
+    <article>
+      <%= raw(@sanitized_body || "") %>
+      <p :if={@page.mod_user} class="unimportant">Updated by <%= @page.mod_user.username %></p>
+    </article>
+  </section>
+</.page_shell>

@@ -280,7 +280,7 @@ defmodule EirinchanWeb.Router do
     get "/watcher/fragment", PageController, :watcher_fragment
     get "/watcher", PageController, :watcher
     get "/pages/:slug", PageController, :page
-    get "/feedback", FeedbackController, :show
+    get "/feedback", PageController, :feedback
     post "/feedback", FeedbackController, :create
     get "/:board/thumb/:filename", UploadedFileController, :show_thumb
     get "/:board/src/:filename", UploadedFileController, :show

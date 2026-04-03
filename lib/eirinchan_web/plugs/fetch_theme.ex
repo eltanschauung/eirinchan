@@ -31,11 +31,14 @@ defmodule EirinchanWeb.Plugs.FetchTheme do
     |> assign(:theme_name, theme_name)
     |> assign(:theme_label, theme_label)
     |> assign(:theme_stylesheet, theme.stylesheet)
+    |> assign(:theme_preload_assets, ThemeRegistry.preload_assets(theme_name))
     |> assign(:theme_options, theme_options)
   end
 
   defp resolve_theme_identifier(conn, board, true, instance_config) do
     board_theme_identifier(conn, board) ||
+      global_theme_identifier(conn) ||
+      primary_public_board_theme_identifier(conn, board) ||
       board_default_theme(board) ||
       global_default_theme(instance_config)
   end
@@ -57,6 +60,15 @@ defmodule EirinchanWeb.Plugs.FetchTheme do
     conn.cookies["board_themes"]
     |> decode_board_themes_cookie()
     |> Map.get(board.uri)
+    |> normalize_theme_identifier()
+  end
+
+  defp primary_public_board_theme_identifier(_conn, board) when not is_nil(board), do: nil
+
+  defp primary_public_board_theme_identifier(conn, nil) do
+    conn.cookies["board_themes"]
+    |> decode_board_themes_cookie()
+    |> Map.get("bant")
     |> normalize_theme_identifier()
   end
 
