@@ -81,7 +81,8 @@ defmodule EirinchanWeb.ThreadController do
             global_boardlist_groups:
               BoardChrome.boardlist_groups(
                 boards,
-                chrome.boardlist_groups
+                chrome.boardlist_groups,
+                mobile_client?: conn.assigns[:mobile_client?] || false
               ),
             body_class: PublicControllerHelpers.moderator_body_class(conn, "active-thread"),
             head_extra_meta_tags: EirinchanWeb.PublicShell.thread_meta(board, summary.thread, config)

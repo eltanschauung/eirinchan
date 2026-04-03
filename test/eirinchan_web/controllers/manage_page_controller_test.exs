@@ -344,23 +344,33 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       |> login_moderator(moderator)
       |> patch("/manage/boardlist/browser", %{
         "boardlist_json" => """
-        [
-          ["bant"],
-          {"Administration": "/manage/login"},
-          {"Home": "/"}
-        ]
+        {
+          "desktop": [
+            ["bant"],
+            {"Administration": "/manage/login"},
+            {"Home": "/"}
+          ],
+          "mobile": [
+            ["bant"],
+            {"Home": "/"}
+          ]
+        }
         """
       })
 
     assert redirected_to(update_conn) == "/manage/boardlist/browser"
 
     persisted = File.read!(path)
+    assert persisted =~ "\"desktop\""
+    assert persisted =~ "\"mobile\""
     assert persisted =~ "\"label\": \"Administration\""
     assert persisted =~ "\"href\": \"/manage/login\""
     assert persisted =~ "\"label\": \"bant\""
 
     assert Eirinchan.Boardlist.encode_for_edit(Eirinchan.Boards.list_boards()) =~
              "\"Administration\""
+    assert Eirinchan.Boardlist.encode_for_edit(Eirinchan.Boards.list_boards()) =~ "\"desktop\""
+    assert Eirinchan.Boardlist.encode_for_edit(Eirinchan.Boards.list_boards()) =~ "\"mobile\""
   end
 
   test "admin can update dnsbl configuration from the dashboard", %{conn: conn} do

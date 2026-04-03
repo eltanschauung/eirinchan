@@ -119,7 +119,13 @@ defmodule EirinchanWeb.FeedbackController do
     |> assign(:primary_stylesheet_id, "stylesheet")
     |> assign(:body_class, "8chan vichan is-not-moderator active-feedback")
     |> assign(:body_data_stylesheet, Path.basename(stylesheet))
-    |> assign(:global_boardlist_groups, EirinchanWeb.PostView.boardlist_groups(Boards.list_boards()))
+    |> assign(
+      :global_boardlist_groups,
+      EirinchanWeb.PostView.boardlist_groups(
+        Boards.list_boards(),
+        mobile_client?: conn.assigns[:mobile_client?] || false
+      )
+    )
     |> assign(:watcher_count, watcher_metrics.watcher_count)
     |> assign(:watcher_unread_count, watcher_metrics.watcher_unread_count)
     |> assign(:watcher_you_count, watcher_metrics.watcher_you_count)

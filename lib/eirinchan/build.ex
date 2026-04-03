@@ -732,7 +732,7 @@ defmodule Eirinchan.Build do
 
   defp render_boardlist(boards) do
     boards
-    |> PostView.boardlist_groups()
+    |> PostView.boardlist_groups(variant: :desktop)
     |> then(&EirinchanWeb.PostComponents.boardlist_html(%{groups: &1}))
   end
 

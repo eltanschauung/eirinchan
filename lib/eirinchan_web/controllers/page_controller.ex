@@ -384,7 +384,8 @@ defmodule EirinchanWeb.PageController do
       board_chrome: BoardChrome.for_board(primary_board),
       global_message_html: maybe_global_message_html(boards, opts),
       custom_pages: CustomPages.list_pages(),
-      global_boardlist_groups: PostView.boardlist_groups(boards),
+      global_boardlist_groups:
+        PostView.boardlist_groups(boards, mobile_client?: conn.assigns[:mobile_client?] || false),
       body_class: public_body_class(page_kind)
     ] ++ common_assigns
   end
@@ -560,7 +561,8 @@ defmodule EirinchanWeb.PageController do
   defp recent_theme_assigns(conn, active_page, boards) do
     [
       boards: boards,
-      global_boardlist_groups: PostView.boardlist_groups(boards),
+      global_boardlist_groups:
+        PostView.boardlist_groups(boards, mobile_client?: conn.assigns[:mobile_client?] || false),
       show_footer: true,
       page_title: "Recent Posts",
       body_class: nil

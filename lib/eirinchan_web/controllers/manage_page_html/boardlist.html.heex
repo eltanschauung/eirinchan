@@ -3,16 +3,23 @@
 <p><a href={~p"/manage"}>Back to dashboard</a></p>
 <p :if={@error} class="error"><%= @error %></p>
 
-<p>Configure boardlist groups as JSON arrays. Use board URIs as strings or label-to-URL maps.</p>
+<p>Configure boardlist groups separately for desktop and mobile. Each value must be a JSON array of groups using board URIs as strings or label-to-URL maps.</p>
 <br />
 <p>See this example:</p>
 <pre>
-[
-  ["a", "b", "c", "j", "qa"],
-  {"rules": "/rules"},
-  {"faq": "/faq", "format": "/formatting"},
-  {"Home": "/"}
-]</pre>
+{
+  "desktop": [
+    ["a", "b", "c", "j", "qa"],
+    {"rules": "/rules"},
+    {"faq": "/faq", "format": "/formatting"},
+    {"Home": "/"}
+  ],
+  "mobile": [
+    ["a", "b", "j"],
+    {"rules": "/rules"},
+    {"Home": "/"}
+  ]
+}</pre>
 
 <form action={~p"/manage/boardlist/browser"} method="post">
   <input type="hidden" name="_csrf_token" value={get_csrf_token()} />

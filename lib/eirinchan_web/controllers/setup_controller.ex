@@ -42,7 +42,7 @@ defmodule EirinchanWeb.SetupController do
   defp assign_setup_shell(conn, _opts) do
     conn
     |> assign(:page_title, "Eirinchan Setup")
-    |> assign(:global_boardlist_groups, shell_boardlist_groups())
+    |> assign(:global_boardlist_groups, shell_boardlist_groups(conn))
     |> assign(:base_stylesheet, "/stylesheets/style.css")
     |> assign(:primary_stylesheet, "/stylesheets/yotsuba.css")
     |> assign(:primary_stylesheet_id, "stylesheet")
@@ -54,8 +54,8 @@ defmodule EirinchanWeb.SetupController do
     |> assign(:hide_theme_switcher, true)
   end
 
-  defp shell_boardlist_groups do
+  defp shell_boardlist_groups(conn) do
     Boards.list_boards()
-    |> EirinchanWeb.BoardChrome.boardlist_groups(nil)
+    |> EirinchanWeb.BoardChrome.boardlist_groups(nil, mobile_client?: conn.assigns[:mobile_client?] || false)
   end
 end
