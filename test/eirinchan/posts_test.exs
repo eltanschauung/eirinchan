@@ -181,6 +181,52 @@ defmodule Eirinchan.PostsTest do
     assert thread.ip_subnet == nil
   end
 
+  test "create_post persists poster_id when ip_nulling hides the ip" do
+    board = board_fixture()
+
+    config =
+      post_config(
+        board.config_overrides
+        |> Kernel.||(%{})
+        |> Map.put(:ip_nulling, true)
+        |> Map.put(:poster_ids, true)
+        |> Map.put(:poster_id_length, 5)
+        |> Map.put(:secure_trip_salt, "poster-id-test-salt")
+      )
+
+    request = Map.put(post_request(board.uri), :remote_ip, {203, 0, 113, 43})
+
+    assert {:ok, thread, %{noko: false}} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "first post",
+                 "post" => "New Topic"
+               },
+               config: config,
+               request: request
+             )
+
+    assert thread.ip_subnet == nil
+    assert is_binary(thread.poster_id)
+    assert String.length(thread.poster_id) == 5
+
+    assert {:ok, reply, %{noko: false}} =
+             Posts.create_post(
+               board,
+               %{
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
+                 "body" => "reply",
+                 "post" => "New Reply"
+               },
+               config: config,
+               request: request
+             )
+
+    assert reply.ip_subnet == nil
+    assert reply.poster_id == thread.poster_id
+  end
+
   test "create_post assigns the collapsed april fools teams for text posts" do
     board = board_fixture(%{config_overrides: %{april_fools_teams: true}})
     request = Map.put(post_request(board.uri), :remote_ip, {203, 0, 113, 44})

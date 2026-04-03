@@ -5,6 +5,7 @@ defmodule Eirinchan.Posts.Persistence do
 
   alias Eirinchan.AprilFoolsTeams
   alias Eirinchan.Boards.BoardRecord
+  alias Eirinchan.PosterIds
   alias Eirinchan.Posts.Cite
   alias Eirinchan.Posts.NntpReference
   alias Eirinchan.Posts.Post
@@ -29,6 +30,7 @@ defmodule Eirinchan.Posts.Persistence do
            with {:ok, locked_board} <- lock_board(board, repo),
                 {:ok, attrs} <- allocate_public_id(locked_board, attrs, repo),
                 {:ok, post} <- insert_post(locked_board, thread, attrs, repo, config, now),
+                {:ok, post} <- maybe_assign_poster_id(post, attrs, repo, config),
                 {:ok, post} <- maybe_store_uploads(board, post, upload_entries, repo, config),
                 :ok <- maybe_increment_april_fools_team(post, config, repo),
                 :ok <- store_citations(locked_board, post, repo),
@@ -246,6 +248,31 @@ defmodule Eirinchan.Posts.Persistence do
   end
 
   defp request_ip_string(attrs, _config), do: Map.get(attrs, "ip_subnet")
+
+  defp maybe_assign_poster_id(%Post{} = post, attrs, repo, config) do
+    identity = Map.get(attrs, "ip_subnet")
+    thread_key = post.thread_id || post.id
+
+    cond do
+      not PosterIds.enabled?(config) ->
+        {:ok, post}
+
+      is_binary(post.poster_id) and post.poster_id != "" ->
+        {:ok, post}
+
+      true ->
+        case PosterIds.build_label(identity, thread_key, config) do
+          label when is_binary(label) ->
+            case post |> Ecto.Changeset.change(poster_id: label) |> repo.update() do
+              {:ok, updated_post} -> {:ok, updated_post}
+              {:error, reason} -> {:error, reason}
+            end
+
+          _ ->
+            {:ok, post}
+        end
+    end
+  end
 
   defp maybe_increment_april_fools_team(%Post{} = post, config, repo) do
     team = post.team

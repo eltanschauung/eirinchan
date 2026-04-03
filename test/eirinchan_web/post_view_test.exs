@@ -108,21 +108,21 @@ defmodule EirinchanWeb.PostViewTest do
     op = %Post{
       id: 100,
       thread_id: nil,
-      ip_subnet: "198.51.100.0/24",
+      poster_id: Eirinchan.PosterIds.build_label("198.51.100.0/24", 100, config),
       inserted_at: ~N[2026-03-31 12:00:00]
     }
 
     reply_same_thread = %Post{
       id: 101,
       thread_id: 100,
-      ip_subnet: "198.51.100.0/24",
+      poster_id: Eirinchan.PosterIds.build_label("198.51.100.0/24", 100, config),
       inserted_at: ~N[2026-03-31 12:01:00]
     }
 
     reply_other_thread = %Post{
       id: 102,
       thread_id: 200,
-      ip_subnet: "198.51.100.0/24",
+      poster_id: Eirinchan.PosterIds.build_label("198.51.100.0/24", 200, config),
       inserted_at: ~N[2026-03-31 12:02:00]
     }
 
@@ -141,8 +141,35 @@ defmodule EirinchanWeb.PostViewTest do
         board: board
       })
 
-    assert html =~ ~s(class="poster_id")
+    badge = PostView.poster_identity_badge(reply_same_thread, config)
+
+    assert badge.class == "poster_id standard_poster_id"
+    assert badge.style =~ "background-color:"
+    assert badge.style =~ "border-radius: 6px;"
+    assert html =~ ~s(class="poster_id standard_poster_id")
     assert html =~ same_thread_id
+  end
+
+  test "poster ids render from persisted poster_id when ip_subnet is absent" do
+    config = Config.compose(%{poster_ids: true})
+    board = %BoardRecord{uri: "bant", title: "Bant"}
+    post = %Post{id: 100, thread_id: nil, ip_subnet: nil, poster_id: "abcde"}
+
+    assert PostView.poster_id(post, config) == "abcde"
+
+    html =
+      PostComponents.post_identity_html(%{
+        post: post,
+        config: config,
+        board: board
+      })
+
+    badge = PostView.poster_identity_badge(post, config)
+
+    assert badge.class == "poster_id standard_poster_id"
+    assert badge.style =~ "background-color:"
+    assert html =~ ~s(class="poster_id standard_poster_id")
+    assert html =~ "abcde"
   end
 
   test "april fools teams replace poster ids with styled team badges" do

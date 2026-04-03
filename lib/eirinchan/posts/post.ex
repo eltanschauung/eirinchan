@@ -15,6 +15,7 @@ defmodule Eirinchan.Posts.Post do
     field :proxy, :string
     field :ip_subnet, :string
     field :tripcode, :string
+    field :poster_id, :string
     field :file_name, :string
     field :file_path, :string
     field :thumb_path, :string
@@ -62,6 +63,7 @@ defmodule Eirinchan.Posts.Post do
       :proxy,
       :ip_subnet,
       :tripcode,
+      :poster_id,
       :file_name,
       :file_path,
       :thumb_path,

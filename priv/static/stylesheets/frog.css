@@ -1238,3 +1238,10 @@ table.fileboard .intro a {
 div.mix {
 	display: inline-block;
 }
+.poster_id.standard_poster_id:hover {
+  color: inherit !important;
+}
+
+.poster_id.standard_poster_id::before {
+  content: "ID: ";
+}
