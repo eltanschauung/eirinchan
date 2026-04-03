@@ -57,7 +57,11 @@ defmodule EirinchanWeb.SearchController do
       query: query,
       board: board,
       boards: boards,
-      global_boardlist_groups: EirinchanWeb.PostView.boardlist_groups(boards),
+      global_boardlist_groups:
+        EirinchanWeb.PostView.boardlist_groups(
+          boards,
+          mobile_client?: conn.assigns[:mobile_client?] || false
+        ),
       results: results,
       result_count: length(results),
       board_chrome: EirinchanWeb.BoardChrome.default(config),

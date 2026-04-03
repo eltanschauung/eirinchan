@@ -140,6 +140,41 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ ~s(href="https://github.com/username/eirinchan-v1")
   end
 
+  test "public pages select desktop and mobile boardlists independently", %{conn: conn} do
+    moderator_fixture()
+    board_fixture(%{uri: "deskboard", title: "Desktop Board"})
+    board_fixture(%{uri: "phoneboard", title: "Mobile Board"})
+
+    :ok =
+      Eirinchan.Settings.persist_instance_config(%{
+        boardlist: %{
+          desktop: [["deskboard"], %{"Home" => "/"}],
+          mobile: [["phoneboard"], %{"Home" => "/"}]
+        }
+      })
+
+    desktop_page =
+      conn
+      |> get("/news")
+      |> html_response(200)
+
+    assert desktop_page =~ ~s(href="/deskboard/index.html")
+    refute desktop_page =~ ~s(href="/phoneboard/index.html")
+
+    mobile_page =
+      conn
+      |> recycle()
+      |> put_req_header(
+        "user-agent",
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+      )
+      |> get("/news")
+      |> html_response(200)
+
+    assert mobile_page =~ ~s(href="/phoneboard/index.html")
+    refute mobile_page =~ ~s(href="/deskboard/index.html")
+  end
+
   test "unknown public paths render the shared 404 page with fixed yotsuba styling", %{conn: conn} do
     moderator_fixture()
     board_fixture(%{uri: "bant", title: "International Random"})

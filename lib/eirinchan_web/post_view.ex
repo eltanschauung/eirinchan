@@ -150,9 +150,7 @@ defmodule EirinchanWeb.PostView do
     })
   end
 
-  def boardlist_groups(boards) do
-    Boardlist.configured_groups(boards)
-  end
+  def boardlist_groups(boards, opts \\ []), do: Boardlist.configured_groups(boards, opts)
 
   def default_boardlist_groups(boards) do
     [

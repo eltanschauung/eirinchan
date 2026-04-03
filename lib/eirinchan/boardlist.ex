@@ -5,27 +5,34 @@ defmodule Eirinchan.Boardlist do
 
   alias Eirinchan.Settings
 
-  @spec configured_groups(list()) :: list()
-  def configured_groups(boards) when is_list(boards) do
-    case Settings.current_instance_config() |> Map.get(:boardlist) do
-      groups when is_list(groups) ->
-        groups
-        |> Enum.map(&normalize_group(&1, boards))
-        |> Enum.reject(&(&1 == []))
+  @variants [:desktop, :mobile]
 
-      _ ->
-        default_groups(boards)
+  @spec configured_groups(list(), keyword()) :: list()
+  def configured_groups(boards, opts \\ []) when is_list(boards) do
+    Settings.current_instance_config()
+    |> Map.get(:boardlist)
+    |> configured_groups_from_value(boards, opts)
+  end
+
+  @spec configured_groups_from_value(term(), list(), keyword()) :: list()
+  def configured_groups_from_value(value, boards, opts \\ []) when is_list(boards) do
+    variant = normalize_variant(opts)
+
+    value
+    |> normalize_variants_for_runtime(boards)
+    |> Map.get(variant)
+    |> case do
+      groups when is_list(groups) and groups != [] -> groups
+      _ -> default_groups(boards)
     end
   end
 
-  @spec update_from_json(binary(), list()) :: {:ok, list()} | {:error, :invalid_json}
+  @spec update_from_json(binary(), list()) :: {:ok, map()} | {:error, :invalid_json}
   def update_from_json(raw_json, boards) when is_binary(raw_json) and is_list(boards) do
     with {:ok, decoded} <- Jason.decode(raw_json, objects: :ordered_objects),
-         true <- is_list(decoded),
-         groups <- Enum.map(decoded, &normalize_group(&1, boards)),
-         true <- Enum.all?(groups, &(is_list(&1) and &1 != [])),
-         :ok <- persist(groups) do
-      {:ok, groups}
+         {:ok, variants} <- parse_variants_for_update(decoded, boards),
+         :ok <- persist(variants) do
+      {:ok, variants}
     else
       {:error, %Jason.DecodeError{}} -> {:error, :invalid_json}
       false -> {:error, :invalid_json}
@@ -36,14 +43,85 @@ defmodule Eirinchan.Boardlist do
 
   @spec encode_for_edit(list()) :: binary()
   def encode_for_edit(boards) when is_list(boards) do
-    groups = configured_groups(boards)
+    variants =
+      Settings.current_instance_config()
+      |> Map.get(:boardlist)
+      |> normalize_variants_for_runtime(boards)
 
-    ["[
-", Enum.intersperse(Enum.map(groups, &encode_group/1), ",
-"), "
-]"]
+    [
+      "{\n",
+      ~s(  "desktop": ),
+      encode_groups(Map.get(variants, :desktop, default_groups(boards)), 2),
+      ",\n",
+      ~s(  "mobile": ),
+      encode_groups(Map.get(variants, :mobile, default_groups(boards)), 2),
+      "\n}"
+    ]
     |> IO.iodata_to_binary()
   end
+
+  defp parse_variants_for_update(decoded, boards) do
+    cond do
+      match?(%Jason.OrderedObject{}, decoded) ->
+        decoded
+        |> ordered_values()
+        |> decode_variant_object(boards)
+
+      variant_object?(decoded) ->
+        decode_variant_object(decoded, boards)
+
+      is_list(decoded) ->
+        with {:ok, groups} <- decode_groups(decoded, boards) do
+          {:ok, %{desktop: groups, mobile: groups}}
+        end
+
+      true ->
+        {:error, :invalid_json}
+    end
+  end
+
+  defp decode_variant_object(entries, boards) do
+    Enum.reduce_while(entries, {:ok, %{}}, fn
+      {key, value}, {:ok, acc} ->
+        case normalize_variant_key(key) do
+          nil ->
+            {:halt, {:error, :invalid_json}}
+
+          variant ->
+            case decode_groups(value, boards) do
+              {:ok, groups} -> {:cont, {:ok, Map.put(acc, variant, groups)}}
+              error -> {:halt, error}
+            end
+        end
+
+      _, _acc ->
+        {:halt, {:error, :invalid_json}}
+    end)
+    |> case do
+      {:ok, variants} when map_size(variants) > 0 ->
+        desktop = Map.get(variants, :desktop) || Map.get(variants, :mobile) || default_groups(boards)
+        mobile = Map.get(variants, :mobile) || Map.get(variants, :desktop) || default_groups(boards)
+        {:ok, %{desktop: desktop, mobile: mobile}}
+
+      _ ->
+        {:error, :invalid_json}
+    end
+  end
+
+  defp decode_groups(groups, boards) when is_list(groups) do
+    normalized =
+      groups
+      |> Enum.map(&normalize_group(&1, boards))
+      |> Enum.reject(&(&1 == []))
+
+    if normalized != [] and Enum.all?(normalized, &(is_list(&1) and &1 != [])) do
+      {:ok, normalized}
+    else
+      {:error, :invalid_json}
+    end
+  end
+
+  defp decode_groups(_groups, _boards), do: {:error, :invalid_json}
 
   defp encode_group(group) when is_list(group) do
     if Enum.all?(group, &(Map.get(&1, :kind, :link) == :board)) do
@@ -62,10 +140,122 @@ defmodule Eirinchan.Boardlist do
     end
   end
 
+  defp encode_groups(groups, indent) when is_list(groups) do
+    outer_indent = String.duplicate(" ", indent)
+
+    rendered_groups =
+      groups
+      |> Enum.map(&indent_block(encode_group(&1), indent + 2))
+      |> Enum.intersperse(",\n")
+
+    ["[\n", rendered_groups, "\n", outer_indent, "]"]
+  end
+
+  defp indent_block(iodata, indent) do
+    prefix = String.duplicate(" ", indent)
+
+    iodata
+    |> IO.iodata_to_binary()
+    |> String.split("\n")
+    |> Enum.map_join("\n", fn
+      "" -> ""
+      line -> prefix <> line
+    end)
+  end
+
   defp persist(groups) do
     config = Settings.current_instance_config()
     Settings.persist_instance_config(Map.put(config, :boardlist, groups))
   end
+
+  defp normalize_variants_for_runtime(nil, boards), do: %{desktop: default_groups(boards), mobile: default_groups(boards)}
+
+  defp normalize_variants_for_runtime(%Jason.OrderedObject{} = groups, boards) do
+    groups
+    |> ordered_values()
+    |> normalize_variants_for_runtime(boards)
+  end
+
+  defp normalize_variants_for_runtime(groups, boards) when is_list(groups) do
+    if variant_object?(groups) do
+      case decode_variant_object(groups, boards) do
+        {:ok, variants} -> variants
+        _ -> %{desktop: default_groups(boards), mobile: default_groups(boards)}
+      end
+    else
+      normalized =
+        groups
+        |> Enum.map(&normalize_group(&1, boards))
+        |> Enum.reject(&(&1 == []))
+
+      groups = if normalized == [], do: default_groups(boards), else: normalized
+      %{desktop: groups, mobile: groups}
+    end
+  end
+
+  defp normalize_variants_for_runtime(%{} = groups, boards) do
+    desktop =
+      Map.get(groups, :desktop) ||
+        Map.get(groups, "desktop") ||
+        Map.get(groups, :mobile) ||
+        Map.get(groups, "mobile")
+
+    mobile =
+      Map.get(groups, :mobile) ||
+        Map.get(groups, "mobile") ||
+        Map.get(groups, :desktop) ||
+        Map.get(groups, "desktop")
+
+    %{
+      desktop: runtime_variant_groups(desktop, boards),
+      mobile: runtime_variant_groups(mobile, boards)
+    }
+  end
+
+  defp normalize_variants_for_runtime(_groups, boards),
+    do: %{desktop: default_groups(boards), mobile: default_groups(boards)}
+
+  defp runtime_variant_groups(value, boards) when is_list(value) do
+    value
+    |> Enum.map(&normalize_group(&1, boards))
+    |> Enum.reject(&(&1 == []))
+    |> case do
+      [] -> default_groups(boards)
+      groups -> groups
+    end
+  end
+
+  defp runtime_variant_groups(_value, boards), do: default_groups(boards)
+
+  defp normalize_variant(opts) do
+    cond do
+      Keyword.get(opts, :variant) in @variants ->
+        Keyword.fetch!(opts, :variant)
+
+      Keyword.get(opts, :mobile_client?, false) ->
+        :mobile
+
+      true ->
+        :desktop
+    end
+  end
+
+  defp variant_object?(value) when is_list(value) do
+    value != [] and
+      Enum.all?(value, fn
+        {key, groups} -> normalize_variant_key(key) != nil and is_list(groups)
+        _ -> false
+      end)
+  end
+
+  defp variant_object?(%Jason.OrderedObject{} = value), do: value |> ordered_values() |> variant_object?()
+  defp variant_object?(_value), do: false
+
+  defp normalize_variant_key("desktop"), do: :desktop
+  defp normalize_variant_key(:desktop), do: :desktop
+  defp normalize_variant_key("mobile"), do: :mobile
+  defp normalize_variant_key(:mobile), do: :mobile
+  defp normalize_variant_key(_key), do: nil
 
   defp default_groups(boards) do
     [
@@ -89,6 +279,13 @@ defmodule Eirinchan.Boardlist do
         |> Enum.map(&normalize_item(&1, boards))
         |> Enum.reject(&is_nil/1)
     end
+  end
+
+  defp normalize_group(%Jason.OrderedObject{} = group, boards) do
+    group
+    |> ordered_values()
+    |> Enum.map(&normalize_pair(&1, boards))
+    |> Enum.reject(&is_nil/1)
   end
 
   defp normalize_group(group, boards) when is_map(group) do
@@ -202,4 +399,6 @@ defmodule Eirinchan.Boardlist do
       :link
     end
   end
+
+  defp ordered_values(%Jason.OrderedObject{values: values}), do: values
 end

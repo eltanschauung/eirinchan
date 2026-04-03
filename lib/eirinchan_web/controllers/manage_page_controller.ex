@@ -1036,7 +1036,7 @@ defmodule EirinchanWeb.ManagePageController do
 
   defp assign_manage_shell(conn, _opts) do
     conn
-    |> assign(:global_boardlist_groups, shell_boardlist_groups())
+    |> assign(:global_boardlist_groups, shell_boardlist_groups(conn))
     |> assign(:javascript_urls, ["/main.js", "/js/jquery.min.js", "/js/options.js"])
     |> assign(:base_stylesheet, "/stylesheets/style.css")
     |> assign(:primary_stylesheet, "/stylesheets/yotsuba.css")
@@ -2864,12 +2864,12 @@ defmodule EirinchanWeb.ManagePageController do
     )
   end
 
-  defp render_boardlist_error(conn, message, status \\ :forbidden, boardlist_json \\ "[]") do
+  defp render_boardlist_error(conn, message, status \\ :forbidden, boardlist_json \\ nil) do
     conn
     |> put_status(status)
     |> render(:boardlist,
       moderator: conn.assigns[:current_moderator],
-      boardlist_json: boardlist_json,
+      boardlist_json: boardlist_json || Boardlist.encode_for_edit(Boards.list_boards()),
       error: message
     )
   end
@@ -3453,9 +3453,9 @@ defmodule EirinchanWeb.ManagePageController do
     )
   end
 
-  defp shell_boardlist_groups do
+  defp shell_boardlist_groups(conn) do
     Boards.list_boards()
-    |> EirinchanWeb.BoardChrome.boardlist_groups(nil)
+    |> EirinchanWeb.BoardChrome.boardlist_groups(nil, mobile_client?: conn.assigns[:mobile_client?] || false)
   end
 
   defp manage_users do
