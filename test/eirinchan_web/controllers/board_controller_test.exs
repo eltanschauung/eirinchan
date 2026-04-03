@@ -27,7 +27,9 @@ defmodule EirinchanWeb.BoardControllerTest do
     assert get_resp_header(second_conn, "etag") == [etag]
   end
 
-  test "board index keeps the shared postcontrols form outside the thread tree", %{conn: conn} do
+  test "board index keeps the shared postcontrols form and paginator outside the thread tree", %{
+    conn: conn
+  } do
     board = board_fixture()
     _thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
 
@@ -35,13 +37,17 @@ defmodule EirinchanWeb.BoardControllerTest do
 
     assert page =~ ~s(<div id="board-threads">)
     assert page =~ ~s(<form name="postcontrols" action="/post.php" method="post">)
+    assert page =~ ~s(<div id="board-pages-target" class="board-bottom-nav">)
     assert page =~ ~s(name="delete_post_id")
     assert page =~ ~s(name="report_post_id")
 
     {threads_pos, _} = :binary.match(page, ~s(<div id="board-threads">))
     {form_pos, _} = :binary.match(page, ~s(<form name="postcontrols" action="/post.php" method="post">))
+    {pages_pos, _} = :binary.match(page, ~s(<div id="board-pages-target" class="board-bottom-nav">))
 
     assert threads_pos < form_pos
+    assert form_pos < pages_pos
+    assert length(Regex.scan(~r/id="bottom"/, page)) == 1
   end
 
   test "board index derives watcher paths client-side instead of embedding per-thread watch urls", %{

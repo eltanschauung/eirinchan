@@ -39,10 +39,12 @@ defmodule EirinchanWeb do
         whalestickers
         background_christmas.jpg
         background_kivotos.jpg
+        background_tiekan.jpg
         eientei_day.jpg
         eientei_night.jpg
         christmas_alice.png
         favicon.ico
+        lei_heng.png
         reisen_up.png
         robots.txt
         spoiler_skillet.png

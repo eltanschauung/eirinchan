@@ -9,6 +9,7 @@ defmodule EirinchanWeb.ThemeRegistry do
                           "feedback.css",
                           "ipaccessauth.css",
                           "bluearchive.css",
+                          "leiheng.css",
                           "eirinchan-public.css",
                           "eirinchan-bant.css",
                           "eirinchan-mod.css"
@@ -18,6 +19,7 @@ defmodule EirinchanWeb.ThemeRegistry do
     "default",
     "vichan",
     "bluearchive",
+    "leiheng",
     "christmas",
     "cirno",
     "hacker",
@@ -32,16 +34,37 @@ defmodule EirinchanWeb.ThemeRegistry do
     "default" => %{label: "Yotsuba", stylesheet: "/stylesheets/yotsuba.css"},
     "yotsuba" => %{label: "Yotsuba", stylesheet: "/stylesheets/yotsuba.css"},
     "vichan" => %{label: "Yotsuba B", stylesheet: "/stylesheets/style.css"},
-    "bluearchive" => %{label: "Blue Archive", stylesheet: "/stylesheets/bluearchive.css"},
+    "bluearchive" => %{
+      label: "Blue Archive",
+      stylesheet: "/stylesheets/bluearchive.css",
+      preload_assets: ["/stylesheets/assets/background_kivotos.jpg", "/stylesheets/assets/yuuka.png"]
+    },
+    "leiheng" => %{
+      label: "Lei Heng",
+      stylesheet: "/stylesheets/leiheng.css",
+      preload_assets: ["/stylesheets/assets/background_tiekan.jpg", "/stylesheets/assets/lei_heng.png"]
+    },
     "contrast" => %{label: "Contrast", stylesheet: "/stylesheets/contrast.css"},
     "feedback" => %{label: "Feedback", stylesheet: "/stylesheets/feedback.css"},
     "ipaccessauth" => %{label: "IpAccessAuth", stylesheet: "/auth/yotsuba.css"},
     "aya" => %{label: "Aya", stylesheet: "/stylesheets/aya.css"},
     "cirno" => %{label: "Cirno Blue", stylesheet: "/stylesheets/cirno.css"},
-    "christmas" => %{label: "Christmas", stylesheet: "/stylesheets/christmas.css"},
-    "eientei1" => %{label: "Eientei1", stylesheet: "/stylesheets/eientei1.css"},
+    "christmas" => %{
+      label: "Christmas",
+      stylesheet: "/stylesheets/christmas.css",
+      preload_assets: ["/stylesheets/assets/background_christmas.jpg", "/stylesheets/assets/christmas_alice.png"]
+    },
+    "eientei1" => %{
+      label: "Eientei1",
+      stylesheet: "/stylesheets/eientei1.css",
+      preload_assets: ["/stylesheets/assets/eientei_night.jpg"]
+    },
     "futabamonkey" => %{label: "Futaba Monkey", stylesheet: "/stylesheets/futabamonkey.css"},
-    "hacker" => %{label: "Hacker", stylesheet: "/stylesheets/hacker.css"},
+    "hacker" => %{
+      label: "Hacker",
+      stylesheet: "/stylesheets/hacker.css",
+      preload_assets: ["/stylesheets/assets/hacker_bg.jpg", "/stylesheets/assets/hacker1.jpg"]
+    },
     "shadow" => %{label: "Westopolis", stylesheet: "/stylesheets/shadow.css"},
     "tomorrow" => %{label: "Tomorrow", stylesheet: "/stylesheets/tomorrow.css"}
   }
@@ -79,6 +102,15 @@ defmodule EirinchanWeb.ThemeRegistry do
   def fetch(_name), do: nil
 
   def valid_theme?(name), do: not is_nil(fetch(name))
+
+  def preload_assets(name) when is_binary(name) do
+    case fetch(name) do
+      %{preload_assets: assets} when is_list(assets) -> assets
+      _ -> []
+    end
+  end
+
+  def preload_assets(_name), do: []
 
   def public_lookup(identifier) when is_binary(identifier) do
     value = String.trim(identifier)

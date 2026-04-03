@@ -48,6 +48,12 @@
       rel="stylesheet"
       href={versioned_asset(stylesheet, assigns[:asset_version])}
     />
+    <link
+      :for={asset <- assigns[:theme_preload_assets] || []}
+      rel="preload"
+      as="image"
+      href={versioned_asset(asset, assigns[:asset_version])}
+    />
     <script
       :for={script_url <- assigns[:eager_javascript_urls] || []}
       type="text/javascript"
@@ -154,6 +160,5 @@
         theme_label={@theme_label || "Yotsuba"}
       />
     <% end %>
-    <a id="bottom"></a>
   </body>
 </html>
