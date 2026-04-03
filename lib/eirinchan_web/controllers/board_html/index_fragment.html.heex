@@ -167,35 +167,5 @@
         <hr />
     <% end %>
   </div>
-
-  <form name="postcontrols" action="/post.php" method="post">
-    <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
-    <input type="hidden" name="board" value={@board.uri} />
-    <input type="hidden" name="delete_post_id" value="" />
-    <input type="hidden" name="report_post_id" value="" />
-
-    <div id="post-moderation-fields">
-      <div id="delete-fields">
-        Delete Post [<input title="Delete file only" type="checkbox" name="file" id="delete_file" />
-        <label for="delete_file">File</label>] <label for="password">Password</label>
-        <input
-          id="password"
-          type="password"
-          name="password"
-          size="12"
-          maxlength="18"
-          autocomplete="off"
-        />
-        <input type="submit" name="delete" value="Delete" />
-      </div>
-
-      <div id="report-fields">
-        <label for="reason">Reason</label>
-        <input id="reason" type="text" name="reason" size="20" maxlength="30" />
-        <input type="submit" name="report" value="Report" />
-      </div>
-    </div>
-  </form>
-
-  <.board_pages page_data={@page_data} board_uri={@board.uri} config={@config} />
 </div>
+<.board_pages_target page_data={@page_data} board_uri={@board.uri} config={@config} />

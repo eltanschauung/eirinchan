@@ -110,6 +110,7 @@ defmodule EirinchanWeb.PostComponents do
     assigns = assign(assigns, :entries, entries)
 
     ~H"""
+    <a id="bottom"></a>
     <footer>
       <p class="unimportant" style="margin-top:20px;text-align:center;">
         - Tinyboard + vichan 5.2.2 + <a href="https://github.com/username/eirinchan-v1">Eirinchan</a> -<br />
@@ -778,6 +779,53 @@ defmodule EirinchanWeb.PostComponents do
         | <a href={"/#{@board_uri}/catalog.html"}><%= @catalog_label %></a>
       <% end %>
     </div>
+    """
+  end
+
+  attr :page_data, :map, required: true
+  attr :board_uri, :string, required: true
+  attr :config, :map, required: true
+
+  def board_pages_target(assigns) do
+    ~H"""
+    <div id="board-pages-target" class="board-bottom-nav">
+      <.board_pages page_data={@page_data} board_uri={@board_uri} config={@config} />
+    </div>
+    """
+  end
+
+  attr :board_uri, :string, required: true
+
+  def board_postcontrols(assigns) do
+    ~H"""
+    <form name="postcontrols" action="/post.php" method="post">
+      <input type="hidden" name="_csrf_token" value={Phoenix.Controller.get_csrf_token()} />
+      <input type="hidden" name="board" value={@board_uri} />
+      <input type="hidden" name="delete_post_id" value="" />
+      <input type="hidden" name="report_post_id" value="" />
+
+      <div id="post-moderation-fields">
+        <div id="delete-fields">
+          Delete Post [<input title="Delete file only" type="checkbox" name="file" id="delete_file" />
+          <label for="delete_file">File</label>] <label for="password">Password</label>
+          <input
+            id="password"
+            type="password"
+            name="password"
+            size="12"
+            maxlength="18"
+            autocomplete="off"
+          />
+          <input type="submit" name="delete" value="Delete" />
+        </div>
+
+        <div id="report-fields">
+          <label for="reason">Reason</label>
+          <input id="reason" type="text" name="reason" size="20" maxlength="30" />
+          <input type="submit" name="report" value="Report" />
+        </div>
+      </div>
+    </form>
     """
   end
 
