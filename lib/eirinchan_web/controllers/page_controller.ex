@@ -6,19 +6,18 @@ defmodule EirinchanWeb.PageController do
   alias Eirinchan.Boards
   alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.CustomPages
-  alias Eirinchan.FaqPage
-  alias Eirinchan.FormattingPage
+  alias Eirinchan.FlagsPage
+  alias Eirinchan.PublicPages
   alias Eirinchan.Installation
   alias Eirinchan.NewsBlotter
   alias Eirinchan.Posts
-  alias Eirinchan.RulesPage
   alias Eirinchan.ThreadWatcher
   alias Eirinchan.Posts.{Post, PostFile, PublicIds}
   alias Eirinchan.Repo
   alias Eirinchan.Settings
   alias Eirinchan.Themes
   alias EirinchanWeb.ErrorPages
-  alias EirinchanWeb.{Announcements, BoardChrome, BoardRuntime}
+  alias EirinchanWeb.BoardRuntime
   alias EirinchanWeb.FragmentCache
   alias EirinchanWeb.HtmlSanitizer
   alias EirinchanWeb.PostView
@@ -45,7 +44,7 @@ defmodule EirinchanWeb.PageController do
           |> render(
             :home,
             Keyword.merge(
-              public_page_assigns(conn, "active-page", "index",
+              PublicControllerHelpers.public_page_assigns(conn, "active-page", "index",
                 include_global_message: false,
                 boards: boards
               ),
@@ -82,7 +81,9 @@ defmodule EirinchanWeb.PageController do
       |> render(
         :news,
         Keyword.merge(
-          public_page_assigns(conn, "active-page", "news", include_global_message: false),
+          PublicControllerHelpers.public_page_assigns(conn, "active-page", "news",
+            include_global_message: false
+          ),
           layout: false,
           news_entries: news_entries
         )
@@ -99,7 +100,7 @@ defmodule EirinchanWeb.PageController do
           conn,
           :catalog,
           Keyword.merge(
-            public_page_assigns(conn, "active-catalog", "catalog"),
+            PublicControllerHelpers.public_page_assigns(conn, "active-catalog", "catalog"),
             layout: false,
             threads: global_catalog_threads()
           )
@@ -146,7 +147,7 @@ defmodule EirinchanWeb.PageController do
         conn,
         :banners,
         Keyword.merge(
-          public_page_assigns(conn, "active-page", "banners"),
+          PublicControllerHelpers.public_page_assigns(conn, "active-page", "banners"),
           layout: false,
           banner_assets: banner_assets()
         )
@@ -199,7 +200,7 @@ defmodule EirinchanWeb.PageController do
         conn,
         :watcher,
         Keyword.merge(
-          public_page_assigns(conn, "active-page", "watcher"),
+          PublicControllerHelpers.public_page_assigns(conn, "active-page", "watcher"),
           layout: false,
           hide_theme_switcher: true,
           watch_summaries: watcher_summaries(conn)
@@ -238,18 +239,7 @@ defmodule EirinchanWeb.PageController do
     if Installation.setup_required?() do
       redirect(conn, to: ~p"/setup")
     else
-      case CustomPages.get_page_by_slug("faq") do
-        %CustomPages.Page{} = page ->
-          render_custom_page(conn, %{page | body: FaqPage.normalize_body(page.body)})
-
-        _ ->
-          render_custom_page(conn, %{
-            slug: "faq",
-            title: "FAQ",
-            body: FaqPage.default_body(),
-            mod_user: nil
-          })
-      end
+      render_custom_page(conn, PublicPages.fetch_named_page("faq"))
     end
   end
 
@@ -257,13 +247,7 @@ defmodule EirinchanWeb.PageController do
     if Installation.setup_required?() do
       redirect(conn, to: ~p"/setup")
     else
-      case CustomPages.get_page_by_slug("flags") do
-        nil ->
-          ErrorPages.not_found(conn)
-
-        page ->
-          render_custom_page(conn, page)
-      end
+      render_custom_page(conn, PublicPages.fetch_named_page("flags"))
     end
   end
 
@@ -271,20 +255,10 @@ defmodule EirinchanWeb.PageController do
     if Installation.setup_required?() do
       redirect(conn, to: ~p"/setup")
     else
-      sticker_entries = sticker_entries(current_sticker_config())
-
-      case CustomPages.get_page_by_slug("formatting") do
-        %CustomPages.Page{} = page ->
-          render_custom_page(conn, %{page | body: FormattingPage.normalize_body(page.body, sticker_entries)})
-
-        _ ->
-          render_custom_page(conn, %{
-            slug: "formatting",
-            title: "Formatting",
-            body: FormattingPage.default_body(sticker_entries),
-            mod_user: nil
-          })
-      end
+      render_custom_page(
+        conn,
+        PublicPages.fetch_named_page("formatting", stickers: sticker_entries(current_sticker_config()))
+      )
     end
   end
 
@@ -292,18 +266,15 @@ defmodule EirinchanWeb.PageController do
     if Installation.setup_required?() do
       redirect(conn, to: ~p"/setup")
     else
-      case CustomPages.get_page_by_slug("rules") do
-        %CustomPages.Page{} = page ->
-          render_custom_page(conn, %{page | body: RulesPage.normalize_body(page.body)})
+      render_custom_page(conn, PublicPages.fetch_named_page("rules"))
+    end
+  end
 
-        _ ->
-          render_custom_page(conn, %{
-            slug: "rules",
-            title: "Rules",
-            body: RulesPage.default_body(),
-            mod_user: nil
-          })
-      end
+  def feedback(conn, _params) do
+    if Installation.setup_required?() do
+      redirect(conn, to: ~p"/setup")
+    else
+      render_custom_page(conn, PublicPages.fetch_named_page("feedback"))
     end
   end
 
@@ -324,7 +295,7 @@ defmodule EirinchanWeb.PageController do
         |> render(
           :ukko,
           Keyword.merge(
-            public_page_assigns(conn, "active-page", "ukko"),
+            PublicControllerHelpers.public_page_assigns(conn, "active-page", "ukko"),
             layout: false,
             page_title: "#{Themes.overboard_uri()} - #{overboard_title(settings)}",
             body_class: PublicControllerHelpers.moderator_body_class(conn, "active-page"),
@@ -370,40 +341,6 @@ defmodule EirinchanWeb.PageController do
 
   def not_found(conn, _params), do: ErrorPages.not_found(conn)
 
-  defp public_page_assigns(conn, page_kind, active_page, opts \\ []) do
-    boards = Keyword.get_lazy(opts, :boards, &Boards.list_boards/0)
-    primary_board = Enum.find(boards, &(&1.uri == "bant")) || %{uri: "bant"}
-    common_assigns =
-      PublicControllerHelpers.public_shell_assigns(conn, active_page,
-        extra_stylesheets: PublicControllerHelpers.extra_stylesheets()
-      )
-
-    [
-      boards: boards,
-      primary_board: primary_board,
-      board_chrome: BoardChrome.for_board(primary_board),
-      global_message_html: maybe_global_message_html(boards, opts),
-      custom_pages: CustomPages.list_pages(),
-      global_boardlist_groups:
-        PostView.boardlist_groups(boards, mobile_client?: conn.assigns[:mobile_client?] || false),
-      body_class: public_body_class(page_kind)
-    ] ++ common_assigns
-  end
-
-  defp public_body_class("active-catalog"),
-    do: "8chan vichan is-not-moderator theme-catalog active-catalog"
-
-  defp public_body_class(page_kind), do: "8chan vichan is-not-moderator #{page_kind}"
-
-  defp current_global_message_html(boards) do
-    board_ids = Enum.map(boards, & &1.id)
-    Announcements.global_message_html(Settings.current_instance_config(), surround_hr: true, board_ids: board_ids)
-  end
-
-  defp maybe_global_message_html(boards, opts) do
-    if Keyword.get(opts, :include_global_message, true), do: current_global_message_html(boards)
-  end
-
   defp current_sticker_config do
     Settings.current_instance_config()
     |> Eirinchan.WhaleStickers.entries()
@@ -426,36 +363,49 @@ defmodule EirinchanWeb.PageController do
   defp render_custom_page(conn, page, opts \\ []) do
     board = Keyword.get(opts, :board)
     current_stickers = sticker_entries(current_sticker_config())
+    show_global_message = PublicPages.show_global_message?(page.slug)
 
     page =
-      case page.slug do
-        "faq" -> %{page | body: FaqPage.normalize_body(page.body)}
-        "formatting" -> %{page | body: FormattingPage.normalize_body(page.body, current_stickers)}
-        "rules" -> %{page | body: RulesPage.normalize_body(page.body)}
-        _ -> page
-      end
+      PublicPages.normalize_page(page, stickers: current_stickers)
+
+    public_page_assigns =
+      PublicControllerHelpers.public_page_assigns(conn, "active-page", page.slug,
+        include_global_message: show_global_message
+      )
 
     extra_stylesheets =
-      public_page_assigns(conn, "active-page", "page")
+      public_page_assigns
       |> Keyword.fetch!(:extra_stylesheets)
       |> maybe_add_page_stylesheet(page)
 
     assigns =
       Keyword.merge(
-        public_page_assigns(conn, "active-page", "page"),
+        public_page_assigns,
         layout: false,
         page: page,
+        global_message_html: if(show_global_message, do: Keyword.get(public_page_assigns, :global_message_html), else: nil),
         sanitized_body: HtmlSanitizer.sanitize_fragment(page.body || ""),
         flag_board: board,
         flag_assets: flag_assets(),
         flag_storage_key: "flag_",
-        extra_stylesheets: extra_stylesheets
+        flag_article_html:
+          if(page.slug == "flags", do: sanitize_fragment(FlagsPage.article_html(page.body || ""))),
+        flag_description_html:
+          if(page.slug == "flags", do: sanitize_fragment(FlagsPage.description_html())),
+        flag_footer_html:
+          if(page.slug == "flags", do: sanitize_fragment(FlagsPage.footer_html())),
+        extra_stylesheets: extra_stylesheets,
+        page_subtitle: PublicPages.page_subtitle(page.slug),
+        show_global_message: show_global_message,
+        params: %{},
+        errors: nil
       )
 
     conn = put_public_document_etag(conn, {:custom_page, page_cache_key(page)})
 
     case page.slug do
       "flags" -> render(conn, :flag, assigns)
+      "feedback" -> render(conn, :feedback, assigns)
       "faq" -> render(conn, :faq, assigns)
       "formatting" -> render(conn, :formatting, assigns)
       "rules" -> render(conn, :rules, assigns)
@@ -468,6 +418,10 @@ defmodule EirinchanWeb.PageController do
     do: stylesheets ++ ["/faq/recent.css"]
 
   defp maybe_add_page_stylesheet(stylesheets, _page), do: stylesheets
+
+  defp sanitize_fragment(nil), do: nil
+  defp sanitize_fragment(""), do: nil
+  defp sanitize_fragment(html), do: HtmlSanitizer.sanitize_fragment(html)
 
   defp put_public_document_etag(conn, term) do
     hash =
@@ -1049,6 +1003,7 @@ defmodule EirinchanWeb.PageController do
   defp banner_assets do
     Path.join(:code.priv_dir(:eirinchan), "static/static/banners")
     |> File.ls!()
+    |> Enum.filter(&String.match?(&1, ~r/\.(png|gif|jpg)$/i))
     |> Enum.sort()
     |> Enum.map(fn filename ->
       %{

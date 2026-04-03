@@ -6,20 +6,22 @@
 </header>
 
 <div class="ban flag-page-shell">
-  <div id="content" style="text-align:center;margin-top:2em;margin-bottom:2em;">
+  <div id="content" class="banner-page-shell" style="text-align:center;margin-top:2em;margin-bottom:2em;">
     <span class="rotate"><p1>Wow, this website is cool!</p1></span>
 
     <div class="center-container">
-      <div class="image-canvas">
+      <div class="banner-page-grid">
         <%= for asset <- @banner_assets do %>
-          <img src={asset.url} alt={asset.name} title={asset.name} />
+          <div class="banner-page-item">
+            <img src={asset.url} alt={asset.name} title={asset.name} />
+          </div>
         <% end %>
       </div>
     </div>
 
     <div id="blotter" class="flag-page-blotter">
       <p1>
-        Submit more at <a href="/j3/res/776.html">>>/j3/776</a>
+        Submit more at <a href="/qa/res/697-make-banners-for-this-website-please-they-have-to-be-300x100-but-i-can-scale-any+50.html">>>/qa/697</a>
       </p1>
       <br /><br />
     </div>

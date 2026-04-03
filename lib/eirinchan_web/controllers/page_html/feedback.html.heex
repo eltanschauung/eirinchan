@@ -1,0 +1,44 @@
+<.page_shell
+  page={@page}
+  subtitle={@page_subtitle}
+  global_message_html={@global_message_html}
+  current_moderator={@current_moderator}
+  board_chrome={@board_chrome}
+  show_global_message={@show_global_message}
+>
+  <section :if={@sanitized_body && @sanitized_body != ""} class="public-panel static-page-panel feedback-copy">
+    <article><%= raw(@sanitized_body || "") %></article>
+  </section>
+
+  <section :if={@errors} class="public-panel feedback-errors">
+    <%= for {field, messages} <- @errors do %>
+      <p><%= field %>: <%= Enum.join(messages, ", ") %></p>
+    <% end %>
+  </section>
+
+  <section class="public-panel feedback-panel">
+    <form action={~p"/feedback"} method="post" class="feedback-form">
+      <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+      <table class="mod-form-table">
+        <tr>
+          <th>Name</th>
+          <td><input type="text" name="name" value={get_in(assigns, [:params, "name"])} /></td>
+        </tr>
+        <tr>
+          <th>Email</th>
+          <td><input type="text" name="email" value={get_in(assigns, [:params, "email"])} /></td>
+        </tr>
+        <tr>
+          <th>Feedback</th>
+          <td>
+            <textarea name="body" rows="10" class="feedback-textarea"><%= get_in(assigns, [:params, "body"]) %></textarea>
+          </td>
+        </tr>
+        <tr>
+          <td></td>
+          <td><input type="submit" value="Send Feedback" /></td>
+        </tr>
+      </table>
+    </form>
+  </section>
+</.page_shell>

@@ -2,10 +2,12 @@ defmodule EirinchanWeb.FeedbackControllerTest do
   use EirinchanWeb.ConnCase, async: true
 
   test "public feedback page renders and accepts submissions", %{conn: conn} do
+    moderator_fixture()
     board_fixture(%{uri: "tech", title: "Technology"})
 
     page = conn |> get("/feedback") |> html_response(200)
 
+    assert page =~ "Submit any kind of feedback you want."
     assert page =~ "Send Feedback"
     assert page =~ ~s(class="boardlist")
     assert page =~ ~s(class="feedback-textarea")
@@ -65,7 +67,10 @@ defmodule EirinchanWeb.FeedbackControllerTest do
              json_response(second_conn, 429)
   end
 
-  test "feedback page renders global message placeholders and line breaks", %{conn: conn} do
+  test "feedback page suppresses the global message and keeps the centered feedback body", %{
+    conn: conn
+  } do
+    moderator_fixture()
     board = board_fixture(%{uri: "feedbackgm#{System.unique_integer([:positive])}", title: "Feedback GM"})
     thread = thread_fixture(board, %{body: "seed"})
     reply_fixture(board, thread, %{body: "recent"})
@@ -78,10 +83,11 @@ defmodule EirinchanWeb.FeedbackControllerTest do
 
     page = conn |> get("/feedback") |> html_response(200)
 
-    assert page =~ "Visitors in the last 10 minutes:"
-    assert page =~ "PPH:"
-    assert page =~ "<br />"
+    refute page =~ "Visitors in the last 10 minutes:"
+    refute page =~ "PPH:"
     refute page =~ "{stats.users_10minutes}"
     refute page =~ "{stats.posts_perhour}"
+    assert page =~ "feedback-copy"
+    assert page =~ "Submit any kind of feedback you want."
   end
 end

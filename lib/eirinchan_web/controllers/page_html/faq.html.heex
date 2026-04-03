@@ -1,17 +1,10 @@
-<header>
-  <h1><%= @page.title %></h1>
-  <div class="subtitle">
-    <h2>Ask questions, get answers.</h2>
-  </div>
-  <.admin_shortcuts moderator={@current_moderator} />
-</header>
-
-<%= if @global_message_html && @global_message_html != "" do %>
-  <%= raw(@global_message_html) %>
-<% end %>
-
-<%= raw(@sanitized_body || "") %>
-
-<%= if @board_chrome.show_footer do %>
-  <EirinchanWeb.PostComponents.site_footer />
-<% end %>
+<.page_shell
+  page={@page}
+  subtitle={@page_subtitle || "Ask questions, get answers."}
+  global_message_html={@global_message_html}
+  current_moderator={@current_moderator}
+  board_chrome={@board_chrome}
+  show_global_message={@show_global_message}
+>
+  <%= raw(@sanitized_body || "") %>
+</.page_shell>

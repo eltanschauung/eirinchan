@@ -1,62 +1,63 @@
 <.board_banner show={@primary_board && @primary_board.uri == "bant"} />
 
-<header>
-  <h1><%= @page.title %></h1>
-  <div class="subtitle"></div>
-</header>
+<.page_shell
+  page={@page}
+  subtitle={@page_subtitle}
+  global_message_html={@global_message_html}
+  current_moderator={@current_moderator}
+  board_chrome={@board_chrome}
+  show_global_message={@show_global_message}
+>
+  <div class="ban flag-page-shell">
+    <div
+      id="content"
+      style="text-align:center;margin-top:2em;margin-bottom:2em;"
+      data-flag-page
+      data-flag-storage-key={@flag_storage_key}
+    >
+      <article :if={@flag_article_html && @flag_article_html != ""} class="flag-page-copy">
+        <%= raw(@flag_article_html) %>
+      </article>
 
-<div class="ban flag-page-shell">
-  <div
-    id="content"
-    style="text-align:center;margin-top:2em;margin-bottom:2em;"
-    data-flag-page
-    data-flag-storage-key={@flag_storage_key}
-  >
-    <p><i>Pick custom flags for your posts.</i></p>
-
-    <div class="center-container">
-      <div class="image-canvas">
-        <%= for asset <- @flag_assets do %>
-          <img src={asset.url} alt={asset.name} title={asset.name} />
-        <% end %>
+      <div class="center-container">
+        <div class="image-canvas">
+          <%= for asset <- @flag_assets do %>
+            <img src={asset.url} alt={asset.name} title={asset.name} />
+          <% end %>
+        </div>
       </div>
-    </div>
 
-    <div id="blotter" class="flag-page-blotter">
+      <%= if @flag_description_html && @flag_description_html != "" do %>
+        <div id="blotter" class="flag-page-blotter">
+          <%= raw(@flag_description_html) %>
+        </div>
+      <% end %>
+
+      <div id="exampleBox" class="flag-page-controls">
+        <div class="postblock">Flags</div>
+        <input
+          name="user_flag"
+          type="text"
+          maxlength="300"
+          placeholder="country,tenshi,orin3,yuyuko"
+          autocomplete="off"
+          id="user_flag"
+        />
+        <div id="buttons">
+          <button type="button" id="applyButton">Apply</button>
+          <button type="button" id="clearButton">Clear</button>
+        </div>
+      </div>
+      <br />
+      <%= if @flag_footer_html && @flag_footer_html != "" do %>
+        <%= raw(@flag_footer_html) %>
+      <% end %>
       <p>
-        To add flags to your posts, write flag names into the field below, separated by a comma.
-        <code>country</code>
-        is a special case that displays your country. If the field is empty,
-        your post will have a United States flag. This creates an anonimity option.
+        Return to
+        <a style="text-decoration:none;" href={if @flag_board, do: "/#{@flag_board.uri}", else: "/"}>
+          the main board.
+        </a>
       </p>
     </div>
-
-    <div id="exampleBox" class="flag-page-controls">
-      <div class="postblock">Flags</div>
-      <input
-        name="user_flag"
-        type="text"
-        maxlength="300"
-        placeholder="country,tenshi,orin3,yuyuko"
-        autocomplete="off"
-        id="user_flag"
-      />
-      <div id="buttons">
-        <button type="button" id="applyButton">Apply</button>
-        <button type="button" id="clearButton">Clear</button>
-      </div>
-    </div>
-    <br />
-    <p><i>Tip:</i> You can click the flags.</p>
-    <p>
-      Return to
-      <a style="text-decoration:none;" href={if @flag_board, do: "/#{@flag_board.uri}", else: "/"}>
-        the main board.
-      </a>
-    </p>
   </div>
-</div>
-
-<%= if @board_chrome.show_footer do %>
-  <EirinchanWeb.PostComponents.site_footer />
-<% end %>
+</.page_shell>

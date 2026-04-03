@@ -1,19 +1,11 @@
-<header>
-  <h1><img class="site_logo2" src="/site_logo2.png" alt={@page.title} /></h1>
-  <div class="subtitle">
-    <h2>Ask questions, get answers.</h2>
-  </div>
-  <.admin_shortcuts moderator={@current_moderator} />
-</header>
-
-<%= raw(@sanitized_body || "") %>
-
-<hr />
-<footer>
-  <p class="unimportant" style="margin-top:20px;text-align:center;">
-    We witches are not whale lol. I will never call 'whale' a Sukusuku though.
-  </p>
-  <p class="unimportant" style="text-align:center;">
-    All trademarks, copyrights, comments, and images on this page are owned by no one because Touhou is doujin culture bruh
-  </p>
-</footer>
+<.page_shell
+  page={@page}
+  subtitle={@page_subtitle || "Ask questions, get answers."}
+  global_message_html={@global_message_html}
+  current_moderator={@current_moderator}
+  board_chrome={@board_chrome}
+  show_global_message={@show_global_message}
+>
+  <%= raw(@sanitized_body || "") %>
+  <p :if={@page.mod_user} class="unimportant public-panel">Updated by <%= @page.mod_user.username %></p>
+</.page_shell>

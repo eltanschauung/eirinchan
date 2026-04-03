@@ -7,6 +7,34 @@ defmodule EirinchanWeb.PageHTML do
   use EirinchanWeb, :html
   import EirinchanWeb.BrowserPostComponents
 
+  attr :page, :map, required: true
+  attr :global_message_html, :string, default: nil
+  attr :current_moderator, :any, default: nil
+  attr :board_chrome, :map, default: %{show_footer: true}
+  attr :subtitle, :string, default: nil
+  attr :show_global_message, :boolean, default: true
+  slot :inner_block, required: true
+
+  def page_shell(assigns) do
+    ~H"""
+    <header>
+      <h1><%= @page.title %></h1>
+      <div :if={present_text?(@subtitle)} class="subtitle"><%= @subtitle %></div>
+      <.admin_shortcuts moderator={@current_moderator} />
+    </header>
+
+    <%= if @show_global_message && @global_message_html && @global_message_html != "" do %>
+      <%= raw(@global_message_html) %>
+    <% end %>
+
+    <%= render_slot(@inner_block) %>
+
+    <%= if @board_chrome.show_footer do %>
+      <EirinchanWeb.PostComponents.site_footer />
+    <% end %>
+    """
+  end
+
   attr :watch_summaries, :list, default: []
 
   def watcher_list(assigns) do
@@ -58,6 +86,9 @@ defmodule EirinchanWeb.PageHTML do
     </div>
     """
   end
+
+  defp present_text?(value) when is_binary(value), do: String.trim(value) != ""
+  defp present_text?(_value), do: false
 
   embed_templates "page_html/*"
 end
