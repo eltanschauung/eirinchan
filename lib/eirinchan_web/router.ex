@@ -31,6 +31,20 @@ defmodule EirinchanWeb.Router do
     plug EirinchanWeb.Plugs.SecureHeaders
   end
 
+  pipeline :public_json do
+    plug :accepts, ["json"]
+    plug :fetch_session
+    plug :fetch_cookies
+    plug EirinchanWeb.Plugs.FetchBrowserTimezone
+    plug EirinchanWeb.Plugs.DetectMobileClient
+    plug EirinchanWeb.Plugs.FetchBrowserToken
+    plug EirinchanWeb.Plugs.TrackBrowserPresence
+    plug EirinchanWeb.Plugs.FetchCurrentModerator
+    plug EirinchanWeb.Plugs.AutoMaintenance
+    plug :protect_from_forgery
+    plug EirinchanWeb.Plugs.SecureHeaders
+  end
+
   pipeline :manage_api do
     plug :accepts, ["json"]
     plug :fetch_session
@@ -258,6 +272,12 @@ defmodule EirinchanWeb.Router do
     get "/:board/threads.json", ApiController, :threads
     get "/:board/res/:thread_id", ApiController, :thread
     get "/:board/pages/:page_num", ApiController, :page
+  end
+
+  scope "/api", EirinchanWeb do
+    pipe_through :public_json
+
+    post "/post", PostController, :create_json
   end
 
   scope "/", EirinchanWeb do

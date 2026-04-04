@@ -5,6 +5,14 @@ defmodule EirinchanWeb.ErrorJSON do
   See config/config.exs.
   """
 
+  def render("403.json", %{reason: %Plug.CSRFProtection.InvalidCSRFTokenError{}}) do
+    %{error: "Your tab is out of date. Refreshing the CSRF token and retrying.", csrf: true}
+  end
+
+  def render("403.json", %{reason: %Plug.CSRFProtection.InvalidCrossOriginRequestError{}}) do
+    %{error: "Your tab is out of date. Refreshing the CSRF token and retrying.", csrf: true}
+  end
+
   # If you want to customize a particular status code,
   # you may add your own clauses, such as:
   #

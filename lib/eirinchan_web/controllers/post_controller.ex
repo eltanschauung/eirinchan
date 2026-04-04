@@ -22,6 +22,16 @@ defmodule EirinchanWeb.PostController do
   plug EirinchanWeb.Plugs.LoadBoard
 
   def create(conn, params) do
+    do_create(conn, params)
+  end
+
+  def create_json(conn, params) do
+    conn
+    |> assign(:post_response_format, :json)
+    |> do_create(params)
+  end
+
+  defp do_create(conn, params) do
     params = normalize_legacy_params(conn, params)
     board = conn.assigns.current_board
     config = conn.assigns.current_board_config
@@ -157,7 +167,7 @@ defmodule EirinchanWeb.PostController do
           "#{thread_redirect_path(board, post, thread_id, config)}#{suffix}"
       end
 
-    if params["json_response"] == "1" do
+    if json_response?(conn, params) do
       {board_page_num, board_page_path} =
         if post.thread_id do
           current_thread_page_state(board, thread_id, config)
@@ -303,7 +313,7 @@ defmodule EirinchanWeb.PostController do
     public_thread_id = if post.thread_id, do: public_thread_id(board, thread_id), else: PublicIds.public_id(post)
     redirect_path = thread_redirect_or_board(board, thread_id, params, config)
 
-    if params["json_response"] == "1" do
+    if json_response?(conn, params) do
       json(conn, %{
         deleted_post_id: PublicIds.public_id(post),
         thread_id: public_thread_id,
@@ -330,7 +340,7 @@ defmodule EirinchanWeb.PostController do
   defp respond_error(conn, reason, status, message, config) do
     log_post_error(reason, status, conn)
 
-    if conn.params["json_response"] == "1" do
+    if json_response?(conn) do
       payload =
         %{
           error: message,
@@ -369,7 +379,7 @@ defmodule EirinchanWeb.PostController do
     redirect_path =
       thread_redirect_or_board(board, report.thread_id, params, conn.assigns.current_board_config)
 
-    if params["json_response"] == "1" do
+    if json_response?(conn, params) do
       json(conn, %{report_id: report.id, redirect: redirect_path, status: "ok"})
     else
       redirect(conn, to: redirect_path)
@@ -379,7 +389,7 @@ defmodule EirinchanWeb.PostController do
   defp respond_appealed(conn, board, appeal, params) do
     redirect_path = "/#{board.uri}"
 
-    if params["json_response"] == "1" do
+    if json_response?(conn, params) do
       json(conn, %{appeal_id: appeal.id, redirect: redirect_path, status: "ok"})
     else
       redirect(conn, to: redirect_path)
@@ -396,7 +406,7 @@ defmodule EirinchanWeb.PostController do
         thread_redirect_or_board(board, result.thread_id, params, config)
       end
 
-    if params["json_response"] == "1" do
+    if json_response?(conn, params) do
       json(conn, %{
         deleted_post_id: result.deleted_post_id,
         thread_id: result.thread_id,
@@ -417,6 +427,12 @@ defmodule EirinchanWeb.PostController do
       Map.has_key?(params, "appeal_ban_id") or Map.has_key?(params, "ban_id") -> :appeal
       true -> :post
     end
+  end
+
+  defp json_response?(conn, params \\ nil) do
+    conn.assigns[:post_response_format] == :json or
+      (is_map(params) and params["json_response"] == "1") or
+      conn.params["json_response"] == "1"
   end
 
   defp normalize_legacy_params(conn, params) do

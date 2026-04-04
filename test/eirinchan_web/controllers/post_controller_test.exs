@@ -9,6 +9,7 @@ defmodule EirinchanWeb.PostControllerTest do
   alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Repo
   alias Eirinchan.ThreadWatcher
+  alias Plug.CSRFProtection
 
   test "classic posting redirects OP creation to the thread page", %{conn: conn} do
     board = board_fixture(%{title: "Technology"})
@@ -91,6 +92,60 @@ defmodule EirinchanWeb.PostControllerTest do
              get_resp_header(conn, "set-cookie"),
            &String.contains?(&1, "eirinchan_posted=#{encoded_cookie}")
            )
+  end
+
+  test "api posting returns reply metadata without legacy json_response", %{conn: conn} do
+    board = board_fixture(%{title: "Technology"})
+    thread = thread_fixture(board, %{body: "thread body", subject: "thread subject"})
+    referer = "http://www.example.com/#{board.uri}/index.html"
+    token = "reply-watch-token-api-123456"
+
+    conn =
+      conn
+      |> put_req_cookie("browser_token", token)
+      |> put_req_header("accept", "application/json")
+      |> put_req_header("x-csrf-token", CSRFProtection.get_csrf_token())
+      |> put_req_header("referer", referer)
+      |> post("/api/post", %{
+        "board" => board.uri,
+        "thread" => Integer.to_string(PublicIds.public_id(thread)),
+        "body" => "reply body",
+        "post" => "New Reply"
+      })
+
+    thread_id = PublicIds.public_id(thread)
+
+    assert %{
+             "id" => id,
+             "thread_id" => ^thread_id,
+             "redirect" => redirect,
+             "noko" => false,
+             "watcher_count" => 1,
+             "watcher_unread_count" => 0,
+             "watcher_you_count" => 0
+           } = json_response(conn, 200)
+
+    assert redirect == "/#{board.uri}/res/#{thread_id}.html#p#{id}"
+    assert ThreadWatcher.watched?(token, board.uri, thread.id)
+  end
+
+  test "api posting rejects requests without csrf with json error payload", %{conn: conn} do
+    board = board_fixture(%{title: "Technology", config_overrides: %{force_image_op: false}})
+
+    conn =
+      conn
+      |> put_req_header("accept", "application/json")
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post("/api/post", %{
+        "board" => board.uri,
+        "body" => "first post",
+        "post" => "New Topic"
+      })
+
+    assert %{
+             "csrf" => true,
+             "error" => "Your tab is out of date. Refreshing the CSRF token and retrying."
+           } = json_response(conn, 403)
   end
 
   test "posting falls back to password cookie when the submitted password is blank", %{conn: conn} do
