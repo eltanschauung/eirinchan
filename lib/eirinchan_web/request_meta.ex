@@ -42,6 +42,17 @@ defmodule EirinchanWeb.RequestMeta do
     end
   end
 
+  def request_target(conn) do
+    query = if conn.query_string == "", do: "", else: "?" <> conn.query_string
+    conn.request_path <> query
+  end
+
+  def ip_to_string({_, _, _, _} = ip), do: ip |> :inet.ntoa() |> to_string()
+  def ip_to_string({_, _, _, _, _, _, _, _} = ip), do: ip |> :inet.ntoa() |> to_string()
+  def ip_to_string(value) when is_binary(value), do: String.trim(value)
+  def ip_to_string(nil), do: "-"
+  def ip_to_string(value), do: inspect(value)
+
   def trusted_proxy?(remote_ip, config \\ config()) do
     IpMatching.match?(remote_ip, config.trusted_ips) or
       IpMatching.match?(remote_ip, config.trusted_cidrs)

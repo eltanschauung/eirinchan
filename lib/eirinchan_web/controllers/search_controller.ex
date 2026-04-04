@@ -1,5 +1,6 @@
 defmodule EirinchanWeb.SearchController do
   use EirinchanWeb, :controller
+  require Logger
 
   alias Eirinchan.Antispam
   alias Eirinchan.Boards
@@ -24,6 +25,8 @@ defmodule EirinchanWeb.SearchController do
     board = board_from_param(params["board"], boards)
     config = search_config(board, instance_overrides)
     request = %{remote_ip: RequestMeta.effective_remote_ip(conn)}
+
+    log_search_request(query, board, request, conn)
 
     cond do
       not search_enabled?(config) ->
@@ -50,6 +53,19 @@ defmodule EirinchanWeb.SearchController do
             render_search(conn, query, board, boards, results, nil, config)
         end
     end
+  end
+
+  defp log_search_request("", _board, _request, _conn), do: :ok
+
+  defp log_search_request(query, board, request, conn) do
+    Logger.info(
+      "search.request " <>
+        "remote_ip=#{RequestMeta.ip_to_string(request.remote_ip)} " <>
+        "board=#{if(board, do: board.uri, else: "-")} " <>
+        "query=#{inspect(query)} " <>
+        "query_length=#{String.length(query)} " <>
+        "request_path=#{conn.request_path}"
+    )
   end
 
   defp render_search(conn, query, board, boards, results, error, config) do
