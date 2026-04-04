@@ -379,6 +379,21 @@ defmodule EirinchanWeb.PostViewTest do
     assert html =~ "Line one"
     assert html =~ "Line two"
   end
+
+  test "file_selector_shell keeps the native file input available and hides the dropzone by default" do
+    html =
+      Phoenix.LiveViewTest.render_component(&PostComponents.file_selector_shell/1,
+        input_name: "file",
+        input_id: "upload_file",
+        multiple: false,
+        upload_by_url_enabled: false
+      )
+
+    assert html =~ ~s(data-native-upload)
+    assert html =~ ~r/<input[^>]+data-upload-file[^>]*>/
+    refute html =~ ~r/<input[^>]+data-upload-file[^>]+hidden/
+    assert html =~ ~r/<div[^>]+data-file-selector-shell[^>]+hidden/
+  end
 end
 
 defmodule EirinchanWeb.PostViewQuoteTest do
