@@ -585,6 +585,7 @@ defmodule Eirinchan.Runtime.Config do
     |> Map.put_new(:image_locked, path_join(static_dir, "locked.gif"))
     |> Map.put_new(:image_bumplocked, path_join(static_dir, "sage.gif"))
     |> Map.put_new(:image_deleted, path_join(static_dir, "deleted.png"))
+    |> Map.put_new(:image_no_file, path_join(static_dir, "no_file.png"))
     |> Map.put_new(:image_cyclical, path_join(static_dir, "cycle.png"))
     |> Map.put_new(:image_gap, path_join(static_dir, "gap.png"))
   end
