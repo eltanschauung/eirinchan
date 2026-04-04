@@ -17,7 +17,7 @@ defmodule Mix.Tasks.Eirinchan.ImportLivePage do
     case LiveVichanImport.import_page(
            board: Keyword.get(opts, :board, "bant"),
            limit: Keyword.get(opts, :limit, 15),
-           source_root: Keyword.get(opts, :source_root, "/var/www/bantculture.com/vichan")
+           source_root: Keyword.get(opts, :source_root, "/path/to/vichan")
          ) do
       {:ok, result} ->
         Mix.shell().info(

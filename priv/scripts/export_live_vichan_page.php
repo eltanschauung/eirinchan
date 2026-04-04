@@ -1,6 +1,6 @@
 <?php
 
-$root = $argv[1] ?? '/var/www/bantculture.com/vichan';
+$root = $argv[1] ?? '/path/to/vichan';
 $board = $argv[2] ?? 'bant';
 $limit = isset($argv[3]) ? max((int) $argv[3], 1) : 10;
 

@@ -2,10 +2,7 @@ import Config
 
 # Configure your database
 config :eirinchan, Eirinchan.Repo,
-  username: "eirinchan",
-  password: "eirinchan",
-  hostname: "localhost",
-  database: "eirinchan_dev",
+  url: System.get_env("DATABASE_URL") || "ecto://localhost/eirinchan_dev",
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10
@@ -25,7 +22,7 @@ config :eirinchan, EirinchanWeb.Endpoint,
   check_origin: false,
   code_reloader: false,
   debug_errors: true,
-  secret_key_base: "YwZBgByq4lJ478ps6iqIic/cbKvKF9qTq/g6BdXTPVeAZmW8aJzCkD7nyazBoXYh",
+  secret_key_base: String.duplicate("dev-secret-key-base-", 4),
   watchers: []
 
 # ## SSL Support

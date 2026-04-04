@@ -33,7 +33,7 @@ defmodule Mix.Tasks.Eirinchan.ImportLiveThread do
     case LiveVichanImport.import_thread(
            board: board_uri,
            thread_id: thread_id,
-           source_root: Keyword.get(opts, :source_root, "/var/www/bantculture.com/vichan")
+           source_root: Keyword.get(opts, :source_root, "/path/to/vichan")
          ) do
       {:ok, result} ->
         Mix.shell().info(

@@ -18,7 +18,7 @@ defmodule Eirinchan.LiveVichanImport do
 
   def import_page(opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
-    source_root = Keyword.get(opts, :source_root, "/var/www/bantculture.com/vichan")
+    source_root = Keyword.get(opts, :source_root, "/path/to/vichan")
     board_uri = Keyword.get(opts, :board, "bant")
     limit = Keyword.get(opts, :limit, 10)
 
@@ -33,7 +33,7 @@ defmodule Eirinchan.LiveVichanImport do
 
   def import_thread(opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
-    source_root = Keyword.get(opts, :source_root, "/var/www/bantculture.com/vichan")
+    source_root = Keyword.get(opts, :source_root, "/path/to/vichan")
     board_uri = Keyword.get(opts, :board, "bant")
     thread_id = Keyword.fetch!(opts, :thread_id)
 

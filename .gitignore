@@ -63,6 +63,8 @@ posting_pipeline_examination.txt
 posting_pipeline_speedup_plan.txt
 html_size_findings.txt
 html_size_reduction_plan.txt
+scrubs.txt
+/priv/examples/nftables-bantculture-ddos-example.nft
 
 # Unused legacy Vichan JS not loaded by the current app
 /priv/static/js/ajax-post-controls.js
