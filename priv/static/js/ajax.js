@@ -1,1 +1,467 @@
-$(window).ready((function(){var t=!1,e=null,r=function(){return e||(e=$.ajax({url:"/csrf-token",type:"GET",dataType:"json",cache:!1,headers:{"Cache-Control":"no-cache"}}).then((function(t){var e=t&&t.csrf_token;return e?(function(t){if(t){var e=document.querySelector('meta[name="csrf-token"]');e&&e.setAttribute("content",t),$('input[name="_csrf_token"]').val(t)}}(e),e):$.Deferred().reject().promise()})).always((function(){e=null})))};$('input[type="submit"]').removeAttr("disabled");$(document).off("submit.ajax_post","form[data-post-form]"),$(document).on("submit.ajax_post","form[data-post-form]",(function(){if(t)return!0;var e=this,n=$(e),a=$(e).find('input[type="submit"]'),o=$(this).find('input[type="submit"]').val(),i=$(e).find('input[name="thread_id"], input[name="thread"]').length>0;if(void 0===window.FormData)return!0;if(n.data("ajax-posting"))return!1;var s=function(){n.removeData("ajax-posting"),a.val(o),a.removeAttr("disabled")},d=function(t){try{window.EirinchanFrontend&&"function"==typeof window.EirinchanFrontend.dispatchAjaxAfterPostSuccess?window.EirinchanFrontend.dispatchAjaxAfterPostSuccess(t,e):$(document).trigger("ajax_after_post",[t,e])}catch(t){console.error(t)}},c=function(t){if(i&&"function"==typeof window.markWatchedThreadSeen){var r=parseInt($(e).find('input[name="thread_id"], input[name="thread"]').first().val(),10),n=$(e).find('input[name="board"]').first().val(),a=document.querySelector('.thread[data-thread-id="'+r+'"]');r&&n&&a&&"true"===a.dataset.watched&&window.markWatchedThreadSeen(n,r,t.id)}},u=function(t){i&&t&&(t.board_page_num&&$("#thread_stats_page").text(t.board_page_num),t.board_page_path&&($("#thread-return, #thread-return-top").attr("href",t.board_page_path),$("#thread-refresh-target").attr("data-board-page-path",t.board_page_path)),t.board_page_num&&$("#thread-refresh-target").attr("data-board-page-num",t.board_page_num))},p=function(){$(e).find('input[name="subject"],input[name="file_url"],input[name="embed"],\t\t\t\t\ttextarea[name="body"],input[type="file"]').val("").change()},l=function(t){var r;r=void 0===t.position?Math.round(100*t.loaded/t.total):Math.round(100*t.position/t.total),$(e).find('input[type="submit"]').val(_("Posting... (#%)").replace("#",r))};n.data("ajax-posting",!0);var f=function(h){var m=new FormData(e);m.set("_csrf_token",function(){var t=document.querySelector('meta[name="csrf-token"]');if(t&&t.content)return t.content;var e=document.querySelector('input[name="_csrf_token"]');return e?e.value:""}()),m.set("json_response","1"),m.set("post",o),$(document).trigger("ajax_before_post",[m,e]),$.ajax({url:e.action,type:"POST",dataType:"json",xhr:function(){var t=$.ajaxSettings.xhr();return t.upload&&t.upload.addEventListener("progress",l,!1),t},success:function(r){if(r.error)r.banned?(t=!0,$(e).find('input[type="submit"]').each((function(){var t=$('<input type="hidden">');t.attr("name",$(this).attr("name")),t.val(o),$(this).after(t).replaceWith($('<input type="button">').val(o))})),$(e).submit()):(alert(r.error),s());else if(r.redirect&&r.id)if(i){a.val(_("Posted..."));var n=function(t){if(!t||!t.html)return $("div.post#reply_"+t.id).first();var e=$("div.post#reply_"+t.id).first();if(e.length)return e;var r=$($.parseHTML(t.html,document,!0)),n=$("#thread-refresh-target");if(n.length)n.append(r);else{var a=$("div.thread").first();a.length&&a.append(r)}return $("div.post#reply_"+t.id).first()}(r);if(n.length){var l=document.getElementById(String(r.id))||n[0];try{"function"==typeof window.syncBacklinksFromPost&&window.syncBacklinksFromPost(n[0])}catch(t){console.error(t)}p(),s(),c(r),u(r),d(r);try{window.EirinchanFrontend&&"function"==typeof window.EirinchanFrontend.dispatchNewPost?window.EirinchanFrontend.dispatchNewPost(n[0]):$(document).trigger("new_post",n[0])}catch(t){console.error(t)}window.requestAnimationFrame((function(){window.requestAnimationFrame((function(){try{history&&history.replaceState?history.replaceState(null,document.title,window.location.pathname+window.location.search+"#"+r.id):window.location.hash=r.id}catch(t){window.location.hash=r.id}l.scrollIntoView?l.scrollIntoView({block:"start"}):$(window).scrollTop(n.offset().top);try{highlightReply(r.id)}catch(t){console.error(t)}setTimeout((function(){$(window).trigger("scroll")}),50)}))}))}else{p(),s(),c(r),u(r),d(r);try{history&&history.replaceState?history.replaceState(null,document.title,window.location.pathname+window.location.search+"#"+r.id):window.location.hash=r.id}catch(t){window.location.hash=r.id}alert(_("Reply posted. Refresh to see it."))}}else d(r),document.location=r.redirect;else alert(_("An unknown error occured when posting!")),s()},error:function(t,e,n){console.log(t);var a=function(t){if(t&&t.responseJSON&&t.responseJSON.error)return t.responseJSON.error;if(t&&"string"==typeof t.responseText&&t.responseText.length)try{var e=JSON.parse(t.responseText);if(e&&e.error)return e.error}catch(t){}return null}(t),o=function(t,e){if(!t||403!==t.status)return!1;var r=(e||"").toLowerCase();if(r&&(-1!==r.indexOf("csrf")||-1!==r.indexOf("forgery")||-1!==r.indexOf("out of date")))return!0;var n=(t.responseText||"").toLowerCase();return-1!==n.indexOf("csrf")||-1!==n.indexOf("forgery")}(t,a);h&&o?r().done((function(){f(!1)})).fail((function(){alert(_("Your tab is out of date. Refresh the page and try again.")),s()})):(a?alert(a):o?alert(_("Your tab is out of date. Refresh the page and try again.")):t&&t.status>=400&&t.status<500?alert(_("Your post was rejected by the server. Refresh and try again.")):t&&t.status>=500?alert(_("The server hit an internal error while processing your post. Please try again in a moment.")):alert(_("The server took too long to submit your post. Your post was probably still submitted. If it wasn't, we might be experiencing issues right now -- please try your post again later.")),s())},data:m,cache:!1,contentType:!1,processData:!1,complete:function(){a.val()!==_("Posted...")&&n.removeData("ajax-posting")}},"json")};return f(!0),a.val(_("Posting...")),a.attr("disabled",!0),!1}))}));
+$(window).ready(function () {
+  var fallbackSubmit = false;
+  var csrfRefreshRequest = null;
+
+  function currentCsrfToken() {
+    var metaToken = document.querySelector('meta[name="csrf-token"]');
+    if (metaToken && metaToken.content) {
+      return metaToken.content;
+    }
+
+    var inputToken = document.querySelector('input[name="_csrf_token"]');
+    return inputToken ? inputToken.value : "";
+  }
+
+  function applyCsrfToken(token) {
+    if (!token) {
+      return;
+    }
+
+    var metaToken = document.querySelector('meta[name="csrf-token"]');
+    if (metaToken) {
+      metaToken.setAttribute("content", token);
+    }
+
+    $('input[name="_csrf_token"]').val(token);
+  }
+
+  function refreshCsrfToken() {
+    if (csrfRefreshRequest) {
+      return csrfRefreshRequest;
+    }
+
+    csrfRefreshRequest = $.ajax({
+      url: "/csrf-token",
+      type: "GET",
+      dataType: "json",
+      cache: false,
+      headers: {
+        "Cache-Control": "no-cache",
+        "X-Requested-With": "XMLHttpRequest"
+      }
+    })
+      .then(function (payload) {
+        var token = payload && payload.csrf_token;
+
+        if (!token) {
+          return $.Deferred().reject().promise();
+        }
+
+        applyCsrfToken(token);
+        return token;
+      })
+      .always(function () {
+        csrfRefreshRequest = null;
+      });
+
+    return csrfRefreshRequest;
+  }
+
+  function ajaxPostUrl(form) {
+    return form.getAttribute("data-ajax-action") || "/api/post";
+  }
+
+  function parsedErrorMessage(xhr) {
+    if (!xhr) {
+      return null;
+    }
+
+    if (xhr.responseJSON) {
+      if (xhr.responseJSON.error) {
+        return xhr.responseJSON.error;
+      }
+
+      if (
+        xhr.responseJSON.errors &&
+        typeof xhr.responseJSON.errors.detail === "string" &&
+        xhr.responseJSON.errors.detail.length
+      ) {
+        return xhr.responseJSON.errors.detail;
+      }
+    }
+
+    if (typeof xhr.responseText === "string" && xhr.responseText.length) {
+      try {
+        var parsed = JSON.parse(xhr.responseText);
+
+        if (parsed && parsed.error) {
+          return parsed.error;
+        }
+
+        if (
+          parsed &&
+          parsed.errors &&
+          typeof parsed.errors.detail === "string" &&
+          parsed.errors.detail.length
+        ) {
+          return parsed.errors.detail;
+        }
+      } catch (_error) {
+        return null;
+      }
+    }
+
+    return null;
+  }
+
+  function isCsrfFailure(xhr, parsedMessage) {
+    if (!xhr || xhr.status !== 403) {
+      return false;
+    }
+
+    if (xhr.responseJSON && xhr.responseJSON.csrf === true) {
+      return true;
+    }
+
+    var message = (parsedMessage || "").toLowerCase();
+    if (
+      message.indexOf("csrf") !== -1 ||
+      message.indexOf("forgery") !== -1 ||
+      message.indexOf("out of date") !== -1
+    ) {
+      return true;
+    }
+
+    var responseText = (xhr.responseText || "").trim().toLowerCase();
+    if (
+      responseText.indexOf("csrf") !== -1 ||
+      responseText.indexOf("forgery") !== -1 ||
+      responseText === "forbidden"
+    ) {
+      return true;
+    }
+
+    return false;
+  }
+
+  $('input[type="submit"]').removeAttr("disabled");
+
+  $(document).off("submit.ajax_post", "form[data-post-form]");
+  $(document).on("submit.ajax_post", "form[data-post-form]", function () {
+    if (fallbackSubmit) {
+      return true;
+    }
+
+    var form = this;
+    var $form = $(form);
+    var $submitInputs = $form.find('input[type="submit"]');
+    var submitLabel = $(this).find('input[type="submit"]').val();
+    var isReply = $form.find('input[name="thread_id"], input[name="thread"]').length > 0;
+
+    if (window.FormData === undefined) {
+      return true;
+    }
+
+    if ($form.data("ajax-posting")) {
+      return false;
+    }
+
+    function resetFormState() {
+      $form.removeData("ajax-posting");
+      $submitInputs.val(submitLabel);
+      $submitInputs.removeAttr("disabled");
+    }
+
+    function dispatchAfterPost(postPayload) {
+      try {
+        if (
+          window.EirinchanFrontend &&
+          typeof window.EirinchanFrontend.dispatchAjaxAfterPostSuccess === "function"
+        ) {
+          window.EirinchanFrontend.dispatchAjaxAfterPostSuccess(postPayload, form);
+        } else {
+          $(document).trigger("ajax_after_post", [postPayload, form]);
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    function maybeMarkWatchedThreadSeen(postPayload) {
+      if (!isReply || typeof window.markWatchedThreadSeen !== "function") {
+        return;
+      }
+
+      var threadId = parseInt(
+        $(form).find('input[name="thread_id"], input[name="thread"]').first().val(),
+        10
+      );
+      var board = $(form).find('input[name="board"]').first().val();
+      var threadElement = document.querySelector('.thread[data-thread-id="' + threadId + '"]');
+
+      if (threadId && board && threadElement && threadElement.dataset.watched === "true") {
+        window.markWatchedThreadSeen(board, threadId, postPayload.id);
+      }
+    }
+
+    function updateThreadPageState(postPayload) {
+      if (!isReply || !postPayload) {
+        return;
+      }
+
+      if (postPayload.board_page_num) {
+        $("#thread_stats_page").text(postPayload.board_page_num);
+        $("#thread-refresh-target").attr("data-board-page-num", postPayload.board_page_num);
+      }
+
+      if (postPayload.board_page_path) {
+        $("#thread-return, #thread-return-top").attr("href", postPayload.board_page_path);
+        $("#thread-refresh-target").attr("data-board-page-path", postPayload.board_page_path);
+      }
+    }
+
+    function clearPostFields() {
+      $(form)
+        .find(
+          'input[name="subject"], input[name="file_url"], input[name="embed"], textarea[name="body"], input[type="file"]'
+        )
+        .val("")
+        .change();
+    }
+
+    function updateProgress(event) {
+      var progress =
+        event.position === undefined
+          ? Math.round((event.loaded * 100) / event.total)
+          : Math.round((event.position * 100) / event.total);
+
+      $(form)
+        .find('input[type="submit"]')
+        .val(_("Posting... (#%)").replace("#", progress));
+    }
+
+    $form.data("ajax-posting", true);
+
+    function submitAjax(firstAttempt) {
+      var payload = new FormData(form);
+      payload.set("_csrf_token", currentCsrfToken());
+      payload.set("post", submitLabel);
+
+      $(document).trigger("ajax_before_post", [payload, form]);
+
+      $.ajax(
+        {
+          url: ajaxPostUrl(form),
+          type: "POST",
+          dataType: "json",
+          cache: false,
+          contentType: false,
+          processData: false,
+          headers: {
+            "Accept": "application/json",
+            "X-CSRF-Token": currentCsrfToken(),
+            "X-Requested-With": "XMLHttpRequest"
+          },
+          xhr: function () {
+            var xhr = $.ajaxSettings.xhr();
+
+            if (xhr.upload) {
+              xhr.upload.addEventListener("progress", updateProgress, false);
+            }
+
+            return xhr;
+          },
+          success: function (response) {
+            if (response.error) {
+              if (response.banned) {
+                fallbackSubmit = true;
+
+                $(form)
+                  .find('input[type="submit"]')
+                  .each(function () {
+                    var hidden = $("<input type=\"hidden\">");
+                    hidden.attr("name", $(this).attr("name"));
+                    hidden.val(submitLabel);
+                    $(this).after(hidden).replaceWith($("<input type=\"button\">").val(submitLabel));
+                  });
+
+                $(form).submit();
+              } else {
+                alert(response.error);
+                resetFormState();
+              }
+
+              return;
+            }
+
+            if (!(response.redirect && response.id)) {
+              alert(_("An unknown error occured when posting!"));
+              resetFormState();
+              return;
+            }
+
+            if (!isReply) {
+              dispatchAfterPost(response);
+              document.location = response.redirect;
+              return;
+            }
+
+            $submitInputs.val(_("Posted..."));
+
+            var $reply = (function appendReply(replyPayload) {
+              if (!replyPayload || !replyPayload.html) {
+                return $("div.post#reply_" + replyPayload.id).first();
+              }
+
+              var existingReply = $("div.post#reply_" + replyPayload.id).first();
+              if (existingReply.length) {
+                return existingReply;
+              }
+
+              var replyNode = $($.parseHTML(replyPayload.html, document, true));
+              var $threadRefreshTarget = $("#thread-refresh-target");
+
+              if ($threadRefreshTarget.length) {
+                $threadRefreshTarget.append(replyNode);
+              } else {
+                var $thread = $("div.thread").first();
+                if ($thread.length) {
+                  $thread.append(replyNode);
+                }
+              }
+
+              return $("div.post#reply_" + replyPayload.id).first();
+            })(response);
+
+            if (!$reply.length) {
+              clearPostFields();
+              resetFormState();
+              maybeMarkWatchedThreadSeen(response);
+              updateThreadPageState(response);
+              dispatchAfterPost(response);
+
+              try {
+                if (history && history.replaceState) {
+                  history.replaceState(
+                    null,
+                    document.title,
+                    window.location.pathname + window.location.search + "#" + response.id
+                  );
+                } else {
+                  window.location.hash = response.id;
+                }
+              } catch (_error) {
+                window.location.hash = response.id;
+              }
+
+              alert(_("Reply posted. Refresh to see it."));
+              return;
+            }
+
+            var replyElement = document.getElementById(String(response.id)) || $reply[0];
+
+            try {
+              if (typeof window.syncBacklinksFromPost === "function") {
+                window.syncBacklinksFromPost($reply[0]);
+              }
+            } catch (error) {
+              console.error(error);
+            }
+
+            clearPostFields();
+            resetFormState();
+            maybeMarkWatchedThreadSeen(response);
+            updateThreadPageState(response);
+            dispatchAfterPost(response);
+
+            try {
+              if (
+                window.EirinchanFrontend &&
+                typeof window.EirinchanFrontend.dispatchNewPost === "function"
+              ) {
+                window.EirinchanFrontend.dispatchNewPost($reply[0]);
+              } else {
+                $(document).trigger("new_post", $reply[0]);
+              }
+            } catch (error) {
+              console.error(error);
+            }
+
+            window.requestAnimationFrame(function () {
+              window.requestAnimationFrame(function () {
+                try {
+                  if (history && history.replaceState) {
+                    history.replaceState(
+                      null,
+                      document.title,
+                      window.location.pathname + window.location.search + "#" + response.id
+                    );
+                  } else {
+                    window.location.hash = response.id;
+                  }
+                } catch (_error) {
+                  window.location.hash = response.id;
+                }
+
+                if (replyElement.scrollIntoView) {
+                  replyElement.scrollIntoView({ block: "start" });
+                } else {
+                  $(window).scrollTop($reply.offset().top);
+                }
+
+                try {
+                  highlightReply(response.id);
+                } catch (error) {
+                  console.error(error);
+                }
+
+                setTimeout(function () {
+                  $(window).trigger("scroll");
+                }, 50);
+              });
+            });
+          },
+          error: function (xhr) {
+            console.log(xhr);
+
+            var message = parsedErrorMessage(xhr);
+            var csrfFailure = isCsrfFailure(xhr, message);
+
+            if (firstAttempt && csrfFailure) {
+              refreshCsrfToken()
+                .done(function () {
+                  submitAjax(false);
+                })
+                .fail(function () {
+                  alert(_("Your tab is out of date. Refresh the page and try again."));
+                  resetFormState();
+                });
+
+              return;
+            }
+
+            if (message) {
+              alert(message);
+            } else if (csrfFailure) {
+              alert(_("Your tab is out of date. Refresh the page and try again."));
+            } else if (xhr && xhr.status >= 400 && xhr.status < 500) {
+              alert(_("Your post was rejected by the server. Refresh and try again."));
+            } else if (xhr && xhr.status >= 500) {
+              alert(_("The server hit an internal error while processing your post. Please try again in a moment."));
+            } else {
+              alert(
+                _(
+                  "The server took too long to submit your post. Your post was probably still submitted. If it wasn't, we might be experiencing issues right now -- please try your post again later."
+                )
+              );
+            }
+
+            resetFormState();
+          },
+          complete: function () {
+            if ($submitInputs.val() !== _("Posted...")) {
+              $form.removeData("ajax-posting");
+            }
+          },
+          data: payload
+        },
+        "json"
+      );
+    }
+
+    submitAjax(true);
+    $submitInputs.val(_("Posting..."));
+    $submitInputs.attr("disabled", true);
+    return false;
+  });
+});

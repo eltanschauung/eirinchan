@@ -1,14 +1,19 @@
 defmodule EirinchanWeb.ErrorHTMLTest do
-  use EirinchanWeb.ConnCase, async: true
+  use ExUnit.Case, async: true
 
-  # Bring render_to_string/4 for testing custom views
-  import Phoenix.Template
+  alias Plug.CSRFProtection
 
   test "renders 404.html" do
-    assert render_to_string(EirinchanWeb.ErrorHTML, "404", "html", []) == "Not Found"
+    assert EirinchanWeb.ErrorHTML.render("404", %{}) == "Not Found"
   end
 
   test "renders 500.html" do
-    assert render_to_string(EirinchanWeb.ErrorHTML, "500", "html", []) == "Internal Server Error"
+    assert EirinchanWeb.ErrorHTML.render("500", %{}) == "Internal Server Error"
+  end
+
+  test "renders csrf-specific 403.html message" do
+    assert EirinchanWeb.ErrorHTML.render("403", %{
+             reason: %CSRFProtection.InvalidCSRFTokenError{}
+           }) == "Invalid CSRF token"
   end
 end
