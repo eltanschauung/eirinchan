@@ -194,6 +194,20 @@ defmodule EirinchanWeb.PostViewTest do
     assert html =~ "Judaism ✡"
   end
 
+  test "catalog threads with no file use the dedicated no-file image" do
+    config = Config.compose()
+    post = %Post{id: 100, thread_id: nil, file_path: nil, thumb_path: nil, embed: nil}
+
+    assert PostView.catalog_media_path(post, config) == "/static/no_file.png"
+  end
+
+  test "catalog deleted files still use the deleted image" do
+    config = Config.compose()
+    post = %Post{id: 100, thread_id: nil, file_path: "deleted", thumb_path: nil, embed: nil}
+
+    assert PostView.catalog_media_path(post, config) == "/static/deleted.png"
+  end
+
   test "body_html marks owned quote targets server-side" do
     config = Config.compose()
     post = %Post{body: ">>123"}

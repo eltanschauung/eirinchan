@@ -804,8 +804,11 @@ defmodule EirinchanWeb.PostView do
       present?(post.file_path) and not deleted_file?(post) ->
         post.file_path
 
-      true ->
+      deleted_file?(post) ->
         Map.get(config, :image_deleted)
+
+      true ->
+        Map.get(config, :image_no_file, Map.get(config, :image_deleted))
     end
   end
 
