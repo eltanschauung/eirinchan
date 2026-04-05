@@ -117,8 +117,8 @@ defmodule Eirinchan.PosterIds do
 
     :sha
     |> :crypto.hash(inner <> salt)
-    |> Base.encode16(case: :lower)
-    |> binary_part(0, length)
+    |> encode_base36()
+    |> String.slice(0, length)
   end
 
   def build_label(_identity, _thread_key, _config), do: nil
@@ -151,4 +151,11 @@ defmodule Eirinchan.PosterIds do
   end
 
   defp normalize_length(_length), do: @default_length
+
+  defp encode_base36(binary) when is_binary(binary) do
+    binary
+    |> :binary.decode_unsigned()
+    |> Integer.to_string(36)
+    |> String.downcase()
+  end
 end

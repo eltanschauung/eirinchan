@@ -130,7 +130,9 @@ defmodule EirinchanWeb.PostViewTest do
     same_thread_id = PostView.poster_id(reply_same_thread, config)
     other_thread_id = PostView.poster_id(reply_other_thread, config)
 
+    assert op_id == "8d634"
     assert op_id == same_thread_id
+    assert other_thread_id == "iqmka"
     assert other_thread_id != same_thread_id
     assert String.length(op_id) == 5
 
