@@ -503,13 +503,14 @@ function init_file_selector(maxFiles, targetForm) {
 
   var files = [];
   var namespace = ".file_selector_" + ($form.attr("id") || Math.floor(Math.random() * 1000000));
+  var dragDepth = 0;
 
   $form.data("file-selector-initialized", true);
   $form.attr("data-file-selector-enhanced", "true");
 
   function showEnhancedUi() {
     $shell.removeAttr("hidden").show();
-    $nativeWrap.show();
+    $nativeWrap.hide();
 
     if (typeof window.syncFileSelectorVisibility === "function") {
       window.syncFileSelectorVisibility($form);
@@ -625,8 +626,7 @@ function init_file_selector(maxFiles, targetForm) {
     );
   }
 
-  function stopBrowserFileHandling(event) {
-    event.stopPropagation();
+  function preventBrowserFileHandling(event) {
     event.preventDefault();
   }
 
@@ -635,11 +635,43 @@ function init_file_selector(maxFiles, targetForm) {
   }
 
   function handleDrop(event) {
-    stopBrowserFileHandling(event);
+    event.stopPropagation();
+    event.preventDefault();
+    dragDepth = 0;
     $dropzone.removeClass("dragover");
 
     var droppedFiles = Array.from((event.originalEvent || event).dataTransfer.files || []);
     mergeFiles(droppedFiles);
+  }
+
+  function normalizePastedFile(file) {
+    if (!file) {
+      return null;
+    }
+
+    var name = file.name || "";
+    var dotIndex = name.lastIndexOf(".");
+    var baseName = dotIndex === -1 ? name : name.slice(0, dotIndex);
+    var extension = dotIndex === -1 ? "" : name.slice(dotIndex + 1);
+
+    if (!extension) {
+      extension = (file.type.split("/")[1] || "").trim();
+    }
+
+    if (name && !/^image$/i.test(baseName)) {
+      return file;
+    }
+
+    var normalizedName = extension ? "file." + extension : "file";
+
+    if (name === normalizedName) {
+      return file;
+    }
+
+    return new File([file], normalizedName, {
+      type: file.type,
+      lastModified: file.lastModified
+    });
   }
 
   function handlePaste(event) {
@@ -656,7 +688,7 @@ function init_file_selector(maxFiles, targetForm) {
 
     for (var index = 0; index < clipboardData.items.length; index++) {
       if (clipboardData.items[index].kind === "file") {
-        pastedFiles.push(clipboardData.items[index].getAsFile());
+        pastedFiles.push(normalizePastedFile(clipboardData.items[index].getAsFile()));
       }
     }
 
@@ -689,7 +721,11 @@ function init_file_selector(maxFiles, targetForm) {
     stripFilename($(event.target).closest(".tmb-container").data("file-ref"));
   });
 
-  $dropzone.on("click" + namespace, function () {
+  $dropzone.on("click" + namespace, function (event) {
+    if ($(event.target).closest(".tmb-container, .tmb-controls").length) {
+      return;
+    }
+
     $input.trigger("click");
   });
 
@@ -701,20 +737,37 @@ function init_file_selector(maxFiles, targetForm) {
   });
 
   ["dragenter", "dragover", "dragleave", "drop"].forEach(function (eventName) {
-    $form[0].addEventListener(eventName, stopBrowserFileHandling, true);
+    $form[0].addEventListener(eventName, preventBrowserFileHandling, true);
   });
 
-  $dropzone.on("dragenter" + namespace + " dragover" + namespace, function (event) {
-    stopBrowserFileHandling(event);
-    $dropzone.addClass("dragover");
+  $form.on("dragenter" + namespace, function (event) {
+    event.stopPropagation();
+    event.preventDefault();
+
+    if (dragDepth === 0) {
+      $dropzone.addClass("dragover");
+    }
+
+    dragDepth += 1;
   });
 
-  $dropzone.on("dragleave" + namespace, function (event) {
-    stopBrowserFileHandling(event);
-    $dropzone.removeClass("dragover");
+  $form.on("dragover" + namespace, function (event) {
+    event.stopPropagation();
+    event.preventDefault();
   });
 
-  $dropzone.on("drop" + namespace, handleDrop);
+  $form.on("dragleave" + namespace, function (event) {
+    event.stopPropagation();
+    event.preventDefault();
+
+    dragDepth = Math.max(dragDepth - 1, 0);
+
+    if (dragDepth === 0) {
+      $dropzone.removeClass("dragover");
+    }
+  });
+
+  $form.on("drop" + namespace, handleDrop);
   $(document).off("paste" + namespace).on("paste" + namespace, handlePaste);
   $(document)
     .off("ajax_after_post" + namespace)
@@ -763,11 +816,12 @@ $(function () {
   function syncFileSelectorVisibility(scope) {
     var $scope = scope ? $(scope) : $(document);
 
-    $scope.find(nativeSelector).show();
-
     $scope.find(".dropzone-wrap").each(function () {
       var $shell = $(this);
+      var $nativeUpload = $shell.closest("[data-upload-row], #upload").find(nativeSelector).first();
       var enhanced = $shell.closest(enhancedFormSelector).length > 0;
+
+      $nativeUpload.toggle(!enhanced);
       $shell.toggle(enhanced);
       $shell.attr("hidden", !enhanced);
     });

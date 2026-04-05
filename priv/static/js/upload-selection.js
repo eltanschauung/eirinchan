@@ -7,11 +7,12 @@ $(function () {
   function syncFileSelectorVisibility(scope) {
     var $scope = scope ? $(scope) : $(document);
 
-    $scope.find(nativeSelector).show();
-
     $scope.find(".dropzone-wrap").each(function () {
       var $shell = $(this);
+      var $nativeUpload = $shell.closest("[data-upload-row], #upload").find(nativeSelector).first();
       var enhanced = $shell.closest(enhancedFormSelector).length > 0;
+
+      $nativeUpload.toggle(!enhanced);
       $shell.toggle(enhanced);
       $shell.attr("hidden", !enhanced);
     });
