@@ -1171,7 +1171,8 @@ defmodule Eirinchan.Uploads do
 
   defp video_duration(_), do: 0.0
 
-  defp validate_video_metadata(data, ext, config) do
+  @doc false
+  def video_allowed_for_upload?(data, ext, config) do
     with %{"format" => format} <- data,
          %{"format_name" => format_name} <- format,
          %{"codec_name" => codec} <- primary_video_stream(data),
@@ -1184,8 +1185,16 @@ defmodule Eirinchan.Uploads do
     end
   end
 
-  defp validate_video_format(".webm", "matroska,webm", codec) when codec in ["vp8", "vp9", "av1"],
-    do: :ok
+  defp validate_video_metadata(data, ext, config), do: video_allowed_for_upload?(data, ext, config)
+
+  defp validate_video_format(".webm", format_name, codec)
+       when is_binary(format_name) and codec in ["vp8", "vp9", "av1"] do
+    if String.contains?(format_name, "webm") do
+      :ok
+    else
+      {:error, :invalid_video}
+    end
+  end
 
   defp validate_video_format(".webm", _format_name, _codec), do: {:error, :invalid_video}
 
