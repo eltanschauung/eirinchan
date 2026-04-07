@@ -1130,6 +1130,9 @@ defmodule EirinchanWeb.PostView do
       match = Regex.run(~r/^\s*shion:(.*)$/u, line, capture: :all_but_first) ->
         ~s(<span class="glow">#{List.first(match)}</span>)
 
+      match = Regex.run(~r/^\s*rainbow:(.*)$/u, line, capture: :all_but_first) ->
+        ~s(<span class="rainbow">#{List.first(match)}</span>)
+
       match = Regex.run(~r/^\s*truth:(.*)$/u, line, capture: :all_but_first) ->
         ~s(<span class="truth">#{List.first(match)}</span>)
 

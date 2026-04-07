@@ -228,7 +228,7 @@ defmodule EirinchanWeb.PostViewTest do
 
     post = %Post{
       body:
-        "**spoiler**\n''italic''\n'''bold'''\n==Heading==\n<truth\ntruth:red\nnipah:blue\ndesire:gold\nstake:spin\nshion:glow"
+        "**spoiler**\n''italic''\n'''bold'''\n==Heading==\n<truth\ntruth:red\nnipah:blue\ndesire:gold\nstake:spin\nshion:glow\nrainbow:waow"
     }
 
     html = PostView.body_html(post, %BoardRecord{uri: "bant"}, post, config)
@@ -243,6 +243,7 @@ defmodule EirinchanWeb.PostViewTest do
     assert html =~ ~s(<span class="truthgold">gold</span>)
     assert html =~ ~s(<span class="rotate">spin</span>)
     assert html =~ ~s(<span class="glow">glow</span>)
+    assert html =~ ~s(<span class="rainbow">waow</span>)
   end
 
   test "body_html keeps malformed multi-arrow quote lines green" do
