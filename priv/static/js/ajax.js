@@ -232,8 +232,29 @@ $(window).ready(function () {
 
     $form.data("ajax-posting", true);
 
+    function syncEnhancedUploadPayload(payload) {
+      var selectedFiles = $form.data("file-selector-files");
+      var inputName = $form.data("file-selector-input-name");
+
+      if (
+        $form.attr("data-file-selector-enhanced") !== "true" ||
+        !inputName ||
+        !Array.isArray(selectedFiles) ||
+        typeof payload.delete !== "function"
+      ) {
+        return;
+      }
+
+      payload.delete(inputName);
+
+      selectedFiles.forEach(function (file) {
+        payload.append(inputName, file);
+      });
+    }
+
     function submitAjax(firstAttempt) {
       var payload = new FormData(form);
+      syncEnhancedUploadPayload(payload);
       payload.set("_csrf_token", currentCsrfToken());
       payload.set("post", submitLabel);
 
