@@ -11,7 +11,6 @@ defmodule EirinchanWeb.ThemeRegistry do
                           "bluearchive.css",
                           "leiheng.css",
                           "eirinchan-public.css",
-                          "eirinchan-bant.css",
                           "eirinchan-mod.css"
                         ])
   @hidden_public_names MapSet.new(["contrast", "feedback", "ipaccessauth"])

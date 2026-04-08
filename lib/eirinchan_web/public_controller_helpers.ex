@@ -8,7 +8,7 @@ defmodule EirinchanWeb.PublicControllerHelpers do
   alias EirinchanWeb.PublicShell
 
   @empty_watcher_metrics %{watcher_count: 0, watcher_unread_count: 0, watcher_you_count: 0}
-  @public_extra_stylesheets ["/stylesheets/eirinchan-public.css", "/stylesheets/eirinchan-bant.css"]
+  @public_extra_stylesheets ["/stylesheets/eirinchan-public.css"]
   @slow_page_log_ms 250
 
   def fragment_options(params) do
