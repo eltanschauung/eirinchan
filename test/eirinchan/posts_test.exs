@@ -3084,6 +3084,36 @@ defmodule Eirinchan.PostsTest do
     assert Posts.list_threads(board, config: config) == []
   end
 
+  test "delete_post rejects blank submissions for posts created with a blank password" do
+    board = board_fixture()
+    config = post_config(board.config_overrides)
+    request = post_request(board.uri)
+
+    assert {:ok, thread, _meta} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "Opening body",
+                 "subject" => "Opening",
+                 "password" => "",
+                 "post" => "New Topic"
+               },
+               config: config,
+               request: request
+             )
+
+    assert is_nil(thread.password)
+
+    assert {:error, :invalid_password} =
+             Posts.delete_post(board, PublicIds.public_id(thread), nil, config: config)
+
+    assert {:error, :invalid_password} =
+             Posts.delete_post(board, PublicIds.public_id(thread), "", config: config)
+
+    assert {:ok, _thread} =
+             Posts.get_thread(board, PublicIds.public_id(thread), config: config)
+  end
+
   test "list_threads_page returns previews, omitted counts, and page metadata" do
     board = board_fixture(%{config_overrides: %{threads_per_page: 1, threads_preview: 1}})
     config = post_config(board.config_overrides)
