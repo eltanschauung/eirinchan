@@ -1466,9 +1466,13 @@ defmodule EirinchanWeb.PostControllerTest do
 
     assert %{"id" => reply_id} = json_response(reply_conn, 200)
 
+    reply = Repo.get_by!(Post, board_id: board.id, public_id: reply_id)
+    {:ok, _reply} = Repo.update(Ecto.Changeset.change(reply, ip_subnet: "203.0.113.44"))
+
     delete_conn =
       conn
       |> recycle()
+      |> Map.put(:remote_ip, {198, 51, 100, 77})
       |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
       |> post("/#{board.uri}/post", %{
         "delete_post_id" => Integer.to_string(reply_id),
@@ -1484,12 +1488,16 @@ defmodule EirinchanWeb.PostControllerTest do
 
     assert redirect =~ "/#{board.uri}/res/#{PublicIds.public_id(thread)}-delete-target.html"
 
-    assert Repo.exists?(
-             from log in LogEntry,
-               where:
-                 log.board_uri == ^board.uri and
-                   like(log.text, ^"%Self-deleted post No. #{reply_id}%")
-           )
+    log =
+      Repo.one!(
+        from log in LogEntry,
+          where:
+            log.board_uri == ^board.uri and
+              like(log.text, ^"%Self-deleted post No. #{reply_id}%")
+      )
+
+    assert log.actor_ip == "198.51.100.77"
+    refute log.actor_ip == "203.0.113.44"
   end
 
   test "delete branch removes threads and redirects to the board", %{conn: conn} do

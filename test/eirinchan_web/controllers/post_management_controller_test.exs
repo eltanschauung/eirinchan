@@ -1,7 +1,12 @@
 defmodule EirinchanWeb.PostManagementControllerTest do
   use EirinchanWeb.ConnCase, async: true
 
+  import Ecto.Query
+
+  alias Eirinchan.Moderation.LogEntry
+  alias Eirinchan.Posts.Post
   alias Eirinchan.Posts.PublicIds
+  alias Eirinchan.Repo
 
   test "shows, edits, deletes files, spoilerizes, and deletes board posts", %{conn: conn} do
     board = board_fixture()
@@ -89,6 +94,9 @@ defmodule EirinchanWeb.PostManagementControllerTest do
 
     assert %{"id" => second_thread_id} = json_response(create_conn, 200)
 
+    thread = Repo.get_by!(Post, board_id: board.id, public_id: thread_id)
+    {:ok, _thread} = Repo.update(Ecto.Changeset.change(thread, ip_subnet: "203.0.113.99"))
+
     single_spoiler_conn =
       conn
       |> recycle()
@@ -144,6 +152,7 @@ defmodule EirinchanWeb.PostManagementControllerTest do
     delete_post_conn =
       conn
       |> recycle()
+      |> Map.put(:remote_ip, {198, 51, 100, 88})
       |> login_moderator(moderator)
       |> put_secure_manage_token()
       |> put_req_header("accept", "application/json")
@@ -151,6 +160,15 @@ defmodule EirinchanWeb.PostManagementControllerTest do
 
     assert %{"data" => %{"deleted_post_id" => ^thread_id, "thread_deleted" => true}} =
              json_response(delete_post_conn, 200)
+
+    log =
+      Repo.one!(
+        from log in LogEntry,
+          where: log.board_uri == ^board.uri and log.text == ^"Deleted post No. #{thread_id}"
+      )
+
+    assert log.actor_ip == "198.51.100.88"
+    refute log.actor_ip == "203.0.113.99"
   end
 
   test "post management routes reject moderators without access", %{conn: conn} do
