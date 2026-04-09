@@ -1613,6 +1613,25 @@ defmodule EirinchanWeb.PostControllerTest do
     assert %{"error" => "Incorrect password."} = json_response(conn, 403)
   end
 
+  test "delete branch does not fall back to the password cookie when the submitted password is blank",
+       %{conn: conn} do
+    board = board_fixture()
+    thread = thread_fixture(board, %{password: "threadpw"})
+
+    conn =
+      conn
+      |> put_req_cookie("password", "threadpw")
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post("/#{board.uri}/post", %{
+        "delete_post_id" => Integer.to_string(thread.id),
+        "password" => "",
+        "json_response" => "1"
+      })
+
+    assert %{"error" => "Incorrect password."} = json_response(conn, 403)
+    assert {:ok, _thread} = Eirinchan.Posts.get_post(board, thread.id)
+  end
+
   test "delete branch is rate limited by public flood controls", %{conn: conn} do
     board = board_fixture(%{config_overrides: %{flood_time: 60}})
 

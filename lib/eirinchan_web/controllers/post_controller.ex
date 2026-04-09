@@ -437,10 +437,10 @@ defmodule EirinchanWeb.PostController do
 
   defp normalize_legacy_params(conn, params) do
     params
-    |> put_legacy_password(conn)
     |> put_legacy_selected_checkbox_id()
     |> put_legacy_action_id()
     |> put_legacy_report_id()
+    |> put_legacy_password(conn)
   end
 
   defp put_legacy_password(%{"password" => password} = params, _conn)
@@ -451,9 +451,13 @@ defmodule EirinchanWeb.PostController do
     case params["pwd"] do
       value when is_binary(value) and value != "" -> Map.put(params, "password", value)
       _ ->
-        case conn.req_cookies["password"] do
-          value when is_binary(value) and value != "" -> Map.put(params, "password", value)
-          _ -> params
+        if branch(params) == :delete do
+          params
+        else
+          case conn.req_cookies["password"] do
+            value when is_binary(value) and value != "" -> Map.put(params, "password", value)
+            _ -> params
+          end
         end
     end
   end
