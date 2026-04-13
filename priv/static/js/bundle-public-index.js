@@ -972,7 +972,206 @@ window.EirinchanInitExpand=function(n){var e=n?$(n):$(document),t=e.is("span.omi
 /* End js/quick-reply.js */
 
 /* Begin js/hide-threads.js */
-$(document).ready((function(){if("index"==active_page||"ukko"==active_page){localStorage.hiddenthreads||(localStorage.hiddenthreads="{}");var e=JSON.parse(localStorage.hiddenthreads),i=function(){localStorage.hiddenthreads=JSON.stringify(e)};for(var n in e)for(var d in e[n])e[n][d]<Math.round(Date.now()/1e3)-604800&&(delete e[n][d],i());var t="div.file,div.post,div.video-container,video,iframe,img:not(.unanimated),canvas,p.fileinfo,.hide-thread-link,div.new-posts,br",a=function(e){e.find("img.full-image").each((function(){var e=$(this);"true"===e.closest('a[data-inline-expandable="true"]').data("expanded")||(e.hide(),e.attr("src")||e.removeAttr("src"))}))},r=function(){var n=$(this).children("p.intro").children("a.post_no:eq(1)").text(),d=$(this).parent(),r=d.data("board");e[r]||(e[r]={});var o=d.find("div.post.op > p.intro .hide-thread-link").first();o.length&&(o.off("click.hideThread").on("click.hideThread",(function(){e[r][n]=Math.round(Date.now()/1e3),i(),d.find(t).hide();var o=d.find("div.post.op > p.intro").clone();o.addClass("thread-hidden"),o.find('a[href]:not([href$=".html"]),input').remove(),o.html(o.html().replace(" [] "," ")),o.html(o.html().replace(" [] "," ")),$('<a class="unhide-thread-link" style="margin-right:5px;" href="#">[+]</a><span> </span>').insertBefore(o.find(":first")).click((function(h){h.preventDefault(),delete e[r][n],i(),d.find(t).show(),d.find(".hidden").hide(),a(d),$(this).remove(),o.remove()})),o.insertAfter(d.find(":not(h2,h2 *):first"))})),e[r][n]&&d.find(".hide-thread-link").click())};$("div.post.op").each(r),$(document).on("clear_hidden_threads",(function(){e={},i(),$(".thread").each((function(){var e=$(this);e.find(t).show(),a(e),e.find(".unhide-thread-link").remove(),e.find("p.intro.thread-hidden").remove(),e.find(".thread-hidden").removeClass("thread-hidden")}))})),$(document).on("new_post",(function(e,i){var n=$(i).is("div.post.op")?i:$(i).find("div.post.op")[0];n&&r.call(n)}))}}));
+$(document).ready(function () {
+  if (active_page !== "index" && active_page !== "ukko") {
+    return;
+  }
+
+  if (!localStorage.hiddenthreads) {
+    localStorage.hiddenthreads = "{}";
+  }
+
+  var hiddenThreads = JSON.parse(localStorage.hiddenthreads);
+
+  function storeHiddenThreads() {
+    localStorage.hiddenthreads = JSON.stringify(hiddenThreads);
+  }
+
+  function pruneHiddenThreads() {
+    var cutoff = Math.round(Date.now() / 1000) - 60 * 60 * 24 * 7;
+
+    for (var board in hiddenThreads) {
+      if (!Object.prototype.hasOwnProperty.call(hiddenThreads, board)) {
+        continue;
+      }
+
+      for (var postId in hiddenThreads[board]) {
+        if (
+          Object.prototype.hasOwnProperty.call(hiddenThreads[board], postId) &&
+          hiddenThreads[board][postId] < cutoff
+        ) {
+          delete hiddenThreads[board][postId];
+        }
+      }
+    }
+
+    storeHiddenThreads();
+  }
+
+  function threadBoard(thread) {
+    return $(thread).data("board");
+  }
+
+  function threadId(thread) {
+    var directId = $(thread).data("thread-id");
+
+    if (directId) {
+      return String(directId);
+    }
+
+    return String(
+      $(thread).find("div.post.op > p.intro > a.post_no:eq(1)").first().text() || ""
+    );
+  }
+
+  function isThreadHidden(thread) {
+    var board = threadBoard(thread);
+    var id = threadId(thread);
+
+    return !!(board && id && hiddenThreads[board] && hiddenThreads[board][id]);
+  }
+
+  function removeThreadMarker(thread) {
+    $(thread).children(".thread-hidden-marker").remove();
+  }
+
+  function buildThreadMarker(thread) {
+    var marker = $(thread).find("div.post.op > p.intro").first().clone();
+
+    marker.addClass("thread-hidden");
+    marker.addClass("thread-hidden-marker");
+    marker.find(".thread-top-controls").remove();
+    marker.find("button, input").remove();
+    marker.find('a[href]:not([href$=".html"])').remove();
+    marker.html(marker.html().replace(" [] ", " "));
+    marker.html(marker.html().replace(" [] ", " "));
+
+    $('<a class="unhide-thread-link" style="margin-right:5px;" href="#">[+]</a><span> </span>')
+      .insertBefore(marker.find(":first"))
+      .on("click", function (event) {
+        event.preventDefault();
+        unhideThread(thread);
+      });
+
+    return marker;
+  }
+
+  function ensureThreadMarker(thread) {
+    var existingMarker = $(thread).children(".thread-hidden-marker").first();
+
+    if (existingMarker.length) {
+      return existingMarker;
+    }
+
+    var marker = buildThreadMarker(thread);
+    var insertionTarget = $(thread).children().not("h2").first();
+
+    if (insertionTarget.length) {
+      marker.insertBefore(insertionTarget);
+    } else {
+      $(thread).append(marker);
+    }
+
+    return marker;
+  }
+
+  function hideThread(thread, options) {
+    var settings = options || {};
+    var board = threadBoard(thread);
+    var id = threadId(thread);
+
+    if (!board || !id) {
+      return;
+    }
+
+    if (!settings.skipStore) {
+      if (!hiddenThreads[board]) {
+        hiddenThreads[board] = {};
+      }
+
+      hiddenThreads[board][id] = Math.round(Date.now() / 1000);
+      storeHiddenThreads();
+    }
+
+    ensureThreadMarker(thread);
+    $(thread).addClass("thread-hidden");
+  }
+
+  function unhideThread(thread, options) {
+    var settings = options || {};
+    var board = threadBoard(thread);
+    var id = threadId(thread);
+
+    if (!settings.skipStore && board && id && hiddenThreads[board]) {
+      delete hiddenThreads[board][id];
+      storeHiddenThreads();
+    }
+
+    $(thread).removeClass("thread-hidden");
+    removeThreadMarker(thread);
+  }
+
+  function bindThreadControls(thread) {
+    var hideLink = $(thread).find("div.post.op > p.intro .hide-thread-link").first();
+
+    if (!hideLink.length) {
+      return;
+    }
+
+    hideLink.off("click.hideThread").on("click.hideThread", function (event) {
+      event.preventDefault();
+      hideThread(thread);
+    });
+  }
+
+  function syncThread(thread) {
+    bindThreadControls(thread);
+
+    if (isThreadHidden(thread)) {
+      hideThread(thread, {skipStore: true});
+    } else {
+      unhideThread(thread, {skipStore: true});
+    }
+  }
+
+  function syncThreads(root) {
+    var scope = root ? $(root) : $(document);
+
+    scope
+      .filter(".thread")
+      .add(scope.find(".thread"))
+      .each(function () {
+        syncThread(this);
+      });
+  }
+
+  pruneHiddenThreads();
+  syncThreads(document.body);
+
+  $(document).on("clear_hidden_threads", function () {
+    hiddenThreads = {};
+    storeHiddenThreads();
+
+    $(".thread").each(function () {
+      unhideThread(this, {skipStore: true});
+    });
+  });
+
+  $(document).on("fragment_init", function (_event, root) {
+    syncThreads(root);
+  });
+
+  $(document).on("new_post", function (_event, post) {
+    var thread = $(post).closest(".thread");
+
+    if (thread.length) {
+      syncThreads(thread);
+      return;
+    }
+
+    syncThreads(post);
+  });
+});
 /* End js/hide-threads.js */
 
 /* Begin js/post-menu.js */
