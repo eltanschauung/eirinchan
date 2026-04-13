@@ -1035,6 +1035,20 @@ $(document).ready(function () {
     $(thread).children(".thread-hidden-marker").remove();
   }
 
+  function clearThreadVisibilityStyles(thread) {
+    $(thread)
+      .find(
+        ".post.reply, .omitted, br, div.post.op > .body, div.post.op > .files, div.post.op > .video-container, div.post.reply > .body, div.post.reply > .files, div.post.reply > .video-container"
+      )
+      .each(function () {
+        this.style.removeProperty("display");
+
+        if (!this.getAttribute("style")) {
+          this.removeAttribute("style");
+        }
+      });
+  }
+
   function buildThreadMarker(thread) {
     var marker = $(thread).find("div.post.op > p.intro").first().clone();
 
@@ -1093,6 +1107,7 @@ $(document).ready(function () {
       storeHiddenThreads();
     }
 
+    clearThreadVisibilityStyles(thread);
     ensureThreadMarker(thread);
     $(thread).addClass("thread-hidden");
   }
@@ -1108,6 +1123,7 @@ $(document).ready(function () {
     }
 
     $(thread).removeClass("thread-hidden");
+    clearThreadVisibilityStyles(thread);
     removeThreadMarker(thread);
   }
 
@@ -1147,6 +1163,9 @@ $(document).ready(function () {
 
   pruneHiddenThreads();
   syncThreads(document.body);
+  setTimeout(function () {
+    syncThreads(document.body);
+  }, 0);
 
   $(document).on("clear_hidden_threads", function () {
     hiddenThreads = {};
@@ -1159,6 +1178,10 @@ $(document).ready(function () {
 
   $(document).on("fragment_init", function (_event, root) {
     syncThreads(root);
+  });
+
+  $(document).on("filter_page", function () {
+    syncThreads(document.body);
   });
 
   $(document).on("new_post", function (_event, post) {
