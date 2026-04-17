@@ -1192,6 +1192,10 @@ auto_reload_enabled=!0,$(document).ready((function(){var e,t=window.EirinchanRun
       syncHiddenThreads(root);
     });
 
+    $(document).on("filter_page", function () {
+      syncHiddenThreads(document.body);
+    });
+
     $(document).on("clear_hidden_threads", function () {
       hiddenThreads = {};
       writeHiddenThreads(hiddenThreads);
@@ -1228,6 +1232,9 @@ auto_reload_enabled=!0,$(document).ready((function(){var e,t=window.EirinchanRun
     }
 
     syncHiddenThreads(document.body);
+    setTimeout(function () {
+      syncHiddenThreads(document.body);
+    }, 0);
   });
 /* End js/catalog.js */
 

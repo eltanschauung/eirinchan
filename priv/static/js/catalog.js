@@ -226,6 +226,10 @@
       syncHiddenThreads(root);
     });
 
+    $(document).on("filter_page", function () {
+      syncHiddenThreads(document.body);
+    });
+
     $(document).on("clear_hidden_threads", function () {
       hiddenThreads = {};
       writeHiddenThreads(hiddenThreads);
@@ -262,4 +266,7 @@
     }
 
     syncHiddenThreads(document.body);
+    setTimeout(function () {
+      syncHiddenThreads(document.body);
+    }, 0);
   });
