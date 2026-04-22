@@ -1254,6 +1254,104 @@ onReady((function(){let t=[],e='div.body a:not([rel="nofollow"]), p.intro span.m
 "thread"!==active_page&&"index"!==active_page&&"catalog"!==active_page&&"ukko"!==active_page&&"search"!==active_page||document.addEventListener("DOMContentLoaded",(function(){if(window.Options&&Options.get_tab("general")){var e=window.EirinchanRuntime||{},o=e.readCookie||function(e,o){var a=document.cookie.match(new RegExp("(?:^|; )"+e.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"=([^;]*)"));return a?decodeURIComponent(a[1]):o},a=e.writeCookie||function(e,o){document.cookie=e+"="+encodeURIComponent(o)+"; path=/; max-age=31536000; samesite=lax"};Options.extend_tab("general",'<label id="show-yous"><input type="checkbox">'+_("Show (You)s")+"</label>");var t="false"!==o("show_yous","true");$("#show-yous>input").prop("checked",t),$("#show-yous>input").on("click",(function(){var e=$("#show-yous>input").is(":checked")?"true":"false";a("show_yous",e,{path:"/",maxAge:31536e3,sameSite:"lax"}),location.reload()}))}}));
 /* End js/show-own-posts-options.js */
 
+/* Begin js/legacy-mod-actions.js */
+!(function () {
+  var RELOAD_DELAY_MS = 6000;
+  var reloadTimer = null;
+
+  function showFailure(message) {
+    if (typeof window.showAlert === "function") {
+      window.showAlert(message);
+    } else {
+      window.alert(message);
+    }
+  }
+
+  function scheduleReload() {
+    if (reloadTimer) {
+      window.clearTimeout(reloadTimer);
+    }
+
+    reloadTimer = window.setTimeout(function () {
+      window.location.reload();
+    }, RELOAD_DELAY_MS);
+  }
+
+  function resolveActionLink(target) {
+    if (!target || !target.closest) {
+      return null;
+    }
+
+    var link = target.closest("a[data-secure-href][data-confirm-message]");
+
+    if (!link) {
+      return null;
+    }
+
+    var secureHref = link.getAttribute("data-secure-href") || "";
+
+    if (!secureHref || secureHref.indexOf("/mod.php?/") !== 0) {
+      return null;
+    }
+
+    return link;
+  }
+
+  document.addEventListener(
+    "click",
+    function (event) {
+      var link = resolveActionLink(event.target);
+
+      if (!link) {
+        return;
+      }
+
+      var confirmMessage = link.getAttribute("data-confirm-message") || "";
+      var secureHref = link.getAttribute("data-secure-href") || "";
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (!confirmMessage || !window.confirm(confirmMessage)) {
+        return;
+      }
+
+      if (link.dataset.legacyModActionPending === "true") {
+        return;
+      }
+
+      link.dataset.legacyModActionPending = "true";
+
+      window
+        .fetch(secureHref, {
+          method: "GET",
+          credentials: "same-origin",
+          headers: {
+            "X-Requested-With": "XMLHttpRequest"
+          }
+        })
+        .then(function (response) {
+          if (response.ok) {
+            scheduleReload();
+            return null;
+          }
+
+          return response.text().then(function (text) {
+            throw new Error((text || "").trim() || "Request failed.");
+          });
+        })
+        .catch(function (error) {
+          showFailure(error && error.message ? error.message : "Request failed.");
+        })
+        .finally(function () {
+          delete link.dataset.legacyModActionPending;
+        });
+    },
+    true
+  );
+})();
+/* End js/legacy-mod-actions.js */
+
 /* Begin js/fix-report-delete-submit.js */
 "thread"!=active_page&&"index"!=active_page&&"ukko"!=active_page||($(document).on("menu_ready",(function(){var e=window.Menu;function t(e,t){if(!e.length||!t)return $();var n=e.hasClass("op"),i=function(e){var t=$("input[name=board]:first").val();if(t)return t;var n=e.closest("[data-board],[data-board-uri]");return n.attr("data-board")||n.attr("data-board-uri")||""}(e),a=$('<form class="post-actions" method="post" style="margin:10px 0 0 0"><div style="text-align:right">'+(n?"":"<hr>")+'<input type="hidden" name="delete_'+t+'"><label for="password_'+t+'">'+_("Password")+'</label>: <input id="password_'+t+'" type="password" name="password" size="11" maxlength="18" autocomplete="off"><input title="'+_("Delete file only")+'" type="checkbox" name="file" id="delete_file_'+t+'"><label for="delete_file_'+t+'">'+_("File")+'</label> <input type="submit" name="delete" value="'+_("Delete")+'"><br><label for="reason_'+t+'">'+_("Reason")+'</label>: <input id="reason_'+t+'" type="text" name="reason" size="20" maxlength="100"> <input type="submit" name="report" value="'+_("Report")+'"></div></form>');return a.attr("action",$('form[name="post"]:first').attr("action")||"/post.php").append($('<input type="hidden" name="board">').val(i)).append($('<input type="hidden" name="_csrf_token">').val($("input[name=_csrf_token]:first").val()||$('meta[name="csrf-token"]').attr("content")||"")).find('input:not([type="checkbox"]):not([type="submit"]):not([type="hidden"])').keypress((function(e){return 13!=e.which||(e.preventDefault(),"password"==$(this).attr("name")?a.find("input[name=delete]").click():"reason"==$(this).attr("name")&&a.find("input[name=report]").click(),!1)})),a.find('input[type="password"]').val(localStorage.password||""),n?a.prependTo(e.find("div.body").first()):a.appendTo(e),$(window).trigger("quick-post-controls",a),a}function n(e,n){if(!e.length||!n)return $();var i=$("#delete_"+n);i.length&&!i.prop("checked")&&i.prop("checked",!0).trigger("change");var a=e.find("form.post-actions");return a.length?a:a=t(e,n)}function i(e){if(!e.length)return"";var t=(e.attr("id")||"").match(/^(?:op|reply)_(\d+)$/);if(t)return t[1];var n=(e.find("a.post_anchor").attr("id")||"").match(/^(\d+)$/);if(n)return n[1];var i=$.trim(e.find(".post_no").not("[id]").last().text()||"").match(/^(\d+)$/);return i?i[1]:""}e&&!e.__quickActionMenuInstalled&&(e.__quickActionMenuInstalled=!0,$("#delete-fields #password").length&&(e.add_item("delete_post_menu",_("Delete post")),e.add_item("delete_file_menu",_("Delete file")),e.onclick((function(e,t){var a=$(e.target).closest(".post")[0],r=$(a),o=i(r);r.find(".files .file, .files .multifile").length>0||t.find("#delete_file_menu").addClass("hidden"),t.find("#delete_post_menu,#delete_file_menu").click((function(e){e.preventDefault();var t=n(r,o);if(t.length){var i=t.find("#delete_file_"+o+', #delete_file, input[name="file"]').first(),a=t.find('input[name="password"]'),d=t.find('input[name="delete"]').first(),l=$.trim(a.val()||"");"delete_file_menu"===$(this).attr("id")?i.prop("checked",!0):i.prop("checked",!1),l.length?d.trigger("click"):a.trigger("focus")}}))}))),e.add_item("report_menu",_("Report")),e.onclick((function(e,t){var a=$(e.target).closest(".post")[0],r=$(a),o=i(r);t.find("#report_menu,#global_report_menu").click((function(e){e.preventDefault();var t=n(r,o);t.length&&t.find('input[name="reason"]').trigger("focus")}))})),$("#post-moderation-fields").hide())})),void 0!==window.Menu&&$(document).trigger("menu_ready"));
 /* End js/fix-report-delete-submit.js */

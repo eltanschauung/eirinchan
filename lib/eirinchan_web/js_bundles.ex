@@ -40,6 +40,7 @@ defmodule EirinchanWeb.JsBundles do
       "js/post-hover.js",
       "js/show-own-posts.js",
       "js/show-own-posts-options.js",
+      "js/legacy-mod-actions.js",
       "js/fix-report-delete-submit.js",
       "js/quick-post-controls.js",
       "js/webm-settings.js",
@@ -65,6 +66,7 @@ defmodule EirinchanWeb.JsBundles do
       "js/post-hover.js",
       "js/show-own-posts.js",
       "js/show-own-posts-options.js",
+      "js/legacy-mod-actions.js",
       "js/fix-report-delete-submit.js",
       "js/quick-post-controls.js",
       "js/webm-settings.js",
@@ -80,6 +82,7 @@ defmodule EirinchanWeb.JsBundles do
       "js/image-hover.js",
       "js/show-own-posts.js",
       "js/show-own-posts-options.js",
+      "js/legacy-mod-actions.js",
       "js/fix-report-delete-submit.js",
       "js/catalog.js",
       "js/catalog-search.js"

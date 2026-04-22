@@ -1,8 +1,6 @@
 defmodule EirinchanWeb.LegacyModController do
   use EirinchanWeb, :controller
 
-  @legacy_post_action_redirect_delay_ms 6000
-
   alias Eirinchan.Bans
   alias Eirinchan.Boards
   alias Eirinchan.IpAccessAuth
@@ -77,7 +75,7 @@ defmodule EirinchanWeb.LegacyModController do
              config: board_config(board, conn)
            ) do
       ModerationAudit.log(conn, "Deleted post No. #{post_id}", moderator: moderator, board: board)
-      delayed_post_action_redirect(conn, "/#{uri}")
+      post_action_response(conn, "/#{uri}")
     else
       error -> legacy_error(conn, error)
     end
@@ -97,7 +95,7 @@ defmodule EirinchanWeb.LegacyModController do
         board: board
       )
 
-      delayed_post_action_redirect(conn,
+      post_action_response(conn,
         to: thread_destination(board, post, BoardRuntime.request_host(conn))
       )
     else
@@ -119,7 +117,7 @@ defmodule EirinchanWeb.LegacyModController do
         board: board
       )
 
-      delayed_post_action_redirect(conn,
+      post_action_response(conn,
         to: thread_destination(board, post, BoardRuntime.request_host(conn))
       )
     else
@@ -141,7 +139,7 @@ defmodule EirinchanWeb.LegacyModController do
         board: board
       )
 
-      delayed_post_action_redirect(conn, "/#{uri}")
+      post_action_response(conn, "/#{uri}")
     else
       error -> legacy_error(conn, error)
     end
@@ -167,7 +165,7 @@ defmodule EirinchanWeb.LegacyModController do
         board: board
       )
 
-      delayed_post_action_redirect(conn, "/#{uri}")
+      post_action_response(conn, "/#{uri}")
     else
       error -> legacy_error(conn, error)
     end
@@ -198,7 +196,7 @@ defmodule EirinchanWeb.LegacyModController do
         board: board
       )
 
-      delayed_post_action_redirect(conn, "/#{uri}")
+      post_action_response(conn, "/#{uri}")
     else
       false -> send_resp(conn, :bad_request, "Post has no IP.")
       {:error, :invalid_ip} -> send_resp(conn, :bad_request, "Invalid IP address.")
@@ -232,7 +230,7 @@ defmodule EirinchanWeb.LegacyModController do
         board: board
       )
 
-      delayed_post_action_redirect(conn, "/#{uri}")
+      post_action_response(conn, "/#{uri}")
     else
       error -> legacy_error(conn, error)
     end
@@ -487,35 +485,22 @@ defmodule EirinchanWeb.LegacyModController do
   defp legacy_error(conn, false), do: send_resp(conn, :forbidden, "Forbidden")
   defp legacy_error(conn, _), do: send_resp(conn, :unprocessable_entity, "Unprocessable action")
 
-  defp delayed_post_action_redirect(conn, to: path), do: delayed_post_action_redirect(conn, path)
+  defp post_action_response(conn, to: path), do: post_action_response(conn, path)
 
-  defp delayed_post_action_redirect(conn, path) when is_binary(path) do
-    delay_ms = @legacy_post_action_redirect_delay_ms
-    delay_seconds = div(delay_ms, 1000)
-    escaped_path = path |> Plug.HTML.html_escape_to_iodata() |> IO.iodata_to_binary()
+  defp post_action_response(conn, path) when is_binary(path) do
+    if xml_http_request?(conn) do
+      conn
+      |> put_resp_header("cache-control", "no-store")
+      |> send_resp(:no_content, "")
+    else
+      redirect(conn, to: path)
+    end
+  end
 
-    body = """
-    <!doctype html>
-    <html lang="en">
-      <head>
-        <meta charset="utf-8">
-        <meta name="robots" content="noindex">
-        <title>Redirecting</title>
-        <noscript><meta http-equiv="refresh" content="#{delay_seconds};url=#{escaped_path}"></noscript>
-      </head>
-      <body>
-        <p>Action completed. Refreshing in #{delay_seconds} seconds.</p>
-        <p><a href="#{escaped_path}">Continue now</a></p>
-        <script>
-          setTimeout(function () { window.location.href = #{Phoenix.json_library().encode!(path)}; }, #{delay_ms});
-        </script>
-      </body>
-    </html>
-    """
-
+  defp xml_http_request?(conn) do
     conn
-    |> put_resp_content_type("text/html")
-    |> send_resp(:ok, body)
+    |> get_req_header("x-requested-with")
+    |> Enum.any?(&String.downcase(&1) == "xmlhttprequest")
   end
 
   defp config_map(boards, conn) do

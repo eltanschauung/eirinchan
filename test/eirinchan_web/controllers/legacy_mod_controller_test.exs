@@ -59,9 +59,7 @@ defmodule EirinchanWeb.LegacyModControllerTest do
         "/mod.php?/#{board.uri}/sticky/#{thread.id}/#{signed_token(conn, "#{board.uri}/sticky/#{thread.id}")}"
       )
 
-    body = html_response(conn, 200)
-    assert body =~ "Refreshing in 6 seconds."
-    assert body =~ "window.location.href = \"/#{board.uri}\""
+    assert redirected_to(conn) == "/#{board.uri}"
     assert {:ok, updated} = Posts.get_post(board, thread.id)
     assert updated.sticky
   end
@@ -79,9 +77,7 @@ defmodule EirinchanWeb.LegacyModControllerTest do
         "/mod.php?/#{board.uri}/delete/#{thread.id}/#{signed_token(conn, "#{board.uri}/delete/#{thread.id}")}"
       )
 
-    body = html_response(conn, 200)
-    assert body =~ "Refreshing in 6 seconds."
-    assert body =~ "window.location.href = \"/#{board.uri}\""
+    assert redirected_to(conn) == "/#{board.uri}"
     assert {:error, :not_found} = Posts.get_post(board, thread.id)
   end
 
@@ -102,9 +98,7 @@ defmodule EirinchanWeb.LegacyModControllerTest do
         "/mod.php?/#{board.uri}/deletebyip/#{thread.id}/#{signed_token(conn, "#{board.uri}/deletebyip/#{thread.id}")}"
       )
 
-    body = html_response(conn, 200)
-    assert body =~ "Refreshing in 6 seconds."
-    assert body =~ "window.location.href = \"/#{board.uri}\""
+    assert redirected_to(conn) == "/#{board.uri}"
     assert {:ok, still_present} = Posts.get_post(board, thread.id)
     assert still_present.id == thread.id
   end
@@ -126,9 +120,7 @@ defmodule EirinchanWeb.LegacyModControllerTest do
         "/mod.php?/#{board.uri}/ban24/#{thread.id}/#{signed_token(conn, "#{board.uri}/ban24/#{thread.id}")}"
       )
 
-    body = html_response(conn, 200)
-    assert body =~ "Refreshing in 6 seconds."
-    assert body =~ "window.location.href = \"/#{board.uri}\""
+    assert redirected_to(conn) == "/#{board.uri}"
 
     [ban] = Eirinchan.Bans.list_bans()
     assert ban.board_id == nil
@@ -163,9 +155,7 @@ defmodule EirinchanWeb.LegacyModControllerTest do
         "/mod.php?/#{board.uri}/deletefile/#{thread.id}/1/#{signed_token(conn, "#{board.uri}/deletefile/#{thread.id}/1")}"
       )
 
-    body = html_response(conn, 200)
-    assert body =~ "Refreshing in 6 seconds."
-    assert body =~ "window.location.href = \"/#{board.uri}/res/#{PublicIds.public_id(thread)}"
+    assert redirected_to(conn) == "/#{board.uri}/res/#{PublicIds.public_id(thread)}"
 
     assert {:ok, updated_thread} = Posts.get_post(board, thread.id)
     assert updated_thread.file_path
@@ -200,12 +190,28 @@ defmodule EirinchanWeb.LegacyModControllerTest do
         "/mod.php?/#{board.uri}/spoiler/#{thread.id}/1/#{signed_token(conn, "#{board.uri}/spoiler/#{thread.id}/1")}"
       )
 
-    body = html_response(conn, 200)
-    assert body =~ "Refreshing in 6 seconds."
-    assert body =~ "window.location.href = \"/#{board.uri}/res/#{PublicIds.public_id(thread)}"
+    assert redirected_to(conn) == "/#{board.uri}/res/#{PublicIds.public_id(thread)}"
     assert {:ok, updated_thread} = Posts.get_post(board, thread.id)
     refute updated_thread.spoiler
     assert [%{spoiler: true}] = updated_thread.extra_files
+  end
+
+  test "legacy delete route returns no content for xhr callers", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+    board = board_fixture()
+    thread = thread_fixture(board)
+
+    conn =
+      conn
+      |> login_moderator(moderator)
+      |> put_req_header("x-requested-with", "XMLHttpRequest")
+      |> get(
+        "/mod.php?/#{board.uri}/delete/#{thread.id}/#{signed_token(conn, "#{board.uri}/delete/#{thread.id}")}"
+      )
+
+    assert response(conn, 204) == ""
+    assert get_resp_header(conn, "cache-control") == ["no-store"]
+    assert {:error, :not_found} = Posts.get_post(board, thread.id)
   end
 
   test "legacy report dismiss route dismisses reports", %{conn: conn} do
