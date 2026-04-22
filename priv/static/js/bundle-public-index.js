@@ -1035,12 +1035,28 @@ $(document).ready(function () {
     $(thread).children(".thread-hidden-marker").remove();
   }
 
+  function threadHasPostFilterHide(thread) {
+    var op = $(thread).children(".op").first();
+
+    return $(thread).hasClass("thread-filter-hidden") || !!op.data("hidden");
+  }
+
   function clearThreadVisibilityStyles(thread) {
+    if (threadHasPostFilterHide(thread)) {
+      return;
+    }
+
     $(thread)
       .find(
         ".post.reply, .omitted, br, div.post.op > .body, div.post.op > .files, div.post.op > .video-container, div.post.reply > .body, div.post.reply > .files, div.post.reply > .video-container"
       )
       .each(function () {
+        var post = $(this).closest(".post");
+
+        if (post.length && post.data("hidden")) {
+          return;
+        }
+
         this.style.removeProperty("display");
 
         if (!this.getAttribute("style")) {
@@ -1146,7 +1162,12 @@ $(document).ready(function () {
     if (isThreadHidden(thread)) {
       hideThread(thread, {skipStore: true});
     } else {
-      unhideThread(thread, {skipStore: true});
+      if (
+        $(thread).hasClass("thread-hidden") ||
+        $(thread).children(".thread-hidden-marker").length
+      ) {
+        unhideThread(thread, {skipStore: true});
+      }
     }
   }
 
