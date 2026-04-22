@@ -39,6 +39,7 @@ defmodule Eirinchan.Posts do
              | :invalid_referer
              | :invalid_embed
              | :ipaccess
+             | :ipaccess_imagelim
              | :dnsbl
              | :antispam
              | :too_many_threads
@@ -220,16 +221,26 @@ defmodule Eirinchan.Posts do
               {:ok, %{attrs: attrs, thread: thread}} ->
                 {persistence_us, persistence_result} =
                   timed(fn ->
-                    PostsPersistence.create_post_record(board, thread, attrs, repo, config, now, fn ->
-                      maybe_bump_thread(thread, attrs, config, repo, now)
-                      maybe_cycle_thread(board, thread, config, repo)
-                      :ok
-                    end)
+                    PostsPersistence.create_post_record(
+                      board,
+                      thread,
+                      attrs,
+                      repo,
+                      config,
+                      now,
+                      fn ->
+                        maybe_bump_thread(thread, attrs, config, repo, now)
+                        maybe_cycle_thread(board, thread, config, repo)
+                        :ok
+                      end
+                    )
                   end)
 
                 case persistence_result do
                   {:ok, post} ->
-                    {pruning_us, _} = timed(fn -> maybe_prune_threads(board, post, config, repo) end)
+                    {pruning_us, _} =
+                      timed(fn -> maybe_prune_threads(board, post, config, repo) end)
+
                     _ =
                       if ip_nulling_bypass? do
                         :ok
@@ -238,13 +249,20 @@ defmodule Eirinchan.Posts do
                       end
 
                     {build_dispatch_us, _} =
-                      timed(fn -> Build.rebuild_after_post(board, post, config: config, repo: repo) end)
+                      timed(fn ->
+                        Build.rebuild_after_post(board, post, config: config, repo: repo)
+                      end)
 
                     maybe_log_slow_post(
                       board,
                       attrs,
                       total_started_at,
-                      %{timings | persistence_us: persistence_us, pruning_us: pruning_us, build_dispatch_us: build_dispatch_us},
+                      %{
+                        timings
+                        | persistence_us: persistence_us,
+                          pruning_us: pruning_us,
+                          build_dispatch_us: build_dispatch_us
+                      },
                       {:ok, post, %{noko: false}},
                       config,
                       validation_failure_stage(
@@ -377,12 +395,21 @@ defmodule Eirinchan.Posts do
       result =
         if is_nil(post.thread_id) do
           _ = Build.rebuild_after_delete(board, {:thread, post}, config: config, repo: repo)
-          %{deleted_post_id: PublicIds.public_id(post), thread_id: PublicIds.public_id(post), thread_deleted: true}
+
+          %{
+            deleted_post_id: PublicIds.public_id(post),
+            thread_id: PublicIds.public_id(post),
+            thread_deleted: true
+          }
         else
           _ =
             Build.rebuild_after_delete(board, {:reply, post.thread_id}, config: config, repo: repo)
 
-          %{deleted_post_id: PublicIds.public_id(post), thread_id: public_thread_id(repo, post), thread_deleted: false}
+          %{
+            deleted_post_id: PublicIds.public_id(post),
+            thread_id: public_thread_id(repo, post),
+            thread_deleted: false
+          }
         end
 
       {:ok, result}
@@ -407,7 +434,9 @@ defmodule Eirinchan.Posts do
     end
   end
 
-  @spec public_posts_map(BoardRecord.t(), [String.t() | integer()], keyword()) :: %{integer() => Post.t()}
+  @spec public_posts_map(BoardRecord.t(), [String.t() | integer()], keyword()) :: %{
+          integer() => Post.t()
+        }
   def public_posts_map(%BoardRecord{} = board, post_ids, opts \\ []) when is_list(post_ids) do
     repo = Keyword.get(opts, :repo, Repo)
 
@@ -545,7 +574,8 @@ defmodule Eirinchan.Posts do
   def sync_thread_metrics(%BoardRecord{} = board, thread_id, opts) do
     repo = Keyword.get(opts, :repo, Repo)
 
-    with {:ok, %Post{} = thread} <- PostsThreadLookup.fetch_thread_by_internal_id(board, thread_id, repo) do
+    with {:ok, %Post{} = thread} <-
+           PostsThreadLookup.fetch_thread_by_internal_id(board, thread_id, repo) do
       metrics = thread_metrics(repo, board.id, thread.id)
 
       _ =
@@ -585,11 +615,11 @@ defmodule Eirinchan.Posts do
     if not is_nil(new_post.thread_id) do
       :ok
     else
-    ModerationLog.log_action(%{
-      board_uri: board.uri,
-      text:
-        "Automatically deleting thread ##{PublicIds.public_id(thread)} due to new thread ##{PublicIds.public_id(new_post)} (early 404 is set, ##{PublicIds.public_id(thread)} had #{reply_count} replies)"
-    })
+      ModerationLog.log_action(%{
+        board_uri: board.uri,
+        text:
+          "Automatically deleting thread ##{PublicIds.public_id(thread)} due to new thread ##{PublicIds.public_id(new_post)} (early 404 is set, ##{PublicIds.public_id(thread)} had #{reply_count} replies)"
+      })
     end
   end
 
@@ -669,7 +699,12 @@ defmodule Eirinchan.Posts do
     PostsModeration.delete_post_files(board, post_id, opts)
   end
 
-  @spec public_delete_post_files(BoardRecord.t(), String.t() | integer(), String.t() | nil, keyword()) ::
+  @spec public_delete_post_files(
+          BoardRecord.t(),
+          String.t() | integer(),
+          String.t() | nil,
+          keyword()
+        ) ::
           {:ok, Post.t()} | {:error, :not_found | :invalid_password | Ecto.Changeset.t()}
   def public_delete_post_files(%BoardRecord{} = board, post_id, password, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
@@ -863,7 +898,9 @@ defmodule Eirinchan.Posts do
     else
       visible_posts =
         case Enum.all?(posts_or_ids, &match?(%Post{}, &1)) do
-          true -> posts_or_ids
+          true ->
+            posts_or_ids
+
           false ->
             repo.all(
               from post in Post,
@@ -872,7 +909,8 @@ defmodule Eirinchan.Posts do
             )
         end
 
-      public_ids_by_internal = Map.new(visible_posts, fn post -> {post.id, PublicIds.public_id(post)} end)
+      public_ids_by_internal =
+        Map.new(visible_posts, fn post -> {post.id, PublicIds.public_id(post)} end)
 
       rows =
         repo.all(
@@ -883,7 +921,8 @@ defmodule Eirinchan.Posts do
         )
 
       Enum.reduce(rows, %{}, fn {target_post_id, post_id}, acc ->
-        case {Map.get(public_ids_by_internal, target_post_id), Map.get(public_ids_by_internal, post_id)} do
+        case {Map.get(public_ids_by_internal, target_post_id),
+              Map.get(public_ids_by_internal, post_id)} do
           {target_public_id, post_public_id}
           when is_integer(target_public_id) and is_integer(post_public_id) ->
             Map.update(acc, target_public_id, [post_public_id], fn ids ->
@@ -939,7 +978,9 @@ defmodule Eirinchan.Posts do
     end
   end
 
-  @spec list_overboard_threads([BoardRecord.t()], keyword()) :: [%{board: BoardRecord.t(), config: map(), summary: map()}]
+  @spec list_overboard_threads([BoardRecord.t()], keyword()) :: [
+          %{board: BoardRecord.t(), config: map(), summary: map()}
+        ]
   def list_overboard_threads(boards, opts \\ []) when is_list(boards) do
     case list_overboard_page(boards, 1, opts) do
       {:ok, page} -> page.threads
@@ -948,7 +989,13 @@ defmodule Eirinchan.Posts do
   end
 
   @spec list_overboard_page([BoardRecord.t()], pos_integer(), keyword()) ::
-          {:ok, %{threads: [map()], page: pos_integer(), total_pages: pos_integer(), total_threads: non_neg_integer()}}
+          {:ok,
+           %{
+             threads: [map()],
+             page: pos_integer(),
+             total_pages: pos_integer(),
+             total_threads: non_neg_integer()
+           }}
           | {:error, :not_found}
   def list_overboard_page(boards, page, opts \\ []) when is_list(boards) and is_integer(page) do
     repo = Keyword.get(opts, :repo, Repo)
@@ -998,28 +1045,28 @@ defmodule Eirinchan.Posts do
       else
         offset = (page - 1) * thread_limit
 
-      threads =
-        repo.all(
-          from post in Post,
-            join: activity in subquery(activity_query),
-            on: activity.id == post.id,
-            order_by: [desc: activity.activity_at, desc: post.inserted_at, desc: post.id],
-            limit: ^thread_limit,
-            offset: ^offset
-        )
-        |> repo.preload([:board, :extra_files])
+        threads =
+          repo.all(
+            from post in Post,
+              join: activity in subquery(activity_query),
+              on: activity.id == post.id,
+              order_by: [desc: activity.activity_at, desc: post.inserted_at, desc: post.id],
+              limit: ^thread_limit,
+              offset: ^offset
+          )
+          |> repo.preload([:board, :extra_files])
 
-      summaries_by_thread_id =
-        threads
-        |> Enum.group_by(& &1.board_id)
-        |> Enum.flat_map(fn {board_id, board_threads} ->
-          board = Map.fetch!(board_map, board_id)
-          config = Map.fetch!(config_by_board, board_id)
+        summaries_by_thread_id =
+          threads
+          |> Enum.group_by(& &1.board_id)
+          |> Enum.flat_map(fn {board_id, board_threads} ->
+            board = Map.fetch!(board_map, board_id)
+            config = Map.fetch!(config_by_board, board_id)
 
-          build_thread_summaries(board, board_threads, config, repo, include_replies: true)
-          |> Enum.map(&{&1.thread.id, &1})
-        end)
-        |> Map.new()
+            build_thread_summaries(board, board_threads, config, repo, include_replies: true)
+            |> Enum.map(&{&1.thread.id, &1})
+          end)
+          |> Map.new()
 
         {:ok,
          %{
@@ -1065,8 +1112,7 @@ defmodule Eirinchan.Posts do
               ilike(fragment("COALESCE(?, '')", post.body), ^pattern)
       end
 
-    total_threads =
-      repo.aggregate(base_query, :count, :id)
+    total_threads = repo.aggregate(base_query, :count, :id)
 
     page_size =
       if config.catalog_pagination do
@@ -1127,7 +1173,12 @@ defmodule Eirinchan.Posts do
 
   defp order_catalog_threads(query, _sort_by) do
     from post in query,
-      order_by: [desc: post.sticky, desc_nulls_last: post.bump_at, desc: post.inserted_at, desc: post.id]
+      order_by: [
+        desc: post.sticky,
+        desc_nulls_last: post.bump_at,
+        desc: post.inserted_at,
+        desc: post.id
+      ]
   end
 
   defp normalize_catalog_sort(value) when value in ["bump:desc", "time:desc", "reply:desc"],
@@ -1355,7 +1406,9 @@ defmodule Eirinchan.Posts do
 
         {:literal, pattern, replacement} ->
           Map.update(acc, "body", nil, fn
-            nil -> nil
+            nil ->
+              nil
+
             value ->
               Regex.replace(Regex.compile!(Regex.escape(pattern), "iu"), value, replacement)
           end)
@@ -1490,7 +1543,11 @@ defmodule Eirinchan.Posts do
 
   defp maybe_recalculate_thread_bump_after_delete(%Post{thread_id: nil}, _config, _repo), do: :ok
 
-  defp maybe_recalculate_thread_bump_after_delete(%Post{board_id: board_id, thread_id: thread_id}, config, repo) do
+  defp maybe_recalculate_thread_bump_after_delete(
+         %Post{board_id: board_id, thread_id: thread_id},
+         config,
+         repo
+       ) do
     if config.anti_bump_flood do
       board = %BoardRecord{id: board_id}
       recalculate_thread_bump(board, thread_id, config: config, repo: repo)
@@ -1650,7 +1707,8 @@ defmodule Eirinchan.Posts do
           where:
             post.board_id == ^board_id and
               (post.id == ^thread_id or post.thread_id == ^thread_id) and
-              not is_nil(post.file_path) and post.file_path != "deleted" and like(post.file_type, "image/%")
+              not is_nil(post.file_path) and post.file_path != "deleted" and
+              like(post.file_type, "image/%")
         ),
         :count,
         :id
@@ -1994,6 +2052,7 @@ defmodule Eirinchan.Posts do
 
   defp maybe_log_slow_post(board, attrs, total_started_at, timings, result, config, failure_stage) do
     total_us = System.monotonic_time(:microsecond) - total_started_at
+
     validation_us =
       timings.request_guards_us +
         timings.metadata_us +
@@ -2025,7 +2084,10 @@ defmodule Eirinchan.Posts do
           image_limit_ms: round(max(timings.image_limit_us, 0) / 1000),
           duplicate_upload_ms: round(max(timings.duplicate_upload_us, 0) / 1000),
           persistence_ms:
-            if(is_integer(timings.persistence_us), do: round(timings.persistence_us / 1000), else: nil),
+            if(is_integer(timings.persistence_us),
+              do: round(timings.persistence_us / 1000),
+              else: nil
+            ),
           pruning_ms: round(max(timings.pruning_us, 0) / 1000),
           build_dispatch_ms: round(max(timings.build_dispatch_us, 0) / 1000),
           upload_count: attrs |> Map.get("__upload_entries__", []) |> length(),
@@ -2045,7 +2107,10 @@ defmodule Eirinchan.Posts do
 
   defp timed_continue({:error, _} = error, _fun), do: {0, error}
   defp timed_continue(_context, fun) when is_function(fun, 0), do: timed(fun)
-  defp timed_continue({:ok, context}, fun) when is_function(fun, 1), do: timed(fn -> fun.(context) end)
+
+  defp timed_continue({:ok, context}, fun) when is_function(fun, 1),
+    do: timed(fn -> fun.(context) end)
+
   defp timed_continue(context, fun) when is_function(fun, 1), do: timed(fn -> fun.(context) end)
 
   defp validation_failure_stage(

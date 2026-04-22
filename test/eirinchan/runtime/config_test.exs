@@ -350,6 +350,7 @@ defmodule Eirinchan.Runtime.ConfigTest do
     assert config.use_dnsbl == true
     assert config.ipaccess == false
     assert config.ipaccess_replies == false
+    assert config.ipaccess_imagelim == 0
   end
 
   test "defaults GeoIP2 database path to the bundled MMDB" do
@@ -378,6 +379,7 @@ defmodule Eirinchan.Runtime.ConfigTest do
           allowStickerOp: true,
           countryFlags: true,
           allowNoCountry: true,
+          ipAccessImageLim: 4,
           geoip2DatabasePath: "/tmp/GeoLite2-Country.mmdb",
           geoip2LookupBin: "/usr/bin/mmdblookup",
           userFlag: true,
@@ -403,6 +405,7 @@ defmodule Eirinchan.Runtime.ConfigTest do
     assert config.allow_sticker_op
     assert config.country_flags
     assert config.allow_no_country
+    assert config.ipaccess_imagelim == 4
     assert config.geoip2_database_path == "/tmp/GeoLite2-Country.mmdb"
     assert config.geoip2_lookup_bin == "/usr/bin/mmdblookup"
     assert config.user_flag

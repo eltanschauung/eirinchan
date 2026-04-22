@@ -801,7 +801,8 @@ defmodule Eirinchan.PostsTest do
                request: post_request(board.uri)
              )
 
-    assert identify_value(Eirinchan.Uploads.filesystem_path(thread.thumb_path), "%wx%h") == "80x60"
+    assert identify_value(Eirinchan.Uploads.filesystem_path(thread.thumb_path), "%wx%h") ==
+             "80x60"
   end
 
   test "create_post generates thumbnails for animated webp uploads" do
@@ -1305,7 +1306,9 @@ defmodule Eirinchan.PostsTest do
         repo: Repo
       )
 
-    assert {:ok, updated_thread} = Posts.get_post(board, PublicIds.public_id(old_thread), repo: Repo)
+    assert {:ok, updated_thread} =
+             Posts.get_post(board, PublicIds.public_id(old_thread), repo: Repo)
+
     assert updated_thread.inactive
   end
 
@@ -1367,7 +1370,9 @@ defmodule Eirinchan.PostsTest do
         repo: Repo
       )
 
-    assert {:ok, warning_thread} = Posts.get_post(board, PublicIds.public_id(old_thread), repo: Repo)
+    assert {:ok, warning_thread} =
+             Posts.get_post(board, PublicIds.public_id(old_thread), repo: Repo)
+
     assert warning_thread.inactive
   end
 
@@ -1488,7 +1493,9 @@ defmodule Eirinchan.PostsTest do
         repo: Repo
       )
 
-    assert {:ok, updated_thread} = Posts.get_post(board, PublicIds.public_id(old_thread), repo: Repo)
+    assert {:ok, updated_thread} =
+             Posts.get_post(board, PublicIds.public_id(old_thread), repo: Repo)
+
     refute updated_thread.inactive
   end
 
@@ -2697,6 +2704,75 @@ defmodule Eirinchan.PostsTest do
     assert reply.thread_id == thread.id
   end
 
+  test "create_post rejects image uploads from recently authenticated ipaccess entries" do
+    board = board_fixture()
+
+    Repo.insert!(%Eirinchan.IpAccessEntry{
+      ip: "203.0.113.0/24",
+      granted_at:
+        NaiveDateTime.add(
+          NaiveDateTime.local_now() |> NaiveDateTime.truncate(:second),
+          -30 * 60,
+          :second
+        )
+    })
+
+    config =
+      post_config(%{
+        ipaccess: true,
+        ipaccess_imagelim: 2
+      })
+
+    assert {:error, :ipaccess_imagelim} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "too soon for image posting",
+                 "post" => "New Topic",
+                 "file" => upload_fixture("thread.png", "png-bytes")
+               },
+               config: config,
+               request: %{
+                 referer: "http://example.test/#{board.uri}/index.html",
+                 remote_ip: {203, 0, 113, 9}
+               }
+             )
+  end
+
+  test "create_post allows recent ipaccess entries to make text-only posts" do
+    board = board_fixture()
+
+    Repo.insert!(%Eirinchan.IpAccessEntry{
+      ip: "203.0.113.0/24",
+      granted_at:
+        NaiveDateTime.add(
+          NaiveDateTime.local_now() |> NaiveDateTime.truncate(:second),
+          -30 * 60,
+          :second
+        )
+    })
+
+    config =
+      post_config(%{
+        ipaccess: true,
+        ipaccess_imagelim: 2
+      })
+
+    assert {:ok, _thread, %{noko: false}} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "text-only post still allowed",
+                 "post" => "New Topic"
+               },
+               config: config,
+               request: %{
+                 referer: "http://example.test/#{board.uri}/index.html",
+                 remote_ip: {203, 0, 113, 9}
+               }
+             )
+  end
+
   test "create_post bypasses dnsbl for fileless replies when ipaccess_replies is enabled" do
     board = board_fixture()
     thread = thread_fixture(board)
@@ -2767,14 +2843,12 @@ defmodule Eirinchan.PostsTest do
   test "create_post still enforces active bans when the flag threshold is met" do
     board = board_fixture()
 
-    Repo.insert!(
-      %Eirinchan.Bans.Ban{
-        board_id: board.id,
-        ip_subnet: "203.0.113.0/24",
-        reason: "flag bypass test",
-        active: true
-      }
-    )
+    Repo.insert!(%Eirinchan.Bans.Ban{
+      board_id: board.id,
+      ip_subnet: "203.0.113.0/24",
+      reason: "flag bypass test",
+      active: true
+    })
 
     config =
       post_config(%{
@@ -3110,8 +3184,7 @@ defmodule Eirinchan.PostsTest do
     assert {:error, :invalid_password} =
              Posts.delete_post(board, PublicIds.public_id(thread), "", config: config)
 
-    assert {:ok, _thread} =
-             Posts.get_thread(board, PublicIds.public_id(thread), config: config)
+    assert {:ok, _thread} = Posts.get_thread(board, PublicIds.public_id(thread), config: config)
   end
 
   test "list_threads_page returns previews, omitted counts, and page metadata" do

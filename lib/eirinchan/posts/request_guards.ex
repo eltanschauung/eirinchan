@@ -8,6 +8,7 @@ defmodule Eirinchan.Posts.RequestGuards do
   alias Eirinchan.Moderation
   alias Eirinchan.Moderation.ModUser
   alias Eirinchan.Posts.Post
+  alias Eirinchan.Uploads
 
   def validate_post_button(true, attrs, config) do
     if valid_post_button?(attrs["post"], config.button_newtopic, ["New Topic", "New Thread"]) do
@@ -56,7 +57,7 @@ defmodule Eirinchan.Posts.RequestGuards do
         :ok
 
       AccessList.allowed_for_posting?(request[:remote_ip] || request["remote_ip"]) ->
-        :ok
+        validate_ipaccess_imagelim(attrs, request, config)
 
       true ->
         {:error, :ipaccess}
@@ -209,6 +210,25 @@ defmodule Eirinchan.Posts.RequestGuards do
     Map.get(config, :ipaccess_replies, false) and reply?(attrs) and not uploaded_file?(attrs)
   end
 
+  defp validate_ipaccess_imagelim(attrs, request, config) do
+    hours = Map.get(config, :ipaccess_imagelim, 0)
+    remote_ip = request[:remote_ip] || request["remote_ip"]
+
+    cond do
+      not is_integer(hours) or hours <= 0 ->
+        :ok
+
+      not uploaded_image?(attrs) ->
+        :ok
+
+      AccessList.granted_within_hours?(remote_ip, hours) ->
+        {:error, :ipaccess_imagelim}
+
+      true ->
+        :ok
+    end
+  end
+
   defp reply?(attrs) when is_map(attrs), do: present?(Map.get(attrs, "thread"))
   defp reply?(_attrs), do: false
 
@@ -232,6 +252,14 @@ defmodule Eirinchan.Posts.RequestGuards do
   end
 
   defp uploaded_file?(_attrs), do: false
+
+  defp uploaded_image?(attrs) when is_map(attrs) do
+    attrs
+    |> Map.get("__upload_entries__", [])
+    |> Enum.any?(fn %{metadata: metadata} -> Uploads.image?(metadata) end)
+  end
+
+  defp uploaded_image?(_attrs), do: false
 
   defp present?(value) when is_binary(value), do: String.trim(value) != ""
   defp present?(nil), do: false

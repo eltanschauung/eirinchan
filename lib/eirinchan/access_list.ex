@@ -28,6 +28,26 @@ defmodule Eirinchan.AccessList do
     IpMatching.match?(ip, entries())
   end
 
+  def most_recent_granted_at(ip) do
+    ip
+    |> matching_stored_entries()
+    |> Enum.map(& &1.granted_at)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.max_by(&NaiveDateTime.to_gregorian_seconds/1, fn -> nil end)
+  end
+
+  def granted_within_hours?(ip, hours) when is_integer(hours) and hours > 0 do
+    case most_recent_granted_at(ip) do
+      %NaiveDateTime{} = granted_at ->
+        NaiveDateTime.diff(current_timestamp(), granted_at, :second) < hours * 60 * 60
+
+      nil ->
+        false
+    end
+  end
+
+  def granted_within_hours?(_ip, _hours), do: false
+
   def ip_matches_access_list?(ip, entries) do
     ip_matches_access_list(ip, entries)
   end
@@ -102,5 +122,10 @@ defmodule Eirinchan.AccessList do
 
   defp current_timestamp do
     NaiveDateTime.local_now() |> NaiveDateTime.truncate(:second)
+  end
+
+  defp matching_stored_entries(ip) do
+    Repo.all(from entry in IpAccessEntry, select: %{ip: entry.ip, granted_at: entry.granted_at})
+    |> Enum.filter(&IpMatching.match?(ip, [&1.ip]))
   end
 end

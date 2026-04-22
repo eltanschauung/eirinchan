@@ -49,7 +49,9 @@ defmodule EirinchanWeb.PostController do
       :report ->
         with :ok <- Antispam.check_public_action(board, :report, params, request, config),
              {:ok, report} <-
-               Reports.create_report(board, params, remote_ip: RequestMeta.effective_remote_ip(conn)) do
+               Reports.create_report(board, params,
+                 remote_ip: RequestMeta.effective_remote_ip(conn)
+               ) do
           _ = Antispam.log_public_action(board, :report, params, request)
           respond_reported(conn, board, report, params)
         else
@@ -79,7 +81,9 @@ defmodule EirinchanWeb.PostController do
                 config: config
               )
             else
-              Posts.delete_post(board, params["delete_post_id"], params["password"], config: config)
+              Posts.delete_post(board, params["delete_post_id"], params["password"],
+                config: config
+              )
             end
 
           case delete_action do
@@ -150,7 +154,10 @@ defmodule EirinchanWeb.PostController do
 
   defp respond_created(conn, board, post, params, meta) do
     thread_id = post.thread_id || post.id
-    public_thread_id = if post.thread_id, do: public_thread_id(board, thread_id), else: PublicIds.public_id(post)
+
+    public_thread_id =
+      if post.thread_id, do: public_thread_id(board, thread_id), else: PublicIds.public_id(post)
+
     config = conn.assigns.current_board_config
     _ = maybe_record_post_ownership(conn, post)
     watcher_metrics = maybe_watch_thread_on_reply(conn, board, post)
@@ -310,7 +317,10 @@ defmodule EirinchanWeb.PostController do
   defp respond_deleted_file(conn, board, post, params) do
     config = conn.assigns.current_board_config
     thread_id = post.thread_id || post.id
-    public_thread_id = if post.thread_id, do: public_thread_id(board, thread_id), else: PublicIds.public_id(post)
+
+    public_thread_id =
+      if post.thread_id, do: public_thread_id(board, thread_id), else: PublicIds.public_id(post)
+
     redirect_path = thread_redirect_or_board(board, thread_id, params, config)
 
     if json_response?(conn, params) do
@@ -449,7 +459,9 @@ defmodule EirinchanWeb.PostController do
 
   defp put_legacy_password(params, conn) do
     case params["pwd"] do
-      value when is_binary(value) and value != "" -> Map.put(params, "password", value)
+      value when is_binary(value) and value != "" ->
+        Map.put(params, "password", value)
+
       _ ->
         if branch(params) == :delete do
           params
@@ -608,6 +620,7 @@ defmodule EirinchanWeb.PostController do
   defp error_status(:post_not_found), do: :not_found
   defp error_status(:ban_not_found), do: :not_found
   defp error_status(:ipaccess), do: :forbidden
+  defp error_status(:ipaccess_imagelim), do: :forbidden
   defp error_status(:dnsbl), do: :forbidden
   defp error_status(:invalid_password), do: :forbidden
   defp error_status(:banned), do: :forbidden
@@ -641,9 +654,15 @@ defmodule EirinchanWeb.PostController do
 
   defp error_message(:thread_not_found, _config), do: "Thread not found"
   defp error_message(:post_not_found, _config), do: "Post not found"
+
   defp error_message(:ipaccess, config),
     do:
       "Access denied; visit <a href=\"#{IpAccessAuth.auth_path(Map.get(config, :ip_access_auth, %{}))}\">#{IpAccessAuth.auth_path(Map.get(config, :ip_access_auth, %{}))}</a>"
+
+  defp error_message(:ipaccess_imagelim, config),
+    do:
+      "You were authenticated too recently; wait #{Map.get(config, :ipaccess_imagelim, 0)} hour(s)"
+
   defp error_message(:dnsbl, config), do: String.replace(config.error.dnsbl, "%s", "DNSBL")
   defp error_message(:invalid_password, config), do: config.error.password
   defp error_message(:banned, config), do: config.error.banned
@@ -667,6 +686,7 @@ defmodule EirinchanWeb.PostController do
   defp error_message(:image_too_large, config), do: config.error.image_too_large
   defp error_message(:duplicate_file, config), do: config.error.duplicate_file
   defp error_message(:body_required, config), do: config.error.tooshort_body
+
   defp error_message(:file_required, config) do
     if config.force_image_op and config.allow_sticker_op do
       "File or sticker required."
@@ -674,6 +694,7 @@ defmodule EirinchanWeb.PostController do
       config.error.file_required
     end
   end
+
   defp error_message(:invalid_file_type, config), do: config.error.filetype
   defp error_message(:mime_exploit, config), do: config.error.mime_exploit
   defp error_message(:file_too_large, config), do: config.error.file_too_large
@@ -863,7 +884,10 @@ defmodule EirinchanWeb.PostController do
   defp json_failure_value(value) when is_boolean(value), do: value
   defp json_failure_value(nil), do: nil
   defp json_failure_value(value) when is_atom(value), do: Atom.to_string(value)
-  defp json_failure_value(value) when is_map(value), do: Map.new(value, fn {k, v} -> {to_string(k), json_failure_value(v)} end)
+
+  defp json_failure_value(value) when is_map(value),
+    do: Map.new(value, fn {k, v} -> {to_string(k), json_failure_value(v)} end)
+
   defp json_failure_value(value) when is_list(value), do: Enum.map(value, &json_failure_value/1)
   defp json_failure_value(value), do: inspect(value)
 
@@ -1085,7 +1109,9 @@ defmodule EirinchanWeb.PostController do
     extension = Path.extname(upload.filename)
     basename = upload.filename |> Path.basename(extension) |> sanitize_filename_component()
     request_component = sanitize_filename_component(request_id || "no-request-id")
-    destination = Path.join(destination_dir, "#{request_component}-#{index}-#{basename}#{extension}")
+
+    destination =
+      Path.join(destination_dir, "#{request_component}-#{index}-#{basename}#{extension}")
 
     case File.cp(upload.path, destination) do
       :ok -> destination

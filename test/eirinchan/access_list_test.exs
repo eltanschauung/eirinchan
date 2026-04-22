@@ -45,6 +45,15 @@ defmodule Eirinchan.AccessListTest do
     refute AccessList.allowed_for_posting?({203, 0, 113, 9})
   end
 
+  test "most_recent_granted_at returns the newest matching grant timestamp" do
+    Repo.insert!(%IpAccessEntry{ip: "198.51.100.0/24", granted_at: ~N[2026-04-21 10:00:00]})
+    Repo.insert!(%IpAccessEntry{ip: "198.51.100.0/24", granted_at: ~N[2026-04-21 12:00:00]})
+    Repo.insert!(%IpAccessEntry{ip: "203.0.113.0/24", granted_at: ~N[2026-04-21 13:00:00]})
+
+    assert AccessList.most_recent_granted_at({198, 51, 100, 55}) == ~N[2026-04-21 12:00:00]
+    assert AccessList.most_recent_granted_at({192, 0, 2, 1}) == nil
+  end
+
   test "import_legacy_file imports subnet rows with password and timestamp when present" do
     path =
       Path.join(
