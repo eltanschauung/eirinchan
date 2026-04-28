@@ -1,6 +1,7 @@
 defmodule Eirinchan.Posts.Metadata do
   @moduledoc false
 
+  alias Eirinchan.Posts.Email, as: PostsEmail
   alias Eirinchan.Tripcode
 
   @spec normalize(map(), map(), map(), boolean()) :: {:ok, map()}
@@ -52,8 +53,7 @@ defmodule Eirinchan.Posts.Metadata do
 
   defp normalize_email(nil), do: nil
 
-  defp normalize_email(value),
-    do: value |> String.trim() |> String.replace(" ", "%20") |> blank_to_nil()
+  defp normalize_email(value), do: PostsEmail.normalize(value)
 
   defp normalize_post_tag(attrs, %{allowed_tags: allowed_tags}, true) when is_map(allowed_tags) do
     case Map.get(attrs, "tag") do
@@ -121,17 +121,6 @@ defmodule Eirinchan.Posts.Metadata do
 
   defp normalize_request_ip(ip) when is_binary(ip), do: String.trim(ip)
   defp normalize_request_ip(_ip), do: nil
-
-  defp blank_to_nil(nil), do: nil
-
-  defp blank_to_nil(value) when is_binary(value) do
-    case String.trim(value) do
-      "" -> nil
-      trimmed -> trimmed
-    end
-  end
-
-  defp blank_to_nil(value), do: value
 
   defp trim_to_nil(nil), do: nil
 
