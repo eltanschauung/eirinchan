@@ -9,6 +9,7 @@ defmodule Eirinchan.Posts do
   alias Eirinchan.Build
   alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.Posts.Cite
+  alias Eirinchan.Posts.Email, as: PostsEmail
   alias Eirinchan.Posts.Flags, as: PostsFlags
   alias Eirinchan.Posts.Metadata, as: PostsMetadata
   alias Eirinchan.Posts.PublicIds
@@ -547,7 +548,10 @@ defmodule Eirinchan.Posts do
               where:
                 post.id == ^thread.id or
                   (post.thread_id == ^thread.id and
-                     fragment("COALESCE(lower(?), '') != 'sage'", post.email)),
+                     fragment(
+                       "COALESCE(lower(trim(?)), '') NOT IN ('sage', 'polite sage')",
+                       post.email
+                     )),
               select: max(post.inserted_at)
             )
             |> repo.one()
@@ -1280,6 +1284,7 @@ defmodule Eirinchan.Posts do
       pair -> pair
     end)
     |> normalize_legacy_post_params()
+    |> normalize_email_commands()
   end
 
   defp normalize_legacy_post_params(attrs) do
@@ -1320,6 +1325,13 @@ defmodule Eirinchan.Posts do
       nil -> Map.put(attrs, key, value)
       "" -> Map.put(attrs, key, value)
       _ -> attrs
+    end
+  end
+
+  defp normalize_email_commands(attrs) do
+    case Map.fetch(attrs, "email") do
+      {:ok, value} -> Map.put(attrs, "email", PostsEmail.normalize_command(value))
+      :error -> attrs
     end
   end
 
@@ -1498,8 +1510,9 @@ defmodule Eirinchan.Posts do
   defp maybe_bump_thread(nil, _attrs, _config, _repo, _now), do: :ok
 
   defp maybe_bump_thread(thread, attrs, config, repo, now) do
-    email = String.downcase(attrs["email"] || "")
-    should_bump = email != "sage" and not thread.sage and bump_allowed?(thread, config, repo)
+    should_bump =
+      not PostsEmail.sage?(attrs["email"]) and not thread.sage and
+        bump_allowed?(thread, config, repo)
 
     if config.anti_bump_flood and not thread.sage do
       bump_at =
@@ -1507,7 +1520,10 @@ defmodule Eirinchan.Posts do
           where:
             post.id == ^thread.id or
               (post.thread_id == ^thread.id and
-                 fragment("COALESCE(lower(?), '') != 'sage'", post.email)),
+                 fragment(
+                   "COALESCE(lower(trim(?)), '') NOT IN ('sage', 'polite sage')",
+                   post.email
+                 )),
           select: max(post.inserted_at)
         )
         |> repo.one()

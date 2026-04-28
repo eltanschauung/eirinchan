@@ -2917,7 +2917,7 @@ defmodule Eirinchan.PostsTest do
     assert Antispam.list_flood_entries("203.0.113.11", repo: Repo) == []
   end
 
-  test "reply bumping reorders threads unless the reply is sage" do
+  test "reply bumping reorders threads unless the reply is sage or polite sage" do
     board = board_fixture()
     config = post_config(board.config_overrides)
     request = post_request(board.uri)
@@ -2955,19 +2955,20 @@ defmodule Eirinchan.PostsTest do
     assert {:ok, page_after_bump} = Posts.list_threads_page(board, 1, config: config)
     assert hd(page_after_bump.threads).thread.id == older_thread.id
 
-    assert {:ok, _reply, _meta} =
+    assert {:ok, polite_sage_reply, _meta} =
              Posts.create_post(
                board,
                %{
                  "thread" => Integer.to_string(newer_thread.id),
                  "body" => "Sage reply",
-                 "email" => "sage",
+                 "email" => "polite sage",
                  "post" => "New Reply"
                },
                config: config,
                request: request
              )
 
+    assert polite_sage_reply.email == "sage"
     assert {:ok, page_after_sage} = Posts.list_threads_page(board, 1, config: config)
     assert hd(page_after_sage.threads).thread.id == older_thread.id
   end
@@ -3799,13 +3800,13 @@ defmodule Eirinchan.PostsTest do
     bumped_thread = Repo.get!(Post, thread.id)
     first_bump_at = bumped_thread.bump_at
 
-    assert {:ok, _sage_reply, _meta} =
+    assert {:ok, polite_sage_reply, _meta} =
              Posts.create_post(
                board,
                %{
                  "thread" => Integer.to_string(PublicIds.public_id(thread)),
-                 "body" => "sage",
-                 "email" => "sage",
+                 "body" => "polite sage",
+                 "email" => "polite sage",
                  "post" => "Reply"
                },
                config: config,
@@ -3813,6 +3814,17 @@ defmodule Eirinchan.PostsTest do
                repo: Repo
              )
 
+    assert polite_sage_reply.email == "sage"
+    assert Repo.get!(Post, thread.id).bump_at == first_bump_at
+
+    latest_inserted_at = DateTime.add(first_bump_at, 60, :second)
+
+    Repo.update_all(
+      from(post in Post, where: post.id == ^polite_sage_reply.id),
+      set: [email: "polite sage", inserted_at: latest_inserted_at]
+    )
+
+    :ok = Posts.recalculate_thread_bump(board, thread.id, config: config, repo: Repo)
     assert Repo.get!(Post, thread.id).bump_at == first_bump_at
   end
 

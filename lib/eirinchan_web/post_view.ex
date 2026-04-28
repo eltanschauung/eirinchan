@@ -8,6 +8,7 @@ defmodule EirinchanWeb.PostView do
 
   alias Eirinchan.{Boardlist, Boards, PosterIds, Posts}
   alias Eirinchan.Moderation
+  alias Eirinchan.Posts.Email, as: PostsEmail
   alias Eirinchan.Posts.Post
   alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Posts.PostFile
@@ -90,7 +91,7 @@ defmodule EirinchanWeb.PostView do
 
     trimmed != "" and
       Map.get(config, :hide_email, false) != true and
-      (Map.get(config, :hide_sage, false) != true or trimmed != "sage")
+      (Map.get(config, :hide_sage, false) != true or not PostsEmail.sage?(trimmed))
   end
 
   def email_link?(_email, _config), do: false

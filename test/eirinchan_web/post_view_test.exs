@@ -36,6 +36,11 @@ defmodule EirinchanWeb.PostViewTest do
 
     assert PostView.name_html(post, Map.put(Config.compose(), :hide_email, true)) ==
              ~s(<span class="name">Anonymous</span>)
+
+    polite_sage_post = %Post{name: "Anonymous", email: "polite sage"}
+
+    assert PostView.name_html(polite_sage_post, Map.put(Config.compose(), :hide_sage, true)) ==
+             ~s(<span class="name">Anonymous</span>)
   end
 
   test "short replies keep wrapped layout beside media" do
