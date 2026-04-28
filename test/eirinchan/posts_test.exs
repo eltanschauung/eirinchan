@@ -2968,7 +2968,7 @@ defmodule Eirinchan.PostsTest do
                request: request
              )
 
-    assert polite_sage_reply.email == "sage"
+    assert polite_sage_reply.email == "polite sage"
     assert {:ok, page_after_sage} = Posts.list_threads_page(board, 1, config: config)
     assert hd(page_after_sage.threads).thread.id == older_thread.id
   end
@@ -3814,14 +3814,13 @@ defmodule Eirinchan.PostsTest do
                repo: Repo
              )
 
-    assert polite_sage_reply.email == "sage"
+    assert polite_sage_reply.email == "polite sage"
     assert Repo.get!(Post, thread.id).bump_at == first_bump_at
 
     latest_inserted_at = DateTime.add(first_bump_at, 60, :second)
 
-    Repo.update_all(
-      from(post in Post, where: post.id == ^polite_sage_reply.id),
-      set: [email: "polite sage", inserted_at: latest_inserted_at]
+    Repo.update_all(from(post in Post, where: post.id == ^polite_sage_reply.id),
+      set: [inserted_at: latest_inserted_at]
     )
 
     :ok = Posts.recalculate_thread_bump(board, thread.id, config: config, repo: Repo)

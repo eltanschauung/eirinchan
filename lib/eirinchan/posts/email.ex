@@ -3,12 +3,6 @@ defmodule Eirinchan.Posts.Email do
 
   @sage_commands ["sage", "polite sage"]
 
-  def normalize_command(value) when is_binary(value) do
-    if sage?(value), do: "sage", else: value
-  end
-
-  def normalize_command(value), do: value
-
   def sage?(value) when is_binary(value) do
     value
     |> String.trim()

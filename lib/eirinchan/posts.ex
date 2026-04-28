@@ -1284,7 +1284,6 @@ defmodule Eirinchan.Posts do
       pair -> pair
     end)
     |> normalize_legacy_post_params()
-    |> normalize_email_commands()
   end
 
   defp normalize_legacy_post_params(attrs) do
@@ -1325,13 +1324,6 @@ defmodule Eirinchan.Posts do
       nil -> Map.put(attrs, key, value)
       "" -> Map.put(attrs, key, value)
       _ -> attrs
-    end
-  end
-
-  defp normalize_email_commands(attrs) do
-    case Map.fetch(attrs, "email") do
-      {:ok, value} -> Map.put(attrs, "email", PostsEmail.normalize_command(value))
-      :error -> attrs
     end
   end
 
