@@ -805,7 +805,7 @@ defmodule Eirinchan.PostsTest do
              "80x60"
   end
 
-  test "create_post generates thumbnails for animated webp uploads" do
+  test "create_post converts animated webp uploads to stored png files" do
     board = board_fixture()
     upload = animated_webp_upload_fixture("clip.webp")
 
@@ -821,8 +821,11 @@ defmodule Eirinchan.PostsTest do
                request: post_request(board.uri)
              )
 
-    assert thread.file_type == "image/webp"
+    assert thread.file_name == "clip.png"
+    assert thread.file_path =~ ~r|^/#{board.uri}/src/\d+\.png$|
+    assert thread.file_type == "image/png"
     assert thread.thumb_path =~ ~r|^/#{board.uri}/thumb/\d+s\.png$|
+    assert File.exists?(Eirinchan.Uploads.filesystem_path(thread.file_path))
     assert File.exists?(Eirinchan.Uploads.filesystem_path(thread.thumb_path))
   end
 

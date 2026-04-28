@@ -307,9 +307,13 @@ defmodule Eirinchan.Uploads do
   def video_extension?(ext) when is_binary(ext), do: ext in @video_extensions
   def video_extension?(_ext), do: false
 
-  defp avif_upload?(%{ext: ".avif"}), do: true
-  defp avif_upload?(%{file_type: "image/avif"}), do: true
-  defp avif_upload?(_metadata), do: false
+  defp png_conversion_upload?(%{ext: ext}) when ext in [".avif", ".webp"], do: true
+
+  defp png_conversion_upload?(%{file_type: file_type})
+       when file_type in ["image/avif", "image/webp"],
+       do: true
+
+  defp png_conversion_upload?(_metadata), do: false
 
   @spec fetch_remote_upload(String.t(), map()) :: {:ok, Plug.Upload.t()} | {:error, atom()}
   def fetch_remote_upload(url, config) when is_binary(url) do
@@ -755,7 +759,7 @@ defmodule Eirinchan.Uploads do
   end
 
   defp staged_upload_metadata(metadata) do
-    if avif_upload?(metadata) do
+    if png_conversion_upload?(metadata) do
       metadata
       |> Map.put(:source_ext, metadata.ext)
       |> Map.put(:source_file_type, metadata.file_type)
@@ -768,14 +772,14 @@ defmodule Eirinchan.Uploads do
   end
 
   defp write_staged_upload(source_path, staged_path, config, metadata) do
-    if avif_upload?(metadata) do
-      convert_avif_to_png(source_path, staged_path, config)
+    if png_conversion_upload?(metadata) do
+      convert_to_png(source_path, staged_path, config)
     else
       File.cp(source_path, staged_path)
     end
   end
 
-  defp convert_avif_to_png(source_path, destination_path, config) do
+  defp convert_to_png(source_path, destination_path, config) do
     ffmpeg = get_in(config, [:webm, :ffmpeg_path]) || "ffmpeg"
 
     case System.cmd(

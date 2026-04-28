@@ -415,6 +415,37 @@ defmodule EirinchanWeb.PostControllerTest do
     assert get_resp_header(file_conn, "content-type") == ["image/png; charset=utf-8"]
   end
 
+  test "posting converts webp uploads to stored png files", %{conn: conn} do
+    board = board_fixture()
+    upload = animated_webp_upload_fixture("sample.webp")
+
+    create_conn =
+      conn
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post(~p"/#{board.uri}/post", %{
+        "body" => "webp post",
+        "file" => upload,
+        "json_response" => "1",
+        "post" => "New Topic"
+      })
+
+    assert %{"id" => id} = json_response(create_conn, 200)
+
+    {:ok, [thread | _]} = Eirinchan.Posts.get_thread(board, id)
+    assert thread.file_name == "sample.png"
+    assert thread.file_path =~ ~r|^/#{board.uri}/src/\d+\.png$|
+    assert thread.thumb_path =~ ~r|^/#{board.uri}/thumb/\d+s\.png$|
+    assert thread.file_type == "image/png"
+
+    file_conn =
+      conn
+      |> recycle()
+      |> get(thread.file_path)
+
+    assert response(file_conn, 200) != ""
+    assert get_resp_header(file_conn, "content-type") == ["image/png; charset=utf-8"]
+  end
+
   test "posting accepts animated gif uploads", %{conn: conn} do
     board = board_fixture()
     upload = animated_gif_upload_fixture("animated.gif")
