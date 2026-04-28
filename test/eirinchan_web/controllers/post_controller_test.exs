@@ -382,6 +382,39 @@ defmodule EirinchanWeb.PostControllerTest do
     assert get_resp_header(thumb_conn, "content-type") == ["image/png; charset=utf-8"]
   end
 
+  test "posting converts avif uploads to stored png files", %{conn: conn} do
+    board = board_fixture()
+    upload = avif_upload_fixture("sample.avif", geometry: "18x12")
+
+    create_conn =
+      conn
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post(~p"/#{board.uri}/post", %{
+        "body" => "avif post",
+        "file" => upload,
+        "json_response" => "1",
+        "post" => "New Topic"
+      })
+
+    assert %{"id" => id} = json_response(create_conn, 200)
+
+    {:ok, [thread | _]} = Eirinchan.Posts.get_thread(board, id)
+    assert thread.file_name == "sample.png"
+    assert thread.file_path =~ ~r|^/#{board.uri}/src/\d+\.png$|
+    assert thread.thumb_path =~ ~r|^/#{board.uri}/thumb/\d+s\.png$|
+    assert thread.file_type == "image/png"
+    assert thread.image_width == 18
+    assert thread.image_height == 12
+
+    file_conn =
+      conn
+      |> recycle()
+      |> get(thread.file_path)
+
+    assert response(file_conn, 200) != ""
+    assert get_resp_header(file_conn, "content-type") == ["image/png; charset=utf-8"]
+  end
+
   test "posting accepts animated gif uploads", %{conn: conn} do
     board = board_fixture()
     upload = animated_gif_upload_fixture("animated.gif")
@@ -989,6 +1022,22 @@ defmodule EirinchanWeb.PostControllerTest do
       })
 
     assert %{"id" => _id} = json_response(conn, 200)
+  end
+
+  test "posting rejects invalid avif uploads", %{conn: conn} do
+    board = board_fixture(%{config_overrides: %{force_image_op: true}})
+
+    conn =
+      conn
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post(~p"/#{board.uri}/post", %{
+        "body" => "first post",
+        "file" => raw_upload_fixture("fake.avif", "not-an-avif"),
+        "json_response" => "1",
+        "post" => "New Topic"
+      })
+
+    assert %{"error" => "Invalid image."} = json_response(conn, 422)
   end
 
   test "posting enforces image hard limits for file replies", %{conn: conn} do

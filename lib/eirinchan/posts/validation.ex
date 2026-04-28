@@ -299,7 +299,7 @@ defmodule Eirinchan.Posts.Validation do
         op?
       )
 
-  defp validate_upload_type(_upload, %{ext: ext}, config, op?) do
+  defp validate_upload_type(_upload, %{ext: ext} = metadata, config, op?) do
     allowed =
       if op? and is_list(config.allowed_ext_files_op) do
         config.allowed_ext_files_op
@@ -309,7 +309,12 @@ defmodule Eirinchan.Posts.Validation do
       |> Kernel.||([])
       |> Enum.map(&String.downcase/1)
 
-    if ext in allowed do
+    candidate_exts =
+      [ext, Map.get(metadata, :source_ext), Map.get(metadata, "source_ext")]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.map(&String.downcase/1)
+
+    if Enum.any?(candidate_exts, &(&1 in allowed)) do
       :ok
     else
       {:error, :invalid_file_type}

@@ -243,6 +243,7 @@ defmodule Eirinchan.Runtime.Config do
       ".gif",
       ".bmp",
       ".webp",
+      ".avif",
       ".webm",
       ".mp4",
       ".svg",

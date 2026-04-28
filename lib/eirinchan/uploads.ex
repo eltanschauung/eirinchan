@@ -6,7 +6,7 @@ defmodule Eirinchan.Uploads do
   alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.Posts.Post
 
-  @image_extensions [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"]
+  @image_extensions [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".avif"]
   @video_extensions [".webm", ".mp4"]
   @jpeg_thumbnail_quality 85
 
@@ -45,10 +45,11 @@ defmodule Eirinchan.Uploads do
 
     with :ok <- validate_upload_size_early(upload, config),
          {:ok, initial_metadata} <- describe_without_normalizing(upload, normalized_name, config),
-         {:ok, staged_path} <- create_staged_upload_path(initial_metadata.ext) do
-      with :ok <- File.cp(upload.path, staged_path),
-           :ok <- normalize_stored_upload(staged_path, config, initial_metadata),
-           {:ok, prepared_metadata} <- refresh_stored_metadata(staged_path, initial_metadata, config),
+         staged_metadata <- staged_upload_metadata(initial_metadata),
+         {:ok, staged_path} <- create_staged_upload_path(staged_metadata.ext) do
+      with :ok <- write_staged_upload(upload.path, staged_path, config, initial_metadata),
+           :ok <- normalize_stored_upload(staged_path, config, staged_metadata),
+           {:ok, prepared_metadata} <- refresh_stored_metadata(staged_path, staged_metadata, config),
            {:ok, staged_thumb_path} <-
              create_staged_thumbnail_path(thumbnail_extension(prepared_metadata, config)) do
         case generate_thumbnail(staged_path, staged_thumb_path, config, prepared_metadata, op?) do
@@ -263,6 +264,7 @@ defmodule Eirinchan.Uploads do
       ext == ".gif" -> file_type == "image/gif"
       ext == ".bmp" -> file_type in ["image/bmp", "image/x-ms-bmp"]
       ext == ".webp" -> file_type == "image/webp"
+      ext == ".avif" -> file_type == "image/avif"
       ext == ".svg" -> file_type == "image/svg+xml"
       ext == ".jxl" -> file_type == "image/jxl"
       ext == ".webm" -> file_type == "video/webm"
@@ -304,6 +306,10 @@ defmodule Eirinchan.Uploads do
 
   def video_extension?(ext) when is_binary(ext), do: ext in @video_extensions
   def video_extension?(_ext), do: false
+
+  defp avif_upload?(%{ext: ".avif"}), do: true
+  defp avif_upload?(%{file_type: "image/avif"}), do: true
+  defp avif_upload?(_metadata), do: false
 
   @spec fetch_remote_upload(String.t(), map()) :: {:ok, Plug.Upload.t()} | {:error, atom()}
   def fetch_remote_upload(url, config) when is_binary(url) do
@@ -746,6 +752,62 @@ defmodule Eirinchan.Uploads do
 
   defp maybe_add_strip_exif(args, config) do
     if Map.get(config, :strip_exif, true), do: args ++ ["-strip"], else: args
+  end
+
+  defp staged_upload_metadata(metadata) do
+    if avif_upload?(metadata) do
+      metadata
+      |> Map.put(:source_ext, metadata.ext)
+      |> Map.put(:source_file_type, metadata.file_type)
+      |> Map.put(:ext, ".png")
+      |> Map.put(:file_type, "image/png")
+      |> Map.update!(:file_name, &replace_extension(&1, ".png"))
+    else
+      metadata
+    end
+  end
+
+  defp write_staged_upload(source_path, staged_path, config, metadata) do
+    if avif_upload?(metadata) do
+      convert_avif_to_png(source_path, staged_path, config)
+    else
+      File.cp(source_path, staged_path)
+    end
+  end
+
+  defp convert_avif_to_png(source_path, destination_path, config) do
+    ffmpeg = get_in(config, [:webm, :ffmpeg_path]) || "ffmpeg"
+
+    case System.cmd(
+           ffmpeg,
+           [
+             "-y",
+             "-nostdin",
+             "-hide_banner",
+             "-loglevel",
+             "error",
+             "-i",
+             source_path,
+             "-frames:v",
+             "1",
+             destination_path
+           ],
+           stderr_to_stdout: true
+         ) do
+      {_output, 0} ->
+        if File.exists?(destination_path), do: :ok, else: {:error, :invalid_image}
+
+      _ ->
+        {:error, :invalid_image}
+    end
+  end
+
+  defp replace_extension(filename, replacement_ext) when is_binary(filename) do
+    original_ext = Path.extname(filename)
+
+    filename
+    |> Path.basename(original_ext)
+    |> Kernel.<>(replacement_ext)
   end
 
   defp normalized_upload_metadata(path, metadata, config) do
@@ -1346,6 +1408,7 @@ defmodule Eirinchan.Uploads do
   defp canonical_extension_for_file_type("image/bmp"), do: ".bmp"
   defp canonical_extension_for_file_type("image/x-ms-bmp"), do: ".bmp"
   defp canonical_extension_for_file_type("image/webp"), do: ".webp"
+  defp canonical_extension_for_file_type("image/avif"), do: ".avif"
   defp canonical_extension_for_file_type(_file_type), do: nil
 
   defp normalized_filename(filename, _config) do

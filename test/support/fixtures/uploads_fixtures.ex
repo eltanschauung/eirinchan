@@ -85,6 +85,45 @@ defmodule Eirinchan.UploadsFixtures do
     }
   end
 
+  def avif_upload_fixture(filename \\ "sample.avif", content_or_opts \\ "fixture") do
+    base =
+      Path.join(
+        System.tmp_dir!(),
+        "eirinchan-upload-avif-#{System.unique_integer([:positive])}-#{Path.basename(filename, ".avif")}"
+      )
+
+    png_path = base <> ".png"
+    avif_path = base <> ".avif"
+    opts = normalize_opts(content_or_opts)
+
+    create_image!(png_path, opts)
+
+    {_, 0} =
+      System.cmd(
+        "ffmpeg",
+        [
+          "-y",
+          "-hide_banner",
+          "-loglevel",
+          "error",
+          "-i",
+          png_path,
+          "-frames:v",
+          "1",
+          avif_path
+        ],
+        stderr_to_stdout: true
+      )
+
+    _ = File.rm(png_path)
+
+    %Plug.Upload{
+      path: avif_path,
+      filename: filename,
+      content_type: "image/avif"
+    }
+  end
+
   def video_upload_fixture(filename \\ "sample.mp4", opts \\ []) do
     path =
       Path.join(
