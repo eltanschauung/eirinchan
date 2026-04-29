@@ -924,7 +924,7 @@ defmodule Eirinchan.PostsTest do
                  "body" => "first post",
                  "file" =>
                    upload_fixture(
-                     "  a very long*&^% display filename with spaces.PNG  ",
+                     "  a very long display filename with spaces.PNG  ",
                      "png-bytes"
                    ),
                  "post" => "New Topic"
@@ -933,7 +933,7 @@ defmodule Eirinchan.PostsTest do
                request: post_request(board.uri)
              )
 
-    assert thread.file_name == "a_very_long_display_filename_with_spaces.png"
+    assert thread.file_name == "a very long display filename with spaces.png"
   end
 
   test "create_post always strips EXIF metadata from stored jpeg files" do

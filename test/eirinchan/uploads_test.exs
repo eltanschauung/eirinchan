@@ -2,6 +2,14 @@ defmodule Eirinchan.UploadsTest do
   use ExUnit.Case, async: true
 
   alias Eirinchan.Uploads
+  import Eirinchan.UploadsFixtures, only: [raw_upload_fixture: 2]
+
+  test "describe preserves spaces in original display filenames" do
+    upload = raw_upload_fixture("two words.txt", "hello")
+    on_exit(fn -> File.rm(upload.path) end)
+
+    assert {:ok, %{file_name: "two words.txt"}} = Uploads.describe(upload, %{})
+  end
 
   test "video upload validation accepts av1 webm streams" do
     assert :ok ==

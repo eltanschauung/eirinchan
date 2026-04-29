@@ -1430,7 +1430,7 @@ defmodule Eirinchan.Uploads do
       |> Path.basename(original_ext)
       |> String.trim()
       |> String.replace(~r/[[:cntrl:]]+/u, "")
-      |> String.replace(~r/[^A-Za-z0-9._-]+/u, "_")
+      |> String.replace(~r/[^A-Za-z0-9._ -]+/u, "_")
       |> String.trim("_")
       |> case do
         "" -> "file"
