@@ -7,6 +7,15 @@ defmodule EirinchanWeb.PostHTML do
 
   embed_templates "post_html/*"
 
+  def ban_reason(%{reason: reason}) when is_binary(reason) do
+    case String.trim(reason) do
+      "" -> "None"
+      trimmed -> trimmed
+    end
+  end
+
+  def ban_reason(_ban), do: "None"
+
   def format_ban_datetime(nil), do: "never"
 
   def format_ban_datetime(%DateTime{} = datetime) do

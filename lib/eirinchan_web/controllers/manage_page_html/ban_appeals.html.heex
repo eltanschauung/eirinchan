@@ -1,5 +1,9 @@
 <.flash_group flash={@flash} />
-<.page_header title={"Ban appeals (#{length(@appeals)})"} back_href={~p"/manage"} back_label="Back to Manage" />
+<.page_header
+  title={"Ban appeals (#{length(@appeals)})"}
+  back_href={~p"/manage"}
+  back_label="Back to Manage"
+/>
 
 <section>
   <%= if @appeals == [] do %>
@@ -9,29 +13,20 @@
       <article>
         <h2>Appeal #<%= appeal.id %></h2>
         <p :if={appeal.ban && appeal.ban.board}>
-          Board:
-          <a href={"/#{appeal.ban.board.uri}"}>/<%= appeal.ban.board.uri %>/</a>
+          Board: <a href={"/#{appeal.ban.board.uri}"}>/<%= appeal.ban.board.uri %>/</a>
         </p>
         <p>Status: <%= appeal.status %></p>
-        <p>Ban reason: <%= appeal.ban && appeal.ban.reason %></p>
+        <p>IP: <%= ban_target(appeal.ban) %></p>
+        <p>Ban reason: <%= ban_reason(appeal.ban) %></p>
         <p>Appeal: <%= appeal.body %></p>
         <p :if={appeal.resolution_note}>Resolution: <%= appeal.resolution_note %></p>
         <form action={"/manage/ban-appeals/browser/#{appeal.id}"} method="post">
           <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
           <input type="hidden" name="_method" value="patch" />
-          <label>
-            <span>Status</span>
-            <select name="status">
-              <option value="open" selected={appeal.status == "open"}>open</option>
-              <option value="resolved" selected={appeal.status == "resolved"}>resolved</option>
-              <option value="rejected" selected={appeal.status == "rejected"}>rejected</option>
-            </select>
-          </label>
-          <label>
-            <span>Resolution Note</span>
-            <input type="text" name="resolution_note" value={appeal.resolution_note} />
-          </label>
-          <button type="submit">Update Appeal</button>
+          <button type="submit" name="status" value="resolved">
+            Unban <%= ban_target_kind(appeal.ban) %>
+          </button>
+          <button type="submit" name="status" value="rejected">Reject Appeal</button>
         </form>
       </article>
     <% end %>

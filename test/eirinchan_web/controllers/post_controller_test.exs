@@ -1488,7 +1488,7 @@ defmodule EirinchanWeb.PostControllerTest do
     board = board_fixture()
 
     {:ok, ban} =
-      Eirinchan.Bans.create_ban(%{board_id: board.id, ip_subnet: "203.0.113.4", reason: "Spam"})
+      Eirinchan.Bans.create_ban(%{board_id: board.id, ip_subnet: "203.0.113.0/24", reason: "Spam"})
 
     conn =
       conn

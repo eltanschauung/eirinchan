@@ -1321,8 +1321,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       Eirinchan.Bans.create_ban(%{
         board_id: board.id,
         mod_user_id: moderator.id,
-        ip_subnet: "198.51.100.9",
-        reason: "Spam"
+        ip_subnet: "198.51.100.0/24"
       })
 
     {:ok, appeal} = Eirinchan.Bans.create_appeal(ban.id, %{body: "Please review"})
@@ -1373,6 +1372,10 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert appeals_page =~ "Ban appeals (1)"
     assert appeals_page =~ "Please review"
     assert appeals_page =~ "/#{board.uri}/"
+    assert appeals_page =~ "IP: 198.51.100.0/24"
+    assert appeals_page =~ "Ban reason: None"
+    assert appeals_page =~ "Unban range"
+    assert appeals_page =~ "Reject Appeal"
 
     resolve_conn =
       conn

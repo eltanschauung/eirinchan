@@ -20,8 +20,8 @@
   <p>
     Your IP address is <strong><%= @remote_ip %></strong>.
   </p>
-  <p :if={@ban.reason} class="reason">
-    Reason: <%= @ban.reason %>
+  <p class="reason">
+    Ban reason: <%= ban_reason(@ban) %>
   </p>
   <p>
     Expires: <strong><%= format_ban_datetime(@ban.expires_at) %></strong>

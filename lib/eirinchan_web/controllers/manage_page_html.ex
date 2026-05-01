@@ -47,7 +47,9 @@ defmodule EirinchanWeb.ManagePageHTML do
   end
 
   def noticeboard_page_path(1), do: "/manage/noticeboard"
-  def noticeboard_page_path(page_no) when is_integer(page_no) and page_no > 1, do: "/manage/noticeboard/#{page_no}"
+
+  def noticeboard_page_path(page_no) when is_integer(page_no) and page_no > 1,
+    do: "/manage/noticeboard/#{page_no}"
 
   def custom_page_path(%{slug: slug}), do: custom_page_path(slug)
   def custom_page_path("faq"), do: "/faq"
@@ -61,6 +63,30 @@ defmodule EirinchanWeb.ManagePageHTML do
   def mod_role_label("mod"), do: "Moderator"
   def mod_role_label("janitor"), do: "Janitor"
   def mod_role_label(_role), do: "Unknown"
+
+  def ban_reason(%{reason: reason}) when is_binary(reason) do
+    case String.trim(reason) do
+      "" -> "None"
+      trimmed -> trimmed
+    end
+  end
+
+  def ban_reason(_ban), do: "None"
+
+  def ban_target(%{ip_subnet: ip_subnet}) when is_binary(ip_subnet) do
+    case String.trim(ip_subnet) do
+      "" -> "Unknown"
+      target -> target
+    end
+  end
+
+  def ban_target(_ban), do: "Unknown"
+
+  def ban_target_kind(%{ip_subnet: ip_subnet}) when is_binary(ip_subnet) do
+    if String.contains?(ip_subnet, "/"), do: "range", else: "IP"
+  end
+
+  def ban_target_kind(_ban), do: "IP"
 
   def user_board_labels(%ModUser{role: "admin"}), do: ["all boards"]
   def user_board_labels(%ModUser{all_boards: true}), do: ["all boards"]
