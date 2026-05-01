@@ -10,6 +10,9 @@ defmodule Eirinchan.Bans do
   alias Eirinchan.Repo
 
   @duration_pattern ~r/^((\d+)\s?ye?a?r?s?)?\s?+((\d+)\s?mon?t?h?s?)?\s?+((\d+)\s?we?e?k?s?)?\s?+((\d+)\s?da?y?s?)?((\d+)\s?ho?u?r?s?)?\s?+((\d+)\s?mi?n?u?t?e?s?)?\s?+((\d+)\s?se?c?o?n?d?s?)?$/
+  @default_ban_appeals true
+  @default_ban_appeals_min_length 60 * 60 * 6
+  @default_ban_appeals_max 1
 
   @spec create_ban(map(), keyword()) :: {:ok, Ban.t()} | {:error, Ecto.Changeset.t()}
   def create_ban(attrs, opts \\ []) do
@@ -29,7 +32,8 @@ defmodule Eirinchan.Bans do
     |> repo.update()
   end
 
-  @spec parse_length(nil | String.t() | DateTime.t()) :: {:ok, DateTime.t() | nil} | {:error, :invalid_length}
+  @spec parse_length(nil | String.t() | DateTime.t()) ::
+          {:ok, DateTime.t() | nil} | {:error, :invalid_length}
   def parse_length(nil), do: {:ok, nil}
   def parse_length(%DateTime{} = datetime), do: {:ok, datetime}
 
@@ -136,7 +140,7 @@ defmodule Eirinchan.Bans do
   @spec get_ban(String.t() | integer(), keyword()) :: Ban.t() | nil
   def get_ban(id, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
-    repo.get(Ban, normalize_id(id))
+    fetch_ban(repo, id)
   end
 
   @spec create_appeal(String.t() | integer(), map(), keyword()) ::
@@ -144,18 +148,61 @@ defmodule Eirinchan.Bans do
   def create_appeal(ban_id, attrs, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
 
-    case repo.get(Ban, normalize_id(ban_id)) do
+    case fetch_ban(repo, ban_id) do
       nil ->
         {:error, :not_found}
 
       %Ban{} = ban ->
-        %Appeal{}
-        |> Appeal.changeset(%{
-          "ban_id" => ban.id,
-          "body" => Map.get(normalize_attrs(attrs), "body"),
-          "status" => "open"
-        })
-        |> repo.insert()
+        insert_appeal(repo, ban, attrs)
+    end
+  end
+
+  @spec create_appeal_for_request(
+          String.t() | integer(),
+          map(),
+          BoardRecord.t(),
+          tuple() | String.t() | nil,
+          keyword()
+        ) ::
+          {:ok, Appeal.t()}
+          | {:error,
+             :not_found
+             | :appeals_disabled
+             | :appeal_too_short
+             | :appeal_pending
+             | :appeal_limit
+             | Ecto.Changeset.t()}
+  def create_appeal_for_request(ban_id, attrs, %BoardRecord{} = board, remote_ip, opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+    config = Keyword.get(opts, :config, %{})
+    remote_ip = normalize_ip(remote_ip)
+
+    case fetch_ban(repo, ban_id) do
+      nil ->
+        {:error, :not_found}
+
+      %Ban{} = ban ->
+        cond do
+          not active?(ban) ->
+            {:error, :not_found}
+
+          not ban_applies_to_board?(ban, board) ->
+            {:error, :not_found}
+
+          not ban_matches?(ban, remote_ip) ->
+            {:error, :not_found}
+
+          true ->
+            ban = repo.preload(ban, :appeals)
+
+            case appeal_context(ban, config) do
+              %{can_appeal?: true} ->
+                insert_appeal(repo, ban, attrs)
+
+              %{appeal_error: reason} ->
+                {:error, reason}
+            end
+        end
     end
   end
 
@@ -193,11 +240,17 @@ defmodule Eirinchan.Bans do
   def get_appeal(id, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
 
-    repo.one(
-      from appeal in Appeal,
-        where: appeal.id == ^normalize_id(id),
-        preload: [ban: [:board]]
-    )
+    case parse_id(id) do
+      {:ok, id} ->
+        repo.one(
+          from appeal in Appeal,
+            where: appeal.id == ^id,
+            preload: [ban: [:board]]
+        )
+
+      :error ->
+        nil
+    end
   end
 
   @spec resolve_appeal(String.t() | integer(), map(), keyword()) ::
@@ -205,17 +258,82 @@ defmodule Eirinchan.Bans do
   def resolve_appeal(appeal_id, attrs, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
 
-    case repo.get(Appeal, normalize_id(appeal_id)) do
+    case fetch_appeal(repo, appeal_id) do
       nil ->
         {:error, :not_found}
 
       %Appeal{} = appeal ->
-        appeal
-        |> Appeal.changeset(
-          normalize_attrs(attrs)
-          |> Map.put("resolved_at", DateTime.utc_now() |> DateTime.truncate(:microsecond))
-        )
-        |> repo.update()
+        repo.transaction(fn ->
+          with {:ok, resolved_appeal} <-
+                 appeal
+                 |> Appeal.changeset(
+                   normalize_attrs(attrs)
+                   |> Map.put(
+                     "resolved_at",
+                     DateTime.utc_now() |> DateTime.truncate(:microsecond)
+                   )
+                 )
+                 |> repo.update(),
+               :ok <- maybe_deactivate_ban_for_resolved_appeal(repo, resolved_appeal) do
+            resolved_appeal
+          else
+            {:error, reason} -> repo.rollback(reason)
+          end
+        end)
+    end
+  end
+
+  @spec appeal_context_for_request(BoardRecord.t(), tuple() | String.t() | nil, map(), keyword()) ::
+          map() | nil
+  def appeal_context_for_request(%BoardRecord{} = board, remote_ip, config \\ %{}, opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+
+    case active_ban_for_request(board, remote_ip, opts) do
+      nil ->
+        nil
+
+      %Ban{} = ban ->
+        ban
+        |> repo.preload(:appeals)
+        |> appeal_context(config)
+        |> Map.put(:remote_ip, normalize_ip(remote_ip))
+    end
+  end
+
+  @spec appeal_context(Ban.t(), map()) :: map()
+  def appeal_context(%Ban{} = ban, config \\ %{}) do
+    appeals =
+      ban
+      |> Map.get(:appeals, [])
+      |> loaded_association()
+      |> Enum.sort_by(&(&1.inserted_at || DateTime.from_unix!(0)))
+
+    pending_appeal = Enum.find(appeals, &(&1.status == "open"))
+    rejected_appeals = Enum.filter(appeals, &(&1.status == "rejected"))
+
+    context = %{
+      ban: ban,
+      pending_appeal: pending_appeal,
+      rejected_appeals: rejected_appeals,
+      can_appeal?: false,
+      appeal_error: nil
+    }
+
+    cond do
+      not ban_appeals_enabled?(config) ->
+        %{context | appeal_error: :appeals_disabled}
+
+      ban_too_short_to_appeal?(ban, config) ->
+        %{context | appeal_error: :appeal_too_short}
+
+      pending_appeal ->
+        %{context | appeal_error: :appeal_pending}
+
+      length(rejected_appeals) >= ban_appeals_max(config) ->
+        %{context | appeal_error: :appeal_limit}
+
+      true ->
+        %{context | can_appeal?: true}
     end
   end
 
@@ -312,8 +430,48 @@ defmodule Eirinchan.Bans do
     end
   end
 
-  defp normalize_id(value) when is_integer(value), do: value
-  defp normalize_id(value) when is_binary(value), do: String.to_integer(String.trim(value))
+  defp insert_appeal(repo, %Ban{} = ban, attrs) do
+    %Appeal{}
+    |> Appeal.changeset(%{
+      "ban_id" => ban.id,
+      "body" => appeal_body(attrs),
+      "status" => "open"
+    })
+    |> repo.insert()
+  end
+
+  defp appeal_body(attrs) do
+    attrs = normalize_attrs(attrs)
+
+    Map.get(attrs, "appeal") ||
+      Map.get(attrs, "body") ||
+      Map.get(attrs, "message")
+  end
+
+  defp fetch_ban(repo, id) do
+    case parse_id(id) do
+      {:ok, id} -> repo.get(Ban, id)
+      :error -> nil
+    end
+  end
+
+  defp fetch_appeal(repo, id) do
+    case parse_id(id) do
+      {:ok, id} -> repo.get(Appeal, id)
+      :error -> nil
+    end
+  end
+
+  defp parse_id(value) when is_integer(value) and value > 0, do: {:ok, value}
+
+  defp parse_id(value) when is_binary(value) do
+    case Integer.parse(String.trim(value)) do
+      {id, ""} when id > 0 -> {:ok, id}
+      _ -> :error
+    end
+  end
+
+  defp parse_id(_value), do: :error
 
   defp normalize_ip({a, b, c, d}), do: Enum.join([a, b, c, d], ".")
 
@@ -325,6 +483,55 @@ defmodule Eirinchan.Bans do
 
   defp normalize_ip(ip) when is_binary(ip), do: String.trim(ip)
   defp normalize_ip(_ip), do: nil
+
+  defp ban_applies_to_board?(%Ban{board_id: nil}, %BoardRecord{}), do: true
+  defp ban_applies_to_board?(%Ban{board_id: board_id}, %BoardRecord{id: board_id}), do: true
+  defp ban_applies_to_board?(%Ban{}, %BoardRecord{}), do: false
+
+  defp loaded_association(%Ecto.Association.NotLoaded{}), do: []
+  defp loaded_association(value) when is_list(value), do: value
+  defp loaded_association(_value), do: []
+
+  defp ban_appeals_enabled?(config),
+    do: truthy_config?(config_value(config, :ban_appeals, @default_ban_appeals))
+
+  defp ban_too_short_to_appeal?(%Ban{expires_at: nil}, _config), do: false
+
+  defp ban_too_short_to_appeal?(%Ban{inserted_at: nil}, _config), do: false
+
+  defp ban_too_short_to_appeal?(%Ban{inserted_at: inserted_at, expires_at: expires_at}, config) do
+    min_length = config_value(config, :ban_appeals_min_length, @default_ban_appeals_min_length)
+
+    is_integer(min_length) and min_length > 0 and
+      DateTime.diff(expires_at, inserted_at, :second) <= min_length
+  end
+
+  defp ban_appeals_max(config) do
+    case config_value(config, :ban_appeals_max, @default_ban_appeals_max) do
+      value when is_integer(value) and value > 0 -> value
+      _ -> @default_ban_appeals_max
+    end
+  end
+
+  defp config_value(config, key, default) when is_map(config), do: Map.get(config, key, default)
+  defp config_value(_config, _key, default), do: default
+
+  defp truthy_config?(value), do: value not in [false, nil, 0, "0", "false", "False", "FALSE"]
+
+  defp maybe_deactivate_ban_for_resolved_appeal(repo, %Appeal{status: "resolved", ban_id: ban_id}) do
+    case repo.get(Ban, ban_id) do
+      nil ->
+        :ok
+
+      %Ban{} = ban ->
+        case ban |> Ban.changeset(%{active: false}) |> repo.update() do
+          {:ok, _ban} -> :ok
+          {:error, changeset} -> {:error, changeset}
+        end
+    end
+  end
+
+  defp maybe_deactivate_ban_for_resolved_appeal(_repo, %Appeal{}), do: :ok
 
   defp normalize_ip_mask(value) when is_binary(value) do
     value
@@ -409,8 +616,15 @@ defmodule Eirinchan.Bans do
 
       matches ->
         seconds =
-          [{2, 365 * 24 * 60 * 60}, {4, 30 * 24 * 60 * 60}, {6, 7 * 24 * 60 * 60},
-           {8, 24 * 60 * 60}, {10, 60 * 60}, {12, 60}, {14, 1}]
+          [
+            {2, 365 * 24 * 60 * 60},
+            {4, 30 * 24 * 60 * 60},
+            {6, 7 * 24 * 60 * 60},
+            {8, 24 * 60 * 60},
+            {10, 60 * 60},
+            {12, 60},
+            {14, 1}
+          ]
           |> Enum.reduce(0, fn {index, unit_seconds}, acc ->
             case Enum.at(matches, index) do
               nil -> acc
@@ -420,7 +634,8 @@ defmodule Eirinchan.Bans do
           end)
 
         if seconds > 0 do
-          {:ok, DateTime.utc_now() |> DateTime.add(seconds, :second) |> DateTime.truncate(:second)}
+          {:ok,
+           DateTime.utc_now() |> DateTime.add(seconds, :second) |> DateTime.truncate(:second)}
         else
           {:error, :invalid_length}
         end

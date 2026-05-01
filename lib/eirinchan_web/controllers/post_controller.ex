@@ -5,6 +5,7 @@ defmodule EirinchanWeb.PostController do
 
   alias Eirinchan.Antispam
   alias Eirinchan.Bans
+  alias Eirinchan.Boards
   alias Eirinchan.IpAccessAuth
   alias Eirinchan.ModerationLog
   alias Eirinchan.PostFailureLog
@@ -15,7 +16,10 @@ defmodule EirinchanWeb.PostController do
   alias Eirinchan.Reports
   alias Eirinchan.ThreadWatcher
   alias Eirinchan.ThreadPaths
+  alias EirinchanWeb.Announcements
+  alias EirinchanWeb.BoardChrome
   alias EirinchanWeb.PostView
+  alias EirinchanWeb.PublicControllerHelpers
   alias EirinchanWeb.RequestMeta
   alias EirinchanWeb.ShowYous
 
@@ -121,12 +125,22 @@ defmodule EirinchanWeb.PostController do
         end
 
       :appeal ->
-        case Bans.create_appeal(params["appeal_ban_id"] || params["ban_id"], params) do
+        case Bans.create_appeal_for_request(
+               params["appeal_ban_id"] || params["ban_id"],
+               params,
+               board,
+               request.remote_ip,
+               config: config
+             ) do
           {:ok, appeal} ->
-            respond_appealed(conn, board, appeal, params)
+            respond_appealed(conn, board, appeal, params, request, config)
 
           {:error, :not_found} ->
-            respond_error(conn, :ban_not_found, :not_found, "Ban not found", config)
+            respond_appeal_error(conn, board, request, config, :not_found)
+
+          {:error, reason}
+          when reason in [:appeals_disabled, :appeal_too_short, :appeal_pending, :appeal_limit] ->
+            respond_appeal_error(conn, board, request, config, reason)
 
           {:error, %Ecto.Changeset{} = changeset} ->
             respond_changeset_error(conn, changeset)
@@ -136,6 +150,9 @@ defmodule EirinchanWeb.PostController do
         case Posts.create_post(board, params, config: config, request: request) do
           {:ok, post, meta} ->
             respond_created(conn, board, post, params, meta)
+
+          {:error, :banned} ->
+            respond_banned(conn, board, request, config)
 
           {:error, reason} when is_atom(reason) ->
             respond_error(
@@ -368,6 +385,88 @@ defmodule EirinchanWeb.PostController do
     end
   end
 
+  defp respond_banned(conn, board, request, config, opts \\ []) do
+    message = Keyword.get(opts, :message, error_message(:banned, config))
+    appeal_notice = Keyword.get(opts, :appeal_notice)
+    appeal_error = Keyword.get(opts, :appeal_error)
+    status = Keyword.get(opts, :status, :forbidden)
+    if Keyword.get(opts, :log?, true), do: log_post_error(:banned, status, conn)
+    context = Bans.appeal_context_for_request(board, request.remote_ip, config)
+
+    if json_response?(conn) do
+      payload =
+        %{
+          error: message,
+          error_code: "banned",
+          banned: true
+        }
+        |> maybe_put_ban_context(context)
+
+      conn
+      |> put_status(status)
+      |> json(payload)
+    else
+      render_banned_page(conn, board, request, config, context,
+        status: status,
+        appeal_notice: appeal_notice,
+        appeal_error: appeal_error
+      )
+    end
+  end
+
+  defp render_banned_page(conn, _board, _request, config, nil, opts) do
+    conn
+    |> put_status(Keyword.get(opts, :status, :forbidden))
+    |> text(Keyword.get(opts, :appeal_error) || error_message(:banned, config))
+  end
+
+  defp render_banned_page(conn, board, request, config, context, opts) do
+    boards = Boards.list_boards()
+    chrome = BoardChrome.for_board(board)
+
+    shell_assigns =
+      PublicControllerHelpers.public_shell_assigns(conn, :banned,
+        javascript_config: config,
+        head_meta_opts: [board_name: board.uri]
+      )
+
+    page_assigns = [
+      layout: false,
+      board: board,
+      boards: boards,
+      config: config,
+      board_chrome: chrome,
+      global_message_html:
+        Announcements.global_message_html(config, surround_hr: true, board: board),
+      current_moderator: conn.assigns[:current_moderator],
+      secure_manage_token: conn.assigns[:secure_manage_token],
+      global_boardlist_groups:
+        BoardChrome.boardlist_groups(boards, chrome.boardlist_groups,
+          mobile_client?: conn.assigns[:mobile_client?] || false
+        ),
+      body_class: PublicControllerHelpers.moderator_body_class(conn, "active-banned"),
+      page_title: "Banned!",
+      ban: context.ban,
+      appeal_context: context,
+      remote_ip: context.remote_ip || request.remote_ip,
+      appeal_notice: Keyword.get(opts, :appeal_notice),
+      appeal_error: Keyword.get(opts, :appeal_error)
+    ]
+
+    conn
+    |> put_status(Keyword.get(opts, :status, :forbidden))
+    |> render(:banned, Keyword.merge(shell_assigns, page_assigns))
+  end
+
+  defp maybe_put_ban_context(payload, nil), do: payload
+
+  defp maybe_put_ban_context(payload, context) do
+    payload
+    |> Map.put(:ban_id, context.ban.id)
+    |> Map.put(:appeal_available, Map.get(context, :can_appeal?))
+    |> Map.put(:appeal_error, context.appeal_error)
+  end
+
   defp respond_changeset_error(conn, changeset) do
     persist_post_failure(
       "post.changeset_error",
@@ -396,13 +495,34 @@ defmodule EirinchanWeb.PostController do
     end
   end
 
-  defp respond_appealed(conn, board, appeal, params) do
+  defp respond_appealed(conn, board, appeal, params, request, config) do
     redirect_path = "/#{board.uri}"
 
     if json_response?(conn, params) do
       json(conn, %{appeal_id: appeal.id, redirect: redirect_path, status: "ok"})
     else
-      redirect(conn, to: redirect_path)
+      respond_banned(conn, board, request, config,
+        status: :ok,
+        log?: false,
+        appeal_notice: "Your appeal has been submitted."
+      )
+    end
+  end
+
+  defp respond_appeal_error(conn, board, request, config, reason) do
+    message = appeal_error_message(reason)
+    status = appeal_error_status(reason)
+
+    if json_response?(conn) do
+      conn
+      |> put_status(status)
+      |> json(%{error: message, error_code: Atom.to_string(reason)})
+    else
+      respond_banned(conn, board, request, config,
+        status: status,
+        log?: false,
+        appeal_error: message
+      )
     end
   end
 
@@ -702,6 +822,18 @@ defmodule EirinchanWeb.PostController do
   defp error_message(:upload_failed, config), do: config.error.upload_failed
   defp error_message(:ban_not_found, _config), do: "Ban not found"
   defp error_message(:changeset, _config), do: "Request invalid"
+
+  defp appeal_error_message(:not_found), do: "That ban doesn't exist or is not for you."
+  defp appeal_error_message(:appeals_disabled), do: "Ban appeals are disabled."
+  defp appeal_error_message(:appeal_too_short), do: "You cannot appeal a ban of this length."
+
+  defp appeal_error_message(:appeal_pending),
+    do: "There is already a pending appeal for this ban."
+
+  defp appeal_error_message(:appeal_limit), do: "You cannot appeal this ban again."
+
+  defp appeal_error_status(:not_found), do: :not_found
+  defp appeal_error_status(_reason), do: :forbidden
 
   defp error_message(changeset) do
     Enum.map_join(changeset.errors, ", ", fn {field, {message, _opts}} ->

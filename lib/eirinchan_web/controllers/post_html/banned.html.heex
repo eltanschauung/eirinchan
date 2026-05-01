@@ -1,0 +1,49 @@
+<.board_banner />
+
+<header>
+  <h1>Banned!</h1>
+  <div class="subtitle">
+    <a href={"/#{@board.uri}/"}>/<%= @board.uri %>/</a>
+  </div>
+  <.admin_shortcuts moderator={@current_moderator} />
+</header>
+
+<%= if @global_message_html && @global_message_html != "" do %>
+  <%= raw(@global_message_html) %>
+<% end %>
+
+<div class="ban">
+  <h2>You are banned.</h2>
+  <p>
+    You have been banned from <strong>/<%= @board.uri %>/</strong>.
+  </p>
+  <p>
+    Your IP address is <strong><%= @remote_ip %></strong>.
+  </p>
+  <p :if={@ban.reason} class="reason">
+    Reason: <%= @ban.reason %>
+  </p>
+  <p>
+    Expires: <strong><%= format_ban_datetime(@ban.expires_at) %></strong>
+  </p>
+
+  <p :if={@appeal_notice} class="reason"><%= @appeal_notice %></p>
+  <p :if={@appeal_error} class="reason"><%= @appeal_error %></p>
+
+  <%= if Map.get(@appeal_context, :can_appeal?) do %>
+    <hr />
+    <p><%= appeal_prompt(@appeal_context) %></p>
+    <form class="ban-appeal" action="/post.php" method="post">
+      <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+      <input type="hidden" name="board" value={@board.uri} />
+      <input type="hidden" name="ban_id" value={@ban.id} />
+      <textarea name="appeal" rows="4" cols="40"></textarea>
+      <input type="submit" value="Submit" />
+    </form>
+  <% else %>
+    <hr />
+    <p :if={appeal_status(@appeal_context)}><%= appeal_status(@appeal_context) %></p>
+  <% end %>
+</div>
+
+<EirinchanWeb.PostComponents.site_footer />

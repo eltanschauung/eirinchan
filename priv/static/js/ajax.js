@@ -162,6 +162,21 @@ $(window).ready(function () {
       $submitInputs.removeAttr("disabled");
     }
 
+    function fallbackToBrowserSubmit() {
+      fallbackSubmit = true;
+
+      $(form)
+        .find('input[type="submit"]')
+        .each(function () {
+          var hidden = $("<input type=\"hidden\">");
+          hidden.attr("name", $(this).attr("name"));
+          hidden.val(submitLabel);
+          $(this).after(hidden).replaceWith($("<input type=\"button\">").val(submitLabel));
+        });
+
+      $(form).submit();
+    }
+
     function dispatchAfterPost(postPayload) {
       try {
         if (
@@ -285,18 +300,7 @@ $(window).ready(function () {
           success: function (response) {
             if (response.error) {
               if (response.banned) {
-                fallbackSubmit = true;
-
-                $(form)
-                  .find('input[type="submit"]')
-                  .each(function () {
-                    var hidden = $("<input type=\"hidden\">");
-                    hidden.attr("name", $(this).attr("name"));
-                    hidden.val(submitLabel);
-                    $(this).after(hidden).replaceWith($("<input type=\"button\">").val(submitLabel));
-                  });
-
-                $(form).submit();
+                fallbackToBrowserSubmit();
               } else {
                 alert(response.error);
                 resetFormState();
@@ -437,6 +441,11 @@ $(window).ready(function () {
 
             var message = parsedErrorMessage(xhr);
             var csrfFailure = isCsrfFailure(xhr, message);
+
+            if (xhr && xhr.responseJSON && xhr.responseJSON.banned) {
+              fallbackToBrowserSubmit();
+              return;
+            }
 
             if (firstAttempt && csrfFailure) {
               refreshCsrfToken()

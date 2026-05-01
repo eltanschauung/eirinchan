@@ -90,7 +90,7 @@ defmodule EirinchanWeb.PostControllerTest do
 
     assert Enum.any?(
              get_resp_header(conn, "set-cookie"),
-           &String.contains?(&1, "eirinchan_posted=#{encoded_cookie}")
+             &String.contains?(&1, "eirinchan_posted=#{encoded_cookie}")
            )
   end
 
@@ -165,8 +165,7 @@ defmodule EirinchanWeb.PostControllerTest do
     thread_path = redirected_to(conn)
     [public_id] = Regex.run(~r{/res/(\d+)}, thread_path, capture: :all_but_first)
 
-    post =
-      Repo.get_by!(Post, board_id: board.id, public_id: String.to_integer(public_id))
+    post = Repo.get_by!(Post, board_id: board.id, public_id: String.to_integer(public_id))
 
     assert post.password == "cookiepw"
   end
@@ -810,6 +809,7 @@ defmodule EirinchanWeb.PostControllerTest do
       board_fixture(%{
         config_overrides: %{upload_by_url_enabled: true, upload_by_url_allow_private_hosts: true}
       })
+
     source_upload = upload_fixture("remote.png", "remote-image")
     server = serve_upload_fixture(File.read!(source_upload.path), "remote.png")
     on_exit(server.stop)
@@ -891,7 +891,7 @@ defmodule EirinchanWeb.PostControllerTest do
         }
       })
 
-    source_upload = upload_fixture("remote.png", [content: String.duplicate("x", 1024)])
+    source_upload = upload_fixture("remote.png", content: String.duplicate("x", 1024))
     server = serve_upload_fixture(File.read!(source_upload.path), "remote.png")
     on_exit(server.stop)
 
@@ -998,6 +998,7 @@ defmodule EirinchanWeb.PostControllerTest do
     assert metadata["post_context"]["body"] == "first post"
     assert metadata["post_context"]["body_length"] == 10
     assert metadata["post_context"]["has_upload"] == true
+
     assert metadata["post_context"]["uploads"] == [
              %{
                "filename" => unique_name,
@@ -1005,6 +1006,7 @@ defmodule EirinchanWeb.PostControllerTest do
                "size" => 12
              }
            ]
+
     assert metadata["params"]["body"] == "first post"
     assert diagnostic["filename"] == unique_name
     assert diagnostic["content_type"] == "image/png"
@@ -1034,7 +1036,9 @@ defmodule EirinchanWeb.PostControllerTest do
     assert %{"error" => "Image dimensions too large."} = json_response(conn, 422)
   end
 
-  test "posting accepts valid image bytes even if the filename extension is altered", %{conn: conn} do
+  test "posting accepts valid image bytes even if the filename extension is altered", %{
+    conn: conn
+  } do
     board = board_fixture(%{config_overrides: %{force_image_op: true}})
 
     disguised_jpeg =
@@ -1444,7 +1448,40 @@ defmodule EirinchanWeb.PostControllerTest do
         "post" => "New Topic"
       })
 
-    assert %{"error" => "You are banned."} = json_response(conn, 403)
+    assert %{
+             "appeal_available" => true,
+             "ban_id" => _ban_id,
+             "banned" => true,
+             "error" => "You are banned."
+           } = json_response(conn, 403)
+  end
+
+  test "classic posting renders a ban appeal page for banned ips", %{conn: conn} do
+    board = board_fixture()
+
+    {:ok, ban} =
+      Eirinchan.Bans.create_ban(%{
+        board_id: board.id,
+        ip_subnet: "203.0.113.0/24",
+        reason: "Spam wave",
+        expires_at: DateTime.add(DateTime.utc_now(), 60 * 60 * 24, :second)
+      })
+
+    conn =
+      conn
+      |> Map.put(:remote_ip, {203, 0, 113, 9})
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post(~p"/#{board.uri}/post", %{
+        "body" => "first post",
+        "post" => "New Topic"
+      })
+
+    response = html_response(conn, 403)
+
+    assert response =~ "Banned!"
+    assert response =~ "Spam wave"
+    assert response =~ "name=\"ban_id\" value=\"#{ban.id}\""
+    assert response =~ "name=\"appeal\""
   end
 
   test "post endpoint accepts ban appeals", %{conn: conn} do
@@ -1455,10 +1492,11 @@ defmodule EirinchanWeb.PostControllerTest do
 
     conn =
       conn
+      |> Map.put(:remote_ip, {203, 0, 113, 4})
       |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
       |> post(~p"/#{board.uri}/post", %{
         "appeal_ban_id" => Integer.to_string(ban.id),
-        "body" => "Please review",
+        "appeal" => "Please review",
         "json_response" => "1"
       })
 
@@ -1605,7 +1643,9 @@ defmodule EirinchanWeb.PostControllerTest do
     assert redirect == "/#{board.uri}"
   end
 
-  test "delete file only preserves a deleted-file placeholder in rebuilt thread html", %{conn: conn} do
+  test "delete file only preserves a deleted-file placeholder in rebuilt thread html", %{
+    conn: conn
+  } do
     board = board_fixture()
 
     create_conn =
@@ -1784,15 +1824,19 @@ defmodule EirinchanWeb.PostControllerTest do
     assert {:error, :not_found} = Eirinchan.Posts.get_thread(board, PublicIds.public_id(thread))
   end
 
-  test "public delete form payload deletes selected post instead of treating submit value as id", %{
-    conn: conn
-  } do
+  test "public delete form payload deletes selected post instead of treating submit value as id",
+       %{
+         conn: conn
+       } do
     board = board_fixture()
     thread = thread_fixture(board, %{password: "threadpw"})
 
     conn =
       conn
-      |> put_req_header("referer", "http://www.example.com/#{board.uri}/res/#{PublicIds.public_id(thread)}.html")
+      |> put_req_header(
+        "referer",
+        "http://www.example.com/#{board.uri}/res/#{PublicIds.public_id(thread)}.html"
+      )
       |> post("/post.php", %{
         "board" => board.uri,
         "delete_#{PublicIds.public_id(thread)}" => "on",
