@@ -16,7 +16,16 @@
           Board: <a href={"/#{appeal.ban.board.uri}"}>/<%= appeal.ban.board.uri %>/</a>
         </p>
         <p>Status: <%= appeal.status %></p>
-        <p>IP: <%= ban_target(appeal.ban) %></p>
+        <p>
+          IP:
+          <%= if ban_target_known?(appeal.ban) do %>
+            <a class="ip-link" style="margin:0;" href={ban_target_href(appeal.ban)}>
+              [<%= ban_target(appeal.ban) %>]
+            </a>
+          <% else %>
+            Unknown
+          <% end %>
+        </p>
         <p>Ban reason: <%= ban_reason(appeal.ban) %></p>
         <p>Appeal: <%= appeal.body %></p>
         <p :if={appeal.resolution_note}>Resolution: <%= appeal.resolution_note %></p>

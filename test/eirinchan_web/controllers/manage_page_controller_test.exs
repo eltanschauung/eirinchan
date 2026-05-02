@@ -1372,7 +1372,11 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert appeals_page =~ "Ban appeals (1)"
     assert appeals_page =~ "Please review"
     assert appeals_page =~ "/#{board.uri}/"
-    assert appeals_page =~ "IP: 198.51.100.0/24"
+    assert appeals_page =~ "IP:"
+    assert appeals_page =~ ~s(class="ip-link")
+    assert appeals_page =~ ~s(style="margin:0;")
+    assert appeals_page =~ ~s(href="/mod.php?/IP/198.51.100.0")
+    assert appeals_page =~ "[198.51.100.0/24]"
     assert appeals_page =~ "Ban reason: None"
     assert appeals_page =~ "Unban range"
     assert appeals_page =~ "Reject Appeal"

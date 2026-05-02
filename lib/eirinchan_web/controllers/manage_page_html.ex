@@ -82,6 +82,22 @@ defmodule EirinchanWeb.ManagePageHTML do
 
   def ban_target(_ban), do: "Unknown"
 
+  def ban_target_known?(%{ip_subnet: ip_subnet}) when is_binary(ip_subnet),
+    do: String.trim(ip_subnet) != ""
+
+  def ban_target_known?(_ban), do: false
+
+  def ban_target_href(ban), do: "/mod.php?/IP/#{ban_target_link_value(ban)}"
+
+  defp ban_target_link_value(%{ip_subnet: ip_subnet}) when is_binary(ip_subnet) do
+    ip_subnet
+    |> String.trim()
+    |> String.split("/", parts: 2)
+    |> List.first()
+  end
+
+  defp ban_target_link_value(ban), do: ban_target(ban)
+
   def ban_target_kind(%{ip_subnet: ip_subnet}) when is_binary(ip_subnet) do
     if String.contains?(ip_subnet, "/"), do: "range", else: "IP"
   end
