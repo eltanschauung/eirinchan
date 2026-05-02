@@ -7,6 +7,7 @@ defmodule EirinchanWeb.PostViewTest do
   alias Eirinchan.Runtime.Config
   alias EirinchanWeb.PostComponents
   alias EirinchanWeb.PostView
+
   test "template_assigns exposes the compatibility contract" do
     board = %BoardRecord{uri: "files", title: "Files"}
     post = %Post{id: 10, subject: "Upload thread"}
@@ -182,6 +183,7 @@ defmodule EirinchanWeb.PostViewTest do
   test "april fools teams replace poster ids with styled team badges" do
     config = Config.compose(%{april_fools_teams: true})
     board = %BoardRecord{uri: "bant", title: "Bant"}
+
     post = %Post{
       id: 100,
       thread_id: nil,
@@ -213,6 +215,34 @@ defmodule EirinchanWeb.PostViewTest do
     post = %Post{id: 100, thread_id: nil, file_path: "deleted", thumb_path: nil, embed: nil}
 
     assert PostView.catalog_media_path(post, config) == "/static/deleted.png"
+  end
+
+  test "swf files render as non-image file links for the ruffle expander" do
+    config = Config.compose()
+
+    file = %{
+      file_name: "flash movie.swf",
+      file_path: "/bant/src/123.swf",
+      thumb_path: "/bant/thumb/123s.png",
+      file_size: 1234,
+      file_type: "application/x-shockwave-flash",
+      image_width: nil,
+      image_height: nil,
+      spoiler: false
+    }
+
+    html =
+      PostComponents.file_image_html(%{
+        file: file,
+        config: config,
+        op?: false
+      })
+
+    assert PostView.file_link_class(file) == "file"
+    assert html =~ ~s(href="/bant/src/123.swf")
+    assert html =~ ~s(class="file")
+    assert html =~ ~s(src="/bant/thumb/123s.png")
+    refute html =~ "data-inline-expandable"
   end
 
   test "body_html marks owned quote targets server-side" do
@@ -427,7 +457,11 @@ defmodule EirinchanWeb.PostViewQuoteTest do
       )
 
     expected_href =
-      ThreadPaths.thread_path(board, target_thread, Config.compose(nil, %{}, board.config_overrides)) <>
+      ThreadPaths.thread_path(
+        board,
+        target_thread,
+        Config.compose(nil, %{}, board.config_overrides)
+      ) <>
         "##{PublicIds.public_id(target_reply)}"
 
     assert html =~ ~s(data-highlight-reply="#{PublicIds.public_id(target_reply)}")

@@ -103,10 +103,13 @@ defmodule EirinchanWeb.JsBundles do
   @ignored_scripts MapSet.new([
                      "js/archive.js",
                      "js/filters.js",
-                     "js/instance.settings.js",
-                     "js/ruffle.js",
-                     "js/expand-swf.js"
+                     "js/instance.settings.js"
                    ])
+
+  @external_scripts MapSet.new([
+                      "js/ruffle.js",
+                      "js/expand-swf.js"
+                    ])
 
   def bundle_keys_for("thread"), do: bundle_keys_for(:thread)
   def bundle_keys_for("index"), do: bundle_keys_for(:index)
@@ -144,6 +147,11 @@ defmodule EirinchanWeb.JsBundles do
   def ignored_script?(script) when is_binary(script) do
     normalized = String.trim_leading(script, "/")
     MapSet.member?(@ignored_scripts, normalized)
+  end
+
+  def external_script?(script) when is_binary(script) do
+    normalized = String.trim_leading(script, "/")
+    MapSet.member?(@external_scripts, normalized)
   end
 
   def all_bundle_keys do

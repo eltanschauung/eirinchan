@@ -37,7 +37,9 @@ defmodule Eirinchan.Runtime.Config do
       "js/jquery.min.js",
       "js/inline-expanding.js",
       "js/server-thread-watcher.js",
-      "js/blotter.js"
+      "js/blotter.js",
+      "js/ruffle.js",
+      "js/expand-swf.js"
     ],
     allow_custom_javascript: true,
     allow_remote_script_urls: true,
@@ -230,7 +232,7 @@ defmodule Eirinchan.Runtime.Config do
       ".mp3" => "mp3.png",
       ".flac" => "flac.png",
       ".wav" => "wav.png",
-      ".swf" => "file.png",
+      ".swf" => "swf.png",
       ".pdf" => "file.png",
       "default" => "file.png"
     },

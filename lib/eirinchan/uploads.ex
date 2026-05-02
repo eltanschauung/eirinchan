@@ -49,7 +49,8 @@ defmodule Eirinchan.Uploads do
          {:ok, staged_path} <- create_staged_upload_path(staged_metadata.ext) do
       with :ok <- write_staged_upload(upload.path, staged_path, config, initial_metadata),
            :ok <- normalize_stored_upload(staged_path, config, staged_metadata),
-           {:ok, prepared_metadata} <- refresh_stored_metadata(staged_path, staged_metadata, config),
+           {:ok, prepared_metadata} <-
+             refresh_stored_metadata(staged_path, staged_metadata, config),
            {:ok, staged_thumb_path} <-
              create_staged_thumbnail_path(thumbnail_extension(prepared_metadata, config)) do
         case generate_thumbnail(staged_path, staged_thumb_path, config, prepared_metadata, op?) do
@@ -259,18 +260,44 @@ defmodule Eirinchan.Uploads do
   def compatible_with_extension?(ext, file_type)
       when is_binary(ext) and is_binary(file_type) do
     cond do
-      ext in [".jpg", ".jpeg"] -> file_type == "image/jpeg"
-      ext == ".png" -> file_type == "image/png"
-      ext == ".gif" -> file_type == "image/gif"
-      ext == ".bmp" -> file_type in ["image/bmp", "image/x-ms-bmp"]
-      ext == ".webp" -> file_type == "image/webp"
-      ext == ".avif" -> file_type == "image/avif"
-      ext == ".svg" -> file_type == "image/svg+xml"
-      ext == ".jxl" -> file_type == "image/jxl"
-      ext == ".webm" -> file_type == "video/webm"
-      ext == ".mp4" -> file_type in ["video/mp4", "application/mp4"]
-      ext == ".txt" -> file_type == "inode/x-empty" or String.starts_with?(file_type, "text/")
-      true -> true
+      ext in [".jpg", ".jpeg"] ->
+        file_type == "image/jpeg"
+
+      ext == ".png" ->
+        file_type == "image/png"
+
+      ext == ".gif" ->
+        file_type == "image/gif"
+
+      ext == ".bmp" ->
+        file_type in ["image/bmp", "image/x-ms-bmp"]
+
+      ext == ".webp" ->
+        file_type == "image/webp"
+
+      ext == ".avif" ->
+        file_type == "image/avif"
+
+      ext == ".svg" ->
+        file_type == "image/svg+xml"
+
+      ext == ".jxl" ->
+        file_type == "image/jxl"
+
+      ext == ".webm" ->
+        file_type == "video/webm"
+
+      ext == ".mp4" ->
+        file_type in ["video/mp4", "application/mp4"]
+
+      ext == ".swf" ->
+        file_type in ["application/x-shockwave-flash", "application/vnd.adobe.flash.movie"]
+
+      ext == ".txt" ->
+        file_type == "inode/x-empty" or String.starts_with?(file_type, "text/")
+
+      true ->
+        true
     end
   end
 
@@ -725,8 +752,7 @@ defmodule Eirinchan.Uploads do
   end
 
   defp create_staged_upload_path(ext) do
-    path =
-      Path.join(staging_root(), "upload-#{System.unique_integer([:positive])}#{ext}")
+    path = Path.join(staging_root(), "upload-#{System.unique_integer([:positive])}#{ext}")
 
     path
     |> Path.dirname()
@@ -736,8 +762,7 @@ defmodule Eirinchan.Uploads do
   end
 
   defp create_staged_thumbnail_path(ext) do
-    path =
-      Path.join(staging_root(), "thumb-#{System.unique_integer([:positive])}#{ext}")
+    path = Path.join(staging_root(), "thumb-#{System.unique_integer([:positive])}#{ext}")
 
     path
     |> Path.dirname()
@@ -1251,7 +1276,8 @@ defmodule Eirinchan.Uploads do
     end
   end
 
-  defp validate_video_metadata(data, ext, config), do: video_allowed_for_upload?(data, ext, config)
+  defp validate_video_metadata(data, ext, config),
+    do: video_allowed_for_upload?(data, ext, config)
 
   defp validate_video_format(".webm", format_name, codec)
        when is_binary(format_name) and codec in ["vp8", "vp9", "av1"] do

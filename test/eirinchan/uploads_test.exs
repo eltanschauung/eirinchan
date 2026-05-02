@@ -11,6 +11,12 @@ defmodule Eirinchan.UploadsTest do
     assert {:ok, %{file_name: "two words.txt"}} = Uploads.describe(upload, %{})
   end
 
+  test "swf uploads require a flash MIME type" do
+    assert Uploads.compatible_with_extension?(".swf", "application/x-shockwave-flash")
+    assert Uploads.compatible_with_extension?(".swf", "application/vnd.adobe.flash.movie")
+    refute Uploads.compatible_with_extension?(".swf", "text/html")
+  end
+
   test "video upload validation accepts av1 webm streams" do
     assert :ok ==
              Uploads.video_allowed_for_upload?(

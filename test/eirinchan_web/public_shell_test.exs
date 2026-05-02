@@ -100,6 +100,25 @@ defmodule EirinchanWeb.PublicShellTest do
            ]
   end
 
+  test "compile mode keeps ruffle scripts outside bundles" do
+    config = %{
+      root: "/",
+      url_javascript: "/main.js",
+      additional_javascript: ["js/jquery.min.js", "js/ruffle.js", "js/expand-swf.js"],
+      additional_javascript_url: "/",
+      additional_javascript_compile: true
+    }
+
+    assert PublicShell.javascript_urls(:thread, config) == [
+             "/js/runtime-config.js",
+             "/main.js",
+             "/js/bundle-public-core.js",
+             "/js/bundle-public-thread.js",
+             "/js/ruffle.js",
+             "/js/expand-swf.js"
+           ]
+  end
+
   test "compile mode uses the catalog bundle for catalog pages" do
     config = %{
       root: "/",
@@ -113,7 +132,7 @@ defmodule EirinchanWeb.PublicShellTest do
              "/js/runtime-config.js",
              "/main.js",
              "/js/bundle-public-core.js",
-           "/js/bundle-public-catalog.js"
+             "/js/bundle-public-catalog.js"
            ]
   end
 
@@ -223,7 +242,11 @@ defmodule EirinchanWeb.PublicShellTest do
     config = %{
       root: "/",
       url_javascript: "/main.js",
-      additional_javascript: ["js/jquery.min.js", "js/post-filter.js", "js/fix-report-delete-submit.js"],
+      additional_javascript: [
+        "js/jquery.min.js",
+        "js/post-filter.js",
+        "js/fix-report-delete-submit.js"
+      ],
       additional_javascript_url: "/",
       additional_javascript_compile: false
     }
@@ -252,7 +275,7 @@ defmodule EirinchanWeb.PublicShellTest do
              "/js/runtime-config.js",
              "/main.js",
              "/js/jquery.min.js",
-           "/js/ajax.js"
+             "/js/ajax.js"
            ]
   end
 

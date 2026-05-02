@@ -12,47 +12,47 @@ defmodule EirinchanWeb.PublicShell do
   ]
 
   @catalog_blocked_scripts MapSet.new([
-                           "js/jquery.mixitup.min.js",
-                           "js/thread-stats.js",
-                           "js/strftime.min.js",
-                           "js/navarrows2.js",
-                           "js/quick-reply.js",
-                           "js/local-time.js",
-                           "js/titlebar-notifications.js",
-                           "js/post-hover.js",
-                           "js/show-own-posts-options.js",
-                           "js/archive.js",
-                           "js/quick-post-controls.js",
-                           "js/ruffle.js",
-                           "js/expand-swf.js",
-                           "js/webm-settings.js",
-                           "js/expand-video.js"
-                         ])
+                             "js/jquery.mixitup.min.js",
+                             "js/thread-stats.js",
+                             "js/strftime.min.js",
+                             "js/navarrows2.js",
+                             "js/quick-reply.js",
+                             "js/local-time.js",
+                             "js/titlebar-notifications.js",
+                             "js/post-hover.js",
+                             "js/show-own-posts-options.js",
+                             "js/archive.js",
+                             "js/quick-post-controls.js",
+                             "js/ruffle.js",
+                             "js/expand-swf.js",
+                             "js/webm-settings.js",
+                             "js/expand-video.js"
+                           ])
 
   @search_blocked_scripts MapSet.new([
-                          "js/thread-stats.js",
-                          "js/server-thread-watcher.js",
-                          "js/navarrows2.js",
-                          "js/quick-reply.js",
-                          "js/titlebar-notifications.js",
-                          "js/post-hover.js",
-                          "js/show-own-posts-options.js",
-                          "js/archive.js",
-                          "js/quick-post-controls.js",
-                          "js/filters.js",
-                          "js/hide-threads.js",
-                          "js/post-filter.js",
-                          "js/fix-report-delete-submit.js",
-                          "js/jquery.mixitup.min.js",
-                          "js/catalog.js",
-                          "js/catalog-search.js",
-                          "js/file-selector.js",
-                          "js/upload-selection.js",
-                          "js/ajax.js",
-                          "js/auto-reload.js",
-                          "js/expand-video.js",
-                          "js/webm-settings.js"
-                        ])
+                            "js/thread-stats.js",
+                            "js/server-thread-watcher.js",
+                            "js/navarrows2.js",
+                            "js/quick-reply.js",
+                            "js/titlebar-notifications.js",
+                            "js/post-hover.js",
+                            "js/show-own-posts-options.js",
+                            "js/archive.js",
+                            "js/quick-post-controls.js",
+                            "js/filters.js",
+                            "js/hide-threads.js",
+                            "js/post-filter.js",
+                            "js/fix-report-delete-submit.js",
+                            "js/jquery.mixitup.min.js",
+                            "js/catalog.js",
+                            "js/catalog-search.js",
+                            "js/file-selector.js",
+                            "js/upload-selection.js",
+                            "js/ajax.js",
+                            "js/auto-reload.js",
+                            "js/expand-video.js",
+                            "js/webm-settings.js"
+                          ])
 
   def head_meta(active_page, opts \\ []) do
     config =
@@ -69,10 +69,17 @@ defmodule EirinchanWeb.PublicShell do
     watcher_count = Keyword.get(opts, :watcher_count, 0)
     watcher_unread_count = Keyword.get(opts, :watcher_unread_count, 0)
     watcher_you_count = Keyword.get(opts, :watcher_you_count, 0)
-    stylesheets_board = Keyword.get(opts, :stylesheets_board, Map.get(config, :stylesheets_board, true))
-    browser_timezone = Keyword.get(opts, :browser_timezone) || Map.get(config, :viewer_timezone) || Map.get(config, :timezone, "UTC")
+
+    stylesheets_board =
+      Keyword.get(opts, :stylesheets_board, Map.get(config, :stylesheets_board, true))
+
+    browser_timezone =
+      Keyword.get(opts, :browser_timezone) || Map.get(config, :viewer_timezone) ||
+        Map.get(config, :timezone, "UTC")
+
     browser_timezone_offset_minutes =
-      Keyword.get(opts, :browser_timezone_offset_minutes) || Map.get(config, :viewer_timezone_offset_minutes) || 0
+      Keyword.get(opts, :browser_timezone_offset_minutes) ||
+        Map.get(config, :viewer_timezone_offset_minutes) || 0
 
     styles_json =
       opts
@@ -121,17 +128,17 @@ defmodule EirinchanWeb.PublicShell do
       ]
       |> Enum.reject(&is_nil/1)
     else
-    javascript_urls(active_page, config)
-    |> Enum.filter(
+      javascript_urls(active_page, config)
+      |> Enum.filter(
         &(&1 in [
-          "/js/runtime-config.js",
-          config.url_javascript,
-          "/js/jquery.min.js",
-          "/js/ajax.js",
-          "/js/file-selector.js",
-          "/js/upload-selection.js"
-        ])
-    )
+            "/js/runtime-config.js",
+            config.url_javascript,
+            "/js/jquery.min.js",
+            "/js/ajax.js",
+            "/js/file-selector.js",
+            "/js/upload-selection.js"
+          ])
+      )
     end
   end
 
@@ -170,11 +177,12 @@ defmodule EirinchanWeb.PublicShell do
           normalized = String.trim_leading(trimmed, "/")
 
           String.starts_with?(trimmed, ["http://", "https://", "//"]) or
+            JsBundles.external_script?(script) or
             not String.starts_with?(normalized, "js/")
         end)
         |> Enum.reject(fn script ->
           normalized = String.trim_leading(script, "/")
-          MapSet.member?(bundled_sources, normalized)
+          MapSet.member?(bundled_sources, normalized) and not JsBundles.external_script?(script)
         end)
         |> Enum.map(&additional_javascript_url(config, &1))
         |> Enum.reject(&is_nil/1)
@@ -278,7 +286,10 @@ defmodule EirinchanWeb.PublicShell do
         scripts
 
       true ->
-        prepend_before_first(scripts, "js/post-menu.js", ["js/post-filter.js", "js/fix-report-delete-submit.js"])
+        prepend_before_first(scripts, "js/post-menu.js", [
+          "js/post-filter.js",
+          "js/fix-report-delete-submit.js"
+        ])
     end
   end
 
@@ -374,16 +385,23 @@ defmodule EirinchanWeb.PublicShell do
     trimmed = String.trim(value)
 
     cond do
-      trimmed == "" -> "/"
-      String.contains?(trimmed, ["\u0000", "\r", "\n", "\t"]) -> "/"
-      String.starts_with?(trimmed, ["javascript:", "data:"]) -> "/"
+      trimmed == "" ->
+        "/"
+
+      String.contains?(trimmed, ["\u0000", "\r", "\n", "\t"]) ->
+        "/"
+
+      String.starts_with?(trimmed, ["javascript:", "data:"]) ->
+        "/"
+
       String.starts_with?(trimmed, ["http://", "https://", "//"]) and allow_remote_script_urls ->
         trimmed
 
       String.starts_with?(trimmed, "/") ->
         trimmed
 
-      true -> "/"
+      true ->
+        "/"
     end
   end
 
