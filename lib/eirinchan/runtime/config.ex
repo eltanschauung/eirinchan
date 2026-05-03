@@ -230,6 +230,7 @@ defmodule Eirinchan.Runtime.Config do
       ".webm" => "video.png",
       ".mp4" => "video.png",
       ".mp3" => "mp3.png",
+      ".ogg" => "mp3.png",
       ".flac" => "flac.png",
       ".wav" => "wav.png",
       ".swf" => "swf.png",
@@ -255,6 +256,7 @@ defmodule Eirinchan.Runtime.Config do
       ".jxl",
       ".pdf",
       ".mp3",
+      ".ogg",
       ".flac",
       ".wav",
       ".swf"

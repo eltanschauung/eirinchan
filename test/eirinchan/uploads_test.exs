@@ -17,6 +17,12 @@ defmodule Eirinchan.UploadsTest do
     refute Uploads.compatible_with_extension?(".swf", "text/html")
   end
 
+  test "ogg uploads require an ogg MIME type" do
+    assert Uploads.compatible_with_extension?(".ogg", "audio/ogg")
+    assert Uploads.compatible_with_extension?(".ogg", "application/ogg")
+    refute Uploads.compatible_with_extension?(".ogg", "text/html")
+  end
+
   test "video upload validation accepts av1 webm streams" do
     assert :ok ==
              Uploads.video_allowed_for_upload?(

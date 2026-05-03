@@ -290,6 +290,9 @@ defmodule Eirinchan.Uploads do
       ext == ".mp4" ->
         file_type in ["video/mp4", "application/mp4"]
 
+      ext == ".ogg" ->
+        file_type in ["audio/ogg", "application/ogg"]
+
       ext == ".swf" ->
         file_type in ["application/x-shockwave-flash", "application/vnd.adobe.flash.movie"]
 

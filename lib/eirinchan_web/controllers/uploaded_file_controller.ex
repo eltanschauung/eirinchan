@@ -24,11 +24,18 @@ defmodule EirinchanWeb.UploadedFileController do
         conn
         |> put_resp_header("cache-control", CacheControl.cache_control_for_upload_bucket(bucket))
         |> put_resp_header("accept-ranges", "bytes")
-        |> put_resp_content_type(MIME.from_path(path))
+        |> put_resp_content_type(content_type_for_path(path))
         |> maybe_send_ranged_file(path, size)
       else
         send_resp(conn, :not_found, "File not found")
       end
+    end
+  end
+
+  defp content_type_for_path(path) do
+    case path |> Path.extname() |> String.downcase() do
+      ".ogg" -> "audio/ogg"
+      _ -> MIME.from_path(path)
     end
   end
 
@@ -98,5 +105,4 @@ defmodule EirinchanWeb.UploadedFileController do
         :error
     end
   end
-
 end
