@@ -16,6 +16,7 @@ defmodule Eirinchan.Application do
       Eirinchan.BrowserPresence,
       Eirinchan.ManageLoginThrottle,
       EirinchanWeb.FragmentCache,
+      Eirinchan.MaintenanceWorker,
       # Start a worker by calling: Eirinchan.Worker.start_link(arg)
       # {Eirinchan.Worker, arg},
       # Start to serve requests, typically the last entry

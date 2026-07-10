@@ -12,7 +12,6 @@ defmodule EirinchanWeb.Router do
     plug EirinchanWeb.Plugs.FetchCurrentModerator
     plug EirinchanWeb.Plugs.FetchTheme
     plug EirinchanWeb.Plugs.FetchSiteAssets
-    plug EirinchanWeb.Plugs.AutoMaintenance
     plug :fetch_live_flash
     plug :put_root_layout, html: {EirinchanWeb.Layouts, :root}
     plug :protect_from_forgery
@@ -40,7 +39,6 @@ defmodule EirinchanWeb.Router do
     plug EirinchanWeb.Plugs.FetchBrowserToken
     plug EirinchanWeb.Plugs.TrackBrowserPresence
     plug EirinchanWeb.Plugs.FetchCurrentModerator
-    plug EirinchanWeb.Plugs.AutoMaintenance
     plug EirinchanWeb.Plugs.RequireCsrfToken
     plug EirinchanWeb.Plugs.SecureHeaders
   end
