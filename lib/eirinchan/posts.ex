@@ -571,7 +571,8 @@ defmodule Eirinchan.Posts do
     end
   end
 
-  @spec sync_thread_metrics(BoardRecord.t(), String.t() | integer() | nil, keyword()) :: :ok
+  @spec sync_thread_metrics(BoardRecord.t(), String.t() | integer() | nil, keyword()) ::
+          :ok | {:error, term()}
   def sync_thread_metrics(board, thread_id, opts \\ [])
   def sync_thread_metrics(_board, nil, _opts), do: :ok
 
@@ -582,17 +583,18 @@ defmodule Eirinchan.Posts do
            PostsThreadLookup.fetch_thread_by_internal_id(board, thread_id, repo) do
       metrics = thread_metrics(repo, board.id, thread.id)
 
-      _ =
-        thread
-        |> Ecto.Changeset.change(
-          cached_reply_count: metrics.reply_count,
-          cached_image_count: metrics.image_count,
-          cached_last_reply_at: metrics.last_reply_at,
-          updated_at: DateTime.utc_now() |> DateTime.truncate(:second)
-        )
-        |> repo.update()
-
-      :ok
+      thread
+      |> Ecto.Changeset.change(
+        cached_reply_count: metrics.reply_count,
+        cached_image_count: metrics.image_count,
+        cached_last_reply_at: metrics.last_reply_at,
+        updated_at: DateTime.utc_now() |> DateTime.truncate(:second)
+      )
+      |> repo.update()
+      |> case do
+        {:ok, _thread} -> :ok
+        {:error, reason} -> {:error, reason}
+      end
     else
       _ -> :ok
     end

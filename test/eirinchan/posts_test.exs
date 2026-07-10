@@ -4,6 +4,24 @@ defmodule Eirinchan.TestFailingPostFileRepo do
 
   def transaction(fun), do: Repo.transaction(fun)
   def rollback(reason), do: Repo.rollback(reason)
+  def update(%Ecto.Changeset{data: %Eirinchan.Posts.Post{}, changes: changes} = changeset) do
+    if Process.get(:fail_thread_metrics_update_once) == true and
+         Process.get(:test_upload_finalized) == true do
+      Process.delete(:fail_thread_metrics_update_once)
+      Process.delete(:test_upload_finalized)
+      {:error, Ecto.Changeset.add_error(changeset, :cached_reply_count, "forced failure")}
+    else
+      result = Repo.update(changeset)
+
+      if Process.get(:fail_thread_metrics_update_once) == true and
+           Map.has_key?(changes, :file_path) and match?({:ok, _}, result) do
+        Process.put(:test_upload_finalized, true)
+      end
+
+      result
+    end
+  end
+
   def update(changeset), do: Repo.update(changeset)
   def all(queryable), do: Repo.all(queryable)
   def one(queryable), do: Repo.one(queryable)
@@ -1587,6 +1605,29 @@ defmodule Eirinchan.PostsTest do
                    upload_fixture("first.png", "first"),
                    upload_fixture("second.gif", "second")
                  ],
+                 "post" => "New Topic"
+               },
+               config: post_config(board.config_overrides),
+               request: post_request(board.uri),
+               repo: Eirinchan.TestFailingPostFileRepo
+             )
+
+    refute Repo.exists?(from(post in Post, where: post.board_id == ^board.id))
+    assert Path.wildcard(Path.join(Eirinchan.Build.board_root(), "#{board.uri}/src/*")) == []
+    assert Path.wildcard(Path.join(Eirinchan.Build.board_root(), "#{board.uri}/thumb/*")) == []
+  end
+
+  test "create_post removes stored files when the transaction rolls back after finalization" do
+    board = board_fixture()
+    File.rm_rf!(Path.join(Eirinchan.Build.board_root(), board.uri))
+    Process.put(:fail_thread_metrics_update_once, true)
+
+    assert {:error, %Ecto.Changeset{}} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "first post",
+                 "file" => upload_fixture("first.png", "first"),
                  "post" => "New Topic"
                },
                config: post_config(board.config_overrides),

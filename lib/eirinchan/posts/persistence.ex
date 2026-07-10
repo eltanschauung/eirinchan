@@ -25,24 +25,42 @@ defmodule Eirinchan.Posts.Persistence do
           {:ok, Post.t()} | {:error, term()}
   def create_post_record(%BoardRecord{} = board, thread, attrs, repo, config, now, after_insert) do
     upload_entries = Map.get(attrs, "__upload_entries__", [])
+    cleanup_key = {__MODULE__, make_ref()}
+    Process.put(cleanup_key, [])
 
-    case repo.transaction(fn ->
-           with {:ok, locked_board} <- lock_board(board, repo),
-                {:ok, attrs} <- allocate_public_id(locked_board, attrs, repo),
-                {:ok, post} <- insert_post(locked_board, thread, attrs, repo, config, now),
-                {:ok, post} <- maybe_assign_poster_id(post, attrs, repo, config),
-                {:ok, post} <- maybe_store_uploads(board, post, upload_entries, repo, config),
-                :ok <- maybe_increment_april_fools_team(post, config, repo),
-                :ok <- store_citations(locked_board, post, repo),
-                :ok <- after_insert.(),
-                :ok <- Posts.sync_thread_metrics(locked_board, post.thread_id || post.id, repo: repo) do
-             post
-           else
-             {:error, reason} -> repo.rollback(reason)
-           end
-         end) do
-      {:ok, post} -> {:ok, post}
-      {:error, reason} -> {:error, reason}
+    try do
+      case repo.transaction(fn ->
+             with {:ok, locked_board} <- lock_board(board, repo),
+                  {:ok, attrs} <- allocate_public_id(locked_board, attrs, repo),
+                  {:ok, post} <- insert_post(locked_board, thread, attrs, repo, config, now),
+                  {:ok, post} <- maybe_assign_poster_id(post, attrs, repo, config),
+                  {:ok, post} <-
+                    maybe_store_uploads(board, post, upload_entries, repo, config, cleanup_key),
+                  :ok <- maybe_increment_april_fools_team(post, config, repo),
+                  :ok <- store_citations(locked_board, post, repo),
+                  :ok <- after_insert.(),
+                  :ok <-
+                    Posts.sync_thread_metrics(locked_board, post.thread_id || post.id, repo: repo) do
+               post
+             else
+               {:error, reason} -> repo.rollback(reason)
+             end
+           end) do
+        {:ok, post} ->
+          Process.put({cleanup_key, :committed}, true)
+          {:ok, post}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    after
+      unless Process.delete({cleanup_key, :committed}) do
+        cleanup_key
+        |> Process.get([])
+        |> cleanup_stored_files()
+      end
+
+      Process.delete(cleanup_key)
     end
   end
 
@@ -78,34 +96,40 @@ defmodule Eirinchan.Posts.Persistence do
     |> repo.insert()
   end
 
-  defp maybe_store_uploads(_board, %Post{} = post, [], repo, _config),
+  defp maybe_store_uploads(_board, %Post{} = post, [], repo, _config, _cleanup_key),
     do: {:ok, repo.preload(post, :extra_files)}
 
-  defp maybe_store_uploads(board, %Post{} = post, [primary | rest], repo, config) do
+  defp maybe_store_uploads(board, %Post{} = post, [primary | rest], repo, config, cleanup_key) do
     with {:ok, updated_post, stored_files} <-
-           store_primary_upload(board, post, primary, repo, config),
+           store_primary_upload(board, post, primary, repo, config, cleanup_key),
          {:ok, _extra_files, _stored_files} <-
-           store_extra_uploads(board, updated_post, rest, repo, config, stored_files) do
+           store_extra_uploads(
+             board,
+             updated_post,
+             rest,
+             repo,
+             config,
+             stored_files,
+             cleanup_key
+           ) do
       {:ok, repo.preload(updated_post, :extra_files)}
     else
-      {:error, reason, stored_files} ->
-        cleanup_stored_files(stored_files)
-        {:error, reason}
-
+      {:error, reason, _stored_files} -> {:error, reason}
       {:error, reason} ->
         {:error, reason}
     end
   end
 
-  defp store_primary_upload(board, post, %{metadata: metadata}, repo, config) do
+  defp store_primary_upload(board, post, %{metadata: metadata}, repo, config, cleanup_key) do
     case Uploads.finalize(board, post, config, metadata) do
       {:ok, stored_metadata} ->
+        register_stored_file(cleanup_key, stored_metadata)
+
         case post |> Post.create_changeset(stored_metadata) |> repo.update() do
           {:ok, updated_post} ->
             {:ok, updated_post, [stored_metadata]}
 
           {:error, %Ecto.Changeset{} = changeset} ->
-            cleanup_stored_files([stored_metadata])
             {:error, changeset}
         end
 
@@ -114,14 +138,16 @@ defmodule Eirinchan.Posts.Persistence do
     end
   end
 
-  defp store_extra_uploads(_board, _post, [], _repo, _config, stored_files),
+  defp store_extra_uploads(_board, _post, [], _repo, _config, stored_files, _cleanup_key),
     do: {:ok, [], stored_files}
 
-  defp store_extra_uploads(board, post, entries, repo, config, stored_files) do
+  defp store_extra_uploads(board, post, entries, repo, config, stored_files, cleanup_key) do
     Enum.with_index(entries, 1)
     |> Enum.reduce_while({:ok, [], stored_files}, fn {entry, position}, {:ok, inserted, stored} ->
       case Uploads.finalize(board, post, config, entry.metadata, Integer.to_string(position)) do
         {:ok, stored_metadata} ->
+          register_stored_file(cleanup_key, stored_metadata)
+
           attrs =
             stored_metadata
             |> Map.put(:post_id, post.id)
@@ -235,6 +261,10 @@ defmodule Eirinchan.Posts.Persistence do
       Uploads.remove(metadata.file_path)
       Uploads.remove(metadata.thumb_path)
     end)
+  end
+
+  defp register_stored_file(cleanup_key, metadata) do
+    Process.put(cleanup_key, [metadata | Process.get(cleanup_key, [])])
   end
 
   defp request_ip_string(attrs, %{ip_nulling: true} = config) do
