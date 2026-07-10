@@ -59,7 +59,8 @@ defmodule EirinchanWeb.ModerationLogControllerTest do
       cloaked = IpCrypt.cloak_ip("198.51.100.12")
 
       assert page =~ cloaked
-      assert page =~ "/manage/ip/#{cloaked}/browser"
+      encoded_cloak = URI.encode(cloaked, &URI.char_unreserved?/1)
+      assert page =~ "/manage/ip/#{encoded_cloak}/browser"
       refute page =~ "198.51.100.12"
     end)
   end
