@@ -7,6 +7,7 @@ defmodule Eirinchan.IpCrypt do
 
   @request_config_key :eirinchan_ipcrypt_config
   @request_viewer_ip_key :eirinchan_ipcrypt_viewer_ip
+  @request_cloak_cache_key :eirinchan_ipcrypt_cloak_cache
   @aead_version "v2"
   @aead_nonce_bytes 12
   @aead_tag_bytes 16
@@ -21,12 +22,14 @@ defmodule Eirinchan.IpCrypt do
   def configure_for_request(config, viewer_ip) when is_map(config) do
     Process.put(@request_config_key, normalize_config(config))
     Process.put(@request_viewer_ip_key, normalize_ip_string(viewer_ip))
+    Process.put(@request_cloak_cache_key, %{})
     :ok
   end
 
   def clear_request_context do
     Process.delete(@request_config_key)
     Process.delete(@request_viewer_ip_key)
+    Process.delete(@request_cloak_cache_key)
     :ok
   end
 
@@ -53,7 +56,7 @@ defmodule Eirinchan.IpCrypt do
         value
 
       true ->
-        cfg.ipcrypt_prefix <> ":" <> @aead_version <> ":" <> encrypt_ip(value, cfg.ipcrypt_key)
+        cached_cloak(value, cfg)
     end
   end
 
@@ -140,6 +143,21 @@ defmodule Eirinchan.IpCrypt do
       )
 
     Base.url_encode64(nonce <> tag <> ciphertext, padding: false)
+  end
+
+  defp cached_cloak(ip, cfg) do
+    cache_key = {cfg.ipcrypt_prefix, cfg.ipcrypt_key, ip}
+    cache = Process.get(@request_cloak_cache_key, %{})
+
+    case Map.fetch(cache, cache_key) do
+      {:ok, cloak} ->
+        cloak
+
+      :error ->
+        cloak = cfg.ipcrypt_prefix <> ":" <> @aead_version <> ":" <> encrypt_ip(ip, cfg.ipcrypt_key)
+        Process.put(@request_cloak_cache_key, Map.put(cache, cache_key, cloak))
+        cloak
+    end
   end
 
   defp decrypt_ip(encoded, key) do

@@ -49,14 +49,17 @@ defmodule Eirinchan.IpCryptTest do
     assert IpCrypt.uncloak_ip("Cloak:deadbeef") == nil
   end
 
-  test "authenticated cloaks are randomized and reject tampering" do
+  test "authenticated cloaks are stable per request, randomized across requests, and reject tampering" do
     IpCrypt.configure_for_request(%{ipcrypt_key: "test-key"}, "203.0.113.5")
 
     first = IpCrypt.cloak_ip("198.51.100.7")
     second = IpCrypt.cloak_ip("198.51.100.7")
 
-    refute first == second
+    assert first == second
     assert IpCrypt.uncloak_ip(first) == "198.51.100.7"
+
+    IpCrypt.configure_for_request(%{ipcrypt_key: "test-key"}, "203.0.113.5")
+    refute IpCrypt.cloak_ip("198.51.100.7") == first
 
     "Cloak:v2:" <> <<first_character>> <> rest = first
     replacement = if first_character == ?A, do: ?B, else: ?A
