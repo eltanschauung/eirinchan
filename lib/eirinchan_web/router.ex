@@ -200,7 +200,6 @@ defmodule EirinchanWeb.Router do
     get "/auth", IpAccessAuthController, :show
     post "/auth", IpAccessAuthController, :create
     get "/setup", SetupController, :show
-    post "/setup", SetupController, :create
   end
 
   scope "/manage", EirinchanWeb do

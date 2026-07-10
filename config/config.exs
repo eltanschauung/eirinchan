@@ -20,7 +20,6 @@ config :eirinchan,
     trusted_cidrs: ["127.0.0.0/8"],
     client_ip_headers: ["x-forwarded-for", "x-real-ip"]
   },
-  installation_config_path: Path.expand("../var/install.json", __DIR__),
   build_output_root: Path.expand("../tmp/build", __DIR__),
   generators: [timestamp_type: :utc_datetime]
 

@@ -16,3 +16,16 @@ high-speed app. Uses PostgreSQL. Credit to Tinyboard, Vichan Devel and Fredrick 
 - Large amounts of standard Vichan js migrated downwards into PHP and Elixir
 - Embeds can be used alongside files
 - 4chanX inspired thread watcher mainly using backend functionality and minimal JS
+
+# Installation
+
+Configure PostgreSQL through `DATABASE_URL`; the web application never writes database
+credentials. Run migrations and create the initial administrator from the server console:
+
+```sh
+MIX_ENV=prod mix ecto.migrate
+MIX_ENV=prod mix eirinchan.create_admin --username admin
+```
+
+The admin task prompts for a password without echoing it. For non-interactive provisioning,
+provide the password in `EIRINCHAN_ADMIN_PASSWORD` through the process environment.
