@@ -35,6 +35,17 @@ defmodule Eirinchan.SettingsTest do
     assert Settings.current_instance_config().anonymous == "Nameless"
   end
 
+  test "persisted settings are atomically replaced with owner-only permissions" do
+    path = Application.fetch_env!(:eirinchan, :instance_config_path)
+    File.write!(path, "{}")
+    File.chmod!(path, 0o644)
+
+    assert :ok = Settings.persist_instance_config(%{captcha: %{secret: "sensitive"}})
+    assert File.stat!(path).mode |> Bitwise.band(0o777) == 0o600
+    assert Jason.decode!(File.read!(path))["captcha"]["secret"] == "sensitive"
+    assert Path.wildcard(Path.join(Path.dirname(path), ".#{Path.basename(path)}.*.tmp")) == []
+  end
+
   test "persist_instance_config preserves page theme state when overrides omit it" do
     assert :ok =
              Settings.persist_instance_config(%{

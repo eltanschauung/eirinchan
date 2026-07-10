@@ -4,6 +4,7 @@ defmodule Eirinchan.Settings do
   """
 
   alias Eirinchan.Runtime.Config
+  alias Eirinchan.SecureFile
 
   @default_page_enabled_themes ["ukko", "recent", "sitemap"]
   @settings_cache_key {__MODULE__, :instance_config}
@@ -154,7 +155,7 @@ defmodule Eirinchan.Settings do
     overrides
     |> stringify_keys()
     |> Jason.encode_to_iodata!(pretty: true)
-    |> then(&File.write(path, &1))
+    |> then(&SecureFile.atomic_write(path, &1))
     |> tap(fn
       :ok -> refresh_instance_config_cache()
       _ -> :ok
@@ -175,7 +176,7 @@ defmodule Eirinchan.Settings do
     |> preserve_hidden_instance_state(current_instance_config())
     |> stringify_keys()
     |> Jason.encode_to_iodata!(pretty: true)
-    |> then(&File.write(path, &1))
+    |> then(&SecureFile.atomic_write(path, &1))
     |> tap(fn
       :ok -> refresh_instance_config_cache()
       _ -> :ok
