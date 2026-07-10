@@ -137,11 +137,12 @@ defmodule Eirinchan.Moderation do
 
     case repo.get_by(ModUser, username: String.trim(username || "")) do
       nil ->
+        Argon2.no_user_verify()
         {:error, :invalid_credentials}
 
       %ModUser{} = user ->
         if ModUser.verify_password(user, password) do
-          user = maybe_upgrade_legacy_password(user, password, repo)
+          user = maybe_rehash_password(user, password, repo)
           {:ok, touch_login(user, repo)}
         else
           {:error, :invalid_credentials}
@@ -149,11 +150,11 @@ defmodule Eirinchan.Moderation do
     end
   end
 
-  defp maybe_upgrade_legacy_password(%ModUser{} = user, password, repo) do
-    if ModUser.legacy_vichan_password?(user) do
+  defp maybe_rehash_password(%ModUser{} = user, password, repo) do
+    if ModUser.password_needs_rehash?(user) do
       {:ok, upgraded} =
         user
-        |> ModUser.upgrade_legacy_password_changeset(password)
+        |> ModUser.upgrade_password_changeset(password)
         |> repo.update()
 
       upgraded

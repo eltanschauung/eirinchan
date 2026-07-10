@@ -8,12 +8,12 @@ defmodule EirinchanWeb.ManageSessionControllerTest do
   end
 
   test "login creates a moderator session and logout clears it", %{conn: conn} do
-    moderator = moderator_fixture(%{username: "admin", password: "secret123"})
+    moderator = moderator_fixture(%{username: "admin", password: "correct horse battery staple"})
 
     login_conn =
       conn
       |> put_req_header("accept", "application/json")
-      |> post("/manage/login", %{"username" => moderator.username, "password" => "secret123"})
+      |> post("/manage/login", %{"username" => moderator.username, "password" => "correct horse battery staple"})
 
     assert %{
              "data" => %{
@@ -50,18 +50,18 @@ defmodule EirinchanWeb.ManageSessionControllerTest do
   end
 
   test "sessions are invalidated after password hash changes", %{conn: conn} do
-    moderator = moderator_fixture(%{username: "admin", password: "secret123"})
+    moderator = moderator_fixture(%{username: "admin", password: "correct horse battery staple"})
 
     login_conn =
       conn
       |> put_req_header("accept", "application/json")
-      |> post("/manage/login", %{"username" => moderator.username, "password" => "secret123"})
+      |> post("/manage/login", %{"username" => moderator.username, "password" => "correct horse battery staple"})
 
     updated =
       moderator
       |> Eirinchan.Moderation.ModUser.create_changeset(%{
         "username" => moderator.username,
-        "password" => "newsecret456",
+        "password" => "new correct horse battery staple",
         "role" => moderator.role
       })
       |> Ecto.Changeset.apply_changes()
@@ -84,12 +84,12 @@ defmodule EirinchanWeb.ManageSessionControllerTest do
   end
 
   test "sessions are invalidated when the client IP changes", %{conn: conn} do
-    moderator = moderator_fixture(%{username: "admin", password: "secret123"})
+    moderator = moderator_fixture(%{username: "admin", password: "correct horse battery staple"})
 
     login_conn =
       conn
       |> put_req_header("accept", "application/json")
-      |> post("/manage/login", %{"username" => moderator.username, "password" => "secret123"})
+      |> post("/manage/login", %{"username" => moderator.username, "password" => "correct horse battery staple"})
 
     assert %{"error" => "unauthorized"} =
              login_conn
@@ -101,12 +101,12 @@ defmodule EirinchanWeb.ManageSessionControllerTest do
   end
 
   test "older sessions are invalidated after a new login for the same moderator", %{conn: conn} do
-    moderator = moderator_fixture(%{username: "admin", password: "secret123"})
+    moderator = moderator_fixture(%{username: "admin", password: "correct horse battery staple"})
 
     first_login =
       conn
       |> put_req_header("accept", "application/json")
-      |> post("/manage/login", %{"username" => moderator.username, "password" => "secret123"})
+      |> post("/manage/login", %{"username" => moderator.username, "password" => "correct horse battery staple"})
 
     Process.sleep(1100)
 
@@ -114,7 +114,7 @@ defmodule EirinchanWeb.ManageSessionControllerTest do
       conn
       |> recycle()
       |> put_req_header("accept", "application/json")
-      |> post("/manage/login", %{"username" => moderator.username, "password" => "secret123"})
+      |> post("/manage/login", %{"username" => moderator.username, "password" => "correct horse battery staple"})
 
     assert %{"error" => "unauthorized"} =
              first_login
@@ -125,12 +125,12 @@ defmodule EirinchanWeb.ManageSessionControllerTest do
   end
 
   test "sessions expire after configured idle timeout", %{conn: conn} do
-    moderator = moderator_fixture(%{username: "admin", password: "secret123"})
+    moderator = moderator_fixture(%{username: "admin", password: "correct horse battery staple"})
 
     login_conn =
       conn
       |> put_req_header("accept", "application/json")
-      |> post("/manage/login", %{"username" => moderator.username, "password" => "secret123"})
+      |> post("/manage/login", %{"username" => moderator.username, "password" => "correct horse battery staple"})
 
     stale_conn =
       login_conn
@@ -152,12 +152,12 @@ defmodule EirinchanWeb.ManageSessionControllerTest do
   end
 
   test "sessions expire after configured absolute lifetime", %{conn: conn} do
-    moderator = moderator_fixture(%{username: "admin", password: "secret123"})
+    moderator = moderator_fixture(%{username: "admin", password: "correct horse battery staple"})
 
     login_conn =
       conn
       |> put_req_header("accept", "application/json")
-      |> post("/manage/login", %{"username" => moderator.username, "password" => "secret123"})
+      |> post("/manage/login", %{"username" => moderator.username, "password" => "correct horse battery staple"})
 
     stale_conn =
       login_conn
@@ -188,7 +188,7 @@ defmodule EirinchanWeb.ManageSessionControllerTest do
   end
 
   test "login rejects invalid credentials", %{conn: conn} do
-    moderator_fixture(%{username: "admin", password: "secret123"})
+    moderator_fixture(%{username: "admin", password: "correct horse battery staple"})
 
     conn =
       conn
@@ -199,7 +199,7 @@ defmodule EirinchanWeb.ManageSessionControllerTest do
   end
 
   test "login is rate limited after repeated failures", %{conn: conn} do
-    moderator_fixture(%{username: "admin", password: "secret123"})
+    moderator_fixture(%{username: "admin", password: "correct horse battery staple"})
 
     failure =
       fn attempt_conn ->

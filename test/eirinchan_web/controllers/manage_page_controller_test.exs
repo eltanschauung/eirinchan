@@ -12,7 +12,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
   alias Eirinchan.Repo
 
   test "login page renders and browser login redirects to the dashboard", %{conn: conn} do
-    moderator = moderator_fixture(%{username: "admin", password: "secret123"})
+    moderator = moderator_fixture(%{username: "admin", password: "correct horse battery staple"})
     _board = board_fixture(%{uri: "bant", title: "International Random"})
 
     login_page = conn |> get("/manage/login") |> html_response(200)
@@ -30,7 +30,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       |> recycle()
       |> post("/manage/login/browser", %{
         "username" => moderator.username,
-        "password" => "secret123"
+        "password" => "correct horse battery staple"
       })
 
     assert redirected_to(conn) == "/manage"
@@ -587,7 +587,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       |> login_moderator(moderator)
       |> post("/manage/users/browser/new", %{
         "username" => "newmod",
-        "password" => "secret123",
+        "password" => "correct horse battery staple",
         "role" => "mod",
         "board_#{board.uri}" => "on"
       })

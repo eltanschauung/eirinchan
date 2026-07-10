@@ -4,6 +4,8 @@ defmodule Eirinchan.Moderation.ModUser do
 
   alias Eirinchan.Moderation.ModBoardAccess
 
+  @argon2_salt_marker "argon2id:v1"
+
   schema "mod_users" do
     field :username, :string
     field :password_hash, :string
@@ -25,7 +27,7 @@ defmodule Eirinchan.Moderation.ModUser do
     |> normalize_optional_password()
     |> validate_required([:username, :password, :role])
     |> validate_length(:username, min: 1, max: 64)
-    |> validate_length(:password, min: 1, max: 255)
+    |> validate_length(:password, min: 12, max: 255)
     |> validate_inclusion(:role, ["admin", "mod", "janitor"])
     |> put_password_fields()
     |> validate_required([:password_hash, :password_salt])
@@ -44,7 +46,7 @@ defmodule Eirinchan.Moderation.ModUser do
     |> normalize_optional_password()
     |> validate_required([:username, :role])
     |> validate_length(:username, min: 1, max: 64)
-    |> validate_length(:password, min: 1, max: 255)
+    |> validate_length(:password, min: 12, max: 255)
     |> validate_inclusion(:role, ["admin", "mod", "janitor"])
     |> put_password_fields()
     |> unique_constraint(:username)
@@ -56,12 +58,9 @@ defmodule Eirinchan.Moderation.ModUser do
         changeset
 
       password ->
-        salt = :crypto.strong_rand_bytes(16) |> Base.encode16(case: :lower)
-        hash = hash_password(password, salt)
-
         changeset
-        |> put_change(:password_salt, salt)
-        |> put_change(:password_hash, hash)
+        |> put_change(:password_salt, @argon2_salt_marker)
+        |> put_change(:password_hash, Argon2.hash_pwd_salt(password))
     end
   end
 
@@ -70,8 +69,11 @@ defmodule Eirinchan.Moderation.ModUser do
       legacy_vichan_password?(user) ->
         verify_legacy_vichan_password(user.password_hash || "", password)
 
+      argon2_password?(user) ->
+        Argon2.verify_pass(password, user.password_hash || "")
+
       true ->
-        expected = hash_password(password, user.password_salt || "")
+        expected = legacy_sha256_hash(password, user.password_salt || "")
         Plug.Crypto.secure_compare(user.password_hash || "", expected)
     end
   end
@@ -81,29 +83,31 @@ defmodule Eirinchan.Moderation.ModUser do
   def legacy_vichan_password?(%__MODULE__{password_salt: "legacy:vichan:" <> _}), do: true
   def legacy_vichan_password?(_user), do: false
 
-  def upgrade_legacy_password_changeset(%__MODULE__{} = user, password) when is_binary(password) do
-    salt = generate_password_salt()
-    hash = hash_password(password, salt)
-    change(user, password_hash: hash, password_salt: salt)
+  def password_needs_rehash?(%__MODULE__{} = user), do: not argon2_password?(user)
+
+  def upgrade_password_changeset(%__MODULE__{} = user, password) when is_binary(password) do
+    change(user,
+      password_hash: Argon2.hash_pwd_salt(password),
+      password_salt: @argon2_salt_marker
+    )
   end
 
-  defp hash_password(password, salt) do
+  defp argon2_password?(%__MODULE__{password_hash: "$argon2" <> _rest}), do: true
+  defp argon2_password?(_user), do: false
+
+  defp legacy_sha256_hash(password, salt) do
     :crypto.hash(:sha256, salt <> password)
     |> Base.encode16(case: :lower)
-  end
-
-  defp generate_password_salt do
-    :crypto.strong_rand_bytes(16) |> Base.encode16(case: :lower)
   end
 
   defp verify_legacy_vichan_password(stored_hash, password) do
     case Regex.run(~r/^\$6\$(?:rounds=(\d+)\$)?([^$]+)\$[A-Za-z0-9.\/]+$/, stored_hash) do
       [_, rounds, salt] ->
         args =
-          ["--method=sha-512"] ++
-            if(rounds != "", do: ["--rounds", rounds], else: []) ++ ["--salt", salt, password]
+          ["--stdin", "--method=sha-512"] ++
+            if(rounds != "", do: ["--rounds", rounds], else: []) ++ ["--salt", salt]
 
-        case System.cmd("mkpasswd", args, stderr_to_stdout: true) do
+        case run_mkpasswd(args, password) do
           {computed, 0} ->
             Plug.Crypto.secure_compare(String.trim(computed), stored_hash)
 
@@ -113,6 +117,33 @@ defmodule Eirinchan.Moderation.ModUser do
 
       _ ->
         false
+    end
+  end
+
+  defp run_mkpasswd(args, password) do
+    with executable when is_binary(executable) <- System.find_executable("mkpasswd"),
+         port <-
+           Port.open({:spawn_executable, executable}, [
+             :binary,
+             :exit_status,
+             :stderr_to_stdout,
+             args: args
+           ]),
+         true <- Port.command(port, password <> "\n") do
+      collect_port_output(port, "")
+    else
+      _error -> {"", 1}
+    end
+  end
+
+  defp collect_port_output(port, output) do
+    receive do
+      {^port, {:data, data}} -> collect_port_output(port, output <> data)
+      {^port, {:exit_status, status}} -> {output, status}
+    after
+      5_000 ->
+        Port.close(port)
+        {output, 1}
     end
   end
 

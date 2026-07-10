@@ -19,7 +19,7 @@ defmodule Eirinchan.MixProject do
   def application do
     [
       mod: {Eirinchan.Application, []},
-      extra_applications: [:logger, :runtime_tools, :inets, :locus]
+      extra_applications: [:logger, :runtime_tools, :crypto, :public_key, :inets, :locus]
     ]
   end
 
@@ -45,7 +45,8 @@ defmodule Eirinchan.MixProject do
       {:jason, "~> 1.2"},
       {:locus, "~> 2.3.12"},
       {:dns_cluster, "~> 0.1.1"},
-      {:bandit, "~> 1.2"}
+      {:bandit, "~> 1.2"},
+      {:argon2_elixir, "~> 4.1"}
     ]
   end
 

@@ -7,15 +7,16 @@ defmodule Eirinchan.ModerationTest do
     assert {:ok, moderator} =
              Moderation.create_user(%{
                username: "admin",
-               password: "secret123",
+               password: "correct horse battery staple",
                role: "admin"
              })
 
     assert moderator.password_hash
-    assert moderator.password_salt
-    refute moderator.password_hash == "secret123"
+    assert moderator.password_salt == "argon2id:v1"
+    assert moderator.password_hash =~ "$argon2id$"
+    refute moderator.password_hash == "correct horse battery staple"
 
-    assert {:ok, authenticated} = Moderation.authenticate("admin", "secret123")
+    assert {:ok, authenticated} = Moderation.authenticate("admin", "correct horse battery staple")
     assert authenticated.id == moderator.id
     assert {:error, :invalid_credentials} = Moderation.authenticate("admin", "wrong")
   end
@@ -40,6 +41,45 @@ defmodule Eirinchan.ModerationTest do
     upgraded = Repo.get!(Eirinchan.Moderation.ModUser, user.id)
     refute Eirinchan.Moderation.ModUser.legacy_vichan_password?(upgraded)
     assert Eirinchan.Moderation.ModUser.verify_password(upgraded, "secret123")
+    assert upgraded.password_hash =~ "$argon2id$"
+    assert upgraded.password_salt == "argon2id:v1"
+  end
+
+  test "authenticate upgrades the previous salted sha256 format" do
+    salt = Base.encode16(:crypto.strong_rand_bytes(16), case: :lower)
+    password = "legacy password is still accepted"
+
+    hash =
+      :crypto.hash(:sha256, salt <> password)
+      |> Base.encode16(case: :lower)
+
+    {:ok, user} =
+      %Eirinchan.Moderation.ModUser{}
+      |> Ecto.Changeset.change(%{
+        username: "sha_admin",
+        password_hash: hash,
+        password_salt: salt,
+        role: "admin"
+      })
+      |> Repo.insert()
+
+    assert {:ok, _authenticated} = Moderation.authenticate(user.username, password)
+
+    upgraded = Repo.get!(Eirinchan.Moderation.ModUser, user.id)
+    assert upgraded.password_hash =~ "$argon2id$"
+    assert upgraded.password_salt == "argon2id:v1"
+    assert Eirinchan.Moderation.ModUser.verify_password(upgraded, password)
+  end
+
+  test "new moderator passwords must be at least twelve characters" do
+    assert {:error, changeset} =
+             Moderation.create_user(%{
+               username: "too_short",
+               password: "short",
+               role: "admin"
+             })
+
+    assert {"should be at least %{count} character(s)", _opts} = changeset.errors[:password]
   end
 
   test "board access is grant-based for non-admin moderators" do
@@ -65,7 +105,7 @@ defmodule Eirinchan.ModerationTest do
     assert {:ok, moderator} =
              Moderation.create_user(%{
                username: "globalmod",
-               password: "secret123",
+               password: "correct horse battery staple",
                role: "mod",
                all_boards: true
              })

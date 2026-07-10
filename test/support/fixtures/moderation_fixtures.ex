@@ -6,7 +6,7 @@ defmodule Eirinchan.ModerationFixtures do
       attrs
       |> Enum.into(%{
         username: "mod#{System.unique_integer([:positive])}",
-        password: "secret123",
+        password: "correct horse battery staple",
         role: "admin"
       })
       |> Moderation.create_user()
