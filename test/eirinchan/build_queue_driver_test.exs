@@ -55,4 +55,22 @@ defmodule Eirinchan.BuildQueueDriverTest do
     assert Enum.count(pending, &(&1.kind == "thread" and &1.thread_id == 123)) == 1
     assert Enum.count(pending, &(&1.kind == "indexes")) == 1
   end
+
+  test "db queue records failures and stops retrying at the attempt limit" do
+    board = board_fixture()
+    assert {:ok, job} = BuildQueue.enqueue_thread(board, 123)
+    assert {:ok, running} = BuildQueue.mark_running(job)
+
+    assert {:ok, retrying} = BuildQueue.mark_failed(running, :decoder_failed, max_attempts: 2)
+    assert retrying.status == "pending"
+    assert retrying.attempts == 1
+    assert retrying.last_error =~ "decoder_failed"
+
+    assert {:ok, running_again} = BuildQueue.mark_running(retrying)
+    assert {:ok, failed} = BuildQueue.mark_failed(running_again, :decoder_failed, max_attempts: 2)
+    assert failed.status == "failed"
+    assert failed.attempts == 2
+    assert failed.finished_at
+    assert BuildQueue.list_pending(board_id: board.id) == []
+  end
 end

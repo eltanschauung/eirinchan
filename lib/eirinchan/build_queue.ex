@@ -47,10 +47,13 @@ defmodule Eirinchan.BuildQueue do
       _ ->
         repo = Keyword.get(opts, :repo, Repo)
         board_id = Keyword.get(opts, :board_id)
+        now = DateTime.utc_now()
 
         query =
           from job in Job,
-            where: job.status == "pending",
+            where:
+              job.status == "pending" and
+                (is_nil(job.available_at) or job.available_at <= ^now),
             order_by: [asc: job.inserted_at, asc: job.id]
 
         query =
@@ -90,6 +93,30 @@ defmodule Eirinchan.BuildQueue do
     end
   end
 
+  def mark_running(%Job{} = job, opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+
+    case driver(opts) do
+      driver when driver in ["fs", "none"] -> {:ok, %{job | status: "running"}}
+      _ -> job |> Job.running_changeset() |> repo.update()
+    end
+  end
+
+  def mark_failed(%Job{} = job, reason, opts \\ []) do
+    max_attempts = Keyword.get(opts, :max_attempts, 3)
+    repo = Keyword.get(opts, :repo, Repo)
+
+    case driver(opts) do
+      driver when driver in ["fs", "none"] ->
+        {:ok, %{job | status: "pending", attempts: (job.attempts || 0) + 1, last_error: inspect(reason)}}
+
+      _ ->
+        job
+        |> Job.failed_changeset(reason, max_attempts)
+        |> repo.update()
+    end
+  end
+
   defp enqueue_pending(payload, opts) do
     if pending_exists?(payload, opts) do
       {:ok,
@@ -112,13 +139,19 @@ defmodule Eirinchan.BuildQueue do
       _ ->
         repo = Keyword.get(opts, :repo, Repo)
 
-        %Job{}
-        |> Job.changeset(%{
-          board_id: payload.board_id,
-          kind: payload.kind,
-          thread_id: payload[:thread_id]
-        })
-        |> repo.insert()
+        result =
+          %Job{}
+          |> Job.changeset(%{
+            board_id: payload.board_id,
+            kind: payload.kind,
+            thread_id: payload[:thread_id]
+          })
+          |> repo.insert()
+
+        case result do
+          {:error, _changeset} = error -> find_active_job(payload, repo) || error
+          success -> success
+        end
     end
   end
 
@@ -142,7 +175,7 @@ defmodule Eirinchan.BuildQueue do
             where:
               job.board_id == ^payload.board_id and
                 job.kind == ^payload.kind and
-                job.status == "pending"
+                job.status in ["pending", "running"]
           )
 
         query =
@@ -153,6 +186,26 @@ defmodule Eirinchan.BuildQueue do
           end
 
         repo.exists?(query)
+    end
+  end
+
+  defp find_active_job(payload, repo) do
+    thread_id = Map.get(payload, :thread_id)
+
+    query =
+      from job in Job,
+        where:
+          job.board_id == ^payload.board_id and job.kind == ^payload.kind and
+            job.status in ["pending", "running"]
+
+    query =
+      if is_nil(thread_id),
+        do: from(job in query, where: is_nil(job.thread_id)),
+        else: from(job in query, where: job.thread_id == ^thread_id)
+
+    case repo.one(query) do
+      nil -> nil
+      job -> {:ok, job}
     end
   end
 

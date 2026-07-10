@@ -587,4 +587,22 @@ defmodule Eirinchan.BuildTest do
     refute File.exists?(Path.join(board_dir, config.file_index))
     assert Enum.map(BuildQueue.list_pending(), & &1.kind) == ["thread", "indexes"]
   end
+
+  test "process_pending records build failures instead of marking them done" do
+    board = board_fixture()
+    config = Config.compose(nil, %{}, board.config_overrides, request_host: "example.test")
+    assert {:ok, _job} = BuildQueue.enqueue_thread(board, 999)
+
+    assert %{processed: 0, failed: 1} =
+             Build.process_pending(
+               board: board,
+               config: config,
+               thread_builder: fn _board, _thread_id, _opts -> {:error, :render_failed} end
+             )
+
+    [job] = Repo.all(from job in Eirinchan.BuildQueue.Job, where: job.board_id == ^board.id)
+    assert job.status == "pending"
+    assert job.attempts == 1
+    assert job.last_error =~ "render_failed"
+  end
 end

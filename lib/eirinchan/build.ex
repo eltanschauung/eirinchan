@@ -93,9 +93,11 @@ defmodule Eirinchan.Build do
     repo = Keyword.get(opts, :repo, Repo)
     board = Keyword.get(opts, :board)
     config = Keyword.fetch!(opts, :config)
+    thread_builder = Keyword.get(opts, :thread_builder, &build_thread/3)
+    index_builder = Keyword.get(opts, :index_builder, &build_indexes/2)
     jobs = BuildQueue.list_pending(repo: repo, board_id: board && board.id)
 
-    Enum.reduce(jobs, %{processed: 0}, fn job, acc ->
+    Enum.reduce(jobs, %{processed: 0, failed: 0}, fn job, acc ->
       if board && job.board_id != board.id do
         acc
       else
@@ -103,14 +105,27 @@ defmodule Eirinchan.Build do
           board ||
             (repo || Eirinchan.Repo).get(Eirinchan.Boards.BoardRecord, job.board_id)
 
-        _ =
-          case job.kind do
-            "thread" -> build_thread(current_board, job.thread_id, config: config, repo: repo)
-            "indexes" -> build_indexes(current_board, config: config, repo: repo)
+        {:ok, running_job} = BuildQueue.mark_running(job, repo: repo)
+
+        result =
+          case running_job.kind do
+            "thread" -> thread_builder.(current_board, running_job.thread_id, config: config, repo: repo)
+            "indexes" -> index_builder.(current_board, config: config, repo: repo)
           end
 
-        _ = BuildQueue.mark_done(job, repo: repo)
-        %{processed: acc.processed + 1}
+        case result do
+          :ok ->
+            _ = BuildQueue.mark_done(running_job, repo: repo)
+            %{acc | processed: acc.processed + 1}
+
+          {:ok, _value} ->
+            _ = BuildQueue.mark_done(running_job, repo: repo)
+            %{acc | processed: acc.processed + 1}
+
+          error ->
+            _ = BuildQueue.mark_failed(running_job, error, repo: repo)
+            %{acc | failed: acc.failed + 1}
+        end
       end
     end)
   end
