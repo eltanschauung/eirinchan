@@ -60,4 +60,24 @@ defmodule EirinchanWeb.ConnCase do
     token = Plug.Conn.get_session(conn, :secure_manage_token)
     Plug.Conn.put_req_header(conn, "x-secure-token", token)
   end
+
+  def with_instance_config(config, fun) when is_map(config) and is_function(fun, 0) do
+    original_path = Application.get_env(:eirinchan, :instance_config_path)
+
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "eirinchan-instance-config-#{System.unique_integer([:positive])}.json"
+      )
+
+    File.write!(path, Jason.encode!(config))
+
+    try do
+      Application.put_env(:eirinchan, :instance_config_path, path)
+      fun.()
+    after
+      Application.put_env(:eirinchan, :instance_config_path, original_path)
+      File.rm(path)
+    end
+  end
 end

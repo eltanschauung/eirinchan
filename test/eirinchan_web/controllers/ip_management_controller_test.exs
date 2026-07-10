@@ -187,20 +187,4 @@ defmodule EirinchanWeb.IpManagementControllerTest do
     end)
   end
 
-  defp with_instance_config(config, fun) do
-    original_path = Application.get_env(:eirinchan, :instance_config_path)
-
-    path =
-      Path.join(System.tmp_dir!(), "eirinchan-ipjson-#{System.unique_integer([:positive])}.json")
-
-    File.write!(path, Jason.encode!(config))
-
-    try do
-      Application.put_env(:eirinchan, :instance_config_path, path)
-      fun.()
-    after
-      Application.put_env(:eirinchan, :instance_config_path, original_path)
-      File.rm(path)
-    end
-  end
 end

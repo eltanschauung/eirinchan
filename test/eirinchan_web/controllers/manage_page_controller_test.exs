@@ -1622,26 +1622,6 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     )
   end
 
-  defp with_instance_config(config, fun) do
-    original_path = Application.get_env(:eirinchan, :instance_config_path)
-
-    path =
-      Path.join(
-        System.tmp_dir!(),
-        "eirinchan-manage-ipcrypt-#{System.unique_integer([:positive])}.json"
-      )
-
-    File.write!(path, Jason.encode!(config))
-
-    try do
-      Application.put_env(:eirinchan, :instance_config_path, path)
-      fun.()
-    after
-      Application.put_env(:eirinchan, :instance_config_path, original_path)
-      File.rm(path)
-    end
-  end
-
   test "browser moderation pages can move threads and replies", %{conn: conn} do
     moderator = moderator_fixture(%{role: "admin"})
     source_board = board_fixture(%{uri: "src"})
