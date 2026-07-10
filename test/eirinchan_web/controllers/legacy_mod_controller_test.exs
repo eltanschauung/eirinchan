@@ -155,7 +155,7 @@ defmodule EirinchanWeb.LegacyModControllerTest do
         "/mod.php?/#{board.uri}/deletefile/#{thread.id}/1/#{signed_token(conn, "#{board.uri}/deletefile/#{thread.id}/1")}"
       )
 
-    assert redirected_to(conn) == "/#{board.uri}/res/#{PublicIds.public_id(thread)}"
+    assert redirected_to(conn) == "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html"
 
     assert {:ok, updated_thread} = Posts.get_post(board, thread.id)
     assert updated_thread.file_path
@@ -190,7 +190,7 @@ defmodule EirinchanWeb.LegacyModControllerTest do
         "/mod.php?/#{board.uri}/spoiler/#{thread.id}/1/#{signed_token(conn, "#{board.uri}/spoiler/#{thread.id}/1")}"
       )
 
-    assert redirected_to(conn) == "/#{board.uri}/res/#{PublicIds.public_id(thread)}"
+    assert redirected_to(conn) == "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html"
     assert {:ok, updated_thread} = Posts.get_post(board, thread.id)
     refute updated_thread.spoiler
     assert [%{spoiler: true}] = updated_thread.extra_files
@@ -201,13 +201,13 @@ defmodule EirinchanWeb.LegacyModControllerTest do
     board = board_fixture()
     thread = thread_fixture(board)
 
+    conn = login_moderator(conn, moderator)
+    token = signed_token(conn, "#{board.uri}/delete/#{thread.id}")
+
     conn =
       conn
-      |> login_moderator(moderator)
       |> put_req_header("x-requested-with", "XMLHttpRequest")
-      |> get(
-        "/mod.php?/#{board.uri}/delete/#{thread.id}/#{signed_token(conn, "#{board.uri}/delete/#{thread.id}")}"
-      )
+      |> get("/mod.php?/#{board.uri}/delete/#{thread.id}/#{token}")
 
     assert response(conn, 204) == ""
     assert get_resp_header(conn, "cache-control") == ["no-store"]
