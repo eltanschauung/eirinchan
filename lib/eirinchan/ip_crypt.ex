@@ -7,6 +7,10 @@ defmodule Eirinchan.IpCrypt do
 
   @request_config_key :eirinchan_ipcrypt_config
   @request_viewer_ip_key :eirinchan_ipcrypt_viewer_ip
+  @aead_version "v2"
+  @aead_nonce_bytes 12
+  @aead_tag_bytes 16
+  @aead_context "eirinchan-ipcrypt-v2"
 
   @default_config %{
     ipcrypt_key: "",
@@ -49,7 +53,7 @@ defmodule Eirinchan.IpCrypt do
         value
 
       true ->
-        cfg.ipcrypt_prefix <> ":" <> encrypt_ip(value, cfg.ipcrypt_key)
+        cfg.ipcrypt_prefix <> ":" <> @aead_version <> ":" <> encrypt_ip(value, cfg.ipcrypt_key)
     end
   end
 
@@ -67,10 +71,15 @@ defmodule Eirinchan.IpCrypt do
         candidate
 
       String.starts_with?(candidate, cfg.ipcrypt_prefix <> ":") ->
-        candidate
-        |> strip_dns_suffix()
-        |> String.replace_prefix(cfg.ipcrypt_prefix <> ":", "")
-        |> decrypt_ip(cfg.ipcrypt_key)
+        encoded =
+          candidate
+          |> strip_dns_suffix()
+          |> String.replace_prefix(cfg.ipcrypt_prefix <> ":", "")
+
+        case encoded do
+          @aead_version <> ":" <> ciphertext -> decrypt_ip(ciphertext, cfg.ipcrypt_key)
+          legacy_ciphertext -> decrypt_legacy_ip(legacy_ciphertext, cfg.ipcrypt_key)
+        end
 
       true ->
         nil
@@ -117,15 +126,47 @@ defmodule Eirinchan.IpCrypt do
   end
 
   defp encrypt_ip(ip, key) do
-    ip
-    |> ip_to_binary()
-    |> then(&:crypto.crypto_one_time(:aes_256_ctr, encryption_key(key), zero_iv(), &1, true))
-    |> Base.encode32(padding: false, case: :upper)
+    nonce = :crypto.strong_rand_bytes(@aead_nonce_bytes)
+
+    {ciphertext, tag} =
+      :crypto.crypto_one_time_aead(
+        :aes_256_gcm,
+        encryption_key(key),
+        nonce,
+        ip_to_binary(ip),
+        @aead_context,
+        @aead_tag_bytes,
+        true
+      )
+
+    Base.url_encode64(nonce <> tag <> ciphertext, padding: false)
   end
 
   defp decrypt_ip(encoded, key) do
+    with {:ok, payload} <- Base.url_decode64(encoded, padding: false),
+         <<nonce::binary-size(@aead_nonce_bytes), tag::binary-size(@aead_tag_bytes), ciphertext::binary>> <-
+           payload,
+         plaintext when is_binary(plaintext) <-
+           :crypto.crypto_one_time_aead(
+             :aes_256_gcm,
+             encryption_key(key),
+             nonce,
+             ciphertext,
+             @aead_context,
+             tag,
+             false
+           ),
+         {:ok, ip} <- binary_to_ip(plaintext) do
+      ip
+    else
+      _ -> nil
+    end
+  end
+
+  defp decrypt_legacy_ip(encoded, key) do
     with {:ok, ciphertext} <- decode32(encoded),
-         plaintext <- :crypto.crypto_one_time(:aes_256_ctr, encryption_key(key), zero_iv(), ciphertext, false),
+         plaintext <-
+           :crypto.crypto_one_time(:aes_256_ctr, encryption_key(key), zero_iv(), ciphertext, false),
          {:ok, ip} <- binary_to_ip(plaintext) do
       ip
     else
