@@ -41,7 +41,7 @@ defmodule EirinchanWeb.Router do
     plug EirinchanWeb.Plugs.TrackBrowserPresence
     plug EirinchanWeb.Plugs.FetchCurrentModerator
     plug EirinchanWeb.Plugs.AutoMaintenance
-    plug :protect_from_forgery
+    plug EirinchanWeb.Plugs.RequireCsrfToken
     plug EirinchanWeb.Plugs.SecureHeaders
   end
 
