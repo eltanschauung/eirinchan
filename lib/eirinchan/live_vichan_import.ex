@@ -413,7 +413,7 @@ defmodule Eirinchan.LiveVichanImport do
               :ok
 
             {:error, _reason} ->
-              restore_live_thumbnail(board, legacy_file, source_root, file_abs, thumb_abs, config)
+              restore_live_thumbnail(board, legacy_file, source_root, thumb_abs)
           end
 
         %{
@@ -499,9 +499,7 @@ defmodule Eirinchan.LiveVichanImport do
          %BoardRecord{} = board,
          legacy_file,
          source_root,
-         file_abs,
-         thumb_abs,
-         config
+         thumb_abs
        ) do
     cond do
       truthy?(legacy_file["spoiler"]) or spoiler_thumb?(legacy_file) ->
