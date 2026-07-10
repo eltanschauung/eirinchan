@@ -2,6 +2,7 @@ defmodule Eirinchan.IpAccessAuth do
   @moduledoc false
 
   alias Eirinchan.AccessList
+  alias Eirinchan.CredentialHash
   alias Eirinchan.IpMatching
 
   @default_passwords []
@@ -58,7 +59,7 @@ defmodule Eirinchan.IpAccessAuth do
       passwords == [] ->
         {:error, :invalid_password}
 
-      normalized_password not in passwords ->
+      not Enum.any?(passwords, &CredentialHash.verify(normalized_password, &1, :ip_access)) ->
         {:error, :invalid_password}
 
       true ->
@@ -167,7 +168,9 @@ defmodule Eirinchan.IpAccessAuth do
       |> String.split(",", trim: true)
       |> Enum.map(&String.trim/1)
       |> Enum.reject(&(&1 == ""))
-      |> Enum.map(&String.downcase/1)
+      |> Enum.map(fn password ->
+        if CredentialHash.encoded?(password), do: password, else: String.downcase(password)
+      end)
       |> Enum.uniq()
 
     passwords

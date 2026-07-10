@@ -6,6 +6,7 @@ defmodule Eirinchan.AccessList do
   alias Eirinchan.IpAccessEntry
   alias Eirinchan.IpMatching
   alias Eirinchan.Repo
+  alias Eirinchan.CredentialHash
 
   @default_config %{enabled: false, entries: [], path: nil}
   @legacy_metadata_regex ~r/^#(?<password>\S+)\s+(?<date>\d{4}-\d{2}-\d{2})\s+(?<time>\d{2}:\d{2}:\d{2})(?:\s+\S+)?$/
@@ -65,7 +66,11 @@ defmodule Eirinchan.AccessList do
   end
 
   def record_access(ip, password, granted_at \\ current_timestamp()) when is_binary(ip) do
-    Repo.insert(%IpAccessEntry{ip: ip, password: password, granted_at: granted_at})
+    Repo.insert(%IpAccessEntry{
+      ip: ip,
+      password: hash_password(password),
+      granted_at: granted_at
+    })
   end
 
   def import_legacy_file(path) when is_binary(path) do
@@ -93,7 +98,7 @@ defmodule Eirinchan.AccessList do
 
   defp legacy_rows([ip, <<"#", _::binary>> = metadata | rest], acc) do
     {password, granted_at} = parse_legacy_metadata(metadata)
-    legacy_rows(rest, [%{ip: ip, password: password, granted_at: granted_at} | acc])
+    legacy_rows(rest, [%{ip: ip, password: hash_password(password), granted_at: granted_at} | acc])
   end
 
   defp legacy_rows([ip | rest], acc) do
@@ -119,6 +124,16 @@ defmodule Eirinchan.AccessList do
   defp blank_to_nil(nil), do: nil
   defp blank_to_nil(""), do: nil
   defp blank_to_nil(value), do: value
+
+  defp hash_password(nil), do: nil
+
+  defp hash_password(password) do
+    if CredentialHash.encoded?(password) do
+      password
+    else
+      password |> String.downcase() |> CredentialHash.hash(:ip_access)
+    end
+  end
 
   defp current_timestamp do
     NaiveDateTime.local_now() |> NaiveDateTime.truncate(:second)

@@ -54,7 +54,8 @@ defmodule Eirinchan.IpAccessAuthTest do
 
     assert length(entries) == 2
     assert Enum.all?(entries, &(&1.ip == "203.0.113.0/24"))
-    assert Enum.all?(entries, &(&1.password == "door"))
+    assert Enum.all?(entries, &Eirinchan.CredentialHash.verify("door", &1.password, :ip_access))
+    refute Enum.any?(entries, &(&1.password == "door"))
   end
 
   test "uses supplied password list" do

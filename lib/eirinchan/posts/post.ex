@@ -2,6 +2,8 @@ defmodule Eirinchan.Posts.Post do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Eirinchan.CredentialHash
+
   schema "posts" do
     field :name, :string
     field :email, :string
@@ -91,6 +93,7 @@ defmodule Eirinchan.Posts.Post do
     |> update_change(:email, &normalize_string/1)
     |> update_change(:subject, &normalize_string/1)
     |> update_change(:password, &normalize_string/1)
+    |> update_change(:password, &hash_delete_password/1)
     |> update_change(:body, &normalize_body/1)
     |> update_change(:embed, &normalize_string/1)
     |> ensure_body()
@@ -122,6 +125,16 @@ defmodule Eirinchan.Posts.Post do
     |> String.replace("\r\n", "\n")
     |> String.replace("\r", "\n")
     |> String.trim()
+  end
+
+  defp hash_delete_password(nil), do: nil
+
+  defp hash_delete_password(password) do
+    if CredentialHash.encoded?(password) do
+      password
+    else
+      CredentialHash.hash(password, :post_delete)
+    end
   end
 
   defp ensure_body(changeset) do

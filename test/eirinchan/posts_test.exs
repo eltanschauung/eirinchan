@@ -318,7 +318,8 @@ defmodule Eirinchan.PostsTest do
 
     assert thread.subject == "legacy subject"
     assert thread.body == "legacy body"
-    assert thread.password == "secretpw"
+    refute thread.password == "secretpw"
+    assert Eirinchan.CredentialHash.verify("secretpw", thread.password, :post_delete)
 
     assert {:ok, reply, %{noko: false}} =
              Posts.create_post(

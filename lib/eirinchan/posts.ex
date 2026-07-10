@@ -2041,10 +2041,7 @@ defmodule Eirinchan.Posts do
       is_nil(stored_password) or is_nil(provided_password) ->
         {:error, :invalid_password}
 
-      byte_size(stored_password) != byte_size(provided_password) ->
-        {:error, :invalid_password}
-
-      Plug.Crypto.secure_compare(stored_password, provided_password) ->
+      Eirinchan.CredentialHash.verify(provided_password, stored_password, :post_delete) ->
         :ok
 
       true ->

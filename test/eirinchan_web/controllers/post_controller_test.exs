@@ -170,7 +170,8 @@ defmodule EirinchanWeb.PostControllerTest do
 
     post = Repo.get_by!(Post, board_id: board.id, public_id: String.to_integer(public_id))
 
-    assert post.password == "cookiepw"
+    refute post.password == "cookiepw"
+    assert Eirinchan.CredentialHash.verify("cookiepw", post.password, :post_delete)
   end
 
   test "classic reply posting redirects back to the thread anchor", %{conn: conn} do

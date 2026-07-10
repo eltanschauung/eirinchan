@@ -65,8 +65,11 @@ defmodule EirinchanWeb.IpAccessAuthControllerTest do
     assert body =~ ~s(src="/js/auth-redirect.js")
     refute body =~ "setTimeout(function"
 
-    assert [%IpAccessEntry{ip: "127.0.0.0/24", password: "letmein", granted_at: %NaiveDateTime{}}] =
+    assert [%IpAccessEntry{ip: "127.0.0.0/24", password: stored, granted_at: %NaiveDateTime{}}] =
              Eirinchan.Repo.all(IpAccessEntry)
+
+    assert Eirinchan.CredentialHash.verify("letmein", stored, :ip_access)
+    refute stored == "letmein"
   end
 
   test "invalid passwords return validation feedback", %{conn: conn} do

@@ -72,7 +72,8 @@ defmodule Eirinchan.AccessListTest do
     entries = Repo.all(from entry in IpAccessEntry, order_by: entry.ip)
 
     assert Enum.map(entries, & &1.ip) == ["198.51.100.0/24", "203.0.113.0/24"]
-    assert Enum.at(entries, 0).password == "door"
+    assert Eirinchan.CredentialHash.verify("door", Enum.at(entries, 0).password, :ip_access)
+    refute Enum.at(entries, 0).password == "door"
     assert Enum.at(entries, 0).granted_at == ~N[2026-03-25 18:05:16]
     assert Enum.at(entries, 1).password == nil
     assert Enum.at(entries, 1).granted_at == nil

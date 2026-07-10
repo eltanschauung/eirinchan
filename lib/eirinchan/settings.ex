@@ -4,6 +4,7 @@ defmodule Eirinchan.Settings do
   """
 
   alias Eirinchan.Runtime.Config
+  alias Eirinchan.CredentialHash
   alias Eirinchan.SecureFile
 
   @default_page_enabled_themes ["ukko", "recent", "sitemap"]
@@ -146,7 +147,10 @@ defmodule Eirinchan.Settings do
   @spec persist_instance_config(map()) :: :ok | {:error, term()}
   def persist_instance_config(overrides) when is_map(overrides) do
     path = config_path()
-    overrides = preserve_hidden_instance_state(overrides, current_instance_config())
+    overrides =
+      overrides
+      |> preserve_hidden_instance_state(current_instance_config())
+      |> hash_sensitive_values()
 
     path
     |> Path.dirname()
@@ -174,6 +178,7 @@ defmodule Eirinchan.Settings do
     |> Jason.decode!()
     |> Config.normalize_override_keys()
     |> preserve_hidden_instance_state(current_instance_config())
+    |> hash_sensitive_values()
     |> stringify_keys()
     |> Jason.encode_to_iodata!(pretty: true)
     |> then(&SecureFile.atomic_write(path, &1))
@@ -359,6 +364,29 @@ defmodule Eirinchan.Settings do
 
   defp bump_asset_version(config) do
     Map.put(config, :asset_version, Integer.to_string(System.system_time(:millisecond)))
+  end
+
+  defp hash_sensitive_values(config) do
+    case Map.fetch(config, :ip_access_passwords) do
+      {:ok, passwords} -> Map.put(config, :ip_access_passwords, hash_ip_access_passwords(passwords))
+      :error -> config
+    end
+  end
+
+  defp hash_ip_access_passwords(passwords) do
+    passwords
+    |> List.wrap()
+    |> Enum.flat_map(&String.split(to_string(&1), ",", trim: true))
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.map(fn password ->
+      if CredentialHash.encoded?(password) do
+        password
+      else
+        password |> String.downcase() |> CredentialHash.hash(:ip_access)
+      end
+    end)
+    |> Enum.uniq()
   end
 
   defp cache_key(base_key), do: {base_key, config_path()}

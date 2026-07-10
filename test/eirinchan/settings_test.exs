@@ -46,6 +46,15 @@ defmodule Eirinchan.SettingsTest do
     assert Path.wildcard(Path.join(Path.dirname(path), ".#{Path.basename(path)}.*.tmp")) == []
   end
 
+  test "IP access passwords are hashed before settings are persisted" do
+    assert :ok = Settings.persist_instance_config(%{ip_access_passwords: ["Door", "other"]})
+
+    stored = Settings.current_instance_config().ip_access_passwords
+    assert length(stored) == 2
+    assert Enum.any?(stored, &Eirinchan.CredentialHash.verify("door", &1, :ip_access))
+    refute File.read!(Application.fetch_env!(:eirinchan, :instance_config_path)) =~ "Door"
+  end
+
   test "persist_instance_config preserves page theme state when overrides omit it" do
     assert :ok =
              Settings.persist_instance_config(%{
