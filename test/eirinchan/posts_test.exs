@@ -1503,7 +1503,7 @@ defmodule Eirinchan.PostsTest do
     refute updated_thread.inactive
   end
 
-  test "create_post fetches remote uploads when url uploads are enabled" do
+  test "create_post rejects remote uploads even when legacy config enables them" do
     board =
       board_fixture(%{
         config_overrides: %{upload_by_url_enabled: true, upload_by_url_allow_private_hosts: true}
@@ -1513,7 +1513,7 @@ defmodule Eirinchan.PostsTest do
     server = serve_upload_fixture(File.read!(source_upload.path), "remote.png")
     on_exit(server.stop)
 
-    assert {:ok, thread, _meta} =
+    assert {:error, :upload_failed} =
              Posts.create_post(
                board,
                %{
@@ -1525,9 +1525,6 @@ defmodule Eirinchan.PostsTest do
                request: post_request(board.uri)
              )
 
-    assert thread.file_name == "remote.png"
-    assert thread.file_type == "image/png"
-    assert File.exists?(Eirinchan.Uploads.filesystem_path(thread.file_path))
   end
 
   test "create_post rejects private remote upload hosts by default" do

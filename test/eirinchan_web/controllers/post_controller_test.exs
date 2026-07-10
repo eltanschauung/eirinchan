@@ -808,7 +808,7 @@ defmodule EirinchanWeb.PostControllerTest do
     assert %{"error" => "File type not allowed."} = json_response(response_conn, 422)
   end
 
-  test "posting fetches remote uploads from file_url when enabled", %{conn: conn} do
+  test "posting rejects remote uploads even when legacy config enables them", %{conn: conn} do
     board =
       board_fixture(%{
         config_overrides: %{upload_by_url_enabled: true, upload_by_url_allow_private_hosts: true}
@@ -828,16 +828,7 @@ defmodule EirinchanWeb.PostControllerTest do
         "post" => "New Topic"
       })
 
-    assert %{"id" => id} = json_response(response_conn, 200)
-
-    page =
-      conn
-      |> recycle()
-      |> get("/#{board.uri}")
-      |> html_response(200)
-
-    {:ok, [thread | _]} = Eirinchan.Posts.get_thread(board, id)
-    assert page =~ thread.thumb_path
+    assert %{"error" => "Upload failed."} = json_response(response_conn, 500)
   end
 
   test "posting times out remote uploads according to config", %{conn: conn} do

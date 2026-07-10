@@ -239,8 +239,6 @@ defmodule Eirinchan.Runtime.Config do
     },
     minimum_copy_resize: false,
     upload_by_url_enabled: false,
-    upload_by_url_timeout_ms: 5_000,
-    upload_by_url_allow_private_hosts: false,
     allowed_ext_files_op: nil,
     allowed_ext_files: [
       ".png",
@@ -407,7 +405,6 @@ defmodule Eirinchan.Runtime.Config do
     "early404GapDeletion" => :early_404_gap_deletion,
     "early404GapMax" => :early_404_gap_max,
     "uploadByUrlEnabled" => :upload_by_url_enabled,
-    "uploadByUrlTimeoutMs" => :upload_by_url_timeout_ms,
     "generationStrategy" => :generation_strategy,
     "replyHardLimit" => :reply_hard_limit,
     "imageHardLimit" => :image_hard_limit,
@@ -483,6 +480,7 @@ defmodule Eirinchan.Runtime.Config do
 
   defp apply_computed_defaults(config, board, request_host) do
     config
+    |> Map.put(:upload_by_url_enabled, false)
     |> Map.put_new(:global_message, false)
     |> Map.put_new(:news_blotter_entries, [])
     |> Map.put_new(:news_blotter_limit, 100)

@@ -412,8 +412,7 @@ defmodule Eirinchan.Runtime.ConfigTest do
     assert config.multiple_flags
     assert config.default_user_flag == "country,sau"
     assert config.user_flags["sau"] == "Sauce"
-    assert config.upload_by_url_enabled
-    assert config.upload_by_url_timeout_ms == 1234
+    refute config.upload_by_url_enabled
     assert config.captcha.provider == "hcaptcha"
     assert config.captcha.mode == "reply"
     refute config.captcha.refresh_on_error

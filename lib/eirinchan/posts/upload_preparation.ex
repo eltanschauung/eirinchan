@@ -174,27 +174,18 @@ defmodule Eirinchan.Posts.UploadPreparation do
     end)
   end
 
-  defp maybe_add_remote_upload(attrs, config) do
+  defp maybe_add_remote_upload(attrs, _config) do
     uploads = collect_uploads(attrs)
 
     cond do
       uploads != [] ->
         {:ok, attrs, uploads}
 
-      not config.upload_by_url_enabled ->
+      is_nil(trim_to_nil(Map.get(attrs, "file_url") || Map.get(attrs, "url"))) ->
         {:ok, attrs, uploads}
 
       true ->
-        case trim_to_nil(Map.get(attrs, "file_url") || Map.get(attrs, "url")) do
-          nil ->
-            {:ok, attrs, uploads}
-
-          remote_url ->
-            case Uploads.fetch_remote_upload(remote_url, config) do
-              {:ok, upload} -> {:ok, Map.put(attrs, "file", upload), [upload]}
-              {:error, reason} -> {:error, reason}
-            end
-        end
+        {:error, :upload_failed}
     end
   end
 
