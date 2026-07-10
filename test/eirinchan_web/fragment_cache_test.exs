@@ -4,7 +4,14 @@ defmodule EirinchanWeb.FragmentCacheTest do
   alias EirinchanWeb.FragmentCache
 
   setup do
+    original = Application.get_env(:eirinchan, :fragment_cache)
     FragmentCache.clear()
+
+    on_exit(fn ->
+      Application.put_env(:eirinchan, :fragment_cache, original)
+      FragmentCache.clear()
+    end)
+
     :ok
   end
 
@@ -26,6 +33,27 @@ defmodule EirinchanWeb.FragmentCacheTest do
     refute new_pid == old_pid
 
     assert FragmentCache.fetch_or_store(:beta, fn -> "two" end) == "two"
+  end
+
+  test "expires cached values after the configured ttl" do
+    Application.put_env(:eirinchan, :fragment_cache, max_entries: 10, ttl_ms: 10)
+
+    assert FragmentCache.fetch_or_store(:expiring, fn -> "one" end) == "one"
+    Process.sleep(20)
+    assert FragmentCache.fetch_or_store(:expiring, fn -> "two" end) == "two"
+  end
+
+  test "evicts oldest entries at the configured size limit" do
+    Application.put_env(:eirinchan, :fragment_cache, max_entries: 2, ttl_ms: 60_000)
+
+    assert FragmentCache.fetch_or_store(:first, fn -> 1 end) == 1
+    Process.sleep(2)
+    assert FragmentCache.fetch_or_store(:second, fn -> 2 end) == 2
+    Process.sleep(2)
+    assert FragmentCache.fetch_or_store(:third, fn -> 3 end) == 3
+
+    assert FragmentCache.size() == 2
+    assert FragmentCache.fetch_or_store(:first, fn -> :recomputed end) == :recomputed
   end
 
   defp wait_for_restart(old_pid, attempts \\ 20)

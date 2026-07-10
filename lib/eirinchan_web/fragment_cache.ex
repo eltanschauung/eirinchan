@@ -5,22 +5,25 @@ defmodule EirinchanWeb.FragmentCache do
 
   @table __MODULE__
   @retry_attempts 2
+  @default_max_entries 5_000
+  @default_ttl_ms 5 * 60 * 1_000
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, :ok, Keyword.put_new(opts, :name, __MODULE__))
   end
 
   @impl true
-  def init(:ok) do
-    {:ok, %{table: create_table()}}
-  end
+  def init(:ok), do: {:ok, %{table: create_table()}}
 
   def fetch_or_store(key, fun) when is_function(fun, 0) do
     fetch_or_store(key, fun, @retry_attempts)
   end
 
-  def clear do
-    clear(@retry_attempts)
+  def clear, do: clear(@retry_attempts)
+
+  def size do
+    ensure_table()
+    :ets.info(@table, :size)
   end
 
   @impl true
@@ -31,43 +34,91 @@ defmodule EirinchanWeb.FragmentCache do
   defp fetch_or_store(key, fun, attempts_left) when attempts_left > 0 do
     ensure_table()
 
-    case lookup(key) do
-      {:ok, [{^key, value}]} ->
-        value
-
-      {:ok, []} ->
-        value = fun.()
-
-        case insert(key, value) do
-          :ok -> value
-          :retry -> fetch_or_store(key, fun, attempts_left - 1)
-        end
-
-      :retry ->
-        fetch_or_store(key, fun, attempts_left - 1)
+    case lookup_fresh(key) do
+      {:ok, {:hit, value}} -> value
+      {:ok, :miss} -> store_computed(key, fun, attempts_left)
+      :retry -> fetch_or_store(key, fun, attempts_left - 1)
     end
   end
 
   defp fetch_or_store(key, fun, _attempts_left) do
     ensure_table()
 
-    case :ets.lookup(@table, key) do
-      [{^key, value}] ->
-        value
-
-      [] ->
+    case lookup_fresh_unsafe(key) do
+      {:hit, value} -> value
+      :miss ->
         value = fun.()
-        :ets.insert(@table, {key, value})
+        insert_unsafe(key, value)
         value
+    end
+  end
+
+  defp store_computed(key, fun, attempts_left) do
+    value = fun.()
+
+    case insert(key, value) do
+      :ok -> value
+      :retry -> fetch_or_store(key, fn -> value end, attempts_left - 1)
+    end
+  end
+
+  defp lookup_fresh(key) do
+    {:ok, lookup_fresh_unsafe(key)}
+  rescue
+    error in ArgumentError -> handle_stale_table(error)
+  end
+
+  defp lookup_fresh_unsafe(key) do
+    case :ets.lookup(@table, key) do
+      [{^key, inserted_at, value}] ->
+        if monotonic_ms() - inserted_at <= ttl_ms() do
+          {:hit, value}
+        else
+          :ets.delete(@table, key)
+          :miss
+        end
+
+      _other ->
+        :miss
+    end
+  end
+
+  defp insert(key, value) do
+    insert_unsafe(key, value)
+    :ok
+  rescue
+    error in ArgumentError -> handle_stale_table(error)
+  end
+
+  defp insert_unsafe(key, value) do
+    evict_if_full()
+    :ets.insert(@table, {key, monotonic_ms(), value})
+  end
+
+  defp evict_if_full do
+    size = :ets.info(@table, :size)
+    maximum = max_entries()
+
+    if size >= maximum do
+      @table
+      |> :ets.tab2list()
+      |> Enum.sort_by(fn {_key, inserted_at, _value} -> inserted_at end)
+      |> Enum.take(size - maximum + 1)
+      |> Enum.each(fn {key, _inserted_at, _value} -> :ets.delete(@table, key) end)
     end
   end
 
   defp clear(attempts_left) when attempts_left > 0 do
     ensure_table()
 
-    case delete_all_objects() do
-      :ok -> :ok
-      :retry -> clear(attempts_left - 1)
+    try do
+      :ets.delete_all_objects(@table)
+      :ok
+    rescue
+      error in ArgumentError ->
+        case handle_stale_table(error) do
+          :retry -> clear(attempts_left - 1)
+        end
     end
   end
 
@@ -118,48 +169,20 @@ defmodule EirinchanWeb.FragmentCache do
     end
   end
 
-  defp lookup(key) do
-    {:ok, :ets.lookup(@table, key)}
-  rescue
-    error in ArgumentError ->
-      if stale_table_error?(error) do
-        repair_table()
-        :retry
-      else
-        reraise error, __STACKTRACE__
-      end
+  defp handle_stale_table(error) do
+    if stale_table_error?(error) do
+      ensure_owner_started()
+      GenServer.call(__MODULE__, :ensure_table)
+      :retry
+    else
+      raise error
+    end
   end
 
-  defp insert(key, value) do
-    :ets.insert(@table, {key, value})
-    :ok
-  rescue
-    error in ArgumentError ->
-      if stale_table_error?(error) do
-        repair_table()
-        :retry
-      else
-        reraise error, __STACKTRACE__
-      end
-  end
-
-  defp delete_all_objects do
-    :ets.delete_all_objects(@table)
-    :ok
-  rescue
-    error in ArgumentError ->
-      if stale_table_error?(error) do
-        repair_table()
-        :retry
-      else
-        reraise error, __STACKTRACE__
-      end
-  end
-
-  defp repair_table do
-    ensure_owner_started()
-    GenServer.call(__MODULE__, :ensure_table)
-  end
+  defp cache_config, do: Application.get_env(:eirinchan, :fragment_cache, [])
+  defp max_entries, do: max(Keyword.get(cache_config(), :max_entries, @default_max_entries), 1)
+  defp ttl_ms, do: max(Keyword.get(cache_config(), :ttl_ms, @default_ttl_ms), 1)
+  defp monotonic_ms, do: System.monotonic_time(:millisecond)
 
   defp stale_table_error?(%ArgumentError{message: message}) when is_binary(message) do
     String.contains?(message, "ETS table") or
