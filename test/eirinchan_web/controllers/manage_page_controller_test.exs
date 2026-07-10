@@ -1438,6 +1438,33 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert DateTime.diff(ban.expires_at, DateTime.utc_now(), :second) in 3598..3602
   end
 
+  test "browser ban routes enforce the ban capability", %{conn: conn} do
+    board = board_fixture()
+    thread = thread_fixture(board, %{ip_subnet: "198.51.100.7"})
+    janitor = moderator_fixture(%{role: "janitor"}) |> grant_board_access_fixture(board)
+    post_id = PublicIds.public_id(thread)
+
+    page_conn =
+      conn
+      |> login_moderator(janitor)
+      |> get("/manage/boards/#{board.uri}/posts/#{post_id}/ban/browser")
+
+    assert html_response(page_conn, 403) =~ "Ban permission and board access required."
+
+    create_conn =
+      conn
+      |> recycle()
+      |> login_moderator(janitor)
+      |> post("/manage/boards/#{board.uri}/posts/#{post_id}/ban/browser", %{
+        "ip" => "198.51.100.7",
+        "reason" => "Not permitted",
+        "board" => board.uri
+      })
+
+    assert html_response(create_conn, 403) =~ "Ban permission and board access required."
+    assert Eirinchan.Bans.list_bans(board_id: board.id) == []
+  end
+
   test "browser post ban can attach the public ban message to the post", %{conn: conn} do
     moderator = moderator_fixture(%{role: "admin"})
     board = board_fixture(%{uri: "banmsg#{System.unique_integer([:positive])}", title: "Ban Msg"})

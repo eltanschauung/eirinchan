@@ -1932,7 +1932,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def ban_post(conn, %{"uri" => uri, "post_id" => post_id} = params) do
-    with {:ok, moderator} <- ensure_moderator(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :ban),
          {:ok, board} <- load_accessible_board(moderator, uri),
          {:ok, post} <- Eirinchan.Posts.get_post(board, post_id) do
       render(conn, :ban_post,
@@ -1961,7 +1961,7 @@ defmodule EirinchanWeb.ManagePageController do
         redirect(conn, to: ~p"/manage/login")
 
       {:error, :forbidden} ->
-        render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
+        render_dashboard_error(conn, "Ban permission and board access required.", %{}, :forbidden)
 
       {:error, :not_found} ->
         render_dashboard_error(conn, "Post not found.", %{}, :not_found)
@@ -1969,7 +1969,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def create_post_ban(conn, %{"uri" => uri, "post_id" => post_id} = params) do
-    with {:ok, moderator} <- ensure_moderator(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :ban),
          {:ok, board} <- load_accessible_board(moderator, uri),
          {:ok, post} <- Eirinchan.Posts.get_post(board, post_id),
          {:ok, target_board_id} <- target_ban_board_id(moderator, params["board"]),
@@ -2012,7 +2012,7 @@ defmodule EirinchanWeb.ManagePageController do
         redirect(conn, to: ~p"/manage/login")
 
       {:error, :forbidden} ->
-        render_dashboard_error(conn, "Board access required.", %{}, :forbidden)
+        render_dashboard_error(conn, "Ban permission and board access required.", %{}, :forbidden)
 
       {:error, :not_found} ->
         render_dashboard_error(conn, "Post not found.", %{}, :not_found)
