@@ -1,0 +1,12 @@
+/home/telemazer/logs/bantculture-phoenix.log {
+    su root root
+    daily
+    size 10M
+    rotate 14
+    missingok
+    notifempty
+    compress
+    delaycompress
+    dateext
+    copytruncate
+}
