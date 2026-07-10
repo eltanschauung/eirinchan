@@ -15,6 +15,7 @@ config :eirinchan,
   site_assets: %{version: nil, custom_javascript: [], analytics_html: nil},
   allowed_hosts: ["localhost", "www.example.com"],
   external_command_timeout_ms: 15_000,
+  quarantine_invalid_uploads: false,
   instance_config_path: Path.expand("../var/settings.json", __DIR__),
   proxy_request: %{
     trust_headers: true,

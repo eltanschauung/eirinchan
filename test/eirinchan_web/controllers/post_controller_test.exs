@@ -990,11 +990,13 @@ defmodule EirinchanWeb.PostControllerTest do
     assert metadata["branch"] == "post"
     assert metadata["content_type"] =~ "multipart/"
     assert metadata["browser_token_present"] == true
-    assert metadata["post_context"]["body"] == "first post"
-    assert metadata["post_context"]["body_length"] == 10
-    assert metadata["post_context"]["has_upload"] == true
+    assert is_binary(metadata["client_id"])
+    refute Map.has_key?(metadata, "post_context")
+    refute Map.has_key?(metadata, "params")
+    refute Map.has_key?(metadata, "query_string")
+    refute Map.has_key?(metadata, "remote_ip")
 
-    assert metadata["post_context"]["uploads"] == [
+    assert metadata["uploads"] == [
              %{
                "filename" => unique_name,
                "content_type" => "image/png",
@@ -1002,17 +1004,13 @@ defmodule EirinchanWeb.PostControllerTest do
              }
            ]
 
-    assert metadata["params"]["body"] == "first post"
     assert diagnostic["filename"] == unique_name
     assert diagnostic["content_type"] == "image/png"
     assert diagnostic["magic_bytes_hex"] == Base.encode16("not-an-image", case: :lower)
     assert diagnostic["detected_mime"] == "text/plain"
     assert diagnostic["identify"]["available"] == true
     assert diagnostic["identify"]["exit_status"] != 0
-    assert is_binary(diagnostic["quarantined_to"])
-    assert File.exists?(diagnostic["quarantined_to"])
-
-    File.rm(diagnostic["quarantined_to"])
+    assert diagnostic["quarantined_to"] == nil
   end
 
   test "posting enforces image dimension limits", %{conn: conn} do

@@ -6,6 +6,8 @@ defmodule EirinchanWeb.PostController do
   alias Eirinchan.Antispam
   alias Eirinchan.Bans
   alias Eirinchan.Boards
+  alias Eirinchan.Command
+  alias Eirinchan.CredentialHash
   alias Eirinchan.IpAccessAuth
   alias Eirinchan.ModerationLog
   alias Eirinchan.PostFailureLog
@@ -948,7 +950,11 @@ defmodule EirinchanWeb.PostController do
       status: Plug.Conn.Status.code(status),
       board: conn.assigns.current_board.uri,
       request_id: Logger.metadata()[:request_id],
-      remote_ip: RequestMeta.effective_remote_ip(conn)
+      client_id:
+        conn
+        |> RequestMeta.effective_remote_ip()
+        |> RequestMeta.ip_to_string()
+        |> CredentialHash.fingerprint(:post_failure_ip)
     }
 
     persist_post_failure("post.error", level, conn.assigns.current_board.uri, metadata)
@@ -968,24 +974,13 @@ defmodule EirinchanWeb.PostController do
         reason: metadata.reason,
         method: conn.method,
         request_path: conn.request_path,
-        query_string: conn.query_string,
-        host: conn.host,
-        port: conn.port,
-        scheme: Atom.to_string(conn.scheme),
-        remote_ip: inspect(metadata.remote_ip),
-        effective_remote_ip: inspect(RequestMeta.effective_remote_ip(conn)),
-        forwarded_for: inspect(RequestMeta.forwarded_for(conn)),
-        referer: List.first(get_req_header(conn, "referer")),
-        origin: List.first(get_req_header(conn, "origin")),
-        user_agent: List.first(get_req_header(conn, "user-agent")),
+        client_id: metadata.client_id,
         content_type: List.first(get_req_header(conn, "content-type")),
         content_length: List.first(get_req_header(conn, "content-length")),
-        x_requested_with: List.first(get_req_header(conn, "x-requested-with")),
         branch: branch(conn.params),
         moderator: failure_moderator_metadata(conn.assigns[:current_moderator]),
         browser_token_present: is_binary(conn.assigns[:browser_token]),
-        post_context: failure_post_context(conn.params),
-        params: sanitize_failure_params(conn.params)
+        uploads: failure_upload_context(conn.params)
       }
       |> maybe_put_invalid_image_diagnostics(invalid_image_diagnostics)
 
@@ -1023,43 +1018,6 @@ defmodule EirinchanWeb.PostController do
   defp json_failure_value(value) when is_list(value), do: Enum.map(value, &json_failure_value/1)
   defp json_failure_value(value), do: inspect(value)
 
-  defp sanitize_failure_params(params) when is_map(params) do
-    Map.new(params, fn {key, value} -> {key, sanitize_failure_param(key, value)} end)
-  end
-
-  defp sanitize_failure_params(other), do: inspect(other)
-
-  defp sanitize_failure_param(key, _value)
-       when key in [
-              "_csrf_token",
-              "password",
-              "pwd",
-              "captcha",
-              "g-recaptcha-response",
-              "h-captcha-response",
-              "hash",
-              "antispam_answer"
-            ],
-       do: "[REDACTED]"
-
-  defp sanitize_failure_param(_key, %Plug.Upload{filename: filename, content_type: content_type}) do
-    %{filename: filename, content_type: content_type}
-  end
-
-  defp sanitize_failure_param(_key, value) when is_map(value), do: sanitize_failure_params(value)
-
-  defp sanitize_failure_param(key, value) when is_list(value) do
-    cond do
-      key in ["files", "files[]"] ->
-        Enum.map(value, &sanitize_failure_param(key, &1))
-
-      true ->
-        Enum.map(value, &sanitize_failure_param(key, &1))
-    end
-  end
-
-  defp sanitize_failure_param(_key, value), do: value
-
   defp maybe_put_invalid_image_diagnostics(payload, diagnostics) when is_list(diagnostics) do
     Map.put(payload, :invalid_image_diagnostics, diagnostics)
   end
@@ -1071,34 +1029,9 @@ defmodule EirinchanWeb.PostController do
   defp failure_moderator_metadata(moderator) do
     %{
       id: moderator.id,
-      username: moderator.username,
       role: moderator.role
     }
   end
-
-  defp failure_post_context(params) when is_map(params) do
-    body = params["body"]
-    subject = params["subject"]
-
-    %{
-      thread: params["thread"] || params["thread_id"],
-      report_post_id: params["report_post_id"],
-      delete_post_id: params["delete_post_id"],
-      body: body,
-      body_length: text_length(body),
-      subject: subject,
-      subject_length: text_length(subject),
-      name: params["name"],
-      email: params["email"],
-      user_flag: params["user_flag"],
-      file_url: params["file_url"],
-      embed: params["embed"],
-      has_upload: has_upload_param?(params),
-      uploads: failure_upload_context(params)
-    }
-  end
-
-  defp failure_post_context(_params), do: nil
 
   defp failure_upload_context(params) do
     params
@@ -1116,8 +1049,6 @@ defmodule EirinchanWeb.PostController do
     |> Enum.filter(&match?(%Plug.Upload{}, &1))
   end
 
-  defp has_upload_param?(params), do: upload_params(params) != []
-
   defp failure_upload_metadata(%Plug.Upload{} = upload) do
     stat =
       case File.stat(upload.path) do
@@ -1131,9 +1062,6 @@ defmodule EirinchanWeb.PostController do
       size: stat && stat.size
     }
   end
-
-  defp text_length(value) when is_binary(value), do: String.length(value)
-  defp text_length(_value), do: 0
 
   defp build_invalid_image_diagnostics(_params, %{reason: reason}) when reason != :invalid_image,
     do: nil
@@ -1180,8 +1108,6 @@ defmodule EirinchanWeb.PostController do
       filename: upload.filename,
       content_type: upload.content_type,
       ext: upload.filename |> Path.extname() |> String.downcase(),
-      temp_path: upload.path,
-      temp_path_exists: File.exists?(upload.path),
       file_size: file_size,
       magic_bytes_hex: read_magic_bytes_hex(upload.path),
       detected_mime: detect_mime_type(upload.path),
@@ -1208,7 +1134,7 @@ defmodule EirinchanWeb.PostController do
         nil
 
       _file_cmd ->
-        case System.cmd("file", ["--brief", "--mime-type", path], stderr_to_stdout: true) do
+        case Command.run("file", ["--brief", "--mime-type", path], stderr_to_stdout: true) do
           {output, 0} -> String.trim(output)
           {output, status} -> "error(#{status}): " <> truncate_log_value(output)
         end
@@ -1221,7 +1147,7 @@ defmodule EirinchanWeb.PostController do
         %{available: false}
 
       _identify_cmd ->
-        {output, status} = System.cmd("identify", [path], stderr_to_stdout: true)
+        {output, status} = Command.run("identify", [path], stderr_to_stdout: true)
 
         %{
           available: true,
@@ -1235,6 +1161,12 @@ defmodule EirinchanWeb.PostController do
   end
 
   defp quarantine_invalid_upload(%Plug.Upload{} = upload, request_id, index) do
+    if Application.get_env(:eirinchan, :quarantine_invalid_uploads, false) do
+      do_quarantine_invalid_upload(upload, request_id, index)
+    end
+  end
+
+  defp do_quarantine_invalid_upload(upload, request_id, index) do
     destination_dir = Path.expand("../../../var/invalid_uploads", __DIR__)
     File.mkdir_p!(destination_dir)
 
@@ -1246,7 +1178,7 @@ defmodule EirinchanWeb.PostController do
       Path.join(destination_dir, "#{request_component}-#{index}-#{basename}#{extension}")
 
     case File.cp(upload.path, destination) do
-      :ok -> destination
+      :ok -> Path.basename(destination)
       {:error, _reason} -> nil
     end
   rescue
