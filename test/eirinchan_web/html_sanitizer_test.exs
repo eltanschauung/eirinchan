@@ -26,6 +26,8 @@ defmodule EirinchanWeb.HtmlSanitizerTest do
     refute sanitized =~ "<style"
     refute sanitized =~ "<link"
     refute sanitized =~ "expression("
+    refute sanitized =~ "expression("
+    assert sanitized =~ ~s(<div>x</div>)
     assert sanitized =~ ~s(<p style="color:red">ok</p>)
   end
 
@@ -38,5 +40,32 @@ defmodule EirinchanWeb.HtmlSanitizerTest do
     assert sanitized =~ ~s(href="#")
     assert sanitized =~ ~s(src="#")
     refute sanitized =~ "srcset="
+  end
+
+  test "blocks unquoted and entity-obfuscated script urls" do
+    html = ~s|<a href=javascript:alert(1)>one</a><a href="jav&#x61;script:alert(2)">two</a>|
+
+    sanitized = HtmlSanitizer.sanitize_fragment(html)
+
+    refute sanitized =~ "javascript:"
+    assert sanitized =~ ~s|<a href="#">one</a>|
+    assert sanitized =~ ~s|<a href="#">two</a>|
+  end
+
+  test "drops executable namespaces forms and their contents" do
+    html = ~s|<svg><a href="https://evil.test">svg</a></svg><form><input name="x"></form><math><mtext>x</mtext></math>safe|
+
+    assert HtmlSanitizer.sanitize_fragment(html) == "safe"
+  end
+
+  test "preserves common rich text and secures blank-target links" do
+    html = ~s|<h2 class="title">Heading</h2><table><tr><th scope="col">A</th></tr></table><a href="https://example.test" target="_blank">link</a>|
+
+    sanitized = HtmlSanitizer.sanitize_fragment(html)
+
+    assert sanitized =~ ~s|<h2 class="title">Heading</h2>|
+    assert sanitized =~ ~s|<th scope="col">A</th>|
+    assert sanitized =~ ~s|target="_blank"|
+    assert sanitized =~ ~s|rel="noopener noreferrer"|
   end
 end
