@@ -4,6 +4,7 @@ defmodule Eirinchan.Uploads do
   """
 
   alias Eirinchan.Boards.BoardRecord
+  alias Eirinchan.Command
   alias Eirinchan.Posts.Post
 
   @image_extensions [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".avif"]
@@ -422,7 +423,7 @@ defmodule Eirinchan.Uploads do
   end
 
   defp detect_mime_type(path, normalized_name) do
-    case System.cmd("file", ["--mime-type", "-b", path], stderr_to_stdout: true) do
+    case Command.run("file", ["--mime-type", "-b", path], stderr_to_stdout: true) do
       {output, 0} ->
         case String.trim(output) do
           "" -> MIME.from_path(normalized_name)
@@ -516,7 +517,7 @@ defmodule Eirinchan.Uploads do
           :ok
 
         _ ->
-          case System.cmd("mogrify", args, stderr_to_stdout: true) do
+          case Command.run("mogrify", args, stderr_to_stdout: true) do
             {_output, 0} -> :ok
             _ -> {:error, :upload_failed}
           end
@@ -582,7 +583,7 @@ defmodule Eirinchan.Uploads do
   defp convert_to_png(source_path, destination_path, config) do
     ffmpeg = get_in(config, [:webm, :ffmpeg_path]) || "ffmpeg"
 
-    case System.cmd(
+    case Command.run(
            ffmpeg,
            [
              "-y",
@@ -702,7 +703,7 @@ defmodule Eirinchan.Uploads do
   end
 
   defp image_metadata(path) do
-    case System.cmd("identify", ["-format", "%w %h", first_frame_path(path)],
+    case Command.run("identify", ["-format", "%w %h", first_frame_path(path)],
            stderr_to_stdout: true
          ) do
       {output, 0} ->
@@ -756,7 +757,7 @@ defmodule Eirinchan.Uploads do
       true ->
         geometry = image_thumbnail_geometry(config, op?)
 
-        case System.cmd(
+        case Command.run(
                "convert",
                image_thumbnail_args(source, destination, geometry, config),
                stderr_to_stdout: true
@@ -772,7 +773,7 @@ defmodule Eirinchan.Uploads do
     frames = max(Map.get(config, :thumb_keep_animation_frames, 1) - 1, 0)
     source_frames = "#{source}[0-#{frames}]"
 
-    case System.cmd(
+    case Command.run(
            "convert",
            [
              source_frames,
@@ -858,7 +859,7 @@ defmodule Eirinchan.Uploads do
         ext -> ext
       end
 
-    case System.cmd(
+    case Command.run(
            "convert",
            [
              "-size",
@@ -922,7 +923,7 @@ defmodule Eirinchan.Uploads do
   defp generate_spoiler_thumbnail(destination, _config) do
     temp_destination = destination <> ".blur.png"
 
-    case System.cmd(
+    case Command.run(
            "convert",
            [destination, "-blur", "0x8", temp_destination],
            stderr_to_stdout: true
@@ -946,7 +947,7 @@ defmodule Eirinchan.Uploads do
   defp maybe_compress_jpeg_thumbnail(destination) do
     case String.downcase(Path.extname(destination)) do
       ext when ext in [".jpg", ".jpeg"] ->
-        case System.cmd(
+        case Command.run(
                "mogrify",
                ["-strip", "-quality", Integer.to_string(@jpeg_thumbnail_quality), destination],
                stderr_to_stdout: true
@@ -997,7 +998,7 @@ defmodule Eirinchan.Uploads do
   defp video_metadata(path, ext, config) do
     ffprobe = get_in(config, [:webm, :ffprobe_path]) || "ffprobe"
 
-    case System.cmd(
+    case Command.run(
            ffprobe,
            ["-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", path],
            stderr_to_stdout: true
@@ -1118,7 +1119,7 @@ defmodule Eirinchan.Uploads do
       destination
     ]
 
-    case System.cmd(ffmpeg, args, stderr_to_stdout: true) do
+    case Command.run(ffmpeg, args, stderr_to_stdout: true) do
       {_output, 0} ->
         if File.exists?(destination),
           do: :ok,
@@ -1133,7 +1134,7 @@ defmodule Eirinchan.Uploads do
     ffmpeg = get_in(config, [:webm, :ffmpeg_path]) || "ffmpeg"
     {width, height} = thumbnail_dimensions_for_video(metadata, config, op?)
 
-    case System.cmd(
+    case Command.run(
            ffmpeg,
            [
              "-y",

@@ -14,6 +14,7 @@ config :eirinchan,
   ip_privacy: %{enabled: true, cloak_key: "eirinchan-dev-ip", immune_ips: [], immune_cidrs: []},
   site_assets: %{version: nil, custom_javascript: [], analytics_html: nil},
   allowed_hosts: ["localhost", "www.example.com"],
+  external_command_timeout_ms: 15_000,
   instance_config_path: Path.expand("../var/settings.json", __DIR__),
   proxy_request: %{
     trust_headers: true,
