@@ -61,6 +61,9 @@ defmodule EirinchanWeb.IpAccessAuthControllerTest do
 
     body = html_response(post_conn, 200)
     assert body =~ "Access granted."
+    assert body =~ ~s(data-redirect-url="/")
+    assert body =~ ~s(src="/js/auth-redirect.js")
+    refute body =~ "setTimeout(function"
 
     assert [%IpAccessEntry{ip: "127.0.0.0/24", password: "letmein", granted_at: %NaiveDateTime{}}] =
              Eirinchan.Repo.all(IpAccessEntry)

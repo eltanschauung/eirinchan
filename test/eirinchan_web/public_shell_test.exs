@@ -81,7 +81,7 @@ defmodule EirinchanWeb.PublicShellTest do
            ]
   end
 
-  test "compile mode keeps remote scripts outside bundles" do
+  test "compile mode drops remote scripts" do
     config = %{
       root: "/",
       url_javascript: "/main.js",
@@ -95,8 +95,7 @@ defmodule EirinchanWeb.PublicShellTest do
              "/js/runtime-config.js",
              "/main.js",
              "/js/bundle-public-core.js",
-             "/js/bundle-public-thread.js",
-             "https://cdn.example.test/remote.js"
+             "/js/bundle-public-thread.js"
            ]
   end
 
@@ -193,7 +192,7 @@ defmodule EirinchanWeb.PublicShellTest do
            ]
   end
 
-  test "allows remote and user-code javascript when explicitly enabled" do
+  test "allows explicit same-origin user code but still rejects remote javascript" do
     config = %{
       root: "/",
       url_javascript: "/main.js",
@@ -212,7 +211,6 @@ defmodule EirinchanWeb.PublicShellTest do
              "/js/runtime-config.js",
              "/main.js",
              "/js/jquery.min.js",
-             "https://cdn.example.test/remote.js",
              "/js/options/user-js.js"
            ]
   end

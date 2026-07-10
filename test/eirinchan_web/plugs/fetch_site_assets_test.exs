@@ -30,10 +30,10 @@ defmodule EirinchanWeb.Plugs.FetchSiteAssetsTest do
            ) == ["/js/one.js"]
   end
 
-  test "parse_custom_javascript allows remote urls when explicitly enabled" do
+  test "parse_custom_javascript rejects remote urls even when legacy config enables them" do
     assert FetchSiteAssets.parse_custom_javascript(
              "/js/one.js, https://cdn.example.test/payload.js",
              allow_remote_script_urls: true
-           ) == ["/js/one.js", "https://cdn.example.test/payload.js"]
+           ) == ["/js/one.js"]
   end
 end

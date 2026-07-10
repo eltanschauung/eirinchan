@@ -66,15 +66,14 @@ defmodule EirinchanWeb.Plugs.FetchSiteAssets do
   def parse_custom_javascript(nil, _opts), do: []
   def parse_custom_javascript(_value, _opts), do: []
 
-  defp safe_script_url?(value, opts) when is_binary(value) do
+  defp safe_script_url?(value, _opts) when is_binary(value) do
     trimmed = String.trim(value)
-    allow_remote_script_urls = Keyword.get(opts, :allow_remote_script_urls, false)
 
     cond do
       trimmed == "" -> false
       String.contains?(trimmed, ["\u0000", "\r", "\n", "\t"]) -> false
       String.starts_with?(trimmed, ["javascript:", "data:"]) -> false
-      String.starts_with?(trimmed, ["http://", "https://", "//"]) -> allow_remote_script_urls
+      String.starts_with?(trimmed, ["http://", "https://", "//"]) -> false
       String.starts_with?(trimmed, "/") -> true
       String.contains?(trimmed, "..") -> false
       true -> true

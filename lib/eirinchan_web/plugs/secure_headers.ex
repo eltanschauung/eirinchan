@@ -12,6 +12,26 @@ defmodule EirinchanWeb.Plugs.SecureHeaders do
     {"x-permitted-cross-domain-policies", "none"}
   ]
 
+  @content_security_policy Enum.join(
+                             [
+                               "default-src 'self'",
+                               "base-uri 'none'",
+                               "object-src 'none'",
+                               "frame-ancestors 'self'",
+                               "form-action 'self'",
+                               "script-src 'self' 'wasm-unsafe-eval'",
+                               "style-src 'self' 'unsafe-inline'",
+                               "img-src 'self' data: blob: https:",
+                               "media-src 'self' blob: https:",
+                               "font-src 'self' data:",
+                               "connect-src 'self' https: wss:",
+                               "frame-src https:",
+                               "worker-src 'self' blob:",
+                               "manifest-src 'self'"
+                             ],
+                             "; "
+                           )
+
   @permissions_policy [
     "accelerometer=()",
     "autoplay=(self)",
@@ -34,6 +54,7 @@ defmodule EirinchanWeb.Plugs.SecureHeaders do
     if Map.get(config, :security_headers, true) do
       conn
       |> put_standard_headers()
+      |> put_resp_header("content-security-policy", @content_security_policy)
       |> put_resp_header("permissions-policy", Enum.join(@permissions_policy, ", "))
     else
       conn

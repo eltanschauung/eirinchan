@@ -66,7 +66,7 @@
       }
     </style>
   </head>
-  <body>
+  <body data-redirect-url={if @success, do: @redirect_url}>
     <img src={EirinchanWeb.Layouts.versioned_asset("/auth/authlanding2.png", @asset_version)} />
     <p><%= @message %></p>
     <div class="password-form" autocomplete="off">
@@ -114,8 +114,6 @@
       <p2>Performance &amp; Security by 無下限</p2>
     </div>
 
-    <script :if={@success}>
-      setTimeout(function () { window.location.href = <%= raw(Phoenix.json_library().encode!(@redirect_url)) %>; }, 3000);
-    </script>
+    <script :if={@success} defer src={EirinchanWeb.Layouts.versioned_asset("/js/auth-redirect.js", @asset_version)}></script>
   </body>
 </html>

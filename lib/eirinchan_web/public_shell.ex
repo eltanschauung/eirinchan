@@ -222,7 +222,6 @@ defmodule EirinchanWeb.PublicShell do
   end
 
   defp additional_javascript(config) do
-    allow_remote_script_urls = Map.get(config, :allow_remote_script_urls, false)
     allow_user_custom_code = Map.get(config, :allow_user_custom_code, false)
 
     config
@@ -250,7 +249,7 @@ defmodule EirinchanWeb.PublicShell do
         ])
     )
     |> Enum.reject(&(custom_code_script?(&1) and not allow_user_custom_code))
-    |> Enum.filter(&safe_script_url?(&1, allow_remote_script_urls))
+    |> Enum.filter(&safe_script_url?/1)
     |> ensure_hide_threads()
     |> ensure_menu_framework()
     |> Enum.uniq()
@@ -339,17 +338,9 @@ defmodule EirinchanWeb.PublicShell do
   end
 
   defp additional_javascript_url(config, script) do
-    allow_remote_script_urls = Map.get(config, :allow_remote_script_urls, false)
-
     cond do
-      not safe_script_url?(script, allow_remote_script_urls) ->
+      not safe_script_url?(script) ->
         nil
-
-      String.starts_with?(script, "http://") or String.starts_with?(script, "https://") ->
-        script
-
-      String.starts_with?(script, "//") ->
-        script
 
       String.starts_with?(script, "/") ->
         script
@@ -358,7 +349,7 @@ defmodule EirinchanWeb.PublicShell do
         base =
           config
           |> Map.get(:additional_javascript_url, config.root || "/")
-          |> safe_script_base(allow_remote_script_urls)
+          |> safe_script_base()
 
         cond do
           String.ends_with?(base, "/") -> base <> script
@@ -367,21 +358,21 @@ defmodule EirinchanWeb.PublicShell do
     end
   end
 
-  defp safe_script_url?(value, allow_remote_script_urls) when is_binary(value) do
+  defp safe_script_url?(value) when is_binary(value) do
     trimmed = String.trim(value)
 
     cond do
       trimmed == "" -> false
       String.contains?(trimmed, ["\u0000", "\r", "\n", "\t"]) -> false
       String.starts_with?(trimmed, ["javascript:", "data:"]) -> false
-      String.starts_with?(trimmed, ["http://", "https://", "//"]) -> allow_remote_script_urls
+      String.starts_with?(trimmed, ["http://", "https://", "//"]) -> false
       String.starts_with?(trimmed, "/") -> true
       String.contains?(trimmed, "..") -> false
       true -> true
     end
   end
 
-  defp safe_script_base(value, allow_remote_script_urls) when is_binary(value) do
+  defp safe_script_base(value) when is_binary(value) do
     trimmed = String.trim(value)
 
     cond do
@@ -393,9 +384,6 @@ defmodule EirinchanWeb.PublicShell do
 
       String.starts_with?(trimmed, ["javascript:", "data:"]) ->
         "/"
-
-      String.starts_with?(trimmed, ["http://", "https://", "//"]) and allow_remote_script_urls ->
-        trimmed
 
       String.starts_with?(trimmed, "/") ->
         trimmed
