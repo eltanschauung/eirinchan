@@ -252,7 +252,6 @@ defmodule Eirinchan.Runtime.Config do
       ".avif",
       ".webm",
       ".mp4",
-      ".svg",
       ".jxl",
       ".pdf",
       ".mp3",

@@ -113,6 +113,25 @@ defmodule EirinchanWeb.UploadedFileControllerTest do
     assert get_resp_header(conn, "content-range") == ["bytes */#{size}"]
   end
 
+  test "source route forces legacy active documents to download", %{conn: conn} do
+    board = board_fixture()
+    filename = "legacy-active.svg"
+    path = Eirinchan.Uploads.filesystem_path("/#{board.uri}/src/#{filename}")
+
+    File.mkdir_p!(Path.dirname(path))
+    File.write!(path, ~s|<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>|)
+    on_exit(fn -> File.rm(path) end)
+
+    conn = get(conn, "/#{board.uri}/src/#{filename}")
+
+    assert response(conn, 200) =~ "<script>"
+    assert get_resp_header(conn, "content-type") == ["application/octet-stream; charset=utf-8"]
+
+    assert get_resp_header(conn, "content-disposition") == [
+             "attachment; filename*=UTF-8''legacy-active.svg"
+           ]
+  end
+
   test "uploaded file route returns not found for missing files", %{conn: conn} do
     board = board_fixture()
 

@@ -4,6 +4,8 @@ defmodule EirinchanWeb.UploadedFileController do
   alias Eirinchan.Uploads
   alias EirinchanWeb.CacheControl
 
+  @inline_source_extensions ~w(.png .jpg .jpeg .gif .bmp .webp .avif .jxl .webm .mp4 .mp3 .ogg .flac .wav .txt)
+
   def show(conn, %{"board" => board, "filename" => filename}) do
     send_asset(conn, board, "src", filename)
   end
@@ -24,11 +26,27 @@ defmodule EirinchanWeb.UploadedFileController do
         conn
         |> put_resp_header("cache-control", CacheControl.cache_control_for_upload_bucket(bucket))
         |> put_resp_header("accept-ranges", "bytes")
-        |> put_resp_content_type(content_type_for_path(path))
+        |> put_upload_delivery_headers(bucket, filename, path)
         |> maybe_send_ranged_file(path, size)
       else
         send_resp(conn, :not_found, "File not found")
       end
+    end
+  end
+
+  defp put_upload_delivery_headers(conn, "thumb", _filename, path) do
+    put_resp_content_type(conn, content_type_for_path(path))
+  end
+
+  defp put_upload_delivery_headers(conn, "src", filename, path) do
+    if Path.extname(path) |> String.downcase() |> then(&(&1 in @inline_source_extensions)) do
+      put_resp_content_type(conn, content_type_for_path(path))
+    else
+      encoded_filename = URI.encode(filename, &URI.char_unreserved?/1)
+
+      conn
+      |> put_resp_content_type("application/octet-stream")
+      |> put_resp_header("content-disposition", "attachment; filename*=UTF-8''#{encoded_filename}")
     end
   end
 
