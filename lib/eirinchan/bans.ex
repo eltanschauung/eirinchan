@@ -7,6 +7,7 @@ defmodule Eirinchan.Bans do
 
   alias Eirinchan.Bans.{Appeal, Ban}
   alias Eirinchan.Boards.BoardRecord
+  alias Eirinchan.IpMatching
   alias Eirinchan.Repo
 
   @duration_pattern ~r/^((\d+)\s?ye?a?r?s?)?\s?+((\d+)\s?mon?t?h?s?)?\s?+((\d+)\s?we?e?k?s?)?\s?+((\d+)\s?da?y?s?)?((\d+)\s?ho?u?r?s?)?\s?+((\d+)\s?mi?n?u?t?e?s?)?\s?+((\d+)\s?se?c?o?n?d?s?)?$/
@@ -63,10 +64,11 @@ defmodule Eirinchan.Bans do
         false
 
       String.contains?(mask, "/") ->
-        match?({:ok, _ip, _prefix}, parse_cidr(mask))
+        [address | _rest] = String.split(mask, "/", parts: 2)
+        IpMatching.ip_in_cidr?(address, mask)
 
       true ->
-        match?({:ok, _ip}, parse_ip(mask))
+        not is_nil(IpMatching.normalize_ip(mask))
     end
   end
 
@@ -382,16 +384,8 @@ defmodule Eirinchan.Bans do
       is_nil(mask) ->
         false
 
-      String.contains?(mask, "/") ->
-        with {:ok, remote_ip} <- parse_ip(remote_ip),
-             {:ok, mask_ip, prefix} <- parse_cidr(mask) do
-          ip_in_cidr?(remote_ip, mask_ip, prefix)
-        else
-          _ -> false
-        end
-
       true ->
-        remote_ip == mask
+        IpMatching.entry_match?(remote_ip, mask)
     end
   end
 
@@ -543,48 +537,6 @@ defmodule Eirinchan.Bans do
   end
 
   defp normalize_ip_mask(_value), do: nil
-
-  defp parse_ip(value) do
-    case :inet.parse_address(String.to_charlist(value)) do
-      {:ok, ip} -> {:ok, ip}
-      {:error, _reason} -> {:error, :invalid_ip}
-    end
-  end
-
-  defp parse_cidr(value) do
-    with [address, prefix] <- String.split(value, "/", parts: 2),
-         {:ok, ip} <- parse_ip(address),
-         {prefix, ""} <- Integer.parse(prefix),
-         true <- valid_prefix_length?(ip, prefix) do
-      {:ok, ip, prefix}
-    else
-      _ -> {:error, :invalid_cidr}
-    end
-  end
-
-  defp valid_prefix_length?({_, _, _, _}, prefix), do: prefix in 0..32
-  defp valid_prefix_length?({_, _, _, _, _, _, _, _}, prefix), do: prefix in 0..128
-  defp valid_prefix_length?(_, _prefix), do: false
-
-  defp ip_in_cidr?(remote_ip, cidr_ip, prefix) do
-    remote_bin = ip_to_binary(remote_ip)
-    cidr_bin = ip_to_binary(cidr_ip)
-
-    bit_size(remote_bin) == bit_size(cidr_bin) and prefix_match?(remote_bin, cidr_bin, prefix)
-  end
-
-  defp ip_to_binary({a, b, c, d}), do: <<a, b, c, d>>
-
-  defp ip_to_binary({a, b, c, d, e, f, g, h}),
-    do: <<a::16, b::16, c::16, d::16, e::16, f::16, g::16, h::16>>
-
-  defp prefix_match?(_left, _right, 0), do: true
-
-  defp prefix_match?(left, right, prefix) do
-    <<left_prefix::bitstring-size(prefix), _::bitstring>> = left
-    <<right_prefix::bitstring-size(prefix), _::bitstring>> = right
-    left_prefix == right_prefix
-  end
 
   defp parse_absolute_datetime(value) do
     cond do

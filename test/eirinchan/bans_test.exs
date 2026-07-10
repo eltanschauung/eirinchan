@@ -143,7 +143,7 @@ defmodule Eirinchan.BansTest do
     assert {:ok, _ban} =
              Bans.create_ban(%{
                board_id: board.id,
-               ip_subnet: "0.0.0.0/24",
+               ip_subnet: "99.254.200.0/24",
                reason: "Subnet"
              })
 
