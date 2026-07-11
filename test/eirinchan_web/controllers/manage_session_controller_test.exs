@@ -1,9 +1,10 @@
 defmodule EirinchanWeb.ManageSessionControllerTest do
-  use EirinchanWeb.ConnCase, async: true
+  use EirinchanWeb.ConnCase, async: false
   import Ecto.Query, only: [from: 2]
 
   setup do
     :ets.delete_all_objects(:eirinchan_manage_login_throttle)
+    on_exit(fn -> :ets.delete_all_objects(:eirinchan_manage_login_throttle) end)
     :ok
   end
 
