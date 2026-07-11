@@ -239,21 +239,19 @@ defmodule Eirinchan.Posts.Persistence do
          |> Ecto.Changeset.change(next_public_post_id: next_public_post_id)
          |> repo.update() do
       {:ok, _updated_board} ->
-        {:ok, put_param(attrs, "public_id", public_id)}
+        {:ok, put_public_id_param(attrs, public_id)}
 
       {:error, _changeset} ->
         {:error, :board_counter_update_failed}
     end
   end
 
-  defp put_param(attrs, string_key, value) when is_map(attrs) do
+  defp put_public_id_param(attrs, value) when is_map(attrs) do
     if Enum.all?(Map.keys(attrs), &is_atom/1) do
-      Map.put(attrs, String.to_existing_atom(string_key), value)
+      Map.put(attrs, :public_id, value)
     else
-      Map.put(attrs, string_key, value)
+      Map.put(attrs, "public_id", value)
     end
-  rescue
-    ArgumentError -> Map.put(attrs, String.to_atom(string_key), value)
   end
 
   defp cleanup_stored_files(metadata_list) do

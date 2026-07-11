@@ -6,6 +6,13 @@ defmodule Eirinchan.IpAccessAuth do
   alias Eirinchan.IpMatching
 
   @default_passwords []
+  @config_keys %{
+    "auth_path" => :auth_path,
+    "message" => :message,
+    "passwords" => :passwords,
+    "theme" => :theme,
+    "title" => :title
+  }
 
   @type config :: %{
           optional(:auth_path) => binary(),
@@ -99,7 +106,7 @@ defmodule Eirinchan.IpAccessAuth do
     key
     |> String.trim()
     |> String.replace("-", "_")
-    |> String.to_atom()
+    |> then(&Map.get(@config_keys, &1, &1))
   end
 
   defp normalize_key(key), do: key

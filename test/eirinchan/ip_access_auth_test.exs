@@ -35,6 +35,22 @@ defmodule Eirinchan.IpAccessAuthTest do
     assert config.passwords == ["foo", "bar"]
   end
 
+  test "unknown configuration keys do not create atoms" do
+    # Warm the module and atom-count machinery before taking the baseline.
+    _ = IpAccessAuth.effective_config(%{"unknown-warmup" => true})
+    _ = :erlang.system_info(:atom_count)
+    before_count = :erlang.system_info(:atom_count)
+
+    config =
+      1..1_000
+      |> Map.new(fn index -> {"attacker-key-#{index}", index} end)
+      |> Map.put("auth-path", "/gate")
+      |> IpAccessAuth.effective_config()
+
+    assert config.auth_path == "/gate"
+    assert :erlang.system_info(:atom_count) == before_count
+  end
+
   test "derives ipv4 and ipv6 subnets" do
     assert IpAccessAuth.subnet_for_ip({187, 180, 254, 75}) == {:ok, "187.180.254.0/24"}
     assert IpAccessAuth.subnet_for_ip("2001:db8:abcd:1234::1") == {:ok, "2001:db8:abcd::/48"}
