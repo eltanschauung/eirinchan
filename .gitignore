@@ -57,6 +57,8 @@ thread_watcher_spec.md
 /var/settings.json
 /var/install.json
 /var/access.conf
+/var/*.tmp
+/var/.*.tmp
 /priv/static/secret_bfc.png
 
 posting_pipeline_examination.txt
