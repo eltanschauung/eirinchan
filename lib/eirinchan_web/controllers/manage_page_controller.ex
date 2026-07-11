@@ -2203,6 +2203,7 @@ defmodule EirinchanWeb.ManagePageController do
     with {:ok, moderator} <- ensure_permission(conn, :move),
          {:ok, source_board} <- load_accessible_board(moderator, uri),
          {:ok, target_board} <- load_accessible_board(moderator, target_uri),
+         {:ok, target_public_id} <- Eirinchan.ThreadPaths.parse_thread_id(target_thread_id),
          {:ok, moved_reply} <-
            Eirinchan.Posts.move_reply(
              source_board,
@@ -2229,7 +2230,7 @@ defmodule EirinchanWeb.ManagePageController do
             target_board,
             %Eirinchan.Posts.Post{
               id: moved_reply.thread_id,
-              public_id: String.to_integer(target_thread_id),
+              public_id: target_public_id,
               slug: nil
             },
             effective_board_config(target_board, EirinchanWeb.RequestMeta.request_host(conn))
