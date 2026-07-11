@@ -3,7 +3,6 @@ defmodule EirinchanWeb.PostManagementController do
 
   alias Eirinchan.Boards
   alias Eirinchan.Boards.BoardRecord
-  alias Eirinchan.Moderation
   alias Eirinchan.Posts
   alias Eirinchan.Repo
   alias EirinchanWeb.{BoardRuntime, ModerationAudit, PostView}
@@ -112,13 +111,7 @@ defmodule EirinchanWeb.PostManagementController do
     end
   end
 
-  defp authorize_board(conn, board) do
-    if Moderation.board_access?(conn.assigns.current_moderator, board) do
-      :ok
-    else
-      {:error, :forbidden}
-    end
-  end
+  defp authorize_board(conn, board), do: EirinchanWeb.ManageAccess.authorize_board(conn, board)
 
   defp delete_file_target(board, post_id, params, conn) do
     config = board_config(board, conn)

@@ -3,7 +3,6 @@ defmodule EirinchanWeb.BanAppealManagementController do
 
   alias Eirinchan.Bans
   alias Eirinchan.Boards
-  alias Eirinchan.Moderation
 
   action_fallback EirinchanWeb.FallbackController
 
@@ -35,11 +34,5 @@ defmodule EirinchanWeb.BanAppealManagementController do
     end
   end
 
-  defp authorize_board(conn, board) do
-    if Moderation.board_access?(conn.assigns.current_moderator, board) do
-      :ok
-    else
-      {:error, :forbidden}
-    end
-  end
+  defp authorize_board(conn, board), do: EirinchanWeb.ManageAccess.authorize_board(conn, board)
 end

@@ -146,13 +146,7 @@ defmodule EirinchanWeb.IpManagementController do
     end
   end
 
-  defp authorize_board(conn, board) do
-    if Moderation.board_access?(conn.assigns.current_moderator, board) do
-      :ok
-    else
-      {:error, :forbidden}
-    end
-  end
+  defp authorize_board(conn, board), do: EirinchanWeb.ManageAccess.authorize_board(conn, board)
 
   defp authorize_ip_view(conn, board) do
     if PostView.can_view_ip?(conn.assigns.current_moderator, board) do

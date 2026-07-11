@@ -3,7 +3,6 @@ defmodule EirinchanWeb.BanManagementController do
 
   alias Eirinchan.Bans
   alias Eirinchan.Boards
-  alias Eirinchan.Moderation
   alias Eirinchan.IpCrypt
   alias EirinchanWeb.ModerationAudit
 
@@ -75,13 +74,7 @@ defmodule EirinchanWeb.BanManagementController do
     end
   end
 
-  defp authorize_board(conn, board) do
-    if Moderation.board_access?(conn.assigns.current_moderator, board) do
-      :ok
-    else
-      {:error, :forbidden}
-    end
-  end
+  defp authorize_board(conn, board), do: EirinchanWeb.ManageAccess.authorize_board(conn, board)
 
   defp cloak_or_hidden(nil), do: "hidden IP"
   defp cloak_or_hidden(ip), do: IpCrypt.cloak_ip(ip)

@@ -16,7 +16,7 @@ defmodule EirinchanWeb.FallbackController do
   def call(conn, {:error, %Ecto.Changeset{} = changeset}) do
     conn
     |> put_status(:unprocessable_entity)
-    |> json(%{errors: translate_errors(changeset)})
+    |> json(%{errors: EirinchanWeb.ChangesetErrors.translate(changeset)})
   end
 
   def call(conn, {:error, reason}) when is_atom(reason) do
@@ -25,11 +25,4 @@ defmodule EirinchanWeb.FallbackController do
     |> json(%{error: Atom.to_string(reason)})
   end
 
-  defp translate_errors(changeset) do
-    Ecto.Changeset.traverse_errors(changeset, fn {message, opts} ->
-      Regex.replace(~r"%{(\w+)}", message, fn _, key ->
-        opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
-      end)
-    end)
-  end
 end

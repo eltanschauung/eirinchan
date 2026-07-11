@@ -3,7 +3,6 @@ defmodule EirinchanWeb.ThreadManagementController do
 
   alias Eirinchan.Boards
   alias Eirinchan.Boards.BoardRecord
-  alias Eirinchan.Moderation
   alias Eirinchan.Posts
   alias EirinchanWeb.{BoardRuntime, ModerationAudit, PostView}
 
@@ -65,13 +64,7 @@ defmodule EirinchanWeb.ThreadManagementController do
     end
   end
 
-  defp authorize_board(conn, board) do
-    if Moderation.board_access?(conn.assigns.current_moderator, board) do
-      :ok
-    else
-      {:error, :forbidden}
-    end
-  end
+  defp authorize_board(conn, board), do: EirinchanWeb.ManageAccess.authorize_board(conn, board)
 
   defp board_config(%BoardRecord{} = board_record, conn) do
     BoardRuntime.board_config(board_record, conn, runtime_paths?: true)

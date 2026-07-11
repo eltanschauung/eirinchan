@@ -2,7 +2,6 @@ defmodule EirinchanWeb.ReportManagementController do
   use EirinchanWeb, :controller
 
   alias Eirinchan.Boards
-  alias Eirinchan.Moderation
   alias Eirinchan.Reports
   alias Eirinchan.IpCrypt
   alias EirinchanWeb.ModerationAudit
@@ -60,11 +59,5 @@ defmodule EirinchanWeb.ReportManagementController do
     end
   end
 
-  defp authorize_board(conn, board) do
-    if Moderation.board_access?(conn.assigns.current_moderator, board) do
-      :ok
-    else
-      {:error, :forbidden}
-    end
-  end
+  defp authorize_board(conn, board), do: EirinchanWeb.ManageAccess.authorize_board(conn, board)
 end

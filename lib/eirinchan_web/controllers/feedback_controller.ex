@@ -42,11 +42,14 @@ defmodule EirinchanWeb.FeedbackController do
           if params["json_response"] == "1" do
             conn
             |> put_status(:unprocessable_entity)
-            |> json(%{errors: translate_errors(changeset)})
+            |> json(%{errors: EirinchanWeb.ChangesetErrors.translate(changeset)})
           else
             conn
             |> put_status(:unprocessable_entity)
-            |> render_feedback_page(params: params, errors: translate_errors(changeset))
+            |> render_feedback_page(
+              params: params,
+              errors: EirinchanWeb.ChangesetErrors.translate(changeset)
+            )
           end
       end
     end
@@ -71,14 +74,6 @@ defmodule EirinchanWeb.FeedbackController do
       {count, minutes} when is_integer(count) and is_integer(minutes) -> {count, minutes}
       _ -> {default_count, default_minutes}
     end
-  end
-
-  defp translate_errors(changeset) do
-    Ecto.Changeset.traverse_errors(changeset, fn {message, opts} ->
-      Regex.replace(~r"%{(\w+)}", message, fn _, key ->
-        opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
-      end)
-    end)
   end
 
   defp render_feedback_page(conn, opts) do
