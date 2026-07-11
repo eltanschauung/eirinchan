@@ -169,18 +169,27 @@ defmodule Eirinchan.Settings do
   @spec persist_instance_config_raw_json(binary()) :: :ok | {:error, term()}
   def persist_instance_config_raw_json(raw_json) when is_binary(raw_json) do
     path = config_path()
+    decoded = Jason.decode!(raw_json)
+
+    processed =
+      decoded
+      |> Config.normalize_override_keys()
+      |> preserve_hidden_instance_state(current_instance_config())
+      |> hash_sensitive_values()
+      |> stringify_keys()
+
+    persisted_json =
+      if processed == decoded do
+        raw_json
+      else
+        Jason.encode_to_iodata!(processed, pretty: true)
+      end
 
     path
     |> Path.dirname()
     |> File.mkdir_p!()
 
-    raw_json
-    |> Jason.decode!()
-    |> Config.normalize_override_keys()
-    |> preserve_hidden_instance_state(current_instance_config())
-    |> hash_sensitive_values()
-    |> stringify_keys()
-    |> Jason.encode_to_iodata!(pretty: true)
+    persisted_json
     |> then(&SecureFile.atomic_write(path, &1))
     |> tap(fn
       :ok -> refresh_instance_config_cache()

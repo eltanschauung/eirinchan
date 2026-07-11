@@ -55,6 +55,24 @@ defmodule Eirinchan.SettingsTest do
     refute File.read!(Application.fetch_env!(:eirinchan, :instance_config_path)) =~ "Door"
   end
 
+  test "raw settings preserve authored JSON unless sensitive values require rewriting" do
+    raw_json = "{\n  \"Flags\": \"/flags\",\n  \"Home\": \"/\"\n}\n"
+
+    assert :ok = Settings.persist_instance_config_raw_json(raw_json)
+    assert Settings.raw_instance_config_json() == raw_json
+
+    assert :ok =
+             Settings.persist_instance_config_raw_json(
+               ~s({"ip_access_passwords":["Door"],"anonymous":"Anon"})
+             )
+
+    persisted = File.read!(Application.fetch_env!(:eirinchan, :instance_config_path))
+    refute persisted =~ "Door"
+
+    [stored_password] = Settings.current_instance_config().ip_access_passwords
+    assert Eirinchan.CredentialHash.verify("door", stored_password, :ip_access)
+  end
+
   test "persist_instance_config preserves page theme state when overrides omit it" do
     assert :ok =
              Settings.persist_instance_config(%{
