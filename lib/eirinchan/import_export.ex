@@ -160,10 +160,20 @@ defmodule Eirinchan.ImportExport do
   defp dump_value(value), do: value
 
   defp load_row(schema, row) do
+    defaults = schema |> struct() |> Map.from_struct()
+
     schema.__schema__(:fields)
     |> Enum.reduce(%{}, fn field, acc ->
       key = Atom.to_string(field)
-      Map.put(acc, field, load_value(schema.__schema__(:type, field), Map.get(row, key)))
+
+      value =
+        cond do
+          Map.has_key?(row, key) -> Map.get(row, key)
+          Map.has_key?(row, field) -> Map.get(row, field)
+          true -> Map.get(defaults, field)
+        end
+
+      Map.put(acc, field, load_value(schema.__schema__(:type, field), value))
     end)
   end
 

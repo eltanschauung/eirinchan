@@ -60,6 +60,28 @@ defmodule Eirinchan.ImportExportTest do
     refute Repo.get(Eirinchan.Boards.BoardRecord, 9001)
   end
 
+  test "older imports receive defaults for fields added by later migrations" do
+    now = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
+
+    payload = %{
+      "tables" => %{
+        "boards" => [
+          %{
+            "id" => 9002,
+            "uri" => "legacyexport",
+            "title" => "Legacy Export",
+            "config_overrides" => %{},
+            "inserted_at" => now,
+            "updated_at" => now
+          }
+        ]
+      }
+    }
+
+    assert {:ok, %{"boards" => 1}} = ImportExport.import_data(payload, repo: Repo)
+    assert Repo.get!(Eirinchan.Boards.BoardRecord, 9002).next_public_post_id == 1
+  end
+
   test "mysql dump analysis reports supported and unsupported tables" do
     path =
       Path.join(System.tmp_dir!(), "eirinchan-mysql-#{System.unique_integer([:positive])}.sql")
