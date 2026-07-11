@@ -209,9 +209,10 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
       |> html_response(200)
 
     assert response =~ ~s(data-thread-id="#{PublicIds.public_id(thread)}")
+    assert response =~ ~s(data-board="#{board.uri}")
+    assert response =~ "data-thread-watch"
     refute response =~ ~s(class="thread-watch-toggle")
     refute response =~ "[Watch]"
-    assert response =~ ~s(data-watch-url="/watcher/#{board.uri}/#{PublicIds.public_id(thread)}")
   end
 
   test "board page uses configured catalog name in search links", %{conn: conn} do
@@ -1030,6 +1031,7 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
 
     assert page =~ ~s(data-watcher-count="1")
     assert page =~ ~s(data-thread-id="#{PublicIds.public_id(thread)}")
-    assert page =~ ~s(data-watch-url="/watcher/#{board.uri}/#{PublicIds.public_id(thread)}")
+    assert page =~ ~s(data-board="#{board.uri}")
+    assert page =~ "data-thread-watch"
   end
 end
