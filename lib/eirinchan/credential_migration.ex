@@ -9,34 +9,71 @@ defmodule Eirinchan.CredentialMigration do
   alias Eirinchan.Repo
   alias Eirinchan.Settings
 
+  @post_batch_size 500
+  @batch_timeout 60_000
+
   def run(opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
     migrate_settings? = Keyword.get(opts, :migrate_settings, true)
 
-    with {:ok, counts} <- repo.transaction(fn -> migrate_database_credentials(repo) end),
+    with {:ok, post_count} <- migrate_post_credentials(repo),
+         {:ok, access_count} <- repo.transaction(fn -> migrate_access_credentials(repo) end),
          {:ok, settings_count} <- migrate_settings(migrate_settings?) do
-      {:ok, Map.put(counts, :settings, settings_count)}
+      {:ok,
+       %{
+         posts: post_count,
+         ip_access_entries: access_count,
+         settings: settings_count
+       }}
     end
   end
 
-  defp migrate_database_credentials(repo) do
-    post_count =
-      repo.all(
-        from post in Post,
-          where: not is_nil(post.password) and post.password != "",
-          select: {post.id, post.password}
-      )
-      |> Enum.reject(fn {_id, password} -> CredentialHash.encoded?(password) end)
-      |> Enum.reduce(0, fn {id, password}, count ->
-        {updated, _rows} =
-          repo.update_all(
-            from(post in Post, where: post.id == ^id),
-            set: [password: CredentialHash.hash(password, :post_delete)]
-          )
+  defp migrate_post_credentials(repo) do
+    repo.all(
+      from post in Post,
+        where: not is_nil(post.password) and post.password != "",
+        select: {post.id, post.password}
+    )
+    |> Enum.reject(fn {_id, password} -> CredentialHash.encoded?(password) end)
+    |> Enum.map(fn {id, password} ->
+      {id, CredentialHash.hash(password, :post_delete)}
+    end)
+    |> Enum.chunk_every(@post_batch_size)
+    |> Enum.reduce_while({:ok, 0}, fn batch, {:ok, count} ->
+      case repo.transaction(fn -> update_post_password_batch(repo, batch) end,
+             timeout: @batch_timeout
+           ) do
+        {:ok, updated} -> {:cont, {:ok, count + updated}}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
 
-        count + updated
+  defp update_post_password_batch(repo, batch) do
+    values =
+      batch
+      |> Enum.with_index()
+      |> Enum.map_join(",", fn {_credential, index} ->
+        parameter = index * 2 + 1
+        "($#{parameter}::bigint,$#{parameter + 1}::text)"
       end)
 
+    parameters = Enum.flat_map(batch, fn {id, password} -> [id, password] end)
+
+    query = """
+    UPDATE posts AS post
+    SET password = credentials.password
+    FROM (VALUES #{values}) AS credentials(id, password)
+    WHERE post.id = credentials.id
+    """
+
+    case Ecto.Adapters.SQL.query(repo, query, parameters, timeout: @batch_timeout) do
+      {:ok, %Postgrex.Result{num_rows: count}} -> count
+      {:error, reason} -> repo.rollback(reason)
+    end
+  end
+
+  defp migrate_access_credentials(repo) do
     access_entries = repo.all(IpAccessEntry)
 
     migrated_access_entries =
@@ -55,7 +92,7 @@ defmodule Eirinchan.CredentialMigration do
       repo.insert_all(IpAccessEntry, migrated_access_entries)
     end
 
-    %{posts: post_count, ip_access_entries: access_count}
+    access_count
   end
 
   defp migrate_access_password(nil), do: nil
