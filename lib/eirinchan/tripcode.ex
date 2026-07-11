@@ -1,6 +1,10 @@
 defmodule Eirinchan.Tripcode do
   @moduledoc false
 
+  alias Eirinchan.Command
+
+  @command_timeout_ms 2_000
+
   @php_tripcode_script """
   $name = $argv[1] ?? "";
   $secure_trip_salt = $argv[2] ?? "";
@@ -74,8 +78,13 @@ defmodule Eirinchan.Tripcode do
       secure_trip_salt = config |> Map.get(:secure_trip_salt, "") |> to_string()
       custom_tripcodes = config |> Map.get(:custom_tripcode, %{}) |> Jason.encode!()
 
-      case System.cmd(php, ["-r", @php_tripcode_script, name, secure_trip_salt, custom_tripcodes],
-             stderr_to_stdout: true
+      timeout = Application.get_env(:eirinchan, :tripcode_command_timeout_ms, @command_timeout_ms)
+
+      case Command.run(
+             php,
+             ["-r", @php_tripcode_script, name, secure_trip_salt, custom_tripcodes],
+             stderr_to_stdout: true,
+             timeout: timeout
            ) do
         {output, 0} ->
           case Jason.decode(output) do
