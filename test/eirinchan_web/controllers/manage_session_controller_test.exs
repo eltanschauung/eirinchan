@@ -226,6 +226,30 @@ defmodule EirinchanWeb.ManageSessionControllerTest do
     assert get_resp_header(conn, "retry-after") != []
   end
 
+  test "login throttles username rotation from one IP", %{conn: conn} do
+    last_conn =
+      Enum.reduce(1..20, conn, fn attempt, attempt_conn ->
+        response_conn =
+          attempt_conn
+          |> put_req_header("accept", "application/json")
+          |> post("/manage/login", %{
+            "username" => "rotated-#{attempt}",
+            "password" => "wrong"
+          })
+
+        expected_status = if attempt == 20, do: 429, else: 401
+        assert response(response_conn, expected_status)
+        recycle(response_conn)
+      end)
+
+    blocked_conn =
+      last_conn
+      |> put_req_header("accept", "application/json")
+      |> post("/manage/login", %{"username" => "another-name", "password" => "wrong"})
+
+    assert %{"error" => "rate_limited"} = json_response(blocked_conn, 429)
+  end
+
   test "role hierarchy gates read-only, moderator, and admin manage routes", %{conn: conn} do
     board = board_fixture()
     thread = thread_fixture(board)
