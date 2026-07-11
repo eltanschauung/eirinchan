@@ -49,4 +49,23 @@ defmodule Eirinchan.DNSBLTest do
                resolver: resolver
              )
   end
+
+  test "skips malformed blacklist entries without breaking later checks" do
+    resolver = fn "9.113.0.203.valid.example" -> "127.0.0.4" end
+
+    assert {:error, "valid.example"} =
+             DNSBL.check(
+               {203, 0, 113, 9},
+               %{
+                 dnsbl: [
+                   nil,
+                   %{"expectation" => 4},
+                   [123, 4],
+                   ["\r\ninvalid.example", 4],
+                   ["valid.example", 4]
+                 ]
+               },
+               resolver: resolver
+             )
+  end
 end
