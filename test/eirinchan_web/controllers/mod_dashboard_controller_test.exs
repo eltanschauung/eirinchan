@@ -1,6 +1,8 @@
 defmodule EirinchanWeb.ModDashboardControllerTest do
   use EirinchanWeb.ConnCase, async: true
 
+  alias Eirinchan.Posts.PublicIds
+
   test "dashboard reports accessible board/report counts and unread feedback", %{conn: conn} do
     board = board_fixture()
     thread = thread_fixture(board)
@@ -54,7 +56,7 @@ defmodule EirinchanWeb.ModDashboardControllerTest do
              |> get("/manage/recent-posts", %{"limit" => "5"})
              |> json_response(200)
 
-    assert Enum.any?(posts, &(&1["id"] == newer.id))
+    assert Enum.any?(posts, &(&1["id"] == PublicIds.public_id(newer)))
     refute Enum.any?(posts, &(&1["board_id"] == other_board.id))
   end
 end
