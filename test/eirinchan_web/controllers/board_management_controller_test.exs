@@ -148,7 +148,7 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     assert response =~ ~s(name="eirinchan:selected-style" content="Tomorrow")
   end
 
-  test "board pages send no-store cache headers", %{conn: conn} do
+  test "board pages require private cache revalidation", %{conn: conn} do
     board = board_fixture(%{uri: "cachetest", title: "Cache Test"})
 
     conn =
@@ -157,9 +157,7 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
 
     assert html_response(conn, 200) =~ "/#{board.uri}/ - #{board.title}"
 
-    assert get_resp_header(conn, "cache-control") == [
-             "no-store, no-cache, must-revalidate, max-age=0"
-           ]
+    assert get_resp_header(conn, "cache-control") == ["private, no-cache"]
 
     assert get_resp_header(conn, "pragma") == ["no-cache"]
     assert get_resp_header(conn, "expires") == ["0"]
