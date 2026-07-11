@@ -1428,7 +1428,7 @@ defmodule EirinchanWeb.PostControllerTest do
         board_id: board.id,
         ip_subnet: "203.0.113.0/24",
         reason: "Spam wave",
-        expires_at: DateTime.add(DateTime.utc_now(), 3600, :second)
+        expires_at: DateTime.add(DateTime.utc_now(), 24 * 60 * 60, :second)
       })
 
     conn =
