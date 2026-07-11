@@ -32,7 +32,8 @@ defmodule Eirinchan.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:phoenix, "~> 1.7.12"},
+      {:phoenix, "~> 1.7.22"},
+      {:plug, "~> 1.19.5"},
       {:phoenix_ecto, "~> 4.4.0"},
       {:ecto_sql, "~> 3.10.1"},
       {:postgrex, "~> 0.17.5"},
@@ -45,7 +46,9 @@ defmodule Eirinchan.MixProject do
       {:jason, "~> 1.2"},
       {:locus, "~> 2.3.12"},
       {:dns_cluster, "~> 0.1.1"},
-      {:bandit, "~> 1.2"},
+      {:bandit, "~> 1.11.1"},
+      # hpax 1.0.4 requires Elixir 1.15; production intentionally remains on 1.14.
+      {:hpax, "1.0.3", override: true},
       {:argon2_elixir, "~> 4.1"}
     ]
   end
