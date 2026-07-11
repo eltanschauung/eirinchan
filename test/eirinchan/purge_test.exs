@@ -24,4 +24,34 @@ defmodule Eirinchan.PurgeTest do
 
     :gen_tcp.close(listener)
   end
+
+  test "purge_uri ignores request and header injection" do
+    {:ok, listener} = :gen_tcp.listen(0, [:binary, packet: :raw, active: false, reuseaddr: true])
+    {:ok, port} = :inet.port(listener)
+
+    assert :ok =
+             Purge.purge_uri("/tea/index.html\r\nX-Evil: true", %{
+               purge: [["127.0.0.1", port, "example.test"]]
+             })
+
+    assert :ok =
+             Purge.purge_uri("/tea/index.html", %{
+               purge: [["127.0.0.1", port, "example.test\r\nX-Evil: true"]]
+             })
+
+    refute_receive _message, 50
+    :gen_tcp.close(listener)
+  end
+
+  test "output_uri only maps paths contained by the build root" do
+    root = Path.join(System.tmp_dir!(), "eirinchan-output")
+
+    assert Purge.output_uri(Path.join(root, "tea/index.html"), board_root: root) ==
+             "/tea/index.html"
+
+    assert Purge.output_uri(root, board_root: root) == "/"
+
+    refute Purge.output_uri(Path.join(root <> "-backup", "tea/index.html"), board_root: root)
+    refute Purge.output_uri(Path.join(root, "../outside/index.html"), board_root: root)
+  end
 end
