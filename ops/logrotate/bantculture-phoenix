@@ -1,4 +1,4 @@
-/home/telemazer/logs/bantculture-phoenix.log {
+/home/telemazer/logs/*phoenix*.log {
     su root root
     daily
     size 10M
