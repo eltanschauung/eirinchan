@@ -45,10 +45,16 @@ defmodule Eirinchan.Feedback do
   def get_feedback(feedback_id, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
 
-    repo.one(
-      from(feedback in Entry, where: feedback.id == ^normalize_id(feedback_id))
-      |> with_comments()
-    )
+    case normalize_id(feedback_id) do
+      id when is_integer(id) ->
+        repo.one(
+          from(feedback in Entry, where: feedback.id == ^id)
+          |> with_comments()
+        )
+
+      nil ->
+        nil
+    end
   end
 
   @spec mark_read(String.t() | integer(), keyword()) ::
@@ -56,7 +62,7 @@ defmodule Eirinchan.Feedback do
   def mark_read(feedback_id, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
 
-    case repo.get(Entry, normalize_id(feedback_id)) do
+    case get_entry(repo, feedback_id) do
       nil ->
         {:error, :not_found}
 
@@ -74,7 +80,7 @@ defmodule Eirinchan.Feedback do
   def delete_feedback(feedback_id, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
 
-    case repo.get(Entry, normalize_id(feedback_id)) do
+    case get_entry(repo, feedback_id) do
       nil -> {:error, :not_found}
       entry -> repo.delete(entry)
     end
@@ -85,7 +91,7 @@ defmodule Eirinchan.Feedback do
   def add_comment(feedback_id, attrs, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
 
-    case repo.get(Entry, normalize_id(feedback_id)) do
+    case get_entry(repo, feedback_id) do
       nil ->
         {:error, :not_found}
 
@@ -137,8 +143,22 @@ defmodule Eirinchan.Feedback do
     end)
   end
 
-  defp normalize_id(value) when is_integer(value), do: value
-  defp normalize_id(value) when is_binary(value), do: String.to_integer(String.trim(value))
+  defp get_entry(repo, value) do
+    case normalize_id(value) do
+      id when is_integer(id) -> repo.get(Entry, id)
+      nil -> nil
+    end
+  end
+
+  defp normalize_id(value) when is_integer(value) and value > 0, do: value
+  defp normalize_id(value) when is_binary(value) do
+    case Integer.parse(String.trim(value)) do
+      {parsed, ""} when parsed > 0 -> parsed
+      _ -> nil
+    end
+  end
+
+  defp normalize_id(_value), do: nil
 
   defp parse_legacy_feedback(body) when is_binary(body) do
     entries =

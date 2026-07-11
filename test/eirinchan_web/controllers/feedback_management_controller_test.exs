@@ -84,4 +84,16 @@ defmodule EirinchanWeb.FeedbackManagementControllerTest do
              |> get("/manage/feedback")
              |> json_response(200)
   end
+
+  test "malformed feedback identifiers return not found", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "mod"})
+
+    conn =
+      conn
+      |> login_moderator(moderator)
+      |> put_secure_manage_token()
+      |> patch("/manage/feedback/not-an-id/read", %{})
+
+    assert %{"error" => "not_found"} = json_response(conn, 404)
+  end
 end

@@ -21,6 +21,7 @@ defmodule EirinchanWeb.FeedbackManagementController do
       render(conn, :show, feedback: feedback, moderator: conn.assigns.current_moderator)
     else
       nil -> {:error, :not_found}
+      error -> error
     end
   end
 
@@ -32,6 +33,7 @@ defmodule EirinchanWeb.FeedbackManagementController do
       render(conn, :show, feedback: feedback, moderator: conn.assigns.current_moderator)
     else
       nil -> {:error, :not_found}
+      error -> error
     end
   end
 
