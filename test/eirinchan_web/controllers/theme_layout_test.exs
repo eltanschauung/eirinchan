@@ -1,5 +1,5 @@
 defmodule EirinchanWeb.ThemeLayoutTest do
-  use EirinchanWeb.ConnCase, async: true
+  use EirinchanWeb.ConnCase, async: false
 
   setup do
     original_path = Application.get_env(:eirinchan, :instance_config_path)

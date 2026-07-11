@@ -1,5 +1,5 @@
 defmodule EirinchanWeb.LegacyModControllerTest do
-  use EirinchanWeb.ConnCase, async: true
+  use EirinchanWeb.ConnCase, async: false
   import Ecto.Query, only: [from: 2]
 
   alias Eirinchan.IpCrypt

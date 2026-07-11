@@ -1,5 +1,5 @@
 defmodule EirinchanWeb.FeedbackControllerTest do
-  use EirinchanWeb.ConnCase, async: true
+  use EirinchanWeb.ConnCase, async: false
 
   test "public feedback page renders and accepts submissions", %{conn: conn} do
     moderator_fixture()

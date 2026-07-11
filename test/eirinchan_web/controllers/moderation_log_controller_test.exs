@@ -1,5 +1,5 @@
 defmodule EirinchanWeb.ModerationLogControllerTest do
-  use EirinchanWeb.ConnCase, async: true
+  use EirinchanWeb.ConnCase, async: false
 
   alias Eirinchan.IpCrypt
   alias Eirinchan.ModerationLog
