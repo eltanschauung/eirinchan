@@ -5,6 +5,19 @@ defmodule Eirinchan.LiveVichanImportTest do
   alias Eirinchan.Posts.Post
   alias Eirinchan.Repo
 
+  test "safe_source_path contains imported assets within the declared root" do
+    root = Path.join(System.tmp_dir!(), "legacy-source")
+
+    assert LiveVichanImport.safe_source_path(root, "bant/src/image.png") ==
+             {:ok, Path.expand("bant/src/image.png", root)}
+
+    assert LiveVichanImport.safe_source_path(root, "../settings.json") ==
+             {:error, :unsafe_path}
+
+    assert LiveVichanImport.safe_source_path(root, Path.expand("outside.png", System.tmp_dir!())) ==
+             {:error, :unsafe_path}
+  end
+
   test "rewrite_imported_citations rewrites cites using persisted legacy import ids" do
     board = board_fixture()
     imported_target = thread_fixture(board, %{body: "Imported target"})

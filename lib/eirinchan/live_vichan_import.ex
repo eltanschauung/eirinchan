@@ -373,14 +373,17 @@ defmodule Eirinchan.LiveVichanImport do
       }
     else
       source_rel = file_source_rel(board, legacy_file)
-      source_abs = Path.join(source_root, source_rel)
+      source_abs =
+        case safe_source_path(source_root, source_rel) do
+          {:ok, path} -> path
+          {:error, :unsafe_path} -> nil
+        end
 
-      if File.exists?(source_abs) do
+      if is_binary(source_abs) and File.regular?(source_abs) do
         stored_name =
-          legacy_file["file"] ||
-            Path.basename(
-              legacy_file["file_path"] || legacy_file["full_path"] || legacy_file["filename"]
-            )
+          (legacy_file["file"] || legacy_file["file_path"] || legacy_file["full_path"] ||
+             legacy_file["filename"])
+          |> Path.basename()
 
         spoiler? = truthy?(legacy_file["spoiler"]) or spoiler_thumb?(legacy_file)
 
@@ -388,7 +391,7 @@ defmodule Eirinchan.LiveVichanImport do
           if spoiler_thumb?(legacy_file) do
             Path.basename(stored_name)
           else
-            legacy_file["thumb"] || Path.basename(stored_name)
+            Path.basename(legacy_file["thumb"] || stored_name)
           end
 
         file_rel = "/#{board.uri}/src/#{stored_name}"
@@ -512,9 +515,13 @@ defmodule Eirinchan.LiveVichanImport do
             {:error, :upload_failed}
 
           thumb_rel ->
-            live_thumb_abs = Path.join(source_root, thumb_rel)
+            live_thumb_abs =
+              case safe_source_path(source_root, thumb_rel) do
+                {:ok, path} -> path
+                {:error, :unsafe_path} -> nil
+              end
 
-            if File.exists?(live_thumb_abs) do
+            if is_binary(live_thumb_abs) and File.regular?(live_thumb_abs) do
               thumb_abs |> Path.dirname() |> File.mkdir_p!()
               File.cp!(live_thumb_abs, thumb_abs)
               :ok
@@ -524,6 +531,24 @@ defmodule Eirinchan.LiveVichanImport do
         end
     end
   end
+
+  @doc false
+  def safe_source_path(source_root, relative_path)
+      when is_binary(source_root) and is_binary(relative_path) do
+    root = Path.expand(source_root)
+    candidate = Path.expand(relative_path, root)
+    root_parts = Path.split(root)
+    candidate_parts = Path.split(candidate)
+
+    if length(candidate_parts) > length(root_parts) and
+         Enum.take(candidate_parts, length(root_parts)) == root_parts do
+      {:ok, candidate}
+    else
+      {:error, :unsafe_path}
+    end
+  end
+
+  def safe_source_path(_source_root, _relative_path), do: {:error, :unsafe_path}
 
   @doc false
   def rewrite_imported_citations(%BoardRecord{} = board, rows, post_map, repo \\ Repo) do
