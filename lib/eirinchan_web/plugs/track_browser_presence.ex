@@ -15,7 +15,8 @@ defmodule EirinchanWeb.Plugs.TrackBrowserPresence do
   end
 
   defp trackable_request?(%Plug.Conn{} = conn) do
-    request_trackable_path?(conn) and not crawler_request?(conn)
+    conn.assigns[:returning_browser_token] == true and
+      request_trackable_path?(conn) and not crawler_request?(conn)
   end
 
   defp trackable_request?(_conn), do: false

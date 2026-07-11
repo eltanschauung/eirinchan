@@ -10,14 +10,17 @@ defmodule EirinchanWeb.Plugs.FetchBrowserToken do
     conn = ensure_cookies(conn)
 
     case conn.cookies[@cookie_name] do
-      token when is_binary(token) and byte_size(token) >= 16 ->
-        assign(conn, :browser_token, token)
+      token when is_binary(token) and byte_size(token) >= 16 and byte_size(token) <= 128 ->
+        conn
+        |> assign(:browser_token, token)
+        |> assign(:returning_browser_token, true)
 
       _ ->
         token = generate_token()
 
         conn
         |> assign(:browser_token, token)
+        |> assign(:returning_browser_token, false)
         |> put_resp_cookie(@cookie_name, token,
           max_age: @max_age,
           path: "/",
