@@ -39,4 +39,18 @@ defmodule EirinchanWeb.YouMarkersControllerTest do
 
     assert %{"enabled" => false, "post_ids" => []} = json_response(conn, 200)
   end
+
+  test "api bounds oversized ownership lookups", %{conn: conn} do
+    board = board_fixture(%{uri: "showyousbound", title: "Bounded Yous"})
+    token = "show-yous-bounded-token"
+
+    conn =
+      conn
+      |> put_req_cookie("browser_token", token)
+      |> put_req_cookie("show_yous", "true")
+      |> put_req_header("content-type", "application/json")
+      |> post("/api/you-markers/#{board.uri}", %{post_ids: Enum.to_list(1..10_000)})
+
+    assert %{"enabled" => true, "post_ids" => []} = json_response(conn, 200)
+  end
 end

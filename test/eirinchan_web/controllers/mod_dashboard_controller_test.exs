@@ -59,4 +59,17 @@ defmodule EirinchanWeb.ModDashboardControllerTest do
     assert Enum.any?(posts, &(&1["id"] == PublicIds.public_id(newer)))
     refute Enum.any?(posts, &(&1["board_id"] == other_board.id))
   end
+
+  test "recent posts defaults malformed limits instead of raising", %{conn: conn} do
+    board = board_fixture()
+    moderator = moderator_fixture(%{role: "mod"}) |> grant_board_access_fixture(board)
+    _thread = thread_fixture(board)
+
+    assert %{"data" => [_post]} =
+             conn
+             |> login_moderator(moderator)
+             |> put_req_header("accept", "application/json")
+             |> get("/manage/recent-posts", %{"limit" => "not-a-number"})
+             |> json_response(200)
+  end
 end

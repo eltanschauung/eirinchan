@@ -1213,11 +1213,7 @@ defmodule EirinchanWeb.ManagePageController do
           uri -> boards |> Enum.filter(&(&1.uri == uri)) |> Enum.map(& &1.id)
         end
 
-      limit =
-        case Integer.parse(to_string(params["limit"] || "25")) do
-          {value, _} -> max(value, 1)
-          :error -> 25
-        end
+      limit = EirinchanWeb.Param.bounded_integer(params["limit"], 25, max: 100)
 
       inserted_before = recent_posts_cutoff(params["last"])
 

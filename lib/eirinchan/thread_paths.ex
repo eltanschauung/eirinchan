@@ -17,6 +17,8 @@ defmodule Eirinchan.ThreadPaths do
     end
   end
 
+  def parse_thread_id(_value), do: :error
+
   @spec thread_filename(Post.t(), map(), keyword()) :: String.t()
   def thread_filename(%Post{slug: slug} = thread, config, opts \\ []) do
     thread_filename_from_public_id(PublicIds.public_id(thread), slug, config, opts)

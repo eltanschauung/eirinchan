@@ -108,6 +108,17 @@ defmodule EirinchanWeb.ApiControllerTest do
            )
   end
 
+  test "page api rejects malformed page numbers without crashing", %{conn: conn} do
+    board = board_fixture()
+
+    conn =
+      conn
+      |> put_req_header("accept", "application/json")
+      |> get("/api/#{board.uri}/pages/not-a-number")
+
+    assert response(conn, 404) == "Page not found"
+  end
+
   test "thread api exposes moderation state flags on OP posts", %{conn: conn} do
     board = board_fixture()
     thread = thread_fixture(board)

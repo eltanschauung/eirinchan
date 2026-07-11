@@ -30,6 +30,17 @@ defmodule EirinchanWeb.ThreadControllerTest do
     :ok
   end
 
+  test "malformed thread identifiers render a 404 instead of raising", %{conn: conn} do
+    board = board_fixture()
+
+    page =
+      conn
+      |> get("/#{board.uri}/res/not-a-thread.html")
+      |> html_response(404)
+
+    assert page =~ "Error 404"
+  end
+
   test "thread fragment renders replies only", %{conn: conn} do
     board = board_fixture()
     thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})

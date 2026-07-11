@@ -5,6 +5,9 @@ defmodule EirinchanWeb.ModDashboardController do
   alias Eirinchan.Moderation
   alias Eirinchan.Posts
   alias Eirinchan.Reports
+  alias EirinchanWeb.Param
+
+  @max_recent_posts 100
 
   def show(conn, _params) do
     boards = Moderation.list_accessible_boards(conn.assigns.current_moderator)
@@ -22,7 +25,7 @@ defmodule EirinchanWeb.ModDashboardController do
   def recent(conn, params) do
     boards = Moderation.list_accessible_boards(conn.assigns.current_moderator)
     board_ids = Enum.map(boards, & &1.id)
-    limit = Map.get(params, "limit", "25") |> String.to_integer()
+    limit = Param.bounded_integer(Map.get(params, "limit"), 25, max: @max_recent_posts)
 
     posts = Posts.list_recent_posts(limit: limit, board_ids: board_ids)
     render(conn, :recent, posts: posts)

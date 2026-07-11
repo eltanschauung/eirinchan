@@ -4,6 +4,7 @@ defmodule EirinchanWeb.ApiController do
   alias Eirinchan.Api
   alias Eirinchan.Boards
   alias Eirinchan.Posts
+  alias EirinchanWeb.Param
 
   plug EirinchanWeb.Plugs.LoadBoard when action in [:page, :catalog, :threads, :thread]
   plug :require_catalog_theme when action in [:catalog, :threads]
@@ -16,11 +17,13 @@ defmodule EirinchanWeb.ApiController do
     board = conn.assigns.current_board
     config = conn.assigns.current_board_config
 
-    with {:ok, page_data} <-
-           Posts.list_threads_page(board, String.to_integer(page_num) + 1, config: config) do
+    with {:ok, zero_based_page} <- Param.integer(page_num),
+         true <- zero_based_page >= 0,
+         {:ok, page_data} <-
+           Posts.list_threads_page(board, zero_based_page + 1, config: config) do
       json(conn, Api.page_json(page_data, config))
     else
-      {:error, :not_found} -> send_resp(conn, :not_found, "Page not found")
+      _ -> send_resp(conn, :not_found, "Page not found")
     end
   end
 

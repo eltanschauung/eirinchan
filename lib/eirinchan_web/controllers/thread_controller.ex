@@ -10,6 +10,7 @@ defmodule EirinchanWeb.ThreadController do
   alias EirinchanWeb.Announcements
   alias EirinchanWeb.BoardChrome
   alias EirinchanWeb.ErrorPages
+  alias EirinchanWeb.Param
   alias EirinchanWeb.PublicControllerHelpers
 
   plug EirinchanWeb.Plugs.LoadBoard
@@ -146,7 +147,12 @@ defmodule EirinchanWeb.ThreadController do
     end
   end
 
-  defp parse_thread_request(thread_id) when is_integer(thread_id), do: {thread_id, false}
+  defp parse_thread_request(thread_id) when is_integer(thread_id) do
+    case Param.positive_integer(thread_id) do
+      {:ok, id} -> {id, false}
+      :error -> {nil, false}
+    end
+  end
 
   defp parse_thread_request(thread_id) when is_binary(thread_id) do
     normalized =
@@ -155,14 +161,16 @@ defmodule EirinchanWeb.ThreadController do
 
     noko50? = String.contains?(normalized, "+50")
 
-    id =
+    id_text =
       normalized
       |> String.replace("+50", "")
       |> String.split("-", parts: 2)
       |> hd()
-      |> String.to_integer()
 
-    {id, noko50?}
+    case Param.positive_integer(id_text) do
+      {:ok, id} -> {id, noko50?}
+      :error -> {nil, noko50?}
+    end
   end
 
   defp fragment_cache_key(board, summary, assigns) do

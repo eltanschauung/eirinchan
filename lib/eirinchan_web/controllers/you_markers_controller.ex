@@ -4,6 +4,8 @@ defmodule EirinchanWeb.YouMarkersController do
   alias Eirinchan.Boards
   alias EirinchanWeb.ShowYous
 
+  @max_post_ids 500
+
   def show(conn, %{"board" => board_uri} = params) do
     case Boards.get_board_by_uri(board_uri) do
       nil ->
@@ -40,6 +42,7 @@ defmodule EirinchanWeb.YouMarkersController do
     end)
     |> Enum.reject(&is_nil/1)
     |> Enum.uniq()
+    |> Enum.take(@max_post_ids)
   end
 
   defp normalize_post_ids(_post_ids), do: []
