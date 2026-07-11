@@ -1399,6 +1399,7 @@ defmodule EirinchanWeb.ManagePageController do
              mod_user_id: moderator.id
            }) do
       ModerationAudit.log(conn, "Added IP note for #{IpCrypt.cloak_ip(decoded_ip)}",
+        subject_ip: decoded_ip,
         moderator: moderator,
         board: board
       )
@@ -1437,6 +1438,7 @@ defmodule EirinchanWeb.ManagePageController do
              mod_user_id: moderator.id
            }) do
       ModerationAudit.log(conn, "Added a note for #{IpCrypt.cloak_ip(decoded_ip)}",
+        subject_ip: decoded_ip,
         moderator: moderator
       )
 
@@ -1466,6 +1468,7 @@ defmodule EirinchanWeb.ManagePageController do
          {:ok, note} <- load_board_note(id, board.id),
          {:ok, _note} <- Moderation.update_ip_note(note, %{body: body}) do
       ModerationAudit.log(conn, "Updated IP note for #{IpCrypt.cloak_ip(decoded_ip)}",
+        subject_ip: decoded_ip,
         moderator: moderator,
         board: board
       )
@@ -1502,6 +1505,7 @@ defmodule EirinchanWeb.ManagePageController do
          {:ok, note} <- load_board_note(id, board.id),
          {:ok, _note} <- Moderation.delete_ip_note(note) do
       ModerationAudit.log(conn, "Deleted IP note for #{IpCrypt.cloak_ip(decoded_ip)}",
+        subject_ip: decoded_ip,
         moderator: moderator,
         board: board
       )
@@ -1534,6 +1538,7 @@ defmodule EirinchanWeb.ManagePageController do
          {:ok, note} <- load_global_note(id, decoded_ip, moderator),
          {:ok, _note} <- Moderation.delete_ip_note(note) do
       ModerationAudit.log(conn, "Removed a note for #{IpCrypt.cloak_ip(decoded_ip)}",
+        subject_ip: decoded_ip,
         moderator: moderator
       )
 
@@ -1570,6 +1575,7 @@ defmodule EirinchanWeb.ManagePageController do
              active: true
            }) do
       ModerationAudit.log(conn, "Banned #{display_ip_for_log(decoded_ip)}",
+        subject_ip: decoded_ip,
         moderator: moderator
       )
 
@@ -1609,6 +1615,7 @@ defmodule EirinchanWeb.ManagePageController do
              active: true
            }) do
       ModerationAudit.log(conn, "Updated ban ##{ban.id} for #{display_ip_for_log(decoded_ip)}",
+        subject_ip: decoded_ip,
         moderator: moderator
       )
 
@@ -1643,6 +1650,7 @@ defmodule EirinchanWeb.ManagePageController do
          {:ok, ban} <- load_accessible_ban(id, moderator),
          {:ok, _ban} <- Bans.update_ban(ban, %{active: false}) do
       ModerationAudit.log(conn, "Removed ban ##{ban.id} for #{display_ip_for_log(decoded_ip)}",
+        subject_ip: decoded_ip,
         moderator: moderator
       )
 
@@ -1683,6 +1691,7 @@ defmodule EirinchanWeb.ManagePageController do
              active: true
            }) do
       ModerationAudit.log(conn, "Banned #{display_ip_for_log(decoded_ip)}",
+        subject_ip: decoded_ip,
         moderator: moderator,
         board: board
       )
@@ -1727,6 +1736,7 @@ defmodule EirinchanWeb.ManagePageController do
              active: true
            }) do
       ModerationAudit.log(conn, "Updated ban ##{ban.id} for #{display_ip_for_log(decoded_ip)}",
+        subject_ip: decoded_ip,
         moderator: moderator,
         board: board
       )
@@ -1763,6 +1773,7 @@ defmodule EirinchanWeb.ManagePageController do
          {:ok, ban} <- load_accessible_ban(id, moderator),
          {:ok, _ban} <- Bans.update_ban(ban, %{active: false}) do
       ModerationAudit.log(conn, "Removed ban ##{ban.id} for #{display_ip_for_log(decoded_ip)}",
+        subject_ip: decoded_ip,
         moderator: moderator,
         board: board
       )
@@ -1800,6 +1811,7 @@ defmodule EirinchanWeb.ManagePageController do
              )
            ) do
       ModerationAudit.log(conn, "Deleted posts by IP #{IpCrypt.cloak_ip(decoded_ip)}",
+        subject_ip: decoded_ip,
         moderator: moderator
       )
 
@@ -1828,6 +1840,7 @@ defmodule EirinchanWeb.ManagePageController do
              config: effective_board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
            ) do
       ModerationAudit.log(conn, "Deleted board posts by IP #{IpCrypt.cloak_ip(decoded_ip)}",
+        subject_ip: decoded_ip,
         moderator: moderator,
         board: board
       )
@@ -1912,6 +1925,7 @@ defmodule EirinchanWeb.ManagePageController do
          {:ok, _count} <-
            Reports.dismiss_reports_for_ip(accessible_report_scope(moderator), report.ip) do
       ModerationAudit.log(conn, "Dismissed reports for IP #{display_ip_for_log(report.ip)}",
+        subject_ip: report.ip,
         moderator: moderator,
         board: report.board
       )
@@ -3053,8 +3067,8 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   defp ip_history_logs(decoded_ip, board_ids, board_uri \\ nil) do
-    IpCrypt.cloak_ip(decoded_ip)
-    |> ModerationLog.list_recent_entries_by_text(limit: 50, board_uri: board_uri)
+    decoded_ip
+    |> ModerationLog.list_recent_entries_by_ip(limit: 50, board_uri: board_uri)
     |> Enum.filter(fn entry ->
       not is_binary(entry.board_uri) or entry.board_uri == "" or board_uri != nil or
         accessible_log_board?(board_ids, entry.board_uri)

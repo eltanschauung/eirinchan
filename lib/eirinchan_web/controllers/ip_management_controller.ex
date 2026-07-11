@@ -57,7 +57,10 @@ defmodule EirinchanWeb.IpManagementController do
              board_id: board.id,
              mod_user_id: conn.assigns.current_moderator.id
            }) do
-      ModerationAudit.log(conn, "Added IP note for #{IpCrypt.cloak_ip(decoded_ip)}", board: board)
+      ModerationAudit.log(conn, "Added IP note for #{IpCrypt.cloak_ip(decoded_ip)}",
+        board: board,
+        subject_ip: decoded_ip
+      )
       conn
       |> put_status(:created)
       |> render(:note, note: note, moderator: conn.assigns.current_moderator)
@@ -74,7 +77,10 @@ defmodule EirinchanWeb.IpManagementController do
          :ok <- authorize_ip_view(conn, board),
          {:ok, note} <- load_board_note(id, board.id),
          {:ok, note} <- Moderation.update_ip_note(note, %{body: body}) do
-      ModerationAudit.log(conn, "Updated IP note for #{IpCrypt.cloak_ip(note.ip_subnet)}", board: board)
+      ModerationAudit.log(conn, "Updated IP note for #{IpCrypt.cloak_ip(note.ip_subnet)}",
+        board: board,
+        subject_ip: note.ip_subnet
+      )
       render(conn, :note, note: note, moderator: conn.assigns.current_moderator)
     else
       nil -> {:error, :not_found}
@@ -88,7 +94,10 @@ defmodule EirinchanWeb.IpManagementController do
          :ok <- authorize_ip_view(conn, board),
          {:ok, note} <- load_board_note(id, board.id),
          {:ok, _note} <- Moderation.delete_ip_note(note) do
-      ModerationAudit.log(conn, "Deleted IP note for #{IpCrypt.cloak_ip(note.ip_subnet)}", board: board)
+      ModerationAudit.log(conn, "Deleted IP note for #{IpCrypt.cloak_ip(note.ip_subnet)}",
+        board: board,
+        subject_ip: note.ip_subnet
+      )
       send_resp(conn, :no_content, "")
     else
       nil -> {:error, :not_found}
@@ -106,7 +115,9 @@ defmodule EirinchanWeb.IpManagementController do
                config_by_board: config_map(&1, conn)
              )
            ) do
-      ModerationAudit.log(conn, "Deleted posts by IP #{IpCrypt.cloak_ip(decoded_ip)}")
+      ModerationAudit.log(conn, "Deleted posts by IP #{IpCrypt.cloak_ip(decoded_ip)}",
+        subject_ip: decoded_ip
+      )
       json(conn, %{data: result})
     else
       {:error, :invalid_ip} -> {:error, :bad_request}
@@ -124,7 +135,8 @@ defmodule EirinchanWeb.IpManagementController do
              config: board_config(board, conn)
            ) do
       ModerationAudit.log(conn, "Deleted board posts by IP #{IpCrypt.cloak_ip(decoded_ip)}",
-        board: board
+        board: board,
+        subject_ip: decoded_ip
       )
       json(conn, %{data: result})
     else

@@ -1,5 +1,6 @@
 defmodule EirinchanWeb.ModerationAudit do
   alias Eirinchan.ModerationLog
+  alias Eirinchan.IpCrypt
   alias EirinchanWeb.RequestMeta
 
   require Logger
@@ -12,6 +13,7 @@ defmodule EirinchanWeb.ModerationAudit do
         mod_user_id: moderator.id,
         actor_ip: RequestMeta.effective_remote_ip(conn) |> normalize_ip(),
         board_uri: board_uri(opts),
+        subject_ip_token: opts |> Keyword.get(:subject_ip) |> IpCrypt.lookup_token(),
         text: text
       }
 

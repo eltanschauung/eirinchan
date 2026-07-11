@@ -3,9 +3,11 @@ defmodule Eirinchan.ModerationLog do
 
   alias Eirinchan.Moderation.LogEntry
   alias Eirinchan.Moderation.ModUser
+  alias Eirinchan.IpCrypt
   alias Eirinchan.Repo
 
   @default_page_size 15
+  @legacy_ip_scan_limit 1_000
 
   def default_page_size, do: @default_page_size
 
@@ -89,6 +91,38 @@ defmodule Eirinchan.ModerationLog do
     |> repo.preload(:mod_user)
   end
 
+  def list_recent_entries_by_ip(ip, opts \\ []) when is_binary(ip) do
+    repo = Keyword.get(opts, :repo, Repo)
+    limit = max(Keyword.get(opts, :limit, 50), 1)
+    token = IpCrypt.lookup_token(ip)
+
+    exact =
+      if is_binary(token) do
+        from([log, _mod_user] in filtered_query(Keyword.put(opts, :subject_ip_token, token)),
+          order_by: [desc: log.inserted_at, desc: log.id],
+          limit: ^limit
+        )
+        |> repo.all()
+      else
+        []
+      end
+
+    legacy =
+      from([log, _mod_user] in filtered_query(opts),
+        where: is_nil(log.subject_ip_token),
+        order_by: [desc: log.inserted_at, desc: log.id],
+        limit: @legacy_ip_scan_limit
+      )
+      |> repo.all()
+      |> Enum.filter(&legacy_entry_mentions_ip?(&1, ip))
+
+    (exact ++ legacy)
+    |> Enum.uniq_by(& &1.id)
+    |> Enum.sort_by(&{&1.inserted_at, &1.id}, :desc)
+    |> Enum.take(limit)
+    |> repo.preload(:mod_user)
+  end
+
   defp filtered_query(opts) do
     username =
       opts
@@ -101,6 +135,7 @@ defmodule Eirinchan.ModerationLog do
       |> normalize_filter()
 
     mod_user_id = Keyword.get(opts, :mod_user_id)
+    subject_ip_token = Keyword.get(opts, :subject_ip_token)
 
     text =
       opts
@@ -133,12 +168,33 @@ defmodule Eirinchan.ModerationLog do
         query
       end
 
+    query =
+      if is_binary(subject_ip_token) do
+        from [log, mod_user] in query, where: log.subject_ip_token == ^subject_ip_token
+      else
+        query
+      end
+
     if is_binary(text) do
       pattern = "%" <> text <> "%"
       from [log, mod_user] in query, where: ilike(log.text, ^pattern)
     else
       query
     end
+  end
+
+  defp legacy_entry_mentions_ip?(%LogEntry{text: text}, ip) when is_binary(text) do
+    String.contains?(text, ip) or
+      Enum.any?(cloak_tokens(text), &(IpCrypt.uncloak_ip(&1) == ip))
+  end
+
+  defp legacy_entry_mentions_ip?(_entry, _ip), do: false
+
+  defp cloak_tokens(text) do
+    prefix = IpCrypt.config().ipcrypt_prefix |> to_string() |> Regex.escape()
+
+    Regex.scan(~r/#{prefix}:(?:v2:)?[A-Za-z0-9_-]+/, text)
+    |> List.flatten()
   end
 
   defp normalize_filter(nil), do: nil

@@ -49,7 +49,10 @@ defmodule EirinchanWeb.ReportManagementController do
     with board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          :ok <- authorize_board(conn, board),
          {:ok, _count} <- Reports.dismiss_reports_for_ip(board, ip) do
-      ModerationAudit.log(conn, "Dismissed reports for IP #{IpCrypt.cloak_ip(ip)}", board: board)
+      ModerationAudit.log(conn, "Dismissed reports for IP #{IpCrypt.cloak_ip(ip)}",
+        board: board,
+        subject_ip: ip
+      )
       send_resp(conn, :no_content, "")
     else
       nil -> {:error, :not_found}

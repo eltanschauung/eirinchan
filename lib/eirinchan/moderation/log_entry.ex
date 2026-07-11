@@ -5,6 +5,7 @@ defmodule Eirinchan.Moderation.LogEntry do
   schema "moderation_logs" do
     field :actor_ip, :string
     field :board_uri, :string
+    field :subject_ip_token, :string
     field :text, :string
 
     belongs_to :mod_user, Eirinchan.Moderation.ModUser
@@ -14,9 +15,10 @@ defmodule Eirinchan.Moderation.LogEntry do
 
   def changeset(entry, attrs) do
     entry
-    |> cast(attrs, [:mod_user_id, :actor_ip, :board_uri, :text])
+    |> cast(attrs, [:mod_user_id, :actor_ip, :board_uri, :subject_ip_token, :text])
     |> update_change(:actor_ip, &normalize_string/1)
     |> update_change(:board_uri, &normalize_string/1)
+    |> update_change(:subject_ip_token, &normalize_string/1)
     |> update_change(:text, &normalize_text/1)
     |> validate_required([:text])
     |> foreign_key_constraint(:mod_user_id)

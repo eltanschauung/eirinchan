@@ -12,6 +12,7 @@ defmodule Eirinchan.IpCrypt do
   @aead_nonce_bytes 12
   @aead_tag_bytes 16
   @aead_context "eirinchan-ipcrypt-v2"
+  @lookup_context "eirinchan-ip-history-v1"
 
   @default_config %{
     ipcrypt_key: "",
@@ -90,6 +91,20 @@ defmodule Eirinchan.IpCrypt do
   end
 
   def uncloak_ip(_value), do: nil
+
+  def lookup_token(nil), do: nil
+
+  def lookup_token(ip) do
+    cfg = config()
+    normalized = normalize_ip_string(ip) |> String.trim()
+
+    if blank?(cfg.ipcrypt_key) or not valid_plain_ip?(normalized) do
+      nil
+    else
+      :crypto.mac(:hmac, :sha256, encryption_key(cfg.ipcrypt_key), @lookup_context <> normalized)
+      |> Base.url_encode64(padding: false)
+    end
+  end
 
   def immune?(ip) do
     cfg = config()
