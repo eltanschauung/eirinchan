@@ -46,7 +46,7 @@ jobs:
       - name: Install media tools
         run: |
           sudo apt-get update
-          sudo apt-get install --yes ffmpeg imagemagick libimage-exiftool-perl
+          sudo apt-get install --yes ffmpeg imagemagick libimage-exiftool-perl whois
 
       - name: Restore dependencies
         uses: actions/cache@v6
