@@ -936,7 +936,7 @@ defmodule EirinchanWeb.PostControllerTest do
       |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
       |> post(~p"/#{board.uri}/post", %{
         "body" => "first post",
-        "file" => raw_upload_fixture("fake.png", "not-an-image"),
+        "file" => raw_upload_fixture("fake.png", <<0x89, "PNG\r\n", 0x1A, "\ncorrupt">>),
         "json_response" => "1",
         "post" => "New Topic"
       })
@@ -969,7 +969,7 @@ defmodule EirinchanWeb.PostControllerTest do
       |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
       |> post(~p"/#{board.uri}/post", %{
         "body" => "first post",
-        "file" => raw_upload_fixture(unique_name, "not-an-image"),
+        "file" => raw_upload_fixture(unique_name, <<0x89, "PNG\r\n", 0x1A, "\ncorrupt">>),
         "json_response" => "1",
         "post" => "New Topic"
       })
@@ -1000,14 +1000,15 @@ defmodule EirinchanWeb.PostControllerTest do
              %{
                "filename" => unique_name,
                "content_type" => "image/png",
-               "size" => 12
+               "size" => 15
              }
            ]
 
     assert diagnostic["filename"] == unique_name
     assert diagnostic["content_type"] == "image/png"
-    assert diagnostic["magic_bytes_hex"] == Base.encode16("not-an-image", case: :lower)
-    assert diagnostic["detected_mime"] == "text/plain"
+    assert diagnostic["magic_bytes_hex"] ==
+             Base.encode16(<<0x89, "PNG\r\n", 0x1A, "\ncorrupt">>, case: :lower)
+    assert diagnostic["detected_mime"] == "application/octet-stream"
     assert diagnostic["identify"]["available"] == true
     assert diagnostic["identify"]["exit_status"] != 0
     assert diagnostic["quarantined_to"] == nil
@@ -1029,7 +1030,7 @@ defmodule EirinchanWeb.PostControllerTest do
     assert %{"error" => "Image dimensions too large."} = json_response(conn, 422)
   end
 
-  test "posting accepts valid image bytes even if the filename extension is altered", %{
+  test "posting rejects image bytes that do not match the filename extension", %{
     conn: conn
   } do
     board = board_fixture(%{config_overrides: %{force_image_op: true}})
@@ -1049,7 +1050,7 @@ defmodule EirinchanWeb.PostControllerTest do
         "post" => "New Topic"
       })
 
-    assert %{"id" => _id} = json_response(conn, 200)
+    assert %{"error_code" => "mime_exploit"} = json_response(conn, 422)
   end
 
   test "posting rejects invalid avif uploads", %{conn: conn} do
@@ -1060,7 +1061,7 @@ defmodule EirinchanWeb.PostControllerTest do
       |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
       |> post(~p"/#{board.uri}/post", %{
         "body" => "first post",
-        "file" => raw_upload_fixture("fake.avif", "not-an-avif"),
+        "file" => raw_upload_fixture("fake.avif", <<0, 0, 0, 24, "ftypavif", 0::96>>),
         "json_response" => "1",
         "post" => "New Topic"
       })
