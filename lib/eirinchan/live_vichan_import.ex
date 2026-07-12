@@ -363,9 +363,7 @@ defmodule Eirinchan.LiveVichanImport do
         file_path: "deleted",
         thumb_path: nil,
         file_size: integer_or_nil(legacy_file["size"]),
-        file_type:
-          legacy_file["type"] || MIME.from_path(legacy_file["filename"] || "") ||
-            "application/octet-stream",
+        file_type: legacy_file_type(legacy_file, legacy_file["filename"] || ""),
         file_md5: legacy_file["hash"] || "deleted",
         image_width: integer_or_nil(legacy_file["width"]),
         image_height: integer_or_nil(legacy_file["height"]),
@@ -442,9 +440,7 @@ defmodule Eirinchan.LiveVichanImport do
       file_path: "deleted",
       thumb_path: nil,
       file_size: integer_or_nil(legacy_file["size"]),
-      file_type:
-        legacy_file["type"] || MIME.from_path(legacy_file["filename"] || "") ||
-          "application/octet-stream",
+      file_type: legacy_file_type(legacy_file, legacy_file["filename"] || ""),
       file_md5: legacy_file["hash"] || "deleted",
       image_width: integer_or_nil(legacy_file["width"]),
       image_height: integer_or_nil(legacy_file["height"]),
@@ -459,11 +455,18 @@ defmodule Eirinchan.LiveVichanImport do
     %{
       ext: ext,
       file_size: byte_size(binary),
-      file_type: legacy_file["type"] || MIME.from_path(file_abs) || "application/octet-stream",
+      file_type: legacy_file_type(legacy_file, file_abs),
       file_md5: :crypto.hash(:md5, binary) |> Base.encode64(),
       image_width: integer_or_nil(legacy_file["width"]),
       image_height: integer_or_nil(legacy_file["height"])
     }
+  end
+
+  defp legacy_file_type(legacy_file, path) do
+    case legacy_file["type"] do
+      type when is_binary(type) and type != "" -> type
+      _ -> MIME.from_path(path)
+    end
   end
 
   defp file_source_rel(%BoardRecord{} = board, legacy_file) do

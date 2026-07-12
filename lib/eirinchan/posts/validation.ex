@@ -159,7 +159,6 @@ defmodule Eirinchan.Posts.Validation do
 
       if duplicate?, do: {:error, :duplicate_file}, else: :ok
     else
-      :ok -> :ok
       [] -> :ok
       {:error, :duplicate_file} = error -> error
     end
@@ -311,8 +310,6 @@ defmodule Eirinchan.Posts.Validation do
       {:error, :invalid_file_type}
     end
   end
-
-  defp validate_upload_size(nil, _config), do: {:error, :upload_failed}
 
   defp validate_upload_size(upload_metadata, config) do
     max_filesize = config.max_filesize

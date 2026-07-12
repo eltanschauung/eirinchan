@@ -1908,9 +1908,6 @@ defmodule EirinchanWeb.ManagePageController do
 
       nil ->
         render_dashboard_error(conn, "Post not found.", %{}, :not_found)
-
-      {:error, :not_found} ->
-        render_dashboard_error(conn, "Post not found.", %{}, :not_found)
     end
   end
 

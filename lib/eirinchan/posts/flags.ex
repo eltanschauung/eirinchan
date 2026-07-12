@@ -112,8 +112,6 @@ defmodule Eirinchan.Posts.Flags do
     end
   end
 
-  defp parse_user_flags(nil, _multiple_flags), do: {:ok, []}
-
   defp parse_user_flags(raw_flags, true) do
     if String.length(raw_flags) > 300 do
       {:error, :invalid_user_flag}

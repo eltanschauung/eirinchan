@@ -64,8 +64,6 @@ defmodule Eirinchan.Posts.ThreadLookup do
         nil -> {:error, :not_found}
         index -> {:ok, div(index, config.threads_per_page) + 1}
       end
-    else
-      :error -> {:error, :not_found}
     end
   end
 

@@ -1288,8 +1288,6 @@ defmodule EirinchanWeb.PostView do
     Posts.tail_reply_public_ids_map(board, thread_ids, config.noko50_count)
   end
 
-  defp local_quote_reply_uses_noko50?(%Post{thread_id: nil}, _thread, _config, _tail_reply_ids), do: false
-
   defp local_quote_reply_uses_noko50?(%Post{} = post, %Post{} = thread, config, tail_reply_ids) do
     reply_count = thread.cached_reply_count || 0
 

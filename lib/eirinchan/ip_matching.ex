@@ -44,8 +44,8 @@ defmodule Eirinchan.IpMatching do
          {:ok, network_binary} <- ip_to_binary(network_ip),
          true <- byte_size(ip_binary) == byte_size(network_binary),
          true <- prefix_size >= 0 and prefix_size <= byte_size(ip_binary) * 8 do
-      <<ip_prefix::bitstring-size(prefix_size), _::bitstring>> = ip_binary
-      <<network_prefix::bitstring-size(prefix_size), _::bitstring>> = network_binary
+      <<ip_prefix::bitstring-size(^prefix_size), _::bitstring>> = ip_binary
+      <<network_prefix::bitstring-size(^prefix_size), _::bitstring>> = network_binary
       ip_prefix == network_prefix
     else
       _ -> false

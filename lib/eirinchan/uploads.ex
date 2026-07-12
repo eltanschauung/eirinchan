@@ -743,7 +743,7 @@ defmodule Eirinchan.Uploads do
 
     digest =
       path
-      |> File.stream!([], 64 * 1024)
+      |> File.stream!(64 * 1024, [])
       |> Enum.reduce(%{hash: :crypto.hash_init(:md5), size: 0, prefix: []}, fn chunk, acc ->
         prefix =
           if IO.iodata_length(acc.prefix) >= max_prefix do
@@ -969,14 +969,11 @@ defmodule Eirinchan.Uploads do
         path = String.replace(config.file_thumb, "%s", icon_name)
         if File.exists?(path), do: path, else: nil
 
-      is_binary(icon_name) and File.exists?(icon_name) ->
+      File.exists?(icon_name) ->
         icon_name
 
-      is_binary(icon_name) ->
-        resolve_bundled_icon(icon_name)
-
       true ->
-        nil
+        resolve_bundled_icon(icon_name)
     end
   end
 

@@ -23,7 +23,7 @@ defmodule EirinchanWeb.Plugs.FetchTheme do
         ThemeRegistry.fetch(public_theme && public_theme.name) ||
         ThemeRegistry.fetch(ThemeRegistry.default_theme())
 
-    theme_name = public_theme && public_theme.name || theme_identifier || ThemeRegistry.default_theme()
+    theme_name = if public_theme, do: public_theme.name, else: theme_identifier
     theme_label = public_theme && public_theme.label || theme.label
     theme_options = if forced_theme_identifier, do: [], else: ThemeRegistry.public_all()
 
@@ -190,7 +190,12 @@ defmodule EirinchanWeb.Plugs.FetchTheme do
     ]
   end
 
-  defp normalize_theme_identifier(name) when is_binary(name), do: String.trim(name)
-  defp normalize_theme_identifier(""), do: nil
+  defp normalize_theme_identifier(name) when is_binary(name) do
+    case String.trim(name) do
+      "" -> nil
+      normalized -> normalized
+    end
+  end
+
   defp normalize_theme_identifier(_name), do: nil
 end

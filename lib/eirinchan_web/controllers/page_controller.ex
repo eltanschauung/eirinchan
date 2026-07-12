@@ -807,7 +807,7 @@ defmodule EirinchanWeb.PageController do
     skip = max(len - 2, 0)
 
     if byte_size(rest) >= skip do
-      <<_segment::binary-size(skip), tail::binary>> = rest
+      <<_segment::binary-size(^skip), tail::binary>> = rest
       jpeg_dimensions_scan(tail)
     else
       nil

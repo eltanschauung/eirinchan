@@ -54,12 +54,12 @@ defmodule Eirinchan.Captcha do
         "remoteip" => remote_ip_string(request[:remote_ip] || request["remote_ip"]) || ""
       })
 
-    headers = [{'content-type', 'application/x-www-form-urlencoded'}]
+    headers = [{~c"content-type", ~c"application/x-www-form-urlencoded"}]
     timeout = captcha[:http_timeout_ms] || 5_000
 
     case :httpc.request(
            :post,
-           {to_charlist(captcha[:verify_url]), headers, 'application/x-www-form-urlencoded',
+           {to_charlist(captcha[:verify_url]), headers, ~c"application/x-www-form-urlencoded",
             body},
            [timeout: timeout, connect_timeout: timeout],
            body_format: :binary

@@ -7,7 +7,7 @@
   show_global_message={@show_global_message}
 >
   <section :if={@sanitized_body && @sanitized_body != ""} class="public-panel static-page-panel feedback-copy">
-    <article><%= raw(@sanitized_body || "") %></article>
+    <article><%= raw(@sanitized_body) %></article>
   </section>
 
   <section :if={@errors} class="public-panel feedback-errors">

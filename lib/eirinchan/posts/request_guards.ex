@@ -251,8 +251,6 @@ defmodule Eirinchan.Posts.RequestGuards do
       end)
   end
 
-  defp uploaded_file?(_attrs), do: false
-
   defp uploaded_image?(attrs) when is_map(attrs) do
     attrs
     |> Map.get("__upload_entries__", [])

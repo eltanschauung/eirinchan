@@ -30,7 +30,6 @@ defmodule EirinchanWeb.ThreadWatcherController do
     else
       {:error, :not_found} -> send_resp(conn, :not_found, "")
       {:error, :thread_not_found} -> send_resp(conn, :not_found, "")
-      {:error, _reason} -> send_resp(conn, :unprocessable_entity, "")
     end
   end
 
@@ -52,7 +51,6 @@ defmodule EirinchanWeb.ThreadWatcherController do
     else
       {:error, :not_found} -> send_resp(conn, :not_found, "")
       {:error, :thread_not_found} -> send_resp(conn, :not_found, "")
-      {:error, _reason} -> send_resp(conn, :unprocessable_entity, "")
     end
   end
 

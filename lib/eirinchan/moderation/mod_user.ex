@@ -70,7 +70,7 @@ defmodule Eirinchan.Moderation.ModUser do
         verify_legacy_vichan_password(user.password_hash || "", password)
 
       argon2_password?(user) ->
-        Argon2.verify_pass(password, user.password_hash || "")
+        Argon2.verify_pass(password, user.password_hash)
 
       true ->
         expected = legacy_sha256_hash(password, user.password_salt || "")

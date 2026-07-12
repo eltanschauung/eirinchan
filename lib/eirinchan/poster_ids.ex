@@ -82,8 +82,6 @@ defmodule Eirinchan.PosterIds do
     end
   end
 
-  defp april_fools_badge(_post), do: nil
-
   defp standard_badge(post, _config) do
     case persisted_poster_id(post) do
       label when is_binary(label) ->

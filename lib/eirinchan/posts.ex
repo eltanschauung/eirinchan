@@ -719,10 +719,6 @@ defmodule Eirinchan.Posts do
     with {:ok, post} <- get_post(board, post_id, repo: repo),
          :ok <- validate_delete_password(post, password) do
       PostsModeration.delete_post_files(board, post_id, opts)
-    else
-      {:error, :not_found} -> {:error, :not_found}
-      {:error, :invalid_password} -> {:error, :invalid_password}
-      other -> other
     end
   end
 

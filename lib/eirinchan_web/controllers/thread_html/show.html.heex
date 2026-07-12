@@ -149,7 +149,7 @@
       <th>Flags</th>
       <td>
         <input
-          :if={@config.user_flag && @config.multiple_flags}
+          :if={@config.multiple_flags}
           type="user_flag"
           name="user_flag"
           id="user_flag"
@@ -160,7 +160,7 @@
           value={@config.default_user_flag}
         />
         <select
-          :if={@config.user_flag && !@config.multiple_flags}
+          :if={!@config.multiple_flags}
           name="user_flag"
           id="user_flag"
         >
