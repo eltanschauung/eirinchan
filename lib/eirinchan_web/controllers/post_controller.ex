@@ -745,6 +745,7 @@ defmodule EirinchanWeb.PostController do
   defp error_status(:ipaccess_imagelim), do: :forbidden
   defp error_status(:dnsbl), do: :forbidden
   defp error_status(:invalid_password), do: :forbidden
+  defp error_status(:post_too_old), do: :unprocessable_entity
   defp error_status(:banned), do: :forbidden
   defp error_status(:thread_locked), do: :forbidden
   defp error_status(:invalid_referer), do: :forbidden
@@ -787,6 +788,12 @@ defmodule EirinchanWeb.PostController do
 
   defp error_message(:dnsbl, config), do: String.replace(config.error.dnsbl, "%s", "DNSBL")
   defp error_message(:invalid_password, config), do: config.error.password
+
+  defp error_message(:post_too_old, config) do
+    minutes = Map.get(config, :delete_post_max_age_minutes, 3)
+    "You can't delete a post this old! (#{minutes} minutes)"
+  end
+
   defp error_message(:banned, config), do: config.error.banned
   defp error_message(:thread_locked, config), do: config.error.locked
   defp error_message(:invalid_referer, config), do: config.error.referer

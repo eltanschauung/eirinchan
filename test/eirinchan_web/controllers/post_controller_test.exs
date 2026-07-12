@@ -1006,8 +1006,10 @@ defmodule EirinchanWeb.PostControllerTest do
 
     assert diagnostic["filename"] == unique_name
     assert diagnostic["content_type"] == "image/png"
+
     assert diagnostic["magic_bytes_hex"] ==
              Base.encode16(<<0x89, "PNG\r\n", 0x1A, "\ncorrupt">>, case: :lower)
+
     assert diagnostic["detected_mime"] == "application/octet-stream"
     assert diagnostic["identify"]["available"] == true
     assert diagnostic["identify"]["exit_status"] != 0
@@ -1482,7 +1484,11 @@ defmodule EirinchanWeb.PostControllerTest do
     board = board_fixture()
 
     {:ok, ban} =
-      Eirinchan.Bans.create_ban(%{board_id: board.id, ip_subnet: "203.0.113.0/24", reason: "Spam"})
+      Eirinchan.Bans.create_ban(%{
+        board_id: board.id,
+        ip_subnet: "203.0.113.0/24",
+        reason: "Spam"
+      })
 
     conn =
       conn
@@ -1733,6 +1739,33 @@ defmodule EirinchanWeb.PostControllerTest do
       })
 
     assert %{"error" => "Incorrect password."} = json_response(conn, 403)
+  end
+
+  test "delete branch rejects otherwise valid deletion after configured age", %{conn: conn} do
+    board = board_fixture(%{config_overrides: %{delete_post_max_age_minutes: 3}})
+    thread = thread_fixture(board, %{password: "threadpw"})
+    old_timestamp = DateTime.add(DateTime.utc_now(), -4 * 60, :second)
+
+    Repo.update_all(
+      from(post in Post, where: post.id == ^thread.id),
+      set: [inserted_at: old_timestamp]
+    )
+
+    conn =
+      conn
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post("/#{board.uri}/post", %{
+        "delete_post_id" => Integer.to_string(PublicIds.public_id(thread)),
+        "password" => "threadpw",
+        "json_response" => "1"
+      })
+
+    assert %{
+             "error" => "You can't delete a post this old! (3 minutes)",
+             "error_code" => "post_too_old"
+           } = json_response(conn, 422)
+
+    assert {:ok, _thread} = Eirinchan.Posts.get_post(board, thread.id)
   end
 
   test "delete branch does not fall back to the password cookie when the submitted password is blank",

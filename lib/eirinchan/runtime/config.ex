@@ -97,6 +97,7 @@ defmodule Eirinchan.Runtime.Config do
     antispam_retention_seconds: 60 * 60 * 48,
     antispam_question: false,
     antispam_question_answer: nil,
+    delete_post_max_age_minutes: 3,
     anti_bump_flood: false,
     max_cites: 45,
     max_cross: 45,

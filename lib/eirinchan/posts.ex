@@ -378,7 +378,8 @@ defmodule Eirinchan.Posts do
   end
 
   @spec delete_post(BoardRecord.t(), String.t() | integer(), String.t() | nil, keyword()) ::
-          {:ok, map()} | {:error, :post_not_found | :invalid_password | Ecto.Changeset.t()}
+          {:ok, map()}
+          | {:error, :post_not_found | :invalid_password | :post_too_old | Ecto.Changeset.t()}
   def delete_post(%BoardRecord{} = board, post_id, password, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
     config = Keyword.get(opts, :config, Config.compose())
@@ -387,6 +388,7 @@ defmodule Eirinchan.Posts do
     with {:ok, normalized_post_id} <- PostsThreadLookup.normalize_thread_id(post_id),
          %Post{} = post <- get_post_record(repo, board, normalized_post_id),
          :ok <- validate_delete_password(post, password),
+         :ok <- validate_public_delete_age(post, config),
          file_paths <- post_delete_file_paths(post, repo),
          {:ok, _deleted_post} <- repo.delete(post) do
       _ = maybe_recalculate_thread_bump_after_delete(post, config, repo)
@@ -404,7 +406,10 @@ defmodule Eirinchan.Posts do
           }
         else
           _ =
-            Build.rebuild_after_delete(board, {:reply, post.thread_id}, config: config, repo: repo)
+            Build.rebuild_after_delete(board, {:reply, post.thread_id},
+              config: config,
+              repo: repo
+            )
 
           %{
             deleted_post_id: PublicIds.public_id(post),
@@ -418,7 +423,19 @@ defmodule Eirinchan.Posts do
       :error -> {:error, :post_not_found}
       nil -> {:error, :post_not_found}
       {:error, :invalid_password} -> {:error, :invalid_password}
+      {:error, :post_too_old} -> {:error, :post_too_old}
       {:error, %Ecto.Changeset{} = changeset} -> {:error, changeset}
+    end
+  end
+
+  defp validate_public_delete_age(%Post{inserted_at: inserted_at}, config) do
+    max_age_minutes = Map.get(config, :delete_post_max_age_minutes, 3)
+
+    if is_integer(max_age_minutes) and max_age_minutes > 0 and
+         DateTime.diff(DateTime.utc_now(), inserted_at, :second) > max_age_minutes * 60 do
+      {:error, :post_too_old}
+    else
+      :ok
     end
   end
 
