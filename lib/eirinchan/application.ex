@@ -7,23 +7,30 @@ defmodule Eirinchan.Application do
 
   @impl true
   def start(_type, _args) do
-    children = [
-      EirinchanWeb.Telemetry,
-      Eirinchan.Repo,
-      {DNSCluster, query: Application.get_env(:eirinchan, :dns_cluster_query) || :ignore},
-      {Phoenix.PubSub, name: Eirinchan.PubSub},
-      {Task.Supervisor, name: Eirinchan.BuildTaskSupervisor},
-      Eirinchan.BrowserPresence,
-      Eirinchan.ManageLoginThrottle,
-      EirinchanWeb.FragmentCache,
-      Eirinchan.MaintenanceWorker,
-      EirinchanWeb.Endpoint
-    ]
+    children =
+      [
+        EirinchanWeb.Telemetry,
+        Eirinchan.Repo,
+        {DNSCluster, query: Application.get_env(:eirinchan, :dns_cluster_query) || :ignore},
+        {Phoenix.PubSub, name: Eirinchan.PubSub},
+        {Task.Supervisor, name: Eirinchan.BuildTaskSupervisor},
+        Eirinchan.BrowserPresence,
+        Eirinchan.ManageLoginThrottle,
+        EirinchanWeb.FragmentCache,
+        maintenance_worker(),
+        EirinchanWeb.Endpoint
+      ]
+      |> Enum.reject(&is_nil/1)
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: Eirinchan.Supervisor]
     Supervisor.start_link(children, opts)
+  end
+
+  defp maintenance_worker do
+    if Application.get_env(:eirinchan, :start_maintenance_worker, true),
+      do: Eirinchan.MaintenanceWorker
   end
 
   # Tell Phoenix to update the endpoint configuration
