@@ -16,4 +16,11 @@ defmodule EirinchanWeb.ParamTest do
     assert Param.bounded_integer("-5", 25, min: 1, max: 100) == 1
     assert Param.bounded_integer("invalid", 25, min: 1, max: 100) == 25
   end
+
+  test "accepts only positive PostgreSQL integer identifiers" do
+    assert Param.database_id("2147483647") == {:ok, 2_147_483_647}
+    assert Param.database_id("2147483648") == :error
+    assert Param.database_id(0) == :error
+    assert Param.database_id("invalid") == :error
+  end
 end

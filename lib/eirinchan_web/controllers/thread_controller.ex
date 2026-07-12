@@ -148,7 +148,7 @@ defmodule EirinchanWeb.ThreadController do
   end
 
   defp parse_thread_request(thread_id) when is_integer(thread_id) do
-    case Param.positive_integer(thread_id) do
+    case Param.database_id(thread_id) do
       {:ok, id} -> {id, false}
       :error -> {nil, false}
     end
@@ -167,7 +167,7 @@ defmodule EirinchanWeb.ThreadController do
       |> String.split("-", parts: 2)
       |> hd()
 
-    case Param.positive_integer(id_text) do
+    case Param.database_id(id_text) do
       {:ok, id} -> {id, noko50?}
       :error -> {nil, noko50?}
     end

@@ -41,6 +41,17 @@ defmodule EirinchanWeb.ThreadControllerTest do
     assert page =~ "Error 404"
   end
 
+  test "oversized thread identifiers render a 404 instead of reaching PostgreSQL", %{conn: conn} do
+    board = board_fixture()
+
+    page =
+      conn
+      |> get("/#{board.uri}/res/2147483648.html")
+      |> html_response(404)
+
+    assert page =~ "Error 404"
+  end
+
   test "thread fragment renders replies only", %{conn: conn} do
     board = board_fixture()
     thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})

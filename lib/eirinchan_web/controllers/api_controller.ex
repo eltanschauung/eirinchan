@@ -44,9 +44,11 @@ defmodule EirinchanWeb.ApiController do
   def thread(conn, %{"thread_id" => thread_id}) do
     board = conn.assigns.current_board
 
-    case Posts.get_thread_view(board, thread_id) do
-      {:ok, summary} -> json(conn, Api.thread_json(summary, conn.assigns.current_board_config))
-      {:error, :not_found} -> send_resp(conn, :not_found, "Thread not found")
+    with {:ok, thread_id} <- Param.database_id(thread_id),
+         {:ok, summary} <- Posts.get_thread_view(board, thread_id) do
+      json(conn, Api.thread_json(summary, conn.assigns.current_board_config))
+    else
+      _ -> send_resp(conn, :not_found, "Thread not found")
     end
   end
 

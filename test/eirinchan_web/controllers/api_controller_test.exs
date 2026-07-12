@@ -25,6 +25,15 @@ defmodule EirinchanWeb.ApiControllerTest do
     :ok
   end
 
+  test "oversized thread identifiers return JSON API 404s", %{conn: conn} do
+    board = board_fixture()
+
+    conn
+    |> put_req_header("accept", "application/json")
+    |> get("/api/#{board.uri}/res/2147483648")
+    |> response(404)
+  end
+
   test "board api endpoints expose page, catalog, threads, and thread json", %{conn: conn} do
     :ok = Eirinchan.Themes.enable_page_theme("catalog")
     board = board_fixture(%{config_overrides: %{threads_per_page: 1, threads_preview: 1}})
