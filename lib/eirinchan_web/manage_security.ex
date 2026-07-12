@@ -53,7 +53,7 @@ defmodule EirinchanWeb.ManageSecurity do
   def sign_action(session_token, value) when is_binary(session_token) do
     :crypto.mac(:hmac, :sha256, session_token, value)
     |> Base.encode16(case: :lower)
-    |> binary_part(0, 8)
+    |> binary_part(0, 32)
   end
 
   def valid_action_token?(session_token, value, token)
