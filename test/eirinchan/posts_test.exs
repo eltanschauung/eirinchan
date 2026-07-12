@@ -2359,7 +2359,7 @@ defmodule Eirinchan.PostsTest do
                request: post_request(board.uri)
              )
 
-    assert {:error, :invalid_image} =
+    assert {:error, :mime_exploit} =
              Posts.create_post(
                board,
                %{

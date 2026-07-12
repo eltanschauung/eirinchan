@@ -9,6 +9,13 @@ defmodule Eirinchan.Uploads do
 
   @image_extensions [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".avif"]
   @video_extensions [".webm", ".mp4"]
+  @processed_extensions @image_extensions ++ @video_extensions
+  @codec_whitelists %{
+    ".avif" => "av1",
+    ".webp" => "webp",
+    ".webm" => "vp8,vp9,av1,opus,vorbis",
+    ".mp4" => "h264,av1,aac,opus,mp3"
+  }
   @jpeg_thumbnail_quality 85
 
   @spec describe(Plug.Upload.t(), map()) :: {:ok, map()} | {:error, atom()}
@@ -44,7 +51,7 @@ defmodule Eirinchan.Uploads do
     op? = Keyword.get(opts, :op?, false)
     normalized_name = normalized_input_filename(upload.filename)
 
-    with :ok <- validate_upload_size_early(upload, config),
+    with :ok <- preflight_upload(upload, config, op?),
          {:ok, initial_metadata} <- describe_without_normalizing(upload, normalized_name, config),
          staged_metadata <- staged_upload_metadata(initial_metadata),
          {:ok, staged_path} <- create_staged_upload_path(staged_metadata.ext) do
@@ -74,6 +81,36 @@ defmodule Eirinchan.Uploads do
       end
     end
   end
+
+  @doc false
+  def preflight_upload(%Plug.Upload{} = upload, config, op? \\ false) do
+    ext = upload.filename |> normalized_input_filename() |> Path.extname() |> String.downcase()
+
+    with true <- allowed_extension?(ext, config, op?),
+         :ok <- validate_upload_size_early(upload, config),
+         {:ok, prefix} <- read_upload_prefix(upload.path),
+         true <- expected_file_signature?(ext, prefix) do
+      :ok
+    else
+      false when ext in @image_extensions -> {:error, :mime_exploit}
+      false -> {:error, :invalid_file_type}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  @doc false
+  def allowed_extension?(ext, config, op?) when is_binary(ext) and is_map(config) do
+    allowed =
+      if op? and is_list(Map.get(config, :allowed_ext_files_op)) do
+        Map.get(config, :allowed_ext_files_op)
+      else
+        Map.get(config, :allowed_ext_files, [])
+      end
+
+    ext in Enum.map(allowed, &String.downcase(to_string(&1)))
+  end
+
+  def allowed_extension?(_ext, _config, _op?), do: false
 
   @spec store(BoardRecord.t(), Post.t(), Plug.Upload.t(), map()) ::
           {:ok, map()} | {:error, atom()}
@@ -117,6 +154,36 @@ defmodule Eirinchan.Uploads do
       :ok
     end
   end
+
+  defp read_upload_prefix(path) do
+    case File.open(path, [:read, :binary]) do
+      {:ok, file} ->
+        result = IO.binread(file, 64)
+        File.close(file)
+
+        case result do
+          prefix when is_binary(prefix) -> {:ok, prefix}
+          _ -> {:error, :upload_failed}
+        end
+
+      {:error, _reason} ->
+        {:error, :upload_failed}
+    end
+  end
+
+  defp expected_file_signature?(".png", <<0x89, "PNG\r\n", 0x1A, "\n", _::binary>>), do: true
+  defp expected_file_signature?(ext, <<0xFF, 0xD8, 0xFF, _::binary>>) when ext in [".jpg", ".jpeg"], do: true
+  defp expected_file_signature?(".gif", <<signature::binary-size(6), _::binary>>), do: signature in ["GIF87a", "GIF89a"]
+  defp expected_file_signature?(".bmp", <<"BM", _::binary>>), do: true
+  defp expected_file_signature?(".webp", <<"RIFF", _size::binary-size(4), "WEBP", _::binary>>), do: true
+
+  defp expected_file_signature?(".avif", <<_size::binary-size(4), "ftyp", brands::binary>>),
+    do: String.contains?(brands, ["avif", "avis"])
+
+  defp expected_file_signature?(".webm", <<0x1A, 0x45, 0xDF, 0xA3, _::binary>>), do: true
+  defp expected_file_signature?(".mp4", <<_size::binary-size(4), "ftyp", _::binary>>), do: true
+  defp expected_file_signature?(ext, _prefix) when ext in @processed_extensions, do: false
+  defp expected_file_signature?(_ext, _prefix), do: true
 
   @spec finalize(BoardRecord.t(), Post.t(), map(), map(), String.t() | nil) ::
           {:ok, map()} | {:error, atom()}
@@ -574,13 +641,13 @@ defmodule Eirinchan.Uploads do
 
   defp write_staged_upload(source_path, staged_path, config, metadata) do
     if png_conversion_upload?(metadata) do
-      convert_to_png(source_path, staged_path, config)
+      convert_to_png(source_path, staged_path, config, metadata.ext)
     else
       File.cp(source_path, staged_path)
     end
   end
 
-  defp convert_to_png(source_path, destination_path, config) do
+  defp convert_to_png(source_path, destination_path, config, source_ext) do
     ffmpeg = get_in(config, [:webm, :ffmpeg_path]) || "ffmpeg"
 
     case Command.run(
@@ -591,6 +658,8 @@ defmodule Eirinchan.Uploads do
              "-hide_banner",
              "-loglevel",
              "error",
+             "-codec_whitelist",
+             codec_whitelist(source_ext),
              "-i",
              source_path,
              "-frames:v",
@@ -1000,7 +1069,17 @@ defmodule Eirinchan.Uploads do
 
     case Command.run(
            ffprobe,
-           ["-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", path],
+           [
+             "-v",
+             "quiet",
+             "-codec_whitelist",
+             codec_whitelist(ext),
+             "-print_format",
+             "json",
+             "-show_format",
+             "-show_streams",
+             path
+           ],
            stderr_to_stdout: true
          ) do
       {output, 0} ->
@@ -1044,7 +1123,7 @@ defmodule Eirinchan.Uploads do
          %{"format_name" => format_name} <- format,
          %{"codec_name" => codec} <- primary_video_stream(data),
          :ok <- validate_video_format(ext, format_name, codec),
-         :ok <- validate_video_audio(data, config),
+         :ok <- validate_video_audio(data, ext, config),
          :ok <- validate_video_duration(data, config) do
       :ok
     else
@@ -1076,11 +1155,21 @@ defmodule Eirinchan.Uploads do
 
   defp validate_video_format(_ext, _format_name, _codec), do: {:error, :invalid_video}
 
-  defp validate_video_audio(data, config) do
-    if get_in(config, [:webm, :allow_audio]) || audio_streams(data) == [] do
-      :ok
-    else
-      {:error, :invalid_video}
+  defp validate_video_audio(data, ext, config) do
+    audio_codecs = audio_streams(data) |> Enum.map(&Map.get(&1, "codec_name"))
+
+    allowed_codecs =
+      case ext do
+        ".webm" -> ["opus", "vorbis"]
+        ".mp4" -> ["aac", "opus", "mp3"]
+        _ -> []
+      end
+
+    cond do
+      audio_codecs == [] -> :ok
+      not get_in(config, [:webm, :allow_audio]) -> {:error, :invalid_video}
+      Enum.all?(audio_codecs, &(&1 in allowed_codecs)) -> :ok
+      true -> {:error, :invalid_video}
     end
   end
 
@@ -1105,6 +1194,8 @@ defmodule Eirinchan.Uploads do
       "-2",
       "-ss",
       Integer.to_string(midpoint),
+      "-codec_whitelist",
+      codec_whitelist(metadata.ext),
       "-i",
       source,
       "-v",
@@ -1142,6 +1233,8 @@ defmodule Eirinchan.Uploads do
              "-2",
              "-ss",
              "0",
+             "-codec_whitelist",
+             codec_whitelist(metadata.ext),
              "-i",
              source,
              "-v",
@@ -1164,6 +1257,8 @@ defmodule Eirinchan.Uploads do
         {:error, :upload_failed}
     end
   end
+
+  defp codec_whitelist(ext), do: Map.fetch!(@codec_whitelists, ext)
 
   defp thumbnail_dimensions_for_video(metadata, config, op?) do
     max_width = if op?, do: config.thumb_op_width, else: config.thumb_width
