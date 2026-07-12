@@ -43,9 +43,10 @@ defmodule EirinchanWeb.BannerAsset do
     |> File.ls()
     |> case do
       {:ok, files} ->
-        files
-        |> Enum.reject(&String.starts_with?(&1, "."))
-        |> Enum.random()
+        case Enum.reject(files, &String.starts_with?(&1, ".")) do
+          [] -> nil
+          available -> Enum.random(available)
+        end
 
       _ ->
         nil

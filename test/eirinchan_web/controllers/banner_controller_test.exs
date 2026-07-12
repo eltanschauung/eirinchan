@@ -45,7 +45,7 @@ defmodule EirinchanWeb.BannerControllerTest do
     conn = get(conn, "/b.php")
     redirected = redirected_to(conn, 307)
 
-    assert String.starts_with?(redirected, "/static/banners/")
+    assert redirected == "/static/file.png" or String.starts_with?(redirected, "/static/banners/")
   end
 
   test "b.php rejects scheme-relative banner redirects", %{conn: conn} do
@@ -57,6 +57,6 @@ defmodule EirinchanWeb.BannerControllerTest do
     conn = get(conn, "/b.php")
     redirected = redirected_to(conn, 307)
 
-    assert String.starts_with?(redirected, "/static/banners/")
+    assert redirected == "/static/file.png" or String.starts_with?(redirected, "/static/banners/")
   end
 end
