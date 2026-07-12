@@ -5,7 +5,7 @@ defmodule Eirinchan.MixProject do
     [
       app: :eirinchan,
       version: "0.1.0",
-      elixir: "~> 1.14",
+      elixir: "~> 1.20.2",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
@@ -47,8 +47,6 @@ defmodule Eirinchan.MixProject do
       {:locus, "~> 2.3.12"},
       {:dns_cluster, "~> 0.1.1"},
       {:bandit, "~> 1.11.1"},
-      # hpax 1.0.4 requires Elixir 1.15; production intentionally remains on 1.14.
-      {:hpax, "1.0.3", override: true},
       {:argon2_elixir, "~> 4.1"}
     ]
   end

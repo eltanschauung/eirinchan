@@ -40,8 +40,8 @@ jobs:
       - name: Install Erlang and Elixir
         uses: erlef/setup-beam@v1.24.1
         with:
-          otp-version: 24.3.4.17
-          elixir-version: 1.14.0
+          otp-version: 27.3.4.12
+          elixir-version: 1.20.2
 
       - name: Install media tools
         run: |
@@ -54,7 +54,7 @@ jobs:
           path: |
             deps
             _build
-          key: ${{ runner.os }}-otp24-elixir1.14-${{ hashFiles('mix.lock') }}
+          key: ${{ runner.os }}-otp27-elixir1.20-${{ hashFiles('mix.lock') }}
 
       - name: Install dependencies
         run: mix deps.get
