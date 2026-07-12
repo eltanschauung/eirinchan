@@ -19,45 +19,57 @@ defmodule EirinchanWeb.FeedbackController do
       |> Config.deep_merge(Application.get_env(:eirinchan, :search_overrides, %{}))
       |> then(&Config.compose(nil, &1, %{}))
 
-    if feedback_rate_limited?(request, config) do
-      message = "Feedback is limited to three submissions per 24 hours. Please try again later."
+    cond do
+      invalid_feedback_body?(params["body"]) ->
+        reject_feedback(conn, params, config.error.antispam, :unprocessable_entity)
 
-      if params["json_response"] == "1" do
-        conn
-        |> put_status(:too_many_requests)
-        |> json(%{error: message})
-      else
-        conn
-        |> put_status(:too_many_requests)
-        |> render_feedback_page(params: params, errors: %{"rate_limit" => [message]})
-      end
-    else
-      _ = Antispam.log_search_query("feedback", request)
+      feedback_rate_limited?(request, config) ->
+        message = "Feedback is limited to three submissions per 24 hours. Please try again later."
 
-      case Feedback.create_feedback(params, remote_ip: RequestMeta.effective_remote_ip(conn)) do
-        {:ok, entry} ->
-          if params["json_response"] == "1" do
-            json(conn, %{feedback_id: entry.id, status: "ok"})
-          else
-            redirect(conn, to: "/feedback")
-          end
+        reject_feedback(conn, params, message, :too_many_requests)
 
-        {:error, %Ecto.Changeset{} = changeset} ->
-          if params["json_response"] == "1" do
-            conn
-            |> put_status(:unprocessable_entity)
-            |> json(%{errors: EirinchanWeb.ChangesetErrors.translate(changeset)})
-          else
-            conn
-            |> put_status(:unprocessable_entity)
-            |> render_feedback_page(
-              params: params,
-              errors: EirinchanWeb.ChangesetErrors.translate(changeset)
-            )
-          end
-      end
+      true ->
+        _ = Antispam.log_search_query("feedback", request)
+
+        case Feedback.create_feedback(params, remote_ip: RequestMeta.effective_remote_ip(conn)) do
+          {:ok, entry} ->
+            if params["json_response"] == "1" do
+              json(conn, %{feedback_id: entry.id, status: "ok"})
+            else
+              redirect(conn, to: "/feedback")
+            end
+
+          {:error, %Ecto.Changeset{} = changeset} ->
+            if params["json_response"] == "1" do
+              conn
+              |> put_status(:unprocessable_entity)
+              |> json(%{errors: EirinchanWeb.ChangesetErrors.translate(changeset)})
+            else
+              conn
+              |> put_status(:unprocessable_entity)
+              |> render_feedback_page(
+                params: params,
+                errors: EirinchanWeb.ChangesetErrors.translate(changeset)
+              )
+            end
+        end
     end
   end
+
+  defp reject_feedback(conn, params, message, status) do
+    if params["json_response"] == "1" do
+      conn
+      |> put_status(status)
+      |> json(%{error: message})
+    else
+      conn
+      |> put_status(status)
+      |> render_feedback_page(params: params, errors: %{"rate_limit" => [message]})
+    end
+  end
+
+  defp invalid_feedback_body?(body) when is_binary(body), do: not String.contains?(body, " ")
+  defp invalid_feedback_body?(_body), do: false
 
   defp feedback_rate_limited?(request, config) do
     {per_ip_count, per_ip_minutes} =

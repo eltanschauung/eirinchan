@@ -32,6 +32,15 @@ defmodule EirinchanWeb.FeedbackControllerTest do
     assert %{"errors" => %{"body" => [_ | _]}} = json_response(conn, 422)
   end
 
+  test "feedback submission rejects bodies without a space as antispam", %{conn: conn} do
+    conn =
+      conn
+      |> post("/feedback", %{"body" => "singleword", "json_response" => "1"})
+
+    assert %{"error" => "Spam filter triggered."} = json_response(conn, 422)
+    assert Eirinchan.Feedback.unread_count() == 0
+  end
+
   test "feedback submission uses search-style public rate limits", %{conn: conn} do
     previous = Application.get_env(:eirinchan, :search_overrides, %{})
 
