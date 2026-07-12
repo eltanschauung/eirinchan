@@ -93,6 +93,7 @@ defmodule Eirinchan.Antispam do
   def public_search_rate_limited?(request, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
     ip_subnet = request_ip(request)
+    query = Keyword.get(opts, :query) |> normalize_query()
     per_ip_count = Keyword.get(opts, :per_ip_count, 15)
     per_ip_window_seconds = Keyword.get(opts, :per_ip_window_seconds, 120)
     global_count = Keyword.get(opts, :global_count, 50)
@@ -105,6 +106,7 @@ defmodule Eirinchan.Antispam do
         cutoff = DateTime.add(DateTime.utc_now(), -per_ip_window_seconds, :second)
 
         SearchQuery
+        |> maybe_query_by_query(query)
         |> query_by_ip(ip_subnet)
         |> query_since(cutoff)
         |> repo.aggregate(:count, :id)
@@ -118,6 +120,7 @@ defmodule Eirinchan.Antispam do
         cutoff = DateTime.add(DateTime.utc_now(), -global_window_seconds, :second)
 
         SearchQuery
+        |> maybe_query_by_query(query)
         |> query_since(cutoff)
         |> repo.aggregate(:count, :id)
         |> Kernel.>=(global_count)
@@ -222,6 +225,9 @@ defmodule Eirinchan.Antispam do
     from(entry in queryable, where: entry.query == ^query)
   end
 
+  defp maybe_query_by_query(queryable, nil), do: queryable
+  defp maybe_query_by_query(queryable, query), do: query_by_query(queryable, query)
+
   defp query_by_ip(queryable, ip_subnet) do
     from(entry in queryable, where: entry.ip_subnet == ^ip_subnet)
   end
@@ -279,7 +285,10 @@ defmodule Eirinchan.Antispam do
 
   defp flood_match?(repo, board, post, condition, fields, now) do
     window = condition["flood-time"] || condition[:flood_time] || condition["flood_time"] || 0
-    threshold = condition["flood-count"] || condition[:flood_count] || condition["flood_count"] || 1
+
+    threshold =
+      condition["flood-count"] || condition[:flood_count] || condition["flood_count"] || 1
+
     fields = Enum.map(List.wrap(fields), &to_string/1)
 
     if window in [nil, 0] do
@@ -464,7 +473,11 @@ defmodule Eirinchan.Antispam do
 
     case to_string(action) do
       "report" ->
-        ["report", Map.get(attrs, "report_post_id", ""), normalize_query(Map.get(attrs, "reason")) || ""]
+        [
+          "report",
+          Map.get(attrs, "report_post_id", ""),
+          normalize_query(Map.get(attrs, "reason")) || ""
+        ]
         |> Enum.join(":")
 
       "delete" ->

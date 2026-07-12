@@ -63,15 +63,58 @@ defmodule EirinchanWeb.FeedbackControllerTest do
         "json_response" => "1"
       })
 
-    assert %{"error" => "Wait a while before searching again, please."} =
+    assert %{
+             "error" =>
+               "Feedback is limited to three submissions per 24 hours. Please try again later."
+           } =
              json_response(second_conn, 429)
+  end
+
+  test "feedback submission is limited to three attempts per IP in 24 hours", %{conn: conn} do
+    previous = Application.get_env(:eirinchan, :search_overrides, %{})
+
+    Application.put_env(:eirinchan, :search_overrides, %{
+      search_queries_per_minutes: [0, 2],
+      search_queries_per_minutes_all: [0, 2]
+    })
+
+    on_exit(fn -> Application.put_env(:eirinchan, :search_overrides, previous) end)
+
+    Enum.each(1..3, fn attempt ->
+      response =
+        conn
+        |> recycle()
+        |> post("/feedback", %{
+          "body" => "Allowed feedback #{attempt}",
+          "json_response" => "1"
+        })
+
+      assert %{"status" => "ok"} = json_response(response, 200)
+    end)
+
+    response =
+      conn
+      |> recycle()
+      |> post("/feedback", %{"body" => "Blocked feedback", "json_response" => "1"})
+
+    assert %{
+             "error" =>
+               "Feedback is limited to three submissions per 24 hours. Please try again later."
+           } =
+             json_response(response, 429)
   end
 
   test "feedback page suppresses the global message and keeps the centered feedback body", %{
     conn: conn
   } do
     moderator_fixture()
-    board = board_fixture(%{uri: "feedbackgm#{System.unique_integer([:positive])}", title: "Feedback GM"})
+
+    board =
+      board_fixture(%{
+        uri: "feedbackgm#{System.unique_integer([:positive])}",
+        title: "Feedback GM"
+      })
+
     thread = thread_fixture(board, %{body: "seed"})
     reply_fixture(board, thread, %{body: "recent"})
 

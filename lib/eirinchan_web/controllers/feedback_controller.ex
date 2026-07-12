@@ -8,15 +8,19 @@ defmodule EirinchanWeb.FeedbackController do
   alias Eirinchan.Settings
   alias EirinchanWeb.RequestMeta
 
+  @feedback_daily_limit 3
+  @feedback_daily_window_seconds 24 * 60 * 60
+
   def create(conn, params) do
     request = %{remote_ip: RequestMeta.effective_remote_ip(conn)}
+
     config =
       Settings.current_instance_config()
       |> Config.deep_merge(Application.get_env(:eirinchan, :search_overrides, %{}))
       |> then(&Config.compose(nil, &1, %{}))
 
     if feedback_rate_limited?(request, config) do
-      message = "Wait a while before searching again, please."
+      message = "Feedback is limited to three submissions per 24 hours. Please try again later."
 
       if params["json_response"] == "1" do
         conn
@@ -56,15 +60,30 @@ defmodule EirinchanWeb.FeedbackController do
   end
 
   defp feedback_rate_limited?(request, config) do
-    {per_ip_count, per_ip_minutes} = search_limit_tuple(config, :search_queries_per_minutes, 15, 2)
-    {global_count, global_minutes} = search_limit_tuple(config, :search_queries_per_minutes_all, 50, 2)
+    {per_ip_count, per_ip_minutes} =
+      search_limit_tuple(config, :search_queries_per_minutes, 15, 2)
 
+    {global_count, global_minutes} =
+      search_limit_tuple(config, :search_queries_per_minutes_all, 50, 2)
+
+    daily_feedback_limit_reached?(request) or
+      Antispam.public_search_rate_limited?(
+        request,
+        query: "feedback",
+        per_ip_count: per_ip_count,
+        per_ip_window_seconds: per_ip_minutes * 60,
+        global_count: global_count,
+        global_window_seconds: global_minutes * 60
+      )
+  end
+
+  defp daily_feedback_limit_reached?(request) do
     Antispam.public_search_rate_limited?(
       request,
-      per_ip_count: per_ip_count,
-      per_ip_window_seconds: per_ip_minutes * 60,
-      global_count: global_count,
-      global_window_seconds: global_minutes * 60
+      query: "feedback",
+      per_ip_count: @feedback_daily_limit,
+      per_ip_window_seconds: @feedback_daily_window_seconds,
+      global_count: 0
     )
   end
 
