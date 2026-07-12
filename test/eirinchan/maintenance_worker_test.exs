@@ -16,7 +16,6 @@ defmodule Eirinchan.MaintenanceWorkerTest do
       })
 
     config = %{
-      auto_maintenance: true,
       maintenance_interval_seconds: 0,
       antispam_retention_seconds: 172_800,
       post_failure_log_retention_days: 7

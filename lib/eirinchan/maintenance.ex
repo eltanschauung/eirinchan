@@ -17,7 +17,7 @@ defmodule Eirinchan.Maintenance do
   end
 
   def run_if_due(config, opts \\ []) do
-    if Map.get(config, :auto_maintenance, false) and due?(config) do
+    if Map.get(config, :auto_maintenance, true) and due?(config) do
       result = run(config, opts)
       record_run()
       result
