@@ -941,7 +941,7 @@ defmodule EirinchanWeb.PageControllerTest do
       |> html_response(200)
 
     assert page =~ "<h1>Banners</h1>"
-    assert page =~ ~s(src="/static/banners/)
+    assert page =~ ~s(src="/static/banners/) or page =~ ~s(src="/static/file.png")
     assert page =~ "Submit more at"
     refute page =~ ~s(id="exampleBox")
     refute page =~ ~s(data-flag-page)

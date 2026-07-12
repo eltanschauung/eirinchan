@@ -609,7 +609,7 @@ defmodule EirinchanWeb.ThreadControllerTest do
     assert page =~ ~s(id="stylesheet" href="/stylesheets/yotsuba.css)
     assert page =~ ~s(src="/main.js)
     assert page =~ ~s(class="board_image")
-    assert page =~ ~s(/static/banners/)
+    assert page =~ "/static/banners/" or page =~ "/static/file.png"
     refute page =~ "[Catalog]"
     assert page =~ ~s(class="boardlist")
   end

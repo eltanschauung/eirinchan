@@ -1,4 +1,6 @@
 defmodule Eirinchan.UploadsFixtures do
+  @avif_fixture_base64 "AAAAIGZ0eXBhdmlmAAAAAGF2aWZtaWYxbWlhZk1BMUEAAAD5bWV0YQAAAAAAAAAvaGRscgAAAAAAAAAAcGljdAAAAAAAAAAAAAAAAFBpY3R1cmVIYW5kbGVyAAAAAA5waXRtAAAAAAABAAAAHmlsb2MAAAAARAAAAQABAAAAAQAAASEAAAAlAAAAKGlpbmYAAAAAAAEAAAAaaW5mZQIAAAAAAQAAYXYwMUNvbG9yAAAAAGppcHJwAAAAS2lwY28AAAAUaXNwZQAAAAAAAAASAAAADAAAABBwaXhpAAAAAAMICAgAAAAMYXYxQ4EgAAAAAAATY29scm5jbHgAAgACAACAAAAAF2lwbWEAAAAAAAAAAQABBAECgwQAAAAtbWRhdAoMIAAAAhxs//mgIaAEMhUQAMAAAAKAAAARP5woQRO1PEyHf9I="
+
   def upload_fixture(filename \\ "upload.png", content_or_opts \\ "fixture") do
     normalized_filename = filename |> to_string() |> String.trim()
 
@@ -85,37 +87,15 @@ defmodule Eirinchan.UploadsFixtures do
     }
   end
 
-  def avif_upload_fixture(filename \\ "sample.avif", content_or_opts \\ "fixture") do
+  def avif_upload_fixture(filename \\ "sample.avif", _content_or_opts \\ "fixture") do
     base =
       Path.join(
         System.tmp_dir!(),
         "eirinchan-upload-avif-#{System.unique_integer([:positive])}-#{Path.basename(filename, ".avif")}"
       )
 
-    png_path = base <> ".png"
     avif_path = base <> ".avif"
-    opts = normalize_opts(content_or_opts)
-
-    create_image!(png_path, opts)
-
-    {_, 0} =
-      System.cmd(
-        "ffmpeg",
-        [
-          "-y",
-          "-hide_banner",
-          "-loglevel",
-          "error",
-          "-i",
-          png_path,
-          "-frames:v",
-          "1",
-          avif_path
-        ],
-        stderr_to_stdout: true
-      )
-
-    _ = File.rm(png_path)
+    File.write!(avif_path, Base.decode64!(@avif_fixture_base64))
 
     %Plug.Upload{
       path: avif_path,
