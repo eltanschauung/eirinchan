@@ -1,5 +1,6 @@
 defmodule Eirinchan.UploadsFixtures do
   @avif_fixture_base64 "AAAAIGZ0eXBhdmlmAAAAAGF2aWZtaWYxbWlhZk1BMUEAAAD5bWV0YQAAAAAAAAAvaGRscgAAAAAAAAAAcGljdAAAAAAAAAAAAAAAAFBpY3R1cmVIYW5kbGVyAAAAAA5waXRtAAAAAAABAAAAHmlsb2MAAAAARAAAAQABAAAAAQAAASEAAAAlAAAAKGlpbmYAAAAAAAEAAAAaaW5mZQIAAAAAAQAAYXYwMUNvbG9yAAAAAGppcHJwAAAAS2lwY28AAAAUaXNwZQAAAAAAAAASAAAADAAAABBwaXhpAAAAAAMICAgAAAAMYXYxQ4EgAAAAAAATY29scm5jbHgAAgACAACAAAAAF2lwbWEAAAAAAAAAAQABBAECgwQAAAAtbWRhdAoMIAAAAhxs//mgIaAEMhUQAMAAAAKAAAARP5woQRO1PEyHf9I="
+  @animated_webp_fixture_base64 "UklGRt4AAABXRUJQVlA4WAoAAAACAAAAEwAAEwAAQU5JTQYAAAD/////AABBTk1GWAAAAAAAAAAAABMAABMAAMgAAAJWUDggQAAAAFADAJ0BKhQAFAA+kUKcSiWjoqGoCACwEgllAMaqgABAURwAAP7upj/+xZy2BeP/+5wP+5wP+5wP42ykJ2cKAABBTk1GUgAAAAAAAAAAABMAABMAAMgAAABWUDggOgAAAJQCAJ0BKhQAFAA+kUKcSgKAgAABIJZQDMHBapagAP71WL//ucD//ZwP/9nA/jr/Xqlrk44Cy3gAAABSSUZGTAAAAFdFQlBWUDggQAAAAFADAJ0BKhQAFAA+kUKcSiWjoqGoCACwEgllAMaqgABAURwAAP7upj/+xZy2BeP/+5wP+5wP+5wP42ykJ2cKAAA="
 
   def upload_fixture(filename \\ "upload.png", content_or_opts \\ "fixture") do
     normalized_filename = filename |> to_string() |> String.trim()
@@ -72,13 +73,8 @@ defmodule Eirinchan.UploadsFixtures do
         "eirinchan-upload-anim-#{System.unique_integer([:positive])}-#{Path.basename(filename, ".webp")}"
       )
 
-    frame1 = base <> "-f1.png"
-    frame2 = base <> "-f2.png"
     webp_path = base <> ".webp"
-
-    {_, 0} = System.cmd("convert", ["-size", "20x20", "xc:red", frame1])
-    {_, 0} = System.cmd("convert", ["-size", "20x20", "xc:blue", frame2])
-    {_, 0} = System.cmd("convert", ["-delay", "20", "-loop", "0", frame1, frame2, webp_path])
+    File.write!(webp_path, Base.decode64!(@animated_webp_fixture_base64))
 
     %Plug.Upload{
       path: webp_path,
