@@ -47,4 +47,16 @@ defmodule EirinchanWeb.BannerControllerTest do
 
     assert String.starts_with?(redirected, "/static/banners/")
   end
+
+  test "b.php rejects scheme-relative banner redirects", %{conn: conn} do
+    :ok =
+      Settings.persist_instance_config(
+        Map.put(Settings.current_instance_config(), :banners, ["//example.test/tracker"])
+      )
+
+    conn = get(conn, "/b.php")
+    redirected = redirected_to(conn, 307)
+
+    assert String.starts_with?(redirected, "/static/banners/")
+  end
 end

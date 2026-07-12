@@ -103,7 +103,8 @@ defmodule EirinchanWeb.ThemeController do
   defp safe_return_to(""), do: "/"
 
   defp safe_return_to(path) do
-    if String.starts_with?(path, "/") do
+    if String.starts_with?(path, "/") and not String.starts_with?(path, "//") and
+         not String.contains?(path, ["\r", "\n"]) do
       path
     else
       "/"

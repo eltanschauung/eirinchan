@@ -21,8 +21,11 @@ defmodule EirinchanWeb.BannerAsset do
     normalized = String.trim(url)
 
     cond do
-      String.starts_with?(normalized, ["http://", "https://", "/"]) -> normalized
-      true -> "/" <> normalized
+      String.contains?(normalized, ["\r", "\n"]) -> default_banner_url()
+      String.starts_with?(normalized, ["http://", "https://"]) -> normalized
+      String.starts_with?(normalized, "/") and not String.starts_with?(normalized, "//") -> normalized
+      String.starts_with?(normalized, "//") -> default_banner_url()
+      true -> "/" <> String.trim_leading(normalized, "/")
     end
   end
 

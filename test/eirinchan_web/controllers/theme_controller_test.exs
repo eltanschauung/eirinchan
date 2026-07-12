@@ -46,6 +46,19 @@ defmodule EirinchanWeb.ThemeControllerTest do
     assert conn.resp_cookies["theme"].value == "default"
   end
 
+  test "theme update rejects scheme-relative and header-injection return paths", %{conn: conn} do
+    for return_to <- ["//example.test/elsewhere", "/safe\r\nlocation: https://example.test"] do
+      response =
+        post(conn, "/theme", %{
+          "_csrf_token" => Plug.CSRFProtection.get_csrf_token(),
+          "theme" => "vichan",
+          "return_to" => return_to
+        })
+
+      assert redirected_to(response) == "/"
+    end
+  end
+
   test "theme update stores board-scoped theme selections when board is provided", %{conn: conn} do
     conn =
       post(conn, "/theme", %{
