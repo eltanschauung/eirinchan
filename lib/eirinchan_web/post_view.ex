@@ -13,6 +13,7 @@ defmodule EirinchanWeb.PostView do
   alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Posts.PostFile
   alias Eirinchan.Themes
+  alias EirinchanWeb.HtmlSanitizer
   alias Eirinchan.ThreadPaths
   alias Eirinchan.WhaleStickers
   alias EirinchanWeb.{IpPresentation, ManageSecurity, ModeratorPermissions}
@@ -1485,6 +1486,7 @@ defmodule EirinchanWeb.PostView do
     rendered
     |> String.replace("%%tb_width%%", to_string(Map.get(config, :embed_width, 300)))
     |> String.replace("%%tb_height%%", to_string(Map.get(config, :embed_height, 246)))
+    |> HtmlSanitizer.sanitize_fragment()
   end
 
   defp youtube_thumbnail(embed) do

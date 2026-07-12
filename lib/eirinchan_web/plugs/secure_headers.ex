@@ -3,8 +3,6 @@ defmodule EirinchanWeb.Plugs.SecureHeaders do
 
   import Plug.Conn
 
-  alias Eirinchan.Settings
-
   @headers [
     {"x-frame-options", "SAMEORIGIN"},
     {"x-content-type-options", "nosniff"},
@@ -49,16 +47,10 @@ defmodule EirinchanWeb.Plugs.SecureHeaders do
   def init(opts), do: opts
 
   def call(conn, _opts) do
-    config = Settings.current_instance_config()
-
-    if Map.get(config, :security_headers, true) do
-      conn
-      |> put_standard_headers()
-      |> put_resp_header("content-security-policy", @content_security_policy)
-      |> put_resp_header("permissions-policy", Enum.join(@permissions_policy, ", "))
-    else
-      conn
-    end
+    conn
+    |> put_standard_headers()
+    |> put_resp_header("content-security-policy", @content_security_policy)
+    |> put_resp_header("permissions-policy", Enum.join(@permissions_policy, ", "))
   end
 
   defp put_standard_headers(conn) do
@@ -66,5 +58,4 @@ defmodule EirinchanWeb.Plugs.SecureHeaders do
       put_resp_header(acc, key, value)
     end)
   end
-
 end

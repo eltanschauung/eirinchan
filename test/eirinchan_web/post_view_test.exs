@@ -390,7 +390,7 @@ defmodule EirinchanWeb.PostViewTest do
     assert PostView.embed_html("<script>alert(1)</script>", config) == nil
   end
 
-  test "embed_html escapes capture replacements before applying template" do
+  test "embed_html drops executable configured templates" do
     config = %{
       Config.compose()
       | embedding: [[~r/^x:(.+)$/i, "<iframe src=\"https://example.test/embed/$1\"></iframe>"]]
@@ -398,8 +398,22 @@ defmodule EirinchanWeb.PostViewTest do
 
     html = PostView.embed_html(~s|x:\"><script>alert(1)</script>|, config)
 
-    assert html =~ "&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;"
-    refute html =~ ~s|""><script>|
+    assert html == ""
+    refute html =~ "<iframe"
+    refute html =~ "<script"
+  end
+
+
+  test "embed_html sanitizes static script markup in configured templates" do
+    config = %{
+      Config.compose()
+      | embedding: [[~r/^x:(.+)$/i, "<div class=\"video-container\"><script>alert(1)</script><b>$1</b></div>"]]
+    }
+
+    html = PostView.embed_html("x:safe", config)
+
+    assert html =~ ~s|<div class="video-container"><b>safe</b></div>|
+    refute html =~ "<script"
   end
 
   test "file_inline_details_text uses the inline file format" do
