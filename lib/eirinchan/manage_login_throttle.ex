@@ -15,7 +15,7 @@ defmodule Eirinchan.ManageLoginThrottle do
     table = ensure_table()
     now = now_seconds()
 
-    [user_key(username, remote_ip), ip_key(remote_ip)]
+    [username_key(username), user_key(username, remote_ip), ip_key(remote_ip)]
     |> Enum.map(&locked_retry_after(table, &1, now))
     |> Enum.reject(&is_nil/1)
     |> case do
@@ -28,11 +28,22 @@ defmodule Eirinchan.ManageLoginThrottle do
     table = ensure_table()
     now = now_seconds()
     max_attempts = Map.get(config, :mod_login_max_attempts, 5)
+    username_max_attempts =
+      Map.get(config, :mod_login_username_max_attempts, max(max_attempts * 2, 10))
+
     ip_max_attempts = Map.get(config, :mod_login_ip_max_attempts, max(max_attempts * 4, 20))
     window_seconds = Map.get(config, :mod_login_window_seconds, 300)
     lockout_seconds = Map.get(config, :mod_login_lockout_seconds, 900)
 
     [
+      record_key_failure(
+        table,
+        username_key(username),
+        now,
+        username_max_attempts,
+        window_seconds,
+        lockout_seconds
+      ),
       record_key_failure(
         table,
         user_key(username, remote_ip),
@@ -92,6 +103,7 @@ defmodule Eirinchan.ManageLoginThrottle do
 
   def clear(username, remote_ip) do
     table = ensure_table()
+    :ets.delete(table, username_key(username))
     :ets.delete(table, user_key(username, remote_ip))
     :ets.delete(table, ip_key(remote_ip))
     :ok
@@ -139,6 +151,7 @@ defmodule Eirinchan.ManageLoginThrottle do
   end
 
   defp user_key(username, remote_ip), do: {:user, normalize_username(username), normalize_ip(remote_ip)}
+  defp username_key(username), do: {:username, normalize_username(username)}
   defp ip_key(remote_ip), do: {:ip, normalize_ip(remote_ip)}
 
   defp normalize_username(username) when is_binary(username) do

@@ -83,6 +83,7 @@ defmodule Eirinchan.Runtime.Config do
     mod_session_idle_minutes: 120,
     mod_session_max_hours: 12,
     mod_login_max_attempts: 5,
+    mod_login_username_max_attempts: 10,
     mod_login_window_seconds: 300,
     mod_login_lockout_seconds: 900,
     ip_nulling: false,
