@@ -12,7 +12,7 @@ defmodule Eirinchan.Uploads do
   @processed_extensions @image_extensions ++ @video_extensions
   @codec_whitelists %{
     ".avif" => "av1,libdav1d",
-    ".webp" => "webp",
+    ".webp" => "webp,libwebp",
     ".webm" => "vp8,vp9,av1,opus,vorbis",
     ".mp4" => "h264,av1,aac,opus,mp3"
   }
