@@ -14,7 +14,8 @@ defmodule EirinchanWeb.HtmlSanitizer do
   @allowed_style_properties ~w(color background-color text-align font-weight font-style text-decoration)
   @tag_attributes %{
     "a" => ~w(href target rel),
-    "img" => ~w(src alt width height loading),
+    "div" => ~w(data-video),
+    "img" => ~w(src alt width height loading decoding),
     "col" => ~w(span),
     "td" => ~w(colspan rowspan headers),
     "th" => ~w(colspan rowspan headers scope)
@@ -70,6 +71,7 @@ defmodule EirinchanWeb.HtmlSanitizer do
 
   defp sanitize_attribute("a", "href", value), do: sanitize_url(value, :link)
   defp sanitize_attribute("img", "src", value), do: sanitize_url(value, :image)
+  defp sanitize_attribute("div", "data-video", value), do: sanitize_video_id(value)
   defp sanitize_attribute(_tag, "style", value), do: sanitize_style(value)
   defp sanitize_attribute("a", "target", "_blank"), do: "_blank"
   defp sanitize_attribute("a", "target", _value), do: "_self"
@@ -107,6 +109,10 @@ defmodule EirinchanWeb.HtmlSanitizer do
       end)
 
     if declarations == [], do: nil, else: Enum.join(declarations, ";")
+  end
+
+  defp sanitize_video_id(value) do
+    if Regex.match?(~r/\A[a-zA-Z0-9_-]{10,11}\z/, value), do: value
   end
 
   defp safe_style_value?(value) do

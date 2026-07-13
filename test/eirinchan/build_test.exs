@@ -179,6 +179,8 @@ defmodule Eirinchan.BuildTest do
 
     assert File.read!(index_path) =~ ~s(class="video-container")
     assert File.read!(thread_path) =~ "img.youtube.com/vi/dQw4w9WgXcQ/0.jpg"
+    assert File.read!(thread_path) =~ ~s(data-video="dQw4w9WgXcQ")
+    assert File.read!(thread_path) =~ ~s(width="208" height="156")
 
     assert %{"posts" => [op]} = Jason.decode!(File.read!(thread_json_path))
     assert op["embed"] == "https://youtu.be/dQw4w9WgXcQ"

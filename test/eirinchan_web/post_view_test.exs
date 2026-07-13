@@ -416,6 +416,15 @@ defmodule EirinchanWeb.PostViewTest do
     refute html =~ "<script"
   end
 
+  test "YouTube embed keeps the bounded thumbnail and player video id" do
+    html = PostView.embed_html("https://youtu.be/dQw4w9WgXcQ", Config.compose())
+
+    assert html =~ ~s(data-video="dQw4w9WgXcQ")
+    assert html =~ ~s(width="208")
+    assert html =~ ~s(height="156")
+    assert html =~ ~s(src="https://img.youtube.com/vi/dQw4w9WgXcQ/0.jpg")
+  end
+
   test "file_inline_details_text uses the inline file format" do
     file = %{file_size: 3481, image_width: 979, image_height: 199}
 

@@ -181,14 +181,14 @@ defmodule Eirinchan.Runtime.Config do
     youtube_js_html:
       "<div class=\"video-container\" data-video=\"$2\">" <>
         "<a href=\"https://youtu.be/$2\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"file\">" <>
-        "<img style=\"width:208px;height:156px;object-fit:cover;display:block;\" src=\"https://img.youtube.com/vi/$2/0.jpg\" class=\"post-image yt-embed\" loading=\"eager\" decoding=\"async\"/>" <>
+        "<img width=\"208\" height=\"156\" src=\"https://img.youtube.com/vi/$2/0.jpg\" class=\"post-image yt-embed\" loading=\"eager\" decoding=\"async\"/>" <>
         "</a></div>",
     embedding: [
       [
         "/^https?:\\/\\/(\\w+\\.)?(?:youtube\\.com\\/watch\\?v=|youtu\\.be\\/)([a-zA-Z0-9\\-_]{10,11})(&.+)?$/i",
         "<div class=\"video-container\" data-video=\"$2\">" <>
           "<a href=\"https://youtu.be/$2\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"file\">" <>
-          "<img style=\"width:208px;height:156px;object-fit:cover;display:block;\" src=\"https://img.youtube.com/vi/$2/0.jpg\" class=\"post-image yt-embed\" loading=\"eager\" decoding=\"async\"/>" <>
+          "<img width=\"208\" height=\"156\" src=\"https://img.youtube.com/vi/$2/0.jpg\" class=\"post-image yt-embed\" loading=\"eager\" decoding=\"async\"/>" <>
           "</a></div>"
       ]
     ],

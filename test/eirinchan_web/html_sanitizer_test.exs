@@ -31,6 +31,21 @@ defmodule EirinchanWeb.HtmlSanitizerTest do
     assert sanitized =~ ~s(<p style="color:red">ok</p>)
   end
 
+  test "preserves only valid YouTube player data attributes" do
+    html =
+      ~s|<div class="video-container" data-video="dQw4w9WgXcQ"><img width="208" height="156" decoding="async"></div>| <>
+        ~s|<div data-video="bad id" onclick="alert(1)">unsafe</div>|
+
+    sanitized = HtmlSanitizer.sanitize_fragment(html)
+
+    assert sanitized =~ ~s(data-video="dQw4w9WgXcQ")
+    assert sanitized =~ ~s(width="208")
+    assert sanitized =~ ~s(height="156")
+    assert sanitized =~ ~s(decoding="async")
+    refute sanitized =~ "bad id"
+    refute sanitized =~ "onclick"
+  end
+
   test "neutralizes data urls and strips srcset" do
     html =
       ~s|<a href="data:text/html;base64,AAAA">x</a><img src="data:image/svg+xml;base64,AAAA" srcset="/a.png 1x, /b.png 2x">|
