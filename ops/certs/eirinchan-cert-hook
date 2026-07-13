@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CERT_ROOT=/home/telemazer/phoenix-gateway/var/certs
+RELOAD_MARKER=/run/eirinchan-certs/updated
+
+deploy_cert() {
+  local domain="$1"
+  local keyfile="$2"
+  local _certfile="$3"
+  local fullchainfile="$4"
+  local _chainfile="$5"
+  local _timestamp="$6"
+  local target_dir="$CERT_ROOT/$domain"
+  local temporary_dir
+
+  install -d -m 0700 -o telemazer -g telemazer "$target_dir"
+  temporary_dir="$(mktemp -d "$target_dir/.deploy.XXXXXX")"
+  trap 'rm -rf -- "$temporary_dir"' RETURN
+
+  install -m 0600 -o telemazer -g telemazer "$fullchainfile" "$temporary_dir/fullchain.pem"
+  install -m 0600 -o telemazer -g telemazer "$keyfile" "$temporary_dir/privkey.pem"
+  mv -fT "$temporary_dir/fullchain.pem" "$target_dir/fullchain.pem"
+  mv -fT "$temporary_dir/privkey.pem" "$target_dir/privkey.pem"
+  rmdir "$temporary_dir"
+  trap - RETURN
+  touch "$RELOAD_MARKER"
+}
+
+exit_hook() {
+  if [[ -e "$RELOAD_MARKER" ]]; then
+    rm -f "$RELOAD_MARKER"
+    systemctl try-restart phoenix-gateway.service
+  fi
+}
+
+HANDLER="${1:-}"
+if declare -F "$HANDLER" >/dev/null; then
+  shift
+  "$HANDLER" "$@"
+fi
