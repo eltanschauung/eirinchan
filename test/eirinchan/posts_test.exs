@@ -43,6 +43,22 @@ defmodule Eirinchan.TestFailingPostFileRepo do
   def insert(changeset), do: Repo.insert(changeset)
 end
 
+defmodule Eirinchan.TestUploadPreparer do
+  def prepare_uploads(attrs, _config, _opts) do
+    send(self(), :upload_preparation_called)
+
+    {:ok,
+     attrs
+     |> Map.put("file", nil)
+     |> Map.put("__upload_entries__", [])}
+  end
+
+  def cleanup_uploads(_attrs) do
+    send(self(), :upload_cleanup_called)
+    :ok
+  end
+end
+
 defmodule Eirinchan.PostsTest do
   use Eirinchan.DataCase, async: true
 
@@ -64,6 +80,10 @@ defmodule Eirinchan.PostsTest do
 
   defp post_request(board_uri) do
     %{referer: "http://example.test/#{board_uri}/index.html"}
+  end
+
+  defp rejected_upload do
+    %Plug.Upload{filename: "payload.jpg", path: "/upload-must-not-be-processed"}
   end
 
   defp exiftool_value(path, field) do
@@ -1666,6 +1686,25 @@ defmodule Eirinchan.PostsTest do
              )
   end
 
+  test "create_post rejects request guards before preparing an upload" do
+    board = board_fixture()
+
+    assert {:error, :invalid_referer} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "blocked before upload processing",
+                 "file" => rejected_upload(),
+                 "post" => "New Topic"
+               },
+               config: post_config(board.config_overrides),
+               request: %{referer: "http://bad.example/elsewhere"},
+               upload_preparer: Eirinchan.TestUploadPreparer
+             )
+
+    refute_received :upload_preparation_called
+  end
+
   test "create_post enforces board lock and body requirements from config" do
     board = board_fixture(%{config_overrides: %{board_locked: true, force_body_op: true}})
 
@@ -2691,6 +2730,27 @@ defmodule Eirinchan.PostsTest do
              )
   end
 
+  test "create_post rejects ipaccess before preparing an upload" do
+    board = board_fixture(%{config_overrides: %{ipaccess: true}})
+
+    assert {:error, :ipaccess} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "blocked before upload processing",
+                 "file" => rejected_upload(),
+                 "post" => "New Topic"
+               },
+               config: post_config(board.config_overrides),
+               request:
+                 post_request(board.uri)
+                 |> Map.put(:remote_ip, {203, 0, 113, 250}),
+               upload_preparer: Eirinchan.TestUploadPreparer
+             )
+
+    refute_received :upload_preparation_called
+  end
+
   test "create_post bypasses ipaccess when the flag threshold is met" do
     board = board_fixture()
     Repo.insert!(%Eirinchan.IpAccessEntry{ip: "198.51.100.0/24"})
@@ -2911,6 +2971,34 @@ defmodule Eirinchan.PostsTest do
                  remote_ip: {203, 0, 113, 9}
                }
              )
+  end
+
+  test "create_post rejects active bans before preparing an upload" do
+    board = board_fixture()
+
+    Repo.insert!(%Eirinchan.Bans.Ban{
+      board_id: board.id,
+      ip_subnet: "203.0.113.0/24",
+      reason: "upload preflight test",
+      active: true
+    })
+
+    assert {:error, :banned} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "blocked before upload processing",
+                 "file" => rejected_upload(),
+                 "post" => "New Topic"
+               },
+               config: post_config(board.config_overrides),
+               request:
+                 post_request(board.uri)
+                 |> Map.put(:remote_ip, {203, 0, 113, 9}),
+               upload_preparer: Eirinchan.TestUploadPreparer
+             )
+
+    refute_received :upload_preparation_called
   end
 
   test "create_post bypasses antispam and does not log flood entries when the flag threshold is met" do
@@ -3686,6 +3774,29 @@ defmodule Eirinchan.PostsTest do
                request: request,
                repo: Repo
              )
+  end
+
+  test "create_post rejects abuse checks before preparing an upload" do
+    board = board_fixture()
+
+    body =
+      1..21
+      |> Enum.map_join("\n", fn index -> "https://example.test/#{index}" end)
+
+    assert {:error, :toomanylinks} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => body,
+                 "file" => upload_fixture("abuse.jpg", "abuse"),
+                 "post" => "New Topic"
+               },
+               config: post_config(board.config_overrides),
+               request: post_request(board.uri),
+               upload_preparer: Eirinchan.TestUploadPreparer
+             )
+
+    refute_received :upload_preparation_called
   end
 
   test "create_post rejects repeated bodies within the same-ip repeat window" do

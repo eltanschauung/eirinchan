@@ -57,10 +57,22 @@ defmodule Eirinchan.Posts.RequestGuards do
         :ok
 
       AccessList.allowed_for_posting?(request[:remote_ip] || request["remote_ip"]) ->
-        validate_ipaccess_imagelim(attrs, request, config)
+        :ok
 
       true ->
         {:error, :ipaccess}
+    end
+  end
+
+  # Media metadata is unavailable during preflight, so enforce the image-age
+  # restriction separately after the base allow/deny decision has succeeded.
+  def validate_ipaccess_upload(attrs, request, config, board) do
+    cond do
+      moderator_board_access?(request, board) -> :ok
+      not Map.get(config, :ipaccess, false) -> :ok
+      ipaccess_reply_bypass?(attrs, config) -> :ok
+      ip_nulling_bypass?(attrs, config) -> :ok
+      true -> validate_ipaccess_imagelim(attrs, request, config)
     end
   end
 

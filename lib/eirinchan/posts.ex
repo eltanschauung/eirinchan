@@ -72,289 +72,264 @@ defmodule Eirinchan.Posts do
     repo = Keyword.get(opts, :repo, Repo)
     config = Keyword.get(opts, :config, Config.compose())
     request = Keyword.get(opts, :request, %{})
+    upload_preparer = Keyword.get(opts, :upload_preparer, PostsUploadPreparation)
     attrs = normalize_attrs(attrs)
     thread_param = blank_to_nil(Map.get(attrs, "thread"))
     op? = is_nil(thread_param)
     total_started_at = System.monotonic_time(:microsecond)
 
     with {:ok, attrs} <- PostsUploadPreparation.normalize_embed(attrs, config) do
+      now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
+      ip_nulling_bypass? = PostsRequestGuards.ip_nulling_bypass?(attrs, config)
+
+      {request_guards_us, request_guards_result} =
+        timed(fn ->
+          with :ok <- PostsRequestGuards.validate_post_button(op?, attrs, config),
+               :ok <- PostsRequestGuards.validate_referer(request, config, board),
+               :ok <- PostsRequestGuards.validate_hidden_input(attrs, config, request, board),
+               :ok <-
+                 PostsRequestGuards.validate_antispam_question(op?, attrs, config, request, board),
+               :ok <- PostsRequestGuards.validate_captcha(attrs, config, request, board, op?),
+               :ok <- PostsRequestGuards.validate_board_lock(config, request, board) do
+            :ok
+          end
+        end)
+
+      {thread_lookup_us, thread_result} =
+        timed_continue(request_guards_result, fn ->
+          if op? do
+            {:ok, %{attrs: attrs, thread: nil}}
+          else
+            case PostsThreadLookup.fetch_thread(board, thread_param, repo) do
+              {:ok, thread} -> {:ok, %{attrs: attrs, thread: thread}}
+              error -> error
+            end
+          end
+        end)
+
+      {thread_guard_us, thread_guard_result} =
+        timed_continue(thread_result, fn %{thread: thread} = context ->
+          case PostsRequestGuards.validate_thread_lock(thread, request, board) do
+            :ok -> {:ok, context}
+            error -> error
+          end
+        end)
+
+      {validation_base_us, validation_base_result} =
+        timed_continue(thread_guard_result, fn %{attrs: attrs} = context ->
+          with :ok <- PostsValidation.validate_body(op?, attrs, config),
+               :ok <- PostsValidation.validate_body_limits(attrs, config) do
+            {:ok, context}
+          end
+        end)
+
+      {abuse_guards_us, abuse_guards_result} =
+        timed_continue(validation_base_result, fn %{attrs: attrs} = context ->
+          with :ok <- PostsRequestGuards.validate_ipaccess(attrs, request, config, board),
+               :ok <- PostsRequestGuards.validate_ban(attrs, request, board, config) do
+            {:ok, context}
+          end
+        end)
+
+      {dnsbl_us, dnsbl_result} =
+        timed_continue(abuse_guards_result, fn %{attrs: attrs} = context ->
+          case PostsRequestGuards.validate_dnsbl(attrs, request, config) do
+            :ok -> {:ok, context}
+            error -> error
+          end
+        end)
+
+      {upload_preflight_us, upload_preflight_result} =
+        timed_continue(dnsbl_result, fn %{attrs: attrs} = context ->
+          case PostsValidation.validate_upload_preflight(op?, attrs, config, request) do
+            :ok -> {:ok, context}
+            error -> error
+          end
+        end)
+
+      {metadata_us, metadata_result} =
+        timed_continue(upload_preflight_result, fn %{attrs: attrs, thread: thread} ->
+          case normalize_post_metadata(attrs, config, request, op?) do
+            {:ok, normalized_attrs} -> {:ok, %{attrs: normalized_attrs, thread: thread}}
+            error -> error
+          end
+        end)
+
+      {antispam_us, antispam_result} =
+        timed_continue(metadata_result, fn %{attrs: attrs} = context ->
+          if ip_nulling_bypass? do
+            {:ok, context}
+          else
+            case Antispam.check_post(board, attrs, request, config, repo: repo) do
+              :ok -> {:ok, context}
+              error -> error
+            end
+          end
+        end)
+
+      {reply_limit_us, reply_limit_result} =
+        timed_continue(antispam_result, fn %{thread: thread} = context ->
+          case PostsValidation.validate_reply_limit(board, thread, config, repo) do
+            :ok -> {:ok, context}
+            error -> error
+          end
+        end)
+
       {prepare_us, prepare_result} =
-        timed(fn -> PostsUploadPreparation.prepare_uploads(attrs, config, op?: op?) end)
+        timed_continue(reply_limit_result, fn %{attrs: attrs, thread: thread} ->
+          case upload_preparer.prepare_uploads(attrs, config, op?: op?) do
+            {:ok, prepared_attrs} -> {:ok, %{attrs: prepared_attrs, thread: thread}}
+            error -> error
+          end
+        end)
 
-      case prepare_result do
-        {:ok, attrs} ->
-          now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
-          ip_nulling_bypass? = PostsRequestGuards.ip_nulling_bypass?(attrs, config)
+      {media_validation_us, media_validation_result} =
+        timed_continue(prepare_result, fn %{attrs: attrs} = context ->
+          with :ok <- PostsValidation.validate_upload(op?, attrs, config, request),
+               :ok <- PostsValidation.validate_image_dimensions(attrs, config),
+               :ok <-
+                 PostsRequestGuards.validate_ipaccess_upload(attrs, request, config, board) do
+            {:ok, context}
+          end
+        end)
 
-          {request_guards_us, request_guards_result} =
-            timed(fn ->
-              with :ok <- PostsRequestGuards.validate_post_button(op?, attrs, config),
-                   :ok <- PostsRequestGuards.validate_referer(request, config, board),
-                   :ok <- PostsRequestGuards.validate_hidden_input(attrs, config, request, board),
-                   :ok <-
-                     PostsRequestGuards.validate_antispam_question(
-                       op?,
-                       attrs,
-                       config,
-                       request,
-                       board
-                     ),
-                   :ok <- PostsRequestGuards.validate_captcha(attrs, config, request, board, op?),
-                   :ok <- PostsRequestGuards.validate_board_lock(config, request, board) do
-                :ok
-              end
-            end)
+      {image_limit_us, image_limit_result} =
+        timed_continue(media_validation_result, fn %{attrs: attrs, thread: thread} = context ->
+          case PostsValidation.validate_image_limit(board, thread, attrs, config, repo) do
+            :ok -> {:ok, context}
+            error -> error
+          end
+        end)
 
-          {thread_lookup_us, thread_result} =
-            timed_continue(request_guards_result, fn ->
-              if op? do
-                {:ok, %{attrs: attrs, thread: nil}}
-              else
-                case PostsThreadLookup.fetch_thread(board, thread_param, repo) do
-                  {:ok, thread} -> {:ok, %{attrs: attrs, thread: thread}}
-                  error -> error
+      {duplicate_upload_us, validation_result} =
+        timed_continue(image_limit_result, fn %{attrs: attrs, thread: thread} = context ->
+          case PostsValidation.validate_duplicate_upload(board, thread, attrs, config, repo) do
+            :ok -> {:ok, context}
+            error -> error
+          end
+        end)
+
+      stages = [
+        {"request_guards", request_guards_result},
+        {"thread_lookup", thread_result},
+        {"thread_lock", thread_guard_result},
+        {"validation_base", validation_base_result},
+        {"abuse_guards", abuse_guards_result},
+        {"dnsbl", dnsbl_result},
+        {"upload_preflight", upload_preflight_result},
+        {"metadata", metadata_result},
+        {"antispam", antispam_result},
+        {"reply_limit", reply_limit_result},
+        {"upload_prepare", prepare_result},
+        {"media_validation", media_validation_result},
+        {"image_limit", image_limit_result},
+        {"duplicate_upload", validation_result}
+      ]
+
+      timings = %{
+        prepare_us: prepare_us,
+        request_guards_us: request_guards_us + thread_guard_us + abuse_guards_us,
+        metadata_us: metadata_us,
+        antispam_us: antispam_us,
+        validation_base_us: validation_base_us + upload_preflight_us + media_validation_us,
+        validation_queries_us:
+          dnsbl_us + thread_lookup_us + reply_limit_us + image_limit_us + duplicate_upload_us,
+        dnsbl_us: dnsbl_us,
+        thread_lookup_us: thread_lookup_us,
+        reply_limit_us: reply_limit_us,
+        image_limit_us: image_limit_us,
+        duplicate_upload_us: duplicate_upload_us,
+        persistence_us: nil,
+        pruning_us: 0,
+        build_dispatch_us: 0
+      }
+
+      result =
+        case validation_result do
+          {:ok, %{attrs: attrs, thread: thread}} ->
+            {persistence_us, persistence_result} =
+              timed(fn ->
+                PostsPersistence.create_post_record(
+                  board,
+                  thread,
+                  attrs,
+                  repo,
+                  config,
+                  now,
+                  fn ->
+                    maybe_bump_thread(thread, attrs, config, repo, now)
+                    maybe_cycle_thread(board, thread, config, repo)
+                    :ok
+                  end
+                )
+              end)
+
+            case persistence_result do
+              {:ok, post} ->
+                {pruning_us, _} = timed(fn -> maybe_prune_threads(board, post, config, repo) end)
+
+                unless ip_nulling_bypass? do
+                  Antispam.log_post(board, attrs, request, repo: repo)
                 end
-              end
-            end)
 
-          {thread_guard_us, thread_guard_result} =
-            timed_continue(thread_result, fn %{thread: thread} = context ->
-              if op? do
-                {:ok, context}
-              else
-                case PostsRequestGuards.validate_thread_lock(thread, request, board) do
-                  :ok -> {:ok, context}
-                  error -> error
-                end
-              end
-            end)
-
-          {validation_base_us, validation_base_result} =
-            timed_continue(thread_guard_result, fn %{attrs: attrs, thread: thread} ->
-              with :ok <- PostsValidation.validate_body(op?, attrs, config),
-                   :ok <- PostsValidation.validate_body_limits(attrs, config),
-                   :ok <- PostsValidation.validate_upload(op?, attrs, config, request),
-                   :ok <- PostsValidation.validate_image_dimensions(attrs, config) do
-                {:ok, %{attrs: attrs, thread: thread}}
-              end
-            end)
-
-          {abuse_guards_us, abuse_guards_result} =
-            timed_continue(validation_base_result, fn %{attrs: attrs} = context ->
-              with :ok <- PostsRequestGuards.validate_ipaccess(attrs, request, config, board),
-                   :ok <- PostsRequestGuards.validate_ban(attrs, request, board, config) do
-                {:ok, context}
-              end
-            end)
-
-          {dnsbl_us, dnsbl_result} =
-            timed_continue(abuse_guards_result, fn %{attrs: attrs} = context ->
-              case PostsRequestGuards.validate_dnsbl(attrs, request, config) do
-                :ok -> {:ok, context}
-                error -> error
-              end
-            end)
-
-          {metadata_us, metadata_result} =
-            timed_continue(dnsbl_result, fn %{attrs: attrs, thread: thread} ->
-              case normalize_post_metadata(attrs, config, request, op?) do
-                {:ok, normalized_attrs} -> {:ok, %{attrs: normalized_attrs, thread: thread}}
-                error -> error
-              end
-            end)
-
-          {antispam_us, antispam_result} =
-            timed_continue(metadata_result, fn %{attrs: attrs, thread: thread} = context ->
-              if ip_nulling_bypass? do
-                {:ok, %{context | thread: thread}}
-              else
-                case Antispam.check_post(board, attrs, request, config, repo: repo) do
-                  :ok -> {:ok, %{context | thread: thread}}
-                  error -> error
-                end
-              end
-            end)
-
-          {reply_limit_us, reply_limit_result} =
-            timed_continue(antispam_result, fn %{attrs: attrs, thread: thread} ->
-              case PostsValidation.validate_reply_limit(board, thread, config, repo) do
-                :ok -> {:ok, %{attrs: attrs, thread: thread}}
-                error -> error
-              end
-            end)
-
-          {image_limit_us, image_limit_result} =
-            timed_continue(reply_limit_result, fn %{attrs: attrs, thread: thread} ->
-              case PostsValidation.validate_image_limit(board, thread, attrs, config, repo) do
-                :ok -> {:ok, %{attrs: attrs, thread: thread}}
-                error -> error
-              end
-            end)
-
-          {duplicate_upload_us, validation_result} =
-            timed_continue(image_limit_result, fn %{attrs: attrs, thread: thread} ->
-              case PostsValidation.validate_duplicate_upload(board, thread, attrs, config, repo) do
-                :ok -> {:ok, %{attrs: attrs, thread: thread}}
-                error -> error
-              end
-            end)
-
-          timings = %{
-            prepare_us: prepare_us,
-            request_guards_us: request_guards_us + thread_guard_us + abuse_guards_us,
-            metadata_us: metadata_us,
-            antispam_us: antispam_us,
-            validation_base_us: validation_base_us,
-            validation_queries_us:
-              dnsbl_us + thread_lookup_us + reply_limit_us + image_limit_us + duplicate_upload_us,
-            dnsbl_us: dnsbl_us,
-            thread_lookup_us: thread_lookup_us,
-            reply_limit_us: reply_limit_us,
-            image_limit_us: image_limit_us,
-            duplicate_upload_us: duplicate_upload_us,
-            persistence_us: nil,
-            pruning_us: 0,
-            build_dispatch_us: 0
-          }
-
-          result =
-            case validation_result do
-              {:ok, %{attrs: attrs, thread: thread}} ->
-                {persistence_us, persistence_result} =
+                {build_dispatch_us, _} =
                   timed(fn ->
-                    PostsPersistence.create_post_record(
-                      board,
-                      thread,
-                      attrs,
-                      repo,
-                      config,
-                      now,
-                      fn ->
-                        maybe_bump_thread(thread, attrs, config, repo, now)
-                        maybe_cycle_thread(board, thread, config, repo)
-                        :ok
-                      end
-                    )
+                    Build.rebuild_after_post(board, post, config: config, repo: repo)
                   end)
 
-                case persistence_result do
-                  {:ok, post} ->
-                    {pruning_us, _} =
-                      timed(fn -> maybe_prune_threads(board, post, config, repo) end)
+                success = {:ok, post, %{noko: false}}
 
-                    _ =
-                      if ip_nulling_bypass? do
-                        :ok
-                      else
-                        Antispam.log_post(board, attrs, request, repo: repo)
-                      end
+                maybe_log_slow_post(
+                  board,
+                  attrs,
+                  total_started_at,
+                  %{
+                    timings
+                    | persistence_us: persistence_us,
+                      pruning_us: pruning_us,
+                      build_dispatch_us: build_dispatch_us
+                  },
+                  success,
+                  config,
+                  validation_failure_stage(stages)
+                )
 
-                    {build_dispatch_us, _} =
-                      timed(fn ->
-                        Build.rebuild_after_post(board, post, config: config, repo: repo)
-                      end)
-
-                    maybe_log_slow_post(
-                      board,
-                      attrs,
-                      total_started_at,
-                      %{
-                        timings
-                        | persistence_us: persistence_us,
-                          pruning_us: pruning_us,
-                          build_dispatch_us: build_dispatch_us
-                      },
-                      {:ok, post, %{noko: false}},
-                      config,
-                      validation_failure_stage(
-                        request_guards_result,
-                        thread_result,
-                        thread_guard_result,
-                        validation_base_result,
-                        abuse_guards_result,
-                        dnsbl_result,
-                        metadata_result,
-                        antispam_result,
-                        reply_limit_result,
-                        image_limit_result,
-                        validation_result
-                      )
-                    )
-
-                    {:ok, post, %{noko: false}}
-
-                  {:error, reason} ->
-                    maybe_log_slow_post(
-                      board,
-                      attrs,
-                      total_started_at,
-                      %{timings | persistence_us: persistence_us},
-                      {:error, reason},
-                      config,
-                      "persistence"
-                    )
-
-                    {:error, reason}
-                end
+                success
 
               {:error, reason} ->
                 maybe_log_slow_post(
                   board,
                   attrs,
                   total_started_at,
-                  timings,
+                  %{timings | persistence_us: persistence_us},
                   {:error, reason},
                   config,
-                  validation_failure_stage(
-                    request_guards_result,
-                    thread_result,
-                    thread_guard_result,
-                    validation_base_result,
-                    abuse_guards_result,
-                    dnsbl_result,
-                    metadata_result,
-                    antispam_result,
-                    reply_limit_result,
-                    image_limit_result,
-                    validation_result
-                  )
+                  "persistence"
                 )
 
                 {:error, reason}
             end
 
-          _ = PostsUploadPreparation.cleanup_uploads(attrs)
+          {:error, reason} ->
+            maybe_log_slow_post(
+              board,
+              attrs,
+              total_started_at,
+              timings,
+              {:error, reason},
+              config,
+              validation_failure_stage(stages)
+            )
 
-          result
+            {:error, reason}
+        end
 
-        {:error, reason} ->
-          maybe_log_slow_post(
-            board,
-            attrs,
-            total_started_at,
-            %{
-              prepare_us: prepare_us,
-              request_guards_us: 0,
-              metadata_us: 0,
-              antispam_us: 0,
-              validation_base_us: 0,
-              validation_queries_us: 0,
-              dnsbl_us: 0,
-              thread_lookup_us: 0,
-              reply_limit_us: 0,
-              image_limit_us: 0,
-              duplicate_upload_us: 0,
-              persistence_us: nil,
-              pruning_us: 0,
-              build_dispatch_us: 0
-            },
-            {:error, reason},
-            config,
-            "upload_prepare"
-          )
-
-          {:error, reason}
+      case prepare_result do
+        {:ok, %{attrs: prepared_attrs}} -> upload_preparer.cleanup_uploads(prepared_attrs)
+        _ -> :ok
       end
+
+      result
     end
   end
 
@@ -2133,33 +2108,8 @@ defmodule Eirinchan.Posts do
 
   defp timed_continue(context, fun) when is_function(fun, 1), do: timed(fn -> fun.(context) end)
 
-  defp validation_failure_stage(
-         request_guards_result,
-         thread_result,
-         thread_guard_result,
-         validation_base_result,
-         abuse_guards_result,
-         dnsbl_result,
-         metadata_result,
-         antispam_result,
-         reply_limit_result,
-         image_limit_result,
-         validation_result
-       ) do
-    case [
-           {"request_guards", request_guards_result},
-           {"thread_lookup", thread_result},
-           {"thread_lock", thread_guard_result},
-           {"validation_base", validation_base_result},
-           {"abuse_guards", abuse_guards_result},
-           {"dnsbl", dnsbl_result},
-           {"metadata", metadata_result},
-           {"antispam", antispam_result},
-           {"reply_limit", reply_limit_result},
-           {"image_limit", image_limit_result},
-           {"duplicate_upload", validation_result}
-         ]
-         |> Enum.find(fn {_stage, result} -> match?({:error, _}, result) end) do
+  defp validation_failure_stage(stages) when is_list(stages) do
+    case Enum.find(stages, fn {_stage, result} -> match?({:error, _}, result) end) do
       {stage, _result} -> stage
       nil -> nil
     end

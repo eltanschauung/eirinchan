@@ -3,6 +3,17 @@ defmodule Eirinchan.Posts.UploadPreparation do
 
   alias Eirinchan.Uploads
 
+  def uploads(attrs) when is_map(attrs), do: collect_uploads(attrs)
+  def uploads(_attrs), do: []
+
+  def has_upload?(attrs), do: uploads(attrs) != []
+
+  def remote_upload_requested?(attrs) when is_map(attrs) do
+    not is_nil(trim_to_nil(Map.get(attrs, "file_url") || Map.get(attrs, "url")))
+  end
+
+  def remote_upload_requested?(_attrs), do: false
+
   def prepare_uploads(attrs, config, _opts \\ []) do
     prepare_file_uploads(attrs, config)
     |> case do

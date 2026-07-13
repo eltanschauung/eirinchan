@@ -6,6 +6,7 @@ defmodule Eirinchan.Posts.Validation do
   alias Eirinchan.AccessList
   alias Eirinchan.Posts.Post
   alias Eirinchan.Posts.PostFile
+  alias Eirinchan.Posts.UploadPreparation
   alias Eirinchan.Uploads
   alias Eirinchan.WhaleStickers
 
@@ -14,13 +15,38 @@ defmodule Eirinchan.Posts.Validation do
 
     has_media =
       present_embed?(attrs) or
-        match?(%Plug.Upload{}, Map.get(attrs, "file")) or
+        UploadPreparation.has_upload?(attrs) or
         Map.get(attrs, "__upload_entries__", []) != []
 
     if (require_body or not has_media) and body_blank?(attrs["body"]) do
       {:error, :body_required}
     else
       :ok
+    end
+  end
+
+  def validate_upload_preflight(op?, attrs, config, request) do
+    uploads = UploadPreparation.uploads(attrs)
+    embed? = present_embed?(attrs)
+
+    sticker_op? = op? and config.allow_sticker_op and WhaleStickers.contains_sticker?(attrs["body"], config)
+
+    cond do
+      UploadPreparation.remote_upload_requested?(attrs) and uploads == [] ->
+        {:error, :upload_failed}
+
+      op? and config.force_image_op and uploads == [] and not embed? and not sticker_op? ->
+        {:error, :file_required}
+
+      op? and length(uploads) > 1 and AccessList.enabled?() and
+          not AccessList.allowed?(request[:remote_ip] || request["remote_ip"]) ->
+        {:error, :access_list}
+
+      true ->
+        with :ok <- validate_raw_upload_types(uploads, config, op?),
+             :ok <- validate_raw_upload_sizes(uploads, config) do
+          :ok
+        end
     end
   end
 
@@ -44,7 +70,9 @@ defmodule Eirinchan.Posts.Validation do
   def validate_upload(op?, attrs, config, request) do
     entries = Map.get(attrs, "__upload_entries__", [])
     embed? = present_embed?(attrs)
-    sticker_op? = op? and config.allow_sticker_op and WhaleStickers.contains_sticker?(attrs["body"], config)
+
+    sticker_op? =
+      op? and config.allow_sticker_op and WhaleStickers.contains_sticker?(attrs["body"], config)
 
     cond do
       op? and config.force_image_op and entries == [] and not embed? and not sticker_op? ->
@@ -287,6 +315,46 @@ defmodule Eirinchan.Posts.Validation do
          :ok <- validate_upload_size(metadata, config) do
       :ok
     end
+  end
+
+  defp validate_raw_upload_types(uploads, config, op?) do
+    Enum.reduce_while(uploads, :ok, fn upload, :ok ->
+      ext = upload.filename |> to_string() |> String.trim() |> Path.extname() |> String.downcase()
+
+      if Uploads.allowed_extension?(ext, config, op?) do
+        {:cont, :ok}
+      else
+        {:halt, {:error, :invalid_file_type}}
+      end
+    end)
+  end
+
+  defp validate_raw_upload_sizes(uploads, config) do
+    max_filesize = config.max_filesize
+
+    if is_integer(max_filesize) and max_filesize > 0 do
+      with {:ok, sizes} <- raw_upload_sizes(uploads) do
+        too_large? =
+          if config.multiimage_method == "split" do
+            Enum.sum(sizes) > max_filesize
+          else
+            Enum.any?(sizes, &(&1 > max_filesize))
+          end
+
+        if too_large?, do: {:error, :file_too_large}, else: :ok
+      end
+    else
+      :ok
+    end
+  end
+
+  defp raw_upload_sizes(uploads) do
+    Enum.reduce_while(uploads, {:ok, []}, fn upload, {:ok, sizes} ->
+      case File.stat(upload.path) do
+        {:ok, %{size: size}} -> {:cont, {:ok, [size | sizes]}}
+        {:error, _reason} -> {:halt, {:error, :upload_failed}}
+      end
+    end)
   end
 
   defp validate_upload_type(%Plug.Upload{} = upload, nil, config, op?),
