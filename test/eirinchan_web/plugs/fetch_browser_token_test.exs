@@ -2,6 +2,10 @@ defmodule EirinchanWeb.Plugs.FetchBrowserTokenTest do
   use EirinchanWeb.ConnCase, async: true
 
   alias EirinchanWeb.Plugs.FetchBrowserToken
+  alias Eirinchan.BrowserIdentities
+  alias Eirinchan.BrowserIdentities.Identity
+  alias Eirinchan.BrowserIdentity
+  alias Eirinchan.Repo
 
   @cookie_name "__Host-eirinchan_browser"
 
@@ -10,10 +14,10 @@ defmodule EirinchanWeb.Plugs.FetchBrowserTokenTest do
 
     conn =
       conn
-      |> put_req_cookie(@cookie_name, Eirinchan.BrowserIdentity.issue(token))
+      |> put_req_cookie(@cookie_name, BrowserIdentity.issue(token))
       |> FetchBrowserToken.call([])
 
-    assert conn.assigns.browser_token == Eirinchan.BrowserIdentity.reference(token)
+    assert conn.assigns.browser_token == BrowserIdentity.reference(token)
     assert conn.assigns.browser_identity_token == token
     assert conn.assigns.returning_browser_token
     refute Map.has_key?(conn.resp_cookies, @cookie_name)
@@ -30,9 +34,10 @@ defmodule EirinchanWeb.Plugs.FetchBrowserTokenTest do
       conn.resp_cookies
       |> Map.fetch!(@cookie_name)
 
-    assert {:ok, %{token: token}} = Eirinchan.BrowserIdentity.verify(set_cookie.value)
-    assert Eirinchan.BrowserIdentity.reference(token) == conn.assigns.browser_token
+    assert {:ok, %{token: token}} = BrowserIdentity.verify(set_cookie.value)
+    assert BrowserIdentity.reference(token) == conn.assigns.browser_token
     assert conn.assigns.browser_identity_token == token
+    assert Repo.get(Identity, conn.assigns.browser_token)
     assert set_cookie.path == "/"
     assert set_cookie.secure
     assert set_cookie.http_only
@@ -47,12 +52,12 @@ defmodule EirinchanWeb.Plugs.FetchBrowserTokenTest do
       |> put_req_cookie("browser_token", token)
       |> FetchBrowserToken.call([])
 
-    assert conn.assigns.browser_token == Eirinchan.BrowserIdentity.reference(token)
+    assert conn.assigns.browser_token == BrowserIdentity.reference(token)
     assert conn.assigns.browser_identity_token == token
     assert conn.assigns.returning_browser_token
 
     assert {:ok, %{token: ^token}} =
-             Eirinchan.BrowserIdentity.verify(conn.resp_cookies[@cookie_name].value)
+             BrowserIdentity.verify(conn.resp_cookies[@cookie_name].value)
 
     assert conn.resp_cookies["browser_token"].max_age == 0
   end
@@ -62,12 +67,12 @@ defmodule EirinchanWeb.Plugs.FetchBrowserTokenTest do
 
     conn = conn |> put_req_cookie(@cookie_name, token) |> FetchBrowserToken.call([])
 
-    assert conn.assigns.browser_token == Eirinchan.BrowserIdentity.reference(token)
+    assert conn.assigns.browser_token == BrowserIdentity.reference(token)
     assert conn.assigns.browser_identity_token == token
     assert conn.assigns.returning_browser_token
 
     assert {:ok, %{token: ^token}} =
-             Eirinchan.BrowserIdentity.verify(conn.resp_cookies[@cookie_name].value)
+             BrowserIdentity.verify(conn.resp_cookies[@cookie_name].value)
   end
 
   test "rotates oversized attacker-controlled browser tokens", %{conn: conn} do
@@ -90,5 +95,37 @@ defmodule EirinchanWeb.Plugs.FetchBrowserTokenTest do
 
     refute conn.assigns.browser_token == "attacker-chosen-token"
     refute conn.assigns.returning_browser_token
+  end
+
+  test "refreshes an aged signature without changing the storage identity", %{conn: conn} do
+    token = browser_token("aged-signature")
+    issued_at = System.system_time(:second) - BrowserIdentities.rotation_seconds()
+
+    conn =
+      conn
+      |> put_req_cookie(@cookie_name, BrowserIdentity.issue(token, issued_at))
+      |> FetchBrowserToken.call([])
+
+    assert conn.assigns.browser_token == BrowserIdentity.reference(token)
+    assert conn.assigns.returning_browser_token
+
+    assert {:ok, %{token: ^token, issued_at: refreshed_at}} =
+             BrowserIdentity.verify(conn.resp_cookies[@cookie_name].value)
+
+    assert refreshed_at > issued_at
+  end
+
+  test "replaces a cookie beyond its absolute lifetime", %{conn: conn} do
+    token = browser_token("expired-signature")
+    issued_at = System.system_time(:second) - BrowserIdentities.ttl_seconds() - 1
+
+    conn =
+      conn
+      |> put_req_cookie(@cookie_name, BrowserIdentity.issue(token, issued_at))
+      |> FetchBrowserToken.call([])
+
+    refute conn.assigns.browser_identity_token == token
+    refute conn.assigns.returning_browser_token
+    assert BrowserIdentity.reference?(conn.assigns.browser_token)
   end
 end

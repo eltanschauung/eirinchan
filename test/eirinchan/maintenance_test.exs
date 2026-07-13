@@ -3,7 +3,16 @@ defmodule Eirinchan.MaintenanceTest do
 
   import Ecto.Query
 
-  alias Eirinchan.{Antispam, Bans, Maintenance, PostFailureLog}
+  alias Eirinchan.{
+    Antispam,
+    Bans,
+    BrowserIdentities,
+    BrowserIdentity,
+    Maintenance,
+    PostFailureLog
+  }
+
+  alias Eirinchan.BrowserIdentities.Identity
 
   test "run purges expired bans and old antispam entries" do
     board = board_fixture()
@@ -25,6 +34,19 @@ defmodule Eirinchan.MaintenanceTest do
         active: true,
         expires_at: DateTime.add(DateTime.utc_now(), 3600, :second)
       })
+
+    browser_token = BrowserIdentity.generate_token()
+    browser_ref = BrowserIdentity.reference(browser_token)
+
+    {:ok, _identity} =
+      %Identity{}
+      |> Identity.changeset(%{
+        browser_ref: browser_ref,
+        issued_at: DateTime.add(DateTime.utc_now(), -BrowserIdentities.ttl_seconds(), :second),
+        last_seen_at: DateTime.add(DateTime.utc_now(), -60, :second),
+        expires_at: DateTime.add(DateTime.utc_now(), -1, :second)
+      })
+      |> Repo.insert()
 
     stale_request = %{remote_ip: {198, 51, 100, 20}}
     {:ok, flood_entry} = Antispam.log_post(board, %{"body" => "old"}, stale_request)
@@ -65,12 +87,20 @@ defmodule Eirinchan.MaintenanceTest do
       post_failure_log_retention_days: 1
     }
 
-    assert {:ok, %{bans: 1, antispam: antispam_count, post_failure_logs: 1}} =
+    assert {:ok,
+            %{
+              bans: 1,
+              browser_identities: 1,
+              antispam: antispam_count,
+              post_failure_logs: 1
+            }} =
              Maintenance.run(config, repo: Repo)
+
     assert antispam_count >= 2
     assert length(Bans.list_bans(board_id: board.id, repo: Repo)) == 1
     assert Antispam.list_flood_entries("198.51.100.20", repo: Repo) == []
     assert Antispam.list_search_queries("198.51.100.20", repo: Repo) == []
     assert Repo.aggregate(PostFailureLog, :count) == 1
+    assert Repo.get(Identity, browser_ref) == nil
   end
 end
