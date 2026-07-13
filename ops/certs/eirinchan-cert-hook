@@ -2,7 +2,37 @@
 set -euo pipefail
 
 CERT_ROOT=/home/telemazer/phoenix-gateway/var/certs
+CHALLENGE_ROOT=/home/telemazer/phoenix-gateway/var/acme/.well-known/acme-challenge
 RELOAD_MARKER=/run/eirinchan-certs/updated
+
+valid_challenge_token() {
+  [[ "$1" =~ ^[A-Za-z0-9_-]{1,256}$ ]]
+}
+
+deploy_challenge() {
+  local _domain="$1"
+  local token="$2"
+  local response="$3"
+  local temporary_file
+
+  valid_challenge_token "$token" || return 1
+  install -d -m 0755 -o telemazer -g telemazer "$CHALLENGE_ROOT"
+  temporary_file="$(mktemp "$CHALLENGE_ROOT/.challenge.XXXXXX")"
+  trap 'rm -f -- "$temporary_file"' RETURN
+  printf '%s' "$response" >"$temporary_file"
+  chown telemazer:telemazer "$temporary_file"
+  chmod 0644 "$temporary_file"
+  mv -fT "$temporary_file" "$CHALLENGE_ROOT/$token"
+  trap - RETURN
+}
+
+clean_challenge() {
+  local _domain="$1"
+  local token="$2"
+
+  valid_challenge_token "$token" || return 1
+  rm -f -- "$CHALLENGE_ROOT/$token"
+}
 
 deploy_cert() {
   local domain="$1"
