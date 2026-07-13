@@ -5,6 +5,7 @@ REPOSITORY="${1:-/home/telemazer/eirinchan-v1}"
 RELEASE_ROOT=/opt/eirinchan/releases
 CURRENT_LINK=/opt/eirinchan/current
 SERVICE=bantculture-phoenix.service
+DROP_IN=/etc/systemd/system/bantculture-phoenix.service.d/hardening.conf
 
 REPOSITORY="$(realpath -- "$REPOSITORY")"
 COMMIT="$(git -C "$REPOSITORY" rev-parse HEAD)"
@@ -19,7 +20,23 @@ SOURCE_ROOT="$BUILD_ROOT/source"
 OUTPUT_ROOT="$BUILD_ROOT/output"
 TARGET="$RELEASE_ROOT/$COMMIT"
 TEMP_TARGET="$RELEASE_ROOT/.${COMMIT}.new"
-PREVIOUS_TARGET="$(readlink -f -- "$CURRENT_LINK" 2>/dev/null || true)"
+PREVIOUS_TARGET=""
+PREVIOUS_DROP_IN="$BUILD_ROOT/previous-hardening.conf"
+HAD_DROP_IN=0
+
+if [[ -L "$CURRENT_LINK" ]]; then
+  candidate="$(readlink -f -- "$CURRENT_LINK" 2>/dev/null || true)"
+
+  if [[ "$candidate" == "$RELEASE_ROOT/"* && -d "$candidate" ]]; then
+    PREVIOUS_TARGET="$candidate"
+  fi
+fi
+
+if sudo test -f "$DROP_IN"; then
+  sudo cp -- "$DROP_IN" "$PREVIOUS_DROP_IN"
+  sudo chown "$(id -u):$(id -g)" "$PREVIOUS_DROP_IN"
+  HAD_DROP_IN=1
+fi
 
 cleanup() {
   git -C "$REPOSITORY" worktree remove --force "$SOURCE_ROOT" >/dev/null 2>&1 || true
@@ -69,7 +86,7 @@ sudo -u telemazer "$TARGET/bin/migrate"
 
 sudo install -m 0644 -o root -g root \
   "$REPOSITORY/ops/systemd/bantculture-phoenix.service.d/hardening.conf" \
-  /etc/systemd/system/bantculture-phoenix.service.d/hardening.conf
+  "$DROP_IN"
 sudo install -m 0644 -o root -g root \
   "$REPOSITORY/ops/logrotate/bantculture-phoenix" \
   /etc/logrotate.d/bantculture-phoenix
@@ -79,6 +96,7 @@ sudo touch /home/telemazer/logs/bantculture-phoenix.log
 sudo chown root:root /home/telemazer/logs/bantculture-phoenix.log
 sudo chmod 0600 /home/telemazer/logs/bantculture-phoenix.log
 
+sudo rm -f -- /opt/eirinchan/current.new /opt/eirinchan/current.rollback
 sudo ln -s -- "$TARGET" /opt/eirinchan/current.new
 sudo mv -Tf -- /opt/eirinchan/current.new "$CURRENT_LINK"
 sudo systemctl daemon-reload
@@ -97,8 +115,14 @@ if [[ "$healthy" -ne 1 ]]; then
   if [[ -n "$PREVIOUS_TARGET" && -d "$PREVIOUS_TARGET" ]]; then
     sudo ln -s -- "$PREVIOUS_TARGET" /opt/eirinchan/current.rollback
     sudo mv -Tf -- /opt/eirinchan/current.rollback "$CURRENT_LINK"
-    sudo systemctl restart "$SERVICE"
+  elif [[ "$HAD_DROP_IN" -eq 1 ]]; then
+    sudo install -m 0644 -o root -g root "$PREVIOUS_DROP_IN" "$DROP_IN"
+  else
+    sudo rm -f -- "$DROP_IN"
   fi
+
+  sudo systemctl daemon-reload
+  sudo systemctl restart "$SERVICE"
   echo "Release health check failed; restored the previous release." >&2
   exit 1
 fi
