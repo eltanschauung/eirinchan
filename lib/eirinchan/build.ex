@@ -18,6 +18,8 @@ defmodule Eirinchan.Build do
   alias EirinchanWeb.{PostComponents, PostView}
   alias EirinchanWeb.FragmentCache
 
+  @environment Application.compile_env(:eirinchan, :environment)
+
   @spec rebuild_after_post(BoardRecord.t(), Eirinchan.Posts.Post.t(), keyword()) ::
           :ok | {:error, term()}
   def rebuild_after_post(%BoardRecord{} = board, post, opts \\ []) do
@@ -367,7 +369,7 @@ defmodule Eirinchan.Build do
   end
 
   defp run_async(fun) when is_function(fun, 0) do
-    if Mix.env() == :test do
+    if @environment == :test do
       fun.()
     else
       case Task.Supervisor.start_child(Eirinchan.BuildTaskSupervisor, fun) do

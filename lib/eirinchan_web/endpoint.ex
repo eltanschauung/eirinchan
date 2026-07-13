@@ -10,7 +10,7 @@ defmodule EirinchanWeb.Endpoint do
     signing_salt: "3xPU2tNX",
     encryption_salt: "YKr0Mq0s",
     http_only: true,
-    secure: Mix.env() == :prod,
+    secure: Application.compile_env(:eirinchan, :environment) == :prod,
     same_site: "Lax"
   ]
 

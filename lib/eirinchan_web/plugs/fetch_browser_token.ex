@@ -3,6 +3,7 @@ defmodule EirinchanWeb.Plugs.FetchBrowserToken do
 
   @cookie_name "browser_token"
   @max_age 60 * 60 * 24 * 365 * 5
+  @secure_cookie Application.compile_env(:eirinchan, :environment) == :prod
 
   def init(opts), do: opts
 
@@ -25,7 +26,7 @@ defmodule EirinchanWeb.Plugs.FetchBrowserToken do
           max_age: @max_age,
           path: "/",
           http_only: true,
-          secure: Mix.env() == :prod,
+          secure: @secure_cookie,
           same_site: "Lax"
         )
     end

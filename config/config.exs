@@ -8,6 +8,7 @@
 import Config
 
 config :eirinchan,
+  environment: config_env(),
   ecto_repos: [Eirinchan.Repo],
   feedback_store_ip: false,
   ip_access_list: %{enabled: false, entries: []},
