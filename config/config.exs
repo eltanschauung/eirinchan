@@ -16,6 +16,7 @@ config :eirinchan,
   allowed_hosts: ["localhost", "www.example.com"],
   external_command_timeout_ms: 15_000,
   quarantine_invalid_uploads: false,
+  quarantine_invalid_upload_root: Path.expand("../var/invalid_uploads", __DIR__),
   fragment_cache: [max_entries: 5_000, ttl_ms: 300_000],
   instance_config_path: Path.expand("../var/settings.json", __DIR__),
   proxy_request: %{

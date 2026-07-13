@@ -21,6 +21,15 @@ if System.get_env("PHX_SERVER") do
 end
 
 if config_env() == :prod do
+  state_root =
+    System.get_env("EIRINCHAN_STATE_ROOT") ||
+      raise "environment variable EIRINCHAN_STATE_ROOT is missing"
+
+  config :eirinchan,
+    instance_config_path: Path.join(state_root, "var/settings.json"),
+    build_output_root: Path.join(state_root, "tmp/build"),
+    quarantine_invalid_upload_root: Path.join(state_root, "var/invalid_uploads")
+
   database_url =
     System.get_env("DATABASE_URL") ||
       raise """

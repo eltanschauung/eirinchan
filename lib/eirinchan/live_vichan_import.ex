@@ -13,9 +13,6 @@ defmodule Eirinchan.LiveVichanImport do
   alias Eirinchan.Settings
   alias Eirinchan.Uploads
 
-  @page_script Path.expand("../../priv/scripts/export_live_vichan_page.php", __DIR__)
-  @thread_script Path.expand("../../priv/scripts/export_live_vichan_thread.php", __DIR__)
-
   def import_page(opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
     source_root = Keyword.get(opts, :source_root, "/path/to/vichan")
@@ -52,11 +49,21 @@ defmodule Eirinchan.LiveVichanImport do
   end
 
   defp export_live_page(source_root, board_uri, limit) do
-    export_with_script(@page_script, source_root, board_uri, limit)
+    export_with_script(
+      import_script("export_live_vichan_page.php"),
+      source_root,
+      board_uri,
+      limit
+    )
   end
 
   defp export_live_thread(source_root, board_uri, thread_id) do
-    export_with_script(@thread_script, source_root, board_uri, thread_id)
+    export_with_script(
+      import_script("export_live_vichan_thread.php"),
+      source_root,
+      board_uri,
+      thread_id
+    )
   end
 
   defp export_with_script(script, source_root, board_uri, value) do
@@ -111,16 +118,19 @@ defmodule Eirinchan.LiveVichanImport do
     case Enum.find(imported, &match?({:error, _}, &1)) do
       nil ->
         merged =
-          Enum.reduce(imported, %{threads: 0, replies: 0, files: 0, op: nil, post_map: %{}}, fn {:ok, row},
-                                                                                                  acc ->
-            %{
-              threads: acc.threads + 1,
-              replies: acc.replies + row.replies,
-              files: acc.files + row.files,
-              op: acc.op || row.op,
-              post_map: Map.merge(acc.post_map, row.post_map)
-            }
-          end)
+          Enum.reduce(
+            imported,
+            %{threads: 0, replies: 0, files: 0, op: nil, post_map: %{}},
+            fn {:ok, row}, acc ->
+              %{
+                threads: acc.threads + 1,
+                replies: acc.replies + row.replies,
+                files: acc.files + row.files,
+                op: acc.op || row.op,
+                post_map: Map.merge(acc.post_map, row.post_map)
+              }
+            end
+          )
 
         :ok =
           rewrite_imported_citations(
@@ -208,7 +218,8 @@ defmodule Eirinchan.LiveVichanImport do
     query =
       from post in Post,
         where:
-          post.board_id == ^board.id and is_nil(post.thread_id) and post.inserted_at == ^inserted_at
+          post.board_id == ^board.id and is_nil(post.thread_id) and
+            post.inserted_at == ^inserted_at
 
     query =
       if op_slug do
@@ -248,7 +259,15 @@ defmodule Eirinchan.LiveVichanImport do
     end
   end
 
-  defp insert_post(%BoardRecord{} = board, locked_board, thread, legacy_row, repo, config, source_root) do
+  defp insert_post(
+         %BoardRecord{} = board,
+         locked_board,
+         thread,
+         legacy_row,
+         repo,
+         config,
+         source_root
+       ) do
     {body, flag_codes, flag_alts} =
       extract_body_and_flags(legacy_row["body_nomarkup"] || legacy_row["body"] || "")
 
@@ -371,6 +390,7 @@ defmodule Eirinchan.LiveVichanImport do
       }
     else
       source_rel = file_source_rel(board, legacy_file)
+
       source_abs =
         case safe_source_path(source_root, source_rel) do
           {:ok, path} -> path
@@ -436,7 +456,8 @@ defmodule Eirinchan.LiveVichanImport do
 
   defp missing_source_asset_attrs(legacy_file) do
     %{
-      file_name: legacy_file["filename"] || legacy_file["name"] || legacy_file["file"] || "deleted",
+      file_name:
+        legacy_file["filename"] || legacy_file["name"] || legacy_file["file"] || "deleted",
       file_path: "deleted",
       thumb_path: nil,
       file_size: integer_or_nil(legacy_file["size"]),
@@ -461,6 +482,8 @@ defmodule Eirinchan.LiveVichanImport do
       image_height: integer_or_nil(legacy_file["height"])
     }
   end
+
+  defp import_script(filename), do: Application.app_dir(:eirinchan, "priv/scripts/#{filename}")
 
   defp legacy_file_type(legacy_file, path) do
     case legacy_file["type"] do
@@ -509,7 +532,11 @@ defmodule Eirinchan.LiveVichanImport do
        ) do
     cond do
       truthy?(legacy_file["spoiler"]) or spoiler_thumb?(legacy_file) ->
-        File.cp!(Path.join(Application.app_dir(:eirinchan, "priv/static/static"), "spoiler.png"), thumb_abs)
+        File.cp!(
+          Path.join(Application.app_dir(:eirinchan, "priv/static/static"), "spoiler.png"),
+          thumb_abs
+        )
+
         :ok
 
       true ->

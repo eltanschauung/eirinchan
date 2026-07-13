@@ -1174,7 +1174,7 @@ defmodule EirinchanWeb.PostController do
   end
 
   defp do_quarantine_invalid_upload(upload, request_id, index) do
-    destination_dir = Path.expand("../../../var/invalid_uploads", __DIR__)
+    destination_dir = Application.fetch_env!(:eirinchan, :quarantine_invalid_upload_root)
     File.mkdir_p!(destination_dir)
 
     extension = Path.extname(upload.filename)
