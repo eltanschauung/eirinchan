@@ -503,6 +503,8 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ "Whalestickers"
     assert page =~ ":gojo:"
     assert page =~ "Let's bring /bnat/ to life with tranimals and babies!"
+    assert page =~ ~s(class="content formatting-sticker-content")
+    assert page =~ ~s(class="formatting-sticker-columns")
     assert length(Regex.scan(~r/class="column formatting-sticker-column"/, page)) == 2
   end
 
