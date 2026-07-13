@@ -5,10 +5,19 @@ defmodule Eirinchan.LogSystem do
 
   require Logger
 
+  alias Eirinchan.LogRedactor
+
   @spec log(atom(), binary(), binary(), map(), map()) :: :ok
   def log(level, event, message, metadata, config \\ %{}) do
     log_config = Map.get(config, :log_system, %{})
-    rendered = render_line(level, event, message, metadata)
+
+    rendered =
+      render_line(
+        level,
+        event,
+        LogRedactor.sanitize_text(message),
+        LogRedactor.sanitize_metadata(metadata)
+      )
 
     case Map.get(log_config, :type, "error_log") do
       "file" ->

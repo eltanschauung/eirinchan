@@ -41,7 +41,8 @@ config :eirinchan, EirinchanWeb.Endpoint,
 # Configures Elixir's Logger
 config :logger, :console,
   format: "$time $metadata[$level] $message\n",
-  metadata: [:request_id, :remote_ip]
+  metadata: [:request_id, :remote_ip],
+  truncate: 16_384
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
