@@ -87,7 +87,7 @@ defmodule EirinchanWeb.HtmlSanitizerTest do
   test "preserves the FAQ's inert legacy tags and narrowly scoped layout styles" do
     html = """
     <div style="margin-bottom:40px;position:fixed">
-      <p1>copy <px>blue</px> <py>green</py></p1>
+      <p1>copy <px>blue</px> <py>green</py></p1><p2>Rule heading</p2>
       <hr style="margin:6px;opacity:0;position:absolute">
       <img src="/faq/example.png" style="max-width:285px;height:auto;text-align:center;margin:0;position:fixed">
     </div>
@@ -97,6 +97,7 @@ defmodule EirinchanWeb.HtmlSanitizerTest do
 
     assert sanitized =~ ~s|<div style="margin-bottom:40px">|
     assert sanitized =~ "<p1>"
+    assert sanitized =~ "<p2>Rule heading</p2>"
     assert sanitized =~ ~s|<px>blue</px>|
     assert sanitized =~ ~s|<py>green</py>|
     assert sanitized =~ ~s|<hr style="margin:6px;opacity:0"|

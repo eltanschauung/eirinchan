@@ -15,6 +15,7 @@ defmodule EirinchanWeb.PageController do
   alias Eirinchan.Posts.{Post, PostFile, PublicIds}
   alias Eirinchan.Repo
   alias Eirinchan.Settings
+  alias Eirinchan.SiteContact
   alias Eirinchan.Themes
   alias EirinchanWeb.ErrorPages
   alias EirinchanWeb.BoardRuntime
@@ -266,7 +267,10 @@ defmodule EirinchanWeb.PageController do
     if Installation.setup_required?() do
       redirect(conn, to: ~p"/setup")
     else
-      render_custom_page(conn, PublicPages.fetch_named_page("rules"))
+      render_custom_page(
+        conn,
+        PublicPages.fetch_named_page("rules", contact_email: SiteContact.email())
+      )
     end
   end
 
@@ -365,8 +369,13 @@ defmodule EirinchanWeb.PageController do
     current_stickers = sticker_entries(current_sticker_config())
     show_global_message = PublicPages.show_global_message?(page.slug)
 
+    contact_email = SiteContact.email()
+
     page =
-      PublicPages.normalize_page(page, stickers: current_stickers)
+      PublicPages.normalize_page(page,
+        stickers: current_stickers,
+        contact_email: contact_email
+      )
 
     public_page_assigns =
       PublicControllerHelpers.public_page_assigns(conn, "active-page", page.slug,
@@ -398,7 +407,8 @@ defmodule EirinchanWeb.PageController do
         page_subtitle: PublicPages.page_subtitle(page.slug),
         show_global_message: show_global_message,
         params: %{},
-        errors: nil
+        errors: nil,
+        contact_email: contact_email
       )
 
     conn = put_public_document_etag(conn, {:custom_page, page_cache_key(page)})
@@ -463,6 +473,7 @@ defmodule EirinchanWeb.PageController do
     board_ids = recent_board_ids(settings, boards)
     content = cached_recent_theme_content(settings, board_ids)
     stats = cached_recent_theme_stats(board_ids)
+    contact_email = SiteContact.email()
 
     conn =
       conn
@@ -470,12 +481,13 @@ defmodule EirinchanWeb.PageController do
         :recent_theme,
         active_page,
         recent_theme_content_cache_key(settings, board_ids),
-        recent_theme_stats_cache_key(board_ids)
+        recent_theme_stats_cache_key(board_ids),
+        contact_email
       })
       |> render(
         :recent,
         Keyword.merge(
-          recent_theme_assigns(conn, active_page, boards),
+          recent_theme_assigns(conn, active_page, boards, contact_email),
           layout: false,
           recent_settings: settings,
           recent_images: content.recent_images,
@@ -512,14 +524,15 @@ defmodule EirinchanWeb.PageController do
     end)
   end
 
-  defp recent_theme_assigns(conn, active_page, boards) do
+  defp recent_theme_assigns(conn, active_page, boards, contact_email) do
     [
       boards: boards,
       global_boardlist_groups:
         PostView.boardlist_groups(boards, mobile_client?: conn.assigns[:mobile_client?] || false),
       show_footer: true,
       page_title: "Recent Posts",
-      body_class: nil
+      body_class: nil,
+      contact_email: contact_email
     ] ++ PublicControllerHelpers.public_shell_assigns(conn, active_page,
       extra_stylesheets: ["/recent.css"],
       show_nav_arrows_page: false

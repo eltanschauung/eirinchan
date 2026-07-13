@@ -10,13 +10,14 @@ defmodule Eirinchan.PublicPages do
 
   def fetch_named_page(slug, opts \\ []) when is_binary(slug) do
     current_stickers = Keyword.get(opts, :stickers, [])
+    contact_email = Keyword.get(opts, :contact_email, "example@example.com")
 
     case CustomPages.get_page_by_slug(slug) do
       %CustomPages.Page{} = page ->
-        normalize_page(page, stickers: current_stickers)
+        normalize_page(page, stickers: current_stickers, contact_email: contact_email)
 
       nil ->
-        default_named_page(slug, current_stickers)
+        default_named_page(slug, current_stickers, contact_email)
     end
   end
 
@@ -24,11 +25,12 @@ defmodule Eirinchan.PublicPages do
 
   def normalize_page(%{slug: slug} = page, opts) when is_binary(slug) do
     current_stickers = Keyword.get(opts, :stickers, [])
+    contact_email = Keyword.get(opts, :contact_email, "example@example.com")
 
     case slug do
       "faq" -> %{page | body: FaqPage.normalize_body(page.body)}
       "formatting" -> %{page | body: FormattingPage.normalize_body(page.body, current_stickers)}
-      "rules" -> %{page | body: RulesPage.normalize_body(page.body)}
+      "rules" -> %{page | body: RulesPage.normalize_body(page.body, contact_email)}
       "flags" -> %{page | body: FlagsPage.normalize_body(page.body)}
       "feedback" -> %{page | body: FeedbackPage.normalize_body(page.body)}
       _ -> page
@@ -47,26 +49,26 @@ defmodule Eirinchan.PublicPages do
 
   def show_global_message?(_slug), do: true
 
-  defp default_named_page("faq", _current_stickers) do
+  defp default_named_page("faq", _current_stickers, _contact_email) do
     %{slug: "faq", title: "FAQ", body: FaqPage.default_body(), mod_user: nil}
   end
 
-  defp default_named_page("formatting", current_stickers) do
+  defp default_named_page("formatting", current_stickers, _contact_email) do
     %{slug: "formatting", title: "Formatting", body: FormattingPage.default_body(current_stickers), mod_user: nil}
   end
 
-  defp default_named_page("rules", _current_stickers) do
-    %{slug: "rules", title: "Rules", body: RulesPage.default_body(), mod_user: nil}
+  defp default_named_page("rules", _current_stickers, contact_email) do
+    %{slug: "rules", title: "Rules", body: RulesPage.default_body(contact_email), mod_user: nil}
   end
 
-  defp default_named_page("flags", _current_stickers) do
+  defp default_named_page("flags", _current_stickers, _contact_email) do
     %{slug: "flags", title: "Flags", body: FlagsPage.default_body(), mod_user: nil}
   end
 
-  defp default_named_page("feedback", _current_stickers) do
+  defp default_named_page("feedback", _current_stickers, _contact_email) do
     %{slug: "feedback", title: "Feedback", body: FeedbackPage.default_body(), mod_user: nil}
   end
 
-  defp default_named_page(_slug, _current_stickers), do: nil
+  defp default_named_page(_slug, _current_stickers, _contact_email), do: nil
 
 end

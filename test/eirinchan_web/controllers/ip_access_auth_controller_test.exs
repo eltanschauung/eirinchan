@@ -34,6 +34,19 @@ defmodule EirinchanWeb.IpAccessAuthControllerTest do
     assert html =~ "Enter a password to gain access."
     refute html =~ "Theme"
     refute html =~ "Signed in as"
+    assert html =~ ~s(href="mailto:example@example.com")
+  end
+
+  test "auth contact email comes from instance config", %{conn: conn} do
+    {:ok, _config} =
+      Settings.update_instance_config_from_json(
+        Jason.encode!(%{contact_email: "contact@instance.test"})
+      )
+
+    html = get(conn, "/auth") |> html_response(200)
+
+    assert html =~ ~s(href="mailto:contact@instance.test")
+    refute html =~ ~s(href="mailto:example@example.com")
   end
 
   test "custom auth path rewrites to the auth controller and posts update the configured access entries",

@@ -4,7 +4,7 @@ defmodule EirinchanWeb.HtmlSanitizer do
   @allowed_tags ~w(
     a abbr article aside b blockquote br caption code col colgroup dd del details div dl dt em
     figcaption figure footer h1 h2 h3 h4 h5 h6 header hr i img kbd li main mark nav ol p pre q
-    p1 px py s section small span strong sub summary sup table tbody td tfoot th thead tr u ul
+    p1 p2 px py s section small span strong sub summary sup table tbody td tfoot th thead tr u ul
   )
 
   @drop_with_contents ~w(base button embed form iframe input link math meta object script select

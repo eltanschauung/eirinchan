@@ -24,12 +24,12 @@
     <div class="content">
       <p1>Let's bring /bnat/ to life with tranimals and babies!<br />Whalestickers also need to be at the start of a line, once per line.</p1><br /><br />
       <hr style="margin:6px;opacity:0;" />
-      <div class="column" style="margin-left:5%;float:left;">
+      <div class="column formatting-sticker-column">
         <%= for sticker <- @left_stickers do %>
           <p1><img src={sticker.path} alt={sticker.token} title={sticker.token} />:<%= sticker.token %>:</p1><br />
         <% end %>
       </div>
-      <div class="column" style="margin-right:5%;float:right;">
+      <div class="column formatting-sticker-column">
         <%= for sticker <- @right_stickers do %>
           <p1><img src={sticker.path} alt={sticker.token} title={sticker.token} />:<%= sticker.token %>:</p1><br />
         <% end %>

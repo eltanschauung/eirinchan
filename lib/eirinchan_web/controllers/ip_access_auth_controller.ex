@@ -4,6 +4,7 @@ defmodule EirinchanWeb.IpAccessAuthController do
   alias Eirinchan.IpAccessAuth
   alias Eirinchan.IpAccessAuthThrottle
   alias Eirinchan.Settings
+  alias Eirinchan.SiteContact
   alias EirinchanWeb.RequestMeta
   alias EirinchanWeb.ThemeRegistry
 
@@ -22,7 +23,8 @@ defmodule EirinchanWeb.IpAccessAuthController do
       success: false,
       entered_password: nil,
       theme_stylesheet: theme_stylesheet(config, conn),
-      asset_version: conn.assigns[:asset_version]
+      asset_version: conn.assigns[:asset_version],
+      contact_email: SiteContact.email()
     )
   end
 
@@ -58,7 +60,8 @@ defmodule EirinchanWeb.IpAccessAuthController do
           success: true,
           entered_password: nil,
           theme_stylesheet: theme_stylesheet(config, conn),
-          asset_version: conn.assigns[:asset_version]
+          asset_version: conn.assigns[:asset_version],
+          contact_email: SiteContact.email()
         )
 
       {:error, :password_required} ->
@@ -102,7 +105,8 @@ defmodule EirinchanWeb.IpAccessAuthController do
       success: false,
       entered_password: password,
       theme_stylesheet: theme_stylesheet(config, conn),
-      asset_version: conn.assigns[:asset_version]
+      asset_version: conn.assigns[:asset_version],
+      contact_email: SiteContact.email()
     )
   end
 

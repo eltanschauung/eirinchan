@@ -7,6 +7,7 @@ defmodule EirinchanWeb.PageControllerTest do
   alias Eirinchan.ThreadWatcher
   alias Eirinchan.PostOwnership
   alias Eirinchan.Repo
+  alias Eirinchan.Settings
 
   setup do
     original_path = Application.get_env(:eirinchan, :instance_config_path)
@@ -502,6 +503,23 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ "Whalestickers"
     assert page =~ ":gojo:"
     assert page =~ "Let's bring /bnat/ to life with tranimals and babies!"
+    assert length(Regex.scan(~r/class="column formatting-sticker-column"/, page)) == 2
+  end
+
+  test "rules preserve numbered headings and use the configured contact email", %{conn: conn} do
+    moderator_fixture()
+
+    {:ok, _config} =
+      Settings.update_instance_config_from_json(
+        Jason.encode!(%{contact_email: "rules@instance.test"})
+      )
+
+    page = get(conn, "/rules") |> html_response(200)
+
+    assert page =~ "<p2>1. Obey US Law</p2>"
+    assert page =~ "<p2>2. Don't disrupt the funtimes</p2>"
+    assert page =~ ~s(href="mailto:rules@instance.test")
+    refute page =~ "aryanchad@hitler.rocks"
   end
 
   test "GET /formatting normalizes stored full html overrides into the shared shell", %{

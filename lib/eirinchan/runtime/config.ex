@@ -55,6 +55,7 @@ defmodule Eirinchan.Runtime.Config do
     locale: "en",
     timezone: "UTC",
     anonymous: "Anonymous",
+    contact_email: "example@example.com",
     global_message: false,
     footer: [
       "All trademarks, copyrights, comments, and images on this page are owned by and are the responsibility of their respective parties."
