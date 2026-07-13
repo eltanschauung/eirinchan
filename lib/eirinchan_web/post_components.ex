@@ -113,7 +113,7 @@ defmodule EirinchanWeb.PostComponents do
     <a id="bottom"></a>
     <footer>
       <p class="unimportant" style="margin-top:20px;text-align:center;">
-        - Tinyboard + vichan 5.2.2 + <a href="https://github.com/username/eirinchan-v1">Eirinchan</a> -<br />
+        - Tinyboard + vichan 5.2.2 + <a href="https://github.com/eltanschauung/eirinchan-v1">Eirinchan</a> -<br />
         Tinyboard Copyright &copy; 2010-2014 Tinyboard Development Group<br />
         vichan Copyright &copy; 2012-2026 vichan-devel<br />
       </p>

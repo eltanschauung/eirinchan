@@ -69,7 +69,7 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ ~s(id="options_handler")
     assert page =~ ~s(id="style-select")
     assert page =~ "Tinyboard + vichan 5.2.2 +"
-    assert page =~ ~s(href="https://github.com/username/eirinchan-v1")
+    assert page =~ ~s(href="https://github.com/eltanschauung/eirinchan-v1")
 
     expected_total_posts =
       Repo.one(
@@ -137,7 +137,7 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ ~s(name="eirinchan:active-page" content="news")
     assert page =~ ~s(name="eirinchan:board-name" content="")
     assert page =~ "Tinyboard + vichan 5.2.2 +"
-    assert page =~ ~s(href="https://github.com/username/eirinchan-v1")
+    assert page =~ ~s(href="https://github.com/eltanschauung/eirinchan-v1")
   end
 
   test "public pages select desktop and mobile boardlists independently", %{conn: conn} do
