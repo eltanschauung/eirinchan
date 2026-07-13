@@ -13,7 +13,8 @@ defmodule EirinchanWeb.Plugs.FetchBrowserTokenTest do
       |> put_req_cookie(@cookie_name, Eirinchan.BrowserIdentity.issue(token))
       |> FetchBrowserToken.call([])
 
-    assert conn.assigns.browser_token == token
+    assert conn.assigns.browser_token == Eirinchan.BrowserIdentity.reference(token)
+    assert conn.assigns.browser_identity_token == token
     assert conn.assigns.returning_browser_token
     refute Map.has_key?(conn.resp_cookies, @cookie_name)
   end
@@ -30,7 +31,8 @@ defmodule EirinchanWeb.Plugs.FetchBrowserTokenTest do
       |> Map.fetch!(@cookie_name)
 
     assert {:ok, %{token: token}} = Eirinchan.BrowserIdentity.verify(set_cookie.value)
-    assert token == conn.assigns.browser_token
+    assert Eirinchan.BrowserIdentity.reference(token) == conn.assigns.browser_token
+    assert conn.assigns.browser_identity_token == token
     assert set_cookie.path == "/"
     assert set_cookie.secure
     assert set_cookie.http_only
@@ -45,7 +47,8 @@ defmodule EirinchanWeb.Plugs.FetchBrowserTokenTest do
       |> put_req_cookie("browser_token", token)
       |> FetchBrowserToken.call([])
 
-    assert conn.assigns.browser_token == token
+    assert conn.assigns.browser_token == Eirinchan.BrowserIdentity.reference(token)
+    assert conn.assigns.browser_identity_token == token
     assert conn.assigns.returning_browser_token
 
     assert {:ok, %{token: ^token}} =
@@ -59,7 +62,8 @@ defmodule EirinchanWeb.Plugs.FetchBrowserTokenTest do
 
     conn = conn |> put_req_cookie(@cookie_name, token) |> FetchBrowserToken.call([])
 
-    assert conn.assigns.browser_token == token
+    assert conn.assigns.browser_token == Eirinchan.BrowserIdentity.reference(token)
+    assert conn.assigns.browser_identity_token == token
     assert conn.assigns.returning_browser_token
 
     assert {:ok, %{token: ^token}} =

@@ -6,7 +6,8 @@ defmodule Eirinchan.ThreadWatcherTest do
   alias Eirinchan.PostOwnership
 
   test "watch_thread upserts and watched_thread_ids batches" do
-    assert {:ok, _watch} = ThreadWatcher.watch_thread("token-1234567890123456", "bant", 10)
+    assert {:ok, watch} = ThreadWatcher.watch_thread("token-1234567890123456", "bant", 10)
+    assert watch.browser_token == Eirinchan.BrowserIdentity.reference("token-1234567890123456")
     assert {:ok, _watch} = ThreadWatcher.watch_thread("token-1234567890123456", "bant", 11)
     assert {:ok, _watch} = ThreadWatcher.watch_thread("token-1234567890123456", "bant", 10)
 
@@ -56,7 +57,10 @@ defmodule Eirinchan.ThreadWatcherTest do
     thread = thread_fixture(board, %{body: "OP"})
     owned_reply = reply_fixture(board, thread, %{body: "Owned reply"})
     _plain_reply = reply_fixture(board, thread, %{body: "plain unread"})
-    _citing_reply = reply_fixture(board, thread, %{body: ">>#{PublicIds.public_id(owned_reply)} cited"})
+
+    _citing_reply =
+      reply_fixture(board, thread, %{body: ">>#{PublicIds.public_id(owned_reply)} cited"})
+
     token = "token-you-1234567890"
 
     assert {:ok, _} = PostOwnership.record(token, owned_reply.id)

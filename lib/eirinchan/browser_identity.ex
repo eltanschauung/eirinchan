@@ -8,6 +8,8 @@ defmodule Eirinchan.BrowserIdentity do
   @encoded_token_size 32
   @encoded_signature_size 43
   @clock_skew_seconds 300
+  @reference_prefix "browser-ref:v1:"
+  @reference_size byte_size(@reference_prefix) + @encoded_signature_size
 
   def generate_token do
     @token_bytes
@@ -57,7 +59,34 @@ defmodule Eirinchan.BrowserIdentity do
 
   def valid_token?(_token), do: false
 
+  def reference(@reference_prefix <> digest = reference)
+      when byte_size(reference) == @reference_size and
+             byte_size(digest) == @encoded_signature_size do
+    case Base.url_decode64(digest, padding: false) do
+      {:ok, decoded} when byte_size(decoded) == 32 -> reference
+      _ -> hash_reference(reference)
+    end
+  end
+
+  def reference(token) when is_binary(token), do: hash_reference(token)
+
+  def reference?(@reference_prefix <> digest = reference)
+      when byte_size(reference) == @reference_size and
+             byte_size(digest) == @encoded_signature_size do
+    match?(
+      {:ok, decoded} when byte_size(decoded) == 32,
+      Base.url_decode64(digest, padding: false)
+    )
+  end
+
+  def reference?(_value), do: false
+
   defp signature(payload) do
     CredentialHash.fingerprint(payload, :browser_identity_cookie, @encoded_signature_size)
+  end
+
+  defp hash_reference(token) do
+    @reference_prefix <>
+      CredentialHash.fingerprint(token, :browser_identity_reference, @encoded_signature_size)
   end
 end

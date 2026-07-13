@@ -1,6 +1,7 @@
 defmodule Eirinchan.ThreadWatcher do
   import Ecto.Query, warn: false
 
+  alias Eirinchan.BrowserIdentity
   alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.PostOwnership.Ownership
   alias Eirinchan.Posts.Cite
@@ -10,6 +11,7 @@ defmodule Eirinchan.ThreadWatcher do
   alias Eirinchan.ThreadWatcher.Watch
 
   def list_watches(browser_token) when is_binary(browser_token) do
+    browser_token = BrowserIdentity.reference(browser_token)
     reconcile_moved_watches(browser_token)
 
     Watch
@@ -19,6 +21,7 @@ defmodule Eirinchan.ThreadWatcher do
   end
 
   def list_watch_summaries(browser_token) when is_binary(browser_token) do
+    browser_token = BrowserIdentity.reference(browser_token)
     purge_missing_watches(browser_token)
     watches = list_watches(browser_token)
 
@@ -103,6 +106,7 @@ defmodule Eirinchan.ThreadWatcher do
 
   def watched_thread_ids(browser_token, board_uri)
       when is_binary(browser_token) and is_binary(board_uri) do
+    browser_token = BrowserIdentity.reference(browser_token)
     reconcile_moved_watches(browser_token, board_uri)
 
     Watch
@@ -114,6 +118,7 @@ defmodule Eirinchan.ThreadWatcher do
 
   def watch_state_for_board(browser_token, board_uri)
       when is_binary(browser_token) and is_binary(board_uri) do
+    browser_token = BrowserIdentity.reference(browser_token)
     reconcile_moved_watches(browser_token, board_uri)
     purge_missing_watches(browser_token, board_uri)
 
@@ -149,6 +154,7 @@ defmodule Eirinchan.ThreadWatcher do
   end
 
   def watch_count(browser_token) when is_binary(browser_token) do
+    browser_token = BrowserIdentity.reference(browser_token)
     reconcile_moved_watches(browser_token)
     purge_missing_watches(browser_token)
 
@@ -160,6 +166,7 @@ defmodule Eirinchan.ThreadWatcher do
   end
 
   def watch_metrics(browser_token) when is_binary(browser_token) do
+    browser_token = BrowserIdentity.reference(browser_token)
     reconcile_moved_watches(browser_token)
     purge_missing_watches(browser_token)
     watches = list_watches(browser_token)
@@ -168,6 +175,7 @@ defmodule Eirinchan.ThreadWatcher do
       %{watcher_count: 0, watcher_unread_count: 0, watcher_you_count: 0}
     else
       thread_ids = Enum.map(watches, & &1.thread_id)
+
       watcher_unread_count =
         unread_counts(watches, thread_ids)
         |> Map.values()
@@ -188,6 +196,8 @@ defmodule Eirinchan.ThreadWatcher do
 
   def watched?(browser_token, board_uri, thread_id)
       when is_binary(browser_token) and is_binary(board_uri) and is_integer(thread_id) do
+    browser_token = BrowserIdentity.reference(browser_token)
+
     Repo.exists?(
       from watch in Watch,
         where:
@@ -198,6 +208,8 @@ defmodule Eirinchan.ThreadWatcher do
 
   def watch_thread(browser_token, board_uri, thread_id, attrs \\ %{})
       when is_binary(browser_token) and is_binary(board_uri) and is_integer(thread_id) do
+    browser_token = BrowserIdentity.reference(browser_token)
+
     attrs =
       attrs
       |> Map.new()
@@ -217,6 +229,8 @@ defmodule Eirinchan.ThreadWatcher do
 
   def unwatch_thread(browser_token, board_uri, thread_id)
       when is_binary(browser_token) and is_binary(board_uri) and is_integer(thread_id) do
+    browser_token = BrowserIdentity.reference(browser_token)
+
     {count, _} =
       Repo.delete_all(
         from watch in Watch,
@@ -229,6 +243,8 @@ defmodule Eirinchan.ThreadWatcher do
   end
 
   def clear_watches(browser_token) when is_binary(browser_token) do
+    browser_token = BrowserIdentity.reference(browser_token)
+
     {count, _} =
       Repo.delete_all(
         from watch in Watch,
@@ -240,6 +256,8 @@ defmodule Eirinchan.ThreadWatcher do
 
   def reconcile_moved_watches(browser_token, board_uri \\ nil)
       when is_binary(browser_token) and (is_binary(board_uri) or is_nil(board_uri)) do
+    browser_token = BrowserIdentity.reference(browser_token)
+
     moved_watch_rows(browser_token, board_uri)
     |> Enum.each(&reconcile_moved_watch/1)
 
@@ -248,11 +266,13 @@ defmodule Eirinchan.ThreadWatcher do
 
   def purge_missing_watches(browser_token, board_uri \\ nil)
       when is_binary(browser_token) and (is_binary(board_uri) or is_nil(board_uri)) do
+    browser_token = BrowserIdentity.reference(browser_token)
     thread_ids = from(post in Post, where: is_nil(post.thread_id), select: post.id)
 
     query =
       from watch in Watch,
-        where: watch.browser_token == ^browser_token and watch.thread_id not in subquery(thread_ids)
+        where:
+          watch.browser_token == ^browser_token and watch.thread_id not in subquery(thread_ids)
 
     query =
       if is_binary(board_uri),
@@ -264,6 +284,8 @@ defmodule Eirinchan.ThreadWatcher do
 
   def unwatch_stale_threads(browser_token, board_uri)
       when is_binary(browser_token) and is_binary(board_uri) do
+    browser_token = BrowserIdentity.reference(browser_token)
+
     thread_ids = from(post in Post, where: is_nil(post.thread_id), select: post.id)
 
     {count, _} =
@@ -280,6 +302,8 @@ defmodule Eirinchan.ThreadWatcher do
   def mark_seen(browser_token, board_uri, thread_id, last_seen_post_id)
       when is_binary(browser_token) and is_binary(board_uri) and is_integer(thread_id) and
              is_integer(last_seen_post_id) do
+    browser_token = BrowserIdentity.reference(browser_token)
+
     case Repo.get_by(Watch,
            browser_token: browser_token,
            board_uri: board_uri,
@@ -301,7 +325,11 @@ defmodule Eirinchan.ThreadWatcher do
       group_by: fragment("COALESCE(?, ?)", post.thread_id, post.id),
       select: {
         fragment("COALESCE(?, ?)", post.thread_id, post.id),
-        %{last_post_id: max(post.id), last_post_public_id: max(post.public_id), post_count: count(post.id)}
+        %{
+          last_post_id: max(post.id),
+          last_post_public_id: max(post.public_id),
+          post_count: count(post.id)
+        }
       }
     )
     |> Repo.all()
@@ -375,13 +403,16 @@ defmodule Eirinchan.ThreadWatcher do
         select: {fragment("COALESCE(?, ?)", post.thread_id, post.id), post.id, post.public_id}
       )
       |> Repo.all()
-      |> Enum.group_by(fn {thread_id, _post_id, _public_id} -> thread_id end, fn {_thread_id, post_id, public_id} ->
+      |> Enum.group_by(fn {thread_id, _post_id, _public_id} -> thread_id end, fn {_thread_id,
+                                                                                  post_id,
+                                                                                  public_id} ->
         {post_id, public_id}
       end)
 
     watches
     |> Enum.map(fn watch ->
       seen = watch.last_seen_post_id || watch.thread_id
+
       public_ids =
         posts
         |> Map.get(watch.thread_id, [])

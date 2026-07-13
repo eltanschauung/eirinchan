@@ -15,12 +15,12 @@ defmodule EirinchanWeb.Plugs.FetchBrowserToken do
     case browser_identity(conn.cookies) do
       {:current, token} ->
         conn
-        |> assign(:browser_token, token)
+        |> assign_identity(token)
         |> assign(:returning_browser_token, true)
 
       {:upgrade, token} ->
         conn
-        |> assign(:browser_token, token)
+        |> assign_identity(token)
         |> assign(:returning_browser_token, true)
         |> put_browser_cookie(BrowserIdentity.issue(token))
         |> delete_resp_cookie(@legacy_cookie_name, path: "/")
@@ -29,7 +29,7 @@ defmodule EirinchanWeb.Plugs.FetchBrowserToken do
         token = generate_token()
 
         conn
-        |> assign(:browser_token, token)
+        |> assign_identity(token)
         |> assign(:returning_browser_token, false)
         |> put_browser_cookie(BrowserIdentity.issue(token))
     end
@@ -62,6 +62,12 @@ defmodule EirinchanWeb.Plugs.FetchBrowserToken do
       secure: true,
       same_site: "Lax"
     )
+  end
+
+  defp assign_identity(conn, token) do
+    conn
+    |> assign(:browser_token, BrowserIdentity.reference(token))
+    |> assign(:browser_identity_token, token)
   end
 
   defp ensure_cookies(%Plug.Conn{cookies: %Plug.Conn.Unfetched{}} = conn), do: fetch_cookies(conn)

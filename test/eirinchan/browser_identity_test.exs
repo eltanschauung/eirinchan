@@ -21,4 +21,14 @@ defmodule Eirinchan.BrowserIdentityTest do
     assert :error =
              BrowserIdentity.verify(BrowserIdentity.issue(token, 1_700_001_000), 1_700_000_000)
   end
+
+  test "derives an idempotent, non-reversible storage reference" do
+    token = BrowserIdentity.generate_token()
+    reference = BrowserIdentity.reference(token)
+
+    assert BrowserIdentity.reference?(reference)
+    assert BrowserIdentity.reference(reference) == reference
+    refute String.contains?(reference, token)
+    refute BrowserIdentity.reference?(token)
+  end
 end
