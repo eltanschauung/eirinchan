@@ -5,6 +5,7 @@ defmodule EirinchanWeb.SearchController do
   alias Eirinchan.Antispam
   alias Eirinchan.Boards
   alias Eirinchan.Boards.BoardRecord
+  alias Eirinchan.CredentialHash
   alias Eirinchan.Posts
   alias Eirinchan.Runtime.Config
   alias Eirinchan.Settings
@@ -36,7 +37,15 @@ defmodule EirinchanWeb.SearchController do
         render_search(conn, query, board, boards, [], nil, config)
 
       public_search_rate_limited?(request, config) ->
-        render_search(conn, query, board, boards, [], "Wait a while before searching again, please.", config)
+        render_search(
+          conn,
+          query,
+          board,
+          boards,
+          [],
+          "Wait a while before searching again, please.",
+          config
+        )
 
       true ->
         _ = Antispam.log_search_query(query, request, board_id: board.id)
@@ -58,11 +67,15 @@ defmodule EirinchanWeb.SearchController do
   defp log_search_request("", _board, _request, _conn), do: :ok
 
   defp log_search_request(query, board, request, conn) do
+    client_id =
+      request.remote_ip
+      |> RequestMeta.ip_to_string()
+      |> CredentialHash.fingerprint(:search_log_ip)
+
     Logger.info(
       "search.request " <>
-        "remote_ip=#{RequestMeta.ip_to_string(request.remote_ip)} " <>
+        "client_id=#{client_id} " <>
         "board=#{if(board, do: board.uri, else: "-")} " <>
-        "query=#{inspect(query)} " <>
         "query_length=#{String.length(query)} " <>
         "request_path=#{conn.request_path}"
     )
@@ -167,8 +180,11 @@ defmodule EirinchanWeb.SearchController do
   defp search_limit(config), do: max(Map.get(config, :search_limit, 100), 1)
 
   defp public_search_rate_limited?(request, config) do
-    {per_ip_count, per_ip_minutes} = search_limit_tuple(config, :search_queries_per_minutes, 15, 2)
-    {global_count, global_minutes} = search_limit_tuple(config, :search_queries_per_minutes_all, 50, 2)
+    {per_ip_count, per_ip_minutes} =
+      search_limit_tuple(config, :search_queries_per_minutes, 15, 2)
+
+    {global_count, global_minutes} =
+      search_limit_tuple(config, :search_queries_per_minutes_all, 50, 2)
 
     Antispam.public_search_rate_limited?(
       request,

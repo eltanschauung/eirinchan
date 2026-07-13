@@ -1,15 +1,27 @@
 defmodule EirinchanWeb.SearchControllerTest do
   use EirinchanWeb.ConnCase, async: false
   import Ecto.Query, only: [from: 2]
+  import ExUnit.CaptureLog
 
   alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Repo
 
+  setup do
+    previous_level = Logger.level()
+    Logger.configure(level: :info)
+    on_exit(fn -> Logger.configure(level: previous_level) end)
+    :ok
+  end
+
   test "public search returns matching posts only for the selected board", %{conn: conn} do
-    board = board_fixture(%{uri: "tea#{System.unique_integer([:positive, :monotonic])}", title: "Tea"})
+    board =
+      board_fixture(%{uri: "tea#{System.unique_integer([:positive, :monotonic])}", title: "Tea"})
 
     other_board =
-      board_fixture(%{uri: "meta#{System.unique_integer([:positive, :monotonic])}", title: "Meta"})
+      board_fixture(%{
+        uri: "meta#{System.unique_integer([:positive, :monotonic])}",
+        title: "Meta"
+      })
 
     {:ok, thread, _meta} =
       Eirinchan.Posts.create_post(
@@ -52,12 +64,19 @@ defmodule EirinchanWeb.SearchControllerTest do
 
     conn = %{build_conn() | remote_ip: {198, 51, 100, 99}}
 
-    first_page =
-      conn
-      |> get("/search.php", %{"search" => "tripcode", "board" => board.uri})
-      |> html_response(200)
+    {first_page, log} =
+      with_log(fn ->
+        conn
+        |> get("/search.php", %{"search" => "tripcode", "board" => board.uri})
+        |> html_response(200)
+      end)
 
     assert first_page =~ "(No results.)"
+    assert log =~ "search.request"
+    assert log =~ "client_id="
+    assert log =~ "query_length=8"
+    refute log =~ "tripcode"
+    refute log =~ "198.51.100.99"
 
     assert Enum.any?(
              Eirinchan.Antispam.list_search_queries("198.51.100.99", repo: Eirinchan.Repo),
@@ -88,7 +107,11 @@ defmodule EirinchanWeb.SearchControllerTest do
   end
 
   test "public search supports id, thread, subject, and name filters", %{conn: conn} do
-    board = board_fixture(%{uri: "search#{System.unique_integer([:positive, :monotonic])}", title: "Search"})
+    board =
+      board_fixture(%{
+        uri: "search#{System.unique_integer([:positive, :monotonic])}",
+        title: "Search"
+      })
 
     {:ok, thread, _meta} =
       Eirinchan.Posts.create_post(
@@ -117,10 +140,16 @@ defmodule EirinchanWeb.SearchControllerTest do
         request: %{referer: "http://example.test/#{board.uri}/index.html"}
       )
 
-    assert get(conn, "/search.php", %{"search" => "id:#{PublicIds.public_id(reply)}", "board" => board.uri})
+    assert get(conn, "/search.php", %{
+             "search" => "id:#{PublicIds.public_id(reply)}",
+             "board" => board.uri
+           })
            |> html_response(200) =~ "reply body"
 
-    assert get(conn, "/search.php", %{"search" => "thread:#{PublicIds.public_id(thread)}", "board" => board.uri})
+    assert get(conn, "/search.php", %{
+             "search" => "thread:#{PublicIds.public_id(thread)}",
+             "board" => board.uri
+           })
            |> html_response(200) =~ "reply body"
 
     assert get(conn, "/search.php", %{"search" => "subject:\"Tea topic\"", "board" => board.uri})
@@ -131,7 +160,11 @@ defmodule EirinchanWeb.SearchControllerTest do
   end
 
   test "public search renders thread-aware result objects for replies", %{conn: conn} do
-    board = board_fixture(%{uri: "render#{System.unique_integer([:positive, :monotonic])}", title: "Render"})
+    board =
+      board_fixture(%{
+        uri: "render#{System.unique_integer([:positive, :monotonic])}",
+        title: "Render"
+      })
 
     {:ok, thread, _meta} =
       Eirinchan.Posts.create_post(
@@ -170,7 +203,11 @@ defmodule EirinchanWeb.SearchControllerTest do
   end
 
   test "public search renders visible timestamps using the browser timezone cookie", %{conn: conn} do
-    board = board_fixture(%{uri: "searchzone#{System.unique_integer([:positive, :monotonic])}", title: "Search Zone"})
+    board =
+      board_fixture(%{
+        uri: "searchzone#{System.unique_integer([:positive, :monotonic])}",
+        title: "Search Zone"
+      })
 
     {:ok, thread, _meta} =
       Eirinchan.Posts.create_post(
@@ -187,7 +224,9 @@ defmodule EirinchanWeb.SearchControllerTest do
 
     inserted_at = ~U[2026-03-13 12:00:00Z]
 
-    Repo.update_all(from(post in Eirinchan.Posts.Post, where: post.id == ^thread.id), set: [inserted_at: inserted_at])
+    Repo.update_all(from(post in Eirinchan.Posts.Post, where: post.id == ^thread.id),
+      set: [inserted_at: inserted_at]
+    )
 
     page =
       conn
@@ -200,7 +239,11 @@ defmodule EirinchanWeb.SearchControllerTest do
   end
 
   test "public search supports wildcard and phrase search semantics", %{conn: conn} do
-    board = board_fixture(%{uri: "phrase#{System.unique_integer([:positive, :monotonic])}", title: "Phrase"})
+    board =
+      board_fixture(%{
+        uri: "phrase#{System.unique_integer([:positive, :monotonic])}",
+        title: "Phrase"
+      })
 
     {:ok, _thread, _meta} =
       Eirinchan.Posts.create_post(
@@ -258,10 +301,16 @@ defmodule EirinchanWeb.SearchControllerTest do
 
   test "public search respects board allowlists and denylists", %{conn: conn} do
     allowed_board =
-      board_fixture(%{uri: "allow#{System.unique_integer([:positive, :monotonic])}", title: "Allow"})
+      board_fixture(%{
+        uri: "allow#{System.unique_integer([:positive, :monotonic])}",
+        title: "Allow"
+      })
 
     blocked_board =
-      board_fixture(%{uri: "block#{System.unique_integer([:positive, :monotonic])}", title: "Block"})
+      board_fixture(%{
+        uri: "block#{System.unique_integer([:positive, :monotonic])}",
+        title: "Block"
+      })
 
     {:ok, _thread, _meta} =
       Eirinchan.Posts.create_post(
