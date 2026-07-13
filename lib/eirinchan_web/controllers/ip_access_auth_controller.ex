@@ -93,9 +93,57 @@ defmodule EirinchanWeb.IpAccessAuthController do
 
   defp redirect_url(conn) do
     case List.first(get_req_header(conn, "referer")) do
-      value when is_binary(value) and value != "" -> value
+      value when is_binary(value) and value != "" -> safe_referer_path(conn, value)
       _ -> "/"
     end
+  end
+
+  defp safe_referer_path(conn, value) do
+    uri = URI.parse(value)
+
+    cond do
+      local_path?(uri, value) ->
+        relative_uri(uri)
+
+      same_origin?(conn, uri) ->
+        relative_uri(uri)
+
+      true ->
+        "/"
+    end
+  rescue
+    _ -> "/"
+  end
+
+  defp local_path?(%URI{scheme: nil, host: nil, userinfo: nil}, value) do
+    String.starts_with?(value, "/") and
+      not String.starts_with?(value, "//") and
+      not String.contains?(value, ["\\", "\r", "\n", "\0"])
+  end
+
+  defp local_path?(_uri, _value), do: false
+
+  defp same_origin?(conn, %URI{scheme: scheme, host: host, userinfo: nil} = uri)
+       when scheme in ["http", "https"] and is_binary(host) do
+    String.downcase(host) == String.downcase(conn.host) and
+      scheme == Atom.to_string(conn.scheme) and
+      effective_port(uri) == effective_port(conn.scheme, conn.port)
+  end
+
+  defp same_origin?(_conn, _uri), do: false
+
+  defp effective_port(%URI{scheme: scheme, port: nil}), do: default_port(scheme)
+  defp effective_port(%URI{port: port}), do: port
+  defp effective_port(scheme, port) when port in [80, 443], do: default_port(Atom.to_string(scheme))
+  defp effective_port(_scheme, port), do: port
+
+  defp default_port("http"), do: 80
+  defp default_port("https"), do: 443
+  defp default_port(_scheme), do: nil
+
+  defp relative_uri(uri) do
+    path = if is_binary(uri.path) and String.starts_with?(uri.path, "/"), do: uri.path, else: "/"
+    URI.to_string(%URI{path: path, query: uri.query, fragment: uri.fragment})
   end
 
   defp theme_stylesheet(config, conn) do

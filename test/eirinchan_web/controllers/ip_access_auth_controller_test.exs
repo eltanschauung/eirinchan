@@ -76,4 +76,43 @@ defmodule EirinchanWeb.IpAccessAuthControllerTest do
     conn = post(conn, "/auth", %{"password" => "wrong"})
     assert html_response(conn, 422) =~ "Invalid password."
   end
+
+  test "successful authentication normalizes same-origin referrers to local paths", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("referer", "http://www.example.com/bant/res/123?mode=compact#456")
+      |> post("/auth", %{"password" => configured_password("door")})
+
+    body = html_response(conn, 200)
+    assert body =~ ~s(data-redirect-url="/bant/res/123?mode=compact#456")
+    assert body =~ ~s(href="/bant/res/123?mode=compact#456")
+  end
+
+  test "successful authentication rejects unsafe referrers", %{conn: conn} do
+    for referer <- [
+          "https://attacker.example/phish",
+          "//attacker.example/phish",
+          "/\\attacker.example/phish",
+          "http://user@www.example.com/phish"
+        ] do
+      response =
+        conn
+        |> recycle()
+        |> put_req_header("referer", referer)
+        |> post("/auth", %{"password" => configured_password("door")})
+        |> html_response(200)
+
+      assert response =~ ~s(data-redirect-url="/")
+      refute response =~ "attacker.example"
+    end
+  end
+
+  defp configured_password(password) do
+    {:ok, _config} =
+      Settings.update_instance_config_from_json(
+        Jason.encode!(%{ip_access_passwords: [password]})
+      )
+
+    password
+  end
 end
