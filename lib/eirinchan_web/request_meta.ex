@@ -2,6 +2,7 @@ defmodule EirinchanWeb.RequestMeta do
   @moduledoc false
 
   alias Eirinchan.IpMatching
+  alias Eirinchan.BrowserIdentity
   import Plug.Conn
 
   @default_config %{
@@ -19,6 +20,23 @@ defmodule EirinchanWeb.RequestMeta do
       forwarded_client_ip(conn, config) || remote_ip
     else
       remote_ip
+    end
+  end
+
+  def public_identity(conn) do
+    %{
+      remote_ip: effective_remote_ip(conn),
+      browser_ref: browser_ref(conn)
+    }
+  end
+
+  def browser_ref(conn) do
+    case conn.assigns[:browser_token] do
+      reference when is_binary(reference) ->
+        if BrowserIdentity.reference?(reference), do: reference
+
+      _ ->
+        nil
     end
   end
 

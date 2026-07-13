@@ -12,7 +12,7 @@ defmodule EirinchanWeb.FeedbackController do
   @feedback_daily_window_seconds 24 * 60 * 60
 
   def create(conn, params) do
-    request = %{remote_ip: RequestMeta.effective_remote_ip(conn)}
+    request = RequestMeta.public_identity(conn)
 
     config =
       Settings.current_instance_config()

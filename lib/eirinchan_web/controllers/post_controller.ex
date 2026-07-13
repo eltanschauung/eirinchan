@@ -42,11 +42,12 @@ defmodule EirinchanWeb.PostController do
     board = conn.assigns.current_board
     config = conn.assigns.current_board_config
 
-    request = %{referer: List.first(get_req_header(conn, "referer"))}
+    request =
+      RequestMeta.public_identity(conn)
+      |> Map.put(:referer, List.first(get_req_header(conn, "referer")))
 
     request =
       Map.merge(request, %{
-        remote_ip: RequestMeta.effective_remote_ip(conn),
         forwarded_for: RequestMeta.forwarded_for(conn),
         moderator: conn.assigns[:current_moderator]
       })

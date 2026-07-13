@@ -25,7 +25,7 @@ defmodule EirinchanWeb.SearchController do
     boards = searchable_boards(instance_overrides)
     board = board_from_param(params["board"], boards)
     config = search_config(board, instance_overrides)
-    request = %{remote_ip: RequestMeta.effective_remote_ip(conn)}
+    request = RequestMeta.public_identity(conn)
 
     log_search_request(query, board, request, conn)
 

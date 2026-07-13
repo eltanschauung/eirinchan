@@ -10,6 +10,7 @@ defmodule Eirinchan.BrowserIdentity do
   @clock_skew_seconds 300
   @reference_prefix "browser-ref:v1:"
   @reference_size byte_size(@reference_prefix) + @encoded_signature_size
+  @client_prefix "client-ref:v1:"
 
   def generate_token do
     @token_bytes
@@ -80,6 +81,16 @@ defmodule Eirinchan.BrowserIdentity do
   end
 
   def reference?(_value), do: false
+
+  def client_reference(ip_subnet, browser_ref)
+      when is_binary(ip_subnet) and is_binary(browser_ref) do
+    @client_prefix <>
+      CredentialHash.fingerprint(
+        ip_subnet <> <<0>> <> reference(browser_ref),
+        :browser_identity_client,
+        @encoded_signature_size
+      )
+  end
 
   defp signature(payload) do
     CredentialHash.fingerprint(payload, :browser_identity_cookie, @encoded_signature_size)

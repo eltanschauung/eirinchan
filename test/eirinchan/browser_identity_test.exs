@@ -31,4 +31,14 @@ defmodule Eirinchan.BrowserIdentityTest do
     refute String.contains?(reference, token)
     refute BrowserIdentity.reference?(token)
   end
+
+  test "derives a non-reversible IP and browser pair key" do
+    reference = BrowserIdentity.reference("browser")
+    client_key = BrowserIdentity.client_reference("198.51.100.44", reference)
+
+    refute String.contains?(client_key, "198.51.100.44")
+    refute String.contains?(client_key, reference)
+    assert client_key == BrowserIdentity.client_reference("198.51.100.44", reference)
+    refute client_key == BrowserIdentity.client_reference("198.51.100.45", reference)
+  end
 end

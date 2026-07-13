@@ -7,12 +7,12 @@ defmodule Eirinchan.Antispam do
 
   alias Eirinchan.Antispam.{FloodEntry, SearchQuery}
   alias Eirinchan.Boards.BoardRecord
+  alias Eirinchan.BrowserIdentity
   alias Eirinchan.Moderation.ModUser
   alias Eirinchan.Repo
 
   def check_post(%BoardRecord{} = board, attrs, request, config, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
-    ip_subnet = request_ip(request)
     now = DateTime.utc_now()
     body = normalize_query(Map.get(attrs, "body")) || ""
     op? = is_nil(blank_to_nil(Map.get(attrs, "thread")))
@@ -28,26 +28,33 @@ defmodule Eirinchan.Antispam do
         {:error, :toomanycross}
 
       true ->
+        dimensions = request_dimensions(request)
+
         post =
           %{
             board_id: board.id,
-            ip_subnet: ip_subnet,
             body: body,
             body_hash: body_hash(attrs),
             op?: op?
           }
+          |> Map.merge(dimensions)
 
-        evaluate_filters(repo, board, post, config, now)
+        with :ok <- evaluate_dimension_limits(repo, post, config, now) do
+          evaluate_filters(repo, board, post, config, now)
+        end
     end
   end
 
   def log_post(%BoardRecord{} = board, attrs, request, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
+    dimensions = request_dimensions(request)
 
     %FloodEntry{}
     |> FloodEntry.changeset(%{
       board_id: board.id,
-      ip_subnet: request_ip(request),
+      ip_subnet: dimensions.ip_subnet,
+      browser_ref: dimensions.browser_ref,
+      client_key: dimensions.client_key,
       body_hash: body_hash(attrs)
     })
     |> repo.insert()
@@ -60,7 +67,11 @@ defmodule Eirinchan.Antispam do
     if moderated_request?(request) do
       :ok
     else
-      evaluate_filters(repo, board, public_action_entry(action, attrs, request), config, now)
+      entry = public_action_entry(action, attrs, request)
+
+      with :ok <- evaluate_dimension_limits(repo, entry, config, now) do
+        evaluate_filters(repo, board, entry, config, now)
+      end
     end
   end
 
@@ -72,6 +83,8 @@ defmodule Eirinchan.Antispam do
     |> FloodEntry.changeset(%{
       board_id: board.id,
       ip_subnet: entry.ip_subnet,
+      browser_ref: entry.browser_ref,
+      client_key: entry.client_key,
       body_hash: entry.body_hash
     })
     |> repo.insert()
@@ -80,11 +93,14 @@ defmodule Eirinchan.Antispam do
   def log_search_query(query, request, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
     board_id = Keyword.get(opts, :board_id)
+    dimensions = request_dimensions(request)
 
     %SearchQuery{}
     |> SearchQuery.changeset(%{
       board_id: board_id,
-      ip_subnet: request_ip(request),
+      ip_subnet: dimensions.ip_subnet,
+      browser_ref: dimensions.browser_ref,
+      client_key: dimensions.client_key,
       query: normalize_query(query)
     })
     |> repo.insert()
@@ -92,64 +108,105 @@ defmodule Eirinchan.Antispam do
 
   def public_search_rate_limited?(request, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
-    ip_subnet = request_ip(request)
+    dimensions = request_dimensions(request)
     query = Keyword.get(opts, :query) |> normalize_query()
     per_ip_count = Keyword.get(opts, :per_ip_count, 15)
     per_ip_window_seconds = Keyword.get(opts, :per_ip_window_seconds, 120)
+    per_browser_count = Keyword.get(opts, :per_browser_count, per_ip_count)
+
+    per_browser_window_seconds =
+      Keyword.get(opts, :per_browser_window_seconds, per_ip_window_seconds)
+
+    per_client_count = Keyword.get(opts, :per_client_count, per_ip_count)
+
+    per_client_window_seconds =
+      Keyword.get(opts, :per_client_window_seconds, per_ip_window_seconds)
+
     global_count = Keyword.get(opts, :global_count, 50)
     global_window_seconds = Keyword.get(opts, :global_window_seconds, 120)
+    base_query = maybe_query_by_query(SearchQuery, query)
 
-    per_ip_limited? =
-      if is_nil(ip_subnet) or per_ip_count <= 0 do
-        false
-      else
-        cutoff = DateTime.add(DateTime.utc_now(), -per_ip_window_seconds, :second)
-
-        SearchQuery
-        |> maybe_query_by_query(query)
-        |> query_by_ip(ip_subnet)
-        |> query_since(cutoff)
-        |> repo.aggregate(:count, :id)
-        |> Kernel.>=(per_ip_count)
-      end
-
-    global_limited? =
-      if global_count <= 0 do
-        false
-      else
-        cutoff = DateTime.add(DateTime.utc_now(), -global_window_seconds, :second)
-
-        SearchQuery
-        |> maybe_query_by_query(query)
-        |> query_since(cutoff)
-        |> repo.aggregate(:count, :id)
-        |> Kernel.>=(global_count)
-      end
-
-    per_ip_limited? or global_limited?
+    search_dimension_limited?(
+      repo,
+      base_query,
+      :ip_subnet,
+      dimensions.ip_subnet,
+      per_ip_count,
+      per_ip_window_seconds
+    ) or
+      search_dimension_limited?(
+        repo,
+        base_query,
+        :browser_ref,
+        dimensions.browser_ref,
+        per_browser_count,
+        per_browser_window_seconds
+      ) or
+      search_dimension_limited?(
+        repo,
+        base_query,
+        :client_key,
+        dimensions.client_key,
+        per_client_count,
+        per_client_window_seconds
+      ) or
+      search_dimension_limited?(
+        repo,
+        base_query,
+        nil,
+        :global,
+        global_count,
+        global_window_seconds
+      )
   end
 
   def search_rate_limited?(query, request, config, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
     board_id = Keyword.get(opts, :board_id)
-    ip_subnet = request_ip(request)
+    dimensions = request_dimensions(request)
     normalized_query = normalize_query(query)
 
-    per_ip_search_rate_limited?(
-      repo,
-      normalized_query,
-      ip_subnet,
-      board_id,
-      config.search_query_limit_window,
-      config.search_query_limit_count
-    ) or
-      global_search_rate_limited?(
+    if is_nil(normalized_query) do
+      false
+    else
+      base_query =
+        SearchQuery
+        |> query_by_query(normalized_query)
+        |> maybe_scope_search_query(board_id)
+
+      search_dimension_limited?(
         repo,
-        normalized_query,
-        board_id,
-        config.search_query_global_limit_window,
-        config.search_query_global_limit_count
-      )
+        base_query,
+        :ip_subnet,
+        dimensions.ip_subnet,
+        config.search_query_limit_count,
+        config.search_query_limit_window
+      ) or
+        search_dimension_limited?(
+          repo,
+          base_query,
+          :browser_ref,
+          dimensions.browser_ref,
+          config.search_query_limit_count,
+          config.search_query_limit_window
+        ) or
+        search_dimension_limited?(
+          repo,
+          base_query,
+          :client_key,
+          dimensions.client_key,
+          config.search_query_limit_count,
+          config.search_query_limit_window
+        ) or
+        search_dimension_limited?(
+          repo,
+          base_query,
+          nil,
+          :global,
+          config.search_query_global_limit_count,
+          config.search_query_global_limit_window
+        )
+    end
   end
 
   def list_flood_entries(ip_subnet, opts \\ []) do
@@ -186,37 +243,22 @@ defmodule Eirinchan.Antispam do
     flood_count + search_count
   end
 
-  defp per_ip_search_rate_limited?(_repo, _query, nil, _board_id, _window, _count), do: false
-  defp per_ip_search_rate_limited?(_repo, nil, _ip_subnet, _board_id, _window, _count), do: false
+  defp search_dimension_limited?(_repo, _queryable, _field, nil, _count, _window), do: false
 
-  defp per_ip_search_rate_limited?(_repo, _query, _ip_subnet, _board_id, _window, count)
-       when count <= 0,
+  defp search_dimension_limited?(_repo, _queryable, _field, _value, count, _window)
+       when not is_integer(count) or count <= 0,
        do: false
 
-  defp per_ip_search_rate_limited?(repo, query, ip_subnet, board_id, window, count) do
+  defp search_dimension_limited?(_repo, _queryable, _field, _value, _count, window)
+       when not is_integer(window) or window <= 0,
+       do: false
+
+  defp search_dimension_limited?(repo, queryable, field_name, value, count, window) do
     cutoff = DateTime.add(DateTime.utc_now(), -window, :second)
 
-    SearchQuery
-    |> query_by_query(query)
-    |> query_by_ip(ip_subnet)
+    queryable
+    |> maybe_query_by_dimension(field_name, value)
     |> query_since(cutoff)
-    |> maybe_scope_search_query(board_id)
-    |> repo.aggregate(:count, :id)
-    |> Kernel.>=(count)
-  end
-
-  defp global_search_rate_limited?(_repo, nil, _board_id, _window, _count), do: false
-
-  defp global_search_rate_limited?(_repo, _query, _board_id, _window, count) when count <= 0,
-    do: false
-
-  defp global_search_rate_limited?(repo, query, board_id, window, count) do
-    cutoff = DateTime.add(DateTime.utc_now(), -window, :second)
-
-    SearchQuery
-    |> query_by_query(query)
-    |> query_since(cutoff)
-    |> maybe_scope_search_query(board_id)
     |> repo.aggregate(:count, :id)
     |> Kernel.>=(count)
   end
@@ -228,8 +270,10 @@ defmodule Eirinchan.Antispam do
   defp maybe_query_by_query(queryable, nil), do: queryable
   defp maybe_query_by_query(queryable, query), do: query_by_query(queryable, query)
 
-  defp query_by_ip(queryable, ip_subnet) do
-    from(entry in queryable, where: entry.ip_subnet == ^ip_subnet)
+  defp maybe_query_by_dimension(queryable, nil, _value), do: queryable
+
+  defp maybe_query_by_dimension(queryable, field_name, value) do
+    from(entry in queryable, where: field(entry, ^field_name) == ^value)
   end
 
   defp query_since(queryable, cutoff) do
@@ -252,6 +296,60 @@ defmodule Eirinchan.Antispam do
         {:cont, :ok}
       end
     end)
+  end
+
+  defp evaluate_dimension_limits(repo, post, config, now) do
+    base_window = non_negative_integer(Map.get(config, :flood_time), 0)
+
+    limits = [
+      {:ip_subnet, post.ip_subnet, Map.get(config, :flood_ip_count, 1), base_window},
+      {
+        :browser_ref,
+        post.browser_ref,
+        Map.get(config, :flood_browser_count, 1),
+        Map.get(config, :flood_time_browser) || base_window
+      },
+      {
+        :client_key,
+        post.client_key,
+        Map.get(config, :flood_client_count, 1),
+        Map.get(config, :flood_time_client) || base_window
+      },
+      {
+        nil,
+        :global,
+        Map.get(config, :flood_global_count, 300),
+        Map.get(config, :flood_global_window, 60)
+      }
+    ]
+
+    if Enum.any?(limits, fn {field_name, value, count, window} ->
+         flood_dimension_limited?(repo, field_name, value, count, window, now)
+       end) do
+      {:error, :antispam}
+    else
+      :ok
+    end
+  end
+
+  defp flood_dimension_limited?(_repo, _field, nil, _count, _window, _now), do: false
+
+  defp flood_dimension_limited?(_repo, _field, _value, count, _window, _now)
+       when not is_integer(count) or count <= 0,
+       do: false
+
+  defp flood_dimension_limited?(_repo, _field, _value, _count, window, _now)
+       when not is_integer(window) or window <= 0,
+       do: false
+
+  defp flood_dimension_limited?(repo, field_name, value, count, window, now) do
+    cutoff = DateTime.add(now, -window, :second)
+
+    FloodEntry
+    |> maybe_query_by_dimension(field_name, value)
+    |> query_since(cutoff)
+    |> repo.aggregate(:count, :id)
+    |> Kernel.>=(count)
   end
 
   defp reject_filter_matches?(repo, board, post, filter, config, now) do
@@ -303,6 +401,8 @@ defmodule Eirinchan.Antispam do
 
     from(entry in FloodEntry, where: entry.board_id == ^board_id and entry.inserted_at >= ^cutoff)
     |> maybe_match_ip(post, fields)
+    |> maybe_match_browser(post, fields)
+    |> maybe_match_client(post, fields)
     |> maybe_match_body(post, fields)
     |> repo.aggregate(:count, :id)
   end
@@ -323,6 +423,28 @@ defmodule Eirinchan.Antispam do
       case post.body_hash do
         nil -> from(entry in queryable, where: false)
         body_hash -> from(entry in queryable, where: entry.body_hash == ^body_hash)
+      end
+    else
+      queryable
+    end
+  end
+
+  defp maybe_match_browser(queryable, post, fields) do
+    if "browser" in fields do
+      case post.browser_ref do
+        nil -> from(entry in queryable, where: false)
+        browser_ref -> from(entry in queryable, where: entry.browser_ref == ^browser_ref)
+      end
+    else
+      queryable
+    end
+  end
+
+  defp maybe_match_client(queryable, post, fields) do
+    if "client" in fields do
+      case post.client_key do
+        nil -> from(entry in queryable, where: false)
+        client_key -> from(entry in queryable, where: entry.client_key == ^client_key)
       end
     else
       queryable
@@ -461,11 +583,11 @@ defmodule Eirinchan.Antispam do
     body = public_action_body(action, attrs)
 
     %{
-      ip_subnet: request_ip(request),
       body: body,
       body_hash: body_hash(%{"body" => body}),
       op?: false
     }
+    |> Map.merge(request_dimensions(request))
   end
 
   defp public_action_body(action, attrs) do
@@ -511,6 +633,28 @@ defmodule Eirinchan.Antispam do
     |> Map.get(:remote_ip, Map.get(request, "remote_ip"))
     |> normalize_ip()
   end
+
+  defp request_dimensions(request) do
+    ip_subnet = request_ip(request)
+
+    browser_ref =
+      request
+      |> Map.get(:browser_ref, Map.get(request, "browser_ref"))
+      |> case do
+        value when is_binary(value) and value != "" -> BrowserIdentity.reference(value)
+        _ -> nil
+      end
+
+    client_key =
+      if is_binary(ip_subnet) and is_binary(browser_ref) do
+        BrowserIdentity.client_reference(ip_subnet, browser_ref)
+      end
+
+    %{ip_subnet: ip_subnet, browser_ref: browser_ref, client_key: client_key}
+  end
+
+  defp non_negative_integer(value, _default) when is_integer(value) and value >= 0, do: value
+  defp non_negative_integer(_value, default), do: default
 
   defp normalize_query(nil), do: nil
 
