@@ -73,10 +73,11 @@ sudo install -m 0644 -o root -g root \
 sudo install -m 0644 -o root -g root \
   "$REPOSITORY/ops/logrotate/bantculture-phoenix" \
   /etc/logrotate.d/bantculture-phoenix
-sudo install -m 0644 -o root -g root \
-  "$REPOSITORY/ops/tmpfiles.d/eirinchan-logs.conf" \
-  /etc/tmpfiles.d/eirinchan-logs.conf
-sudo systemd-tmpfiles --create /etc/tmpfiles.d/eirinchan-logs.conf
+sudo rm -f -- /etc/tmpfiles.d/eirinchan-logs.conf
+sudo install -d -m 0700 -o root -g root /home/telemazer/logs
+sudo touch /home/telemazer/logs/bantculture-phoenix.log
+sudo chown root:root /home/telemazer/logs/bantculture-phoenix.log
+sudo chmod 0600 /home/telemazer/logs/bantculture-phoenix.log
 
 sudo ln -s -- "$TARGET" /opt/eirinchan/current.new
 sudo mv -Tf -- /opt/eirinchan/current.new "$CURRENT_LINK"
