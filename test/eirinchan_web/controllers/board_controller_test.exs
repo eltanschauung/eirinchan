@@ -1,6 +1,8 @@
 defmodule EirinchanWeb.BoardControllerTest do
   use EirinchanWeb.ConnCase, async: false
 
+  alias Eirinchan.BrowserAbuse
+
   test "board index returns an etag and honors if-none-match", %{conn: conn} do
     board = board_fixture()
     _thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
@@ -42,17 +44,22 @@ defmodule EirinchanWeb.BoardControllerTest do
     assert page =~ ~s(name="report_post_id")
 
     {threads_pos, _} = :binary.match(page, ~s(<div id="board-threads">))
-    {form_pos, _} = :binary.match(page, ~s(<form name="postcontrols" action="/post.php" method="post">))
-    {pages_pos, _} = :binary.match(page, ~s(<div id="board-pages-target" class="board-bottom-nav">))
+
+    {form_pos, _} =
+      :binary.match(page, ~s(<form name="postcontrols" action="/post.php" method="post">))
+
+    {pages_pos, _} =
+      :binary.match(page, ~s(<div id="board-pages-target" class="board-bottom-nav">))
 
     assert threads_pos < form_pos
     assert form_pos < pages_pos
     assert length(Regex.scan(~r/id="bottom"/, page)) == 1
   end
 
-  test "board index derives watcher paths client-side instead of embedding per-thread watch urls", %{
-    conn: conn
-  } do
+  test "board index derives watcher paths client-side instead of embedding per-thread watch urls",
+       %{
+         conn: conn
+       } do
     board = board_fixture()
     _thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
 
@@ -62,14 +69,43 @@ defmodule EirinchanWeb.BoardControllerTest do
     refute page =~ "data-unwatch-url="
   end
 
-  test "board index derives post menu targets client-side instead of embedding per-post targets", %{
-    conn: conn
-  } do
+  test "board index derives post menu targets client-side instead of embedding per-post targets",
+       %{
+         conn: conn
+       } do
     board = board_fixture()
     _thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
 
     page = get(conn, "/#{board.uri}") |> html_response(200)
 
     refute page =~ "data-post-target="
+  end
+
+  test "board forms reveal an available captcha for a signaled browser", %{conn: conn} do
+    board =
+      board_fixture(%{
+        config_overrides: %{
+          captcha: %{
+            enabled: true,
+            provider: "native",
+            expected_response: "ok",
+            challenge: "Risk check",
+            mode: "none"
+          }
+        }
+      })
+
+    _thread = thread_fixture(board, %{body: "Thread body"})
+    first_conn = get(conn, "/#{board.uri}")
+    refute first_conn.resp_body =~ ~s(name="captcha")
+
+    assert {:ok, _signal} =
+             BrowserAbuse.record(%{browser_ref: first_conn.assigns.browser_token}, :rate_limit,
+               repo: Eirinchan.Repo
+             )
+
+    challenged_page = first_conn |> recycle() |> get("/#{board.uri}") |> html_response(200)
+    assert challenged_page =~ "Risk check"
+    assert challenged_page =~ ~s(name="captcha")
   end
 end

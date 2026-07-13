@@ -112,7 +112,7 @@
         <textarea name="body" id="body" rows="5" cols="35" data-post-body></textarea>
       </td>
     </tr>
-    <tr :if={captcha_enabled?(@config) && @config.captcha.provider == "native"} class="captcha">
+    <tr :if={captcha_enabled?(@config, @browser_challenge_required?) && @config.captcha.provider == "native"} class="captcha">
       <th>Verification</th>
       <td>
         <label data-captcha-lazy>
@@ -121,13 +121,13 @@
         </label>
       </td>
     </tr>
-    <tr :if={captcha_enabled?(@config) && @config.captcha.provider == "recaptcha"}>
+    <tr :if={captcha_enabled?(@config, @browser_challenge_required?) && @config.captcha.provider == "recaptcha"}>
       <th>Verification</th>
       <td>
         <input type="text" name="g-recaptcha-response" placeholder="reCAPTCHA" data-captcha-lazy />
       </td>
     </tr>
-    <tr :if={captcha_enabled?(@config) && @config.captcha.provider == "hcaptcha"}>
+    <tr :if={captcha_enabled?(@config, @browser_challenge_required?) && @config.captcha.provider == "hcaptcha"}>
       <th>Verification</th>
       <td>
         <input type="text" name="h-captcha-response" placeholder="hCaptcha" data-captcha-lazy />

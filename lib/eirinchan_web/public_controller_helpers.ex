@@ -1,11 +1,13 @@
 defmodule EirinchanWeb.PublicControllerHelpers do
   @moduledoc false
 
+  alias Eirinchan.BrowserAbuse
   alias Eirinchan.LogSystem
   alias Eirinchan.Settings
   alias Eirinchan.ThreadWatcher
   alias EirinchanWeb.FragmentHash
   alias EirinchanWeb.PublicShell
+  alias EirinchanWeb.RequestMeta
 
   @empty_watcher_metrics %{watcher_count: 0, watcher_unread_count: 0, watcher_you_count: 0}
   @public_extra_stylesheets ["/stylesheets/eirinchan-public.css"]
@@ -30,7 +32,8 @@ defmodule EirinchanWeb.PublicControllerHelpers do
       :erlang.phash2(Keyword.get(assigns, watch_key, %{})),
       moderator_stamp(Keyword.get(assigns, :current_moderator)),
       Keyword.get(assigns, :secure_manage_token),
-      Keyword.get(assigns, :mobile_client?, false)
+      Keyword.get(assigns, :mobile_client?, false),
+      Keyword.get(assigns, :browser_challenge_required?, false)
     }
   end
 
@@ -39,6 +42,10 @@ defmodule EirinchanWeb.PublicControllerHelpers do
       token when is_binary(token) -> ThreadWatcher.watch_metrics(token)
       _ -> @empty_watcher_metrics
     end
+  end
+
+  def browser_challenge_required?(conn, config) do
+    BrowserAbuse.challenge_required?(RequestMeta.public_identity(conn), config)
   end
 
   def thread_watch_state(conn, board_uri) do
@@ -121,6 +128,15 @@ defmodule EirinchanWeb.PublicControllerHelpers do
       ]
       |> Keyword.merge(Keyword.get(opts, :head_meta_opts, []))
 
+    javascript_config = Keyword.get(opts, :javascript_config)
+
+    browser_challenge_required? =
+      if is_map(javascript_config) do
+        browser_challenge_required?(conn, javascript_config)
+      else
+        false
+      end
+
     assigns = [
       public_shell: true,
       show_nav_arrows_page: Keyword.get(opts, :show_nav_arrows_page, true),
@@ -130,6 +146,7 @@ defmodule EirinchanWeb.PublicControllerHelpers do
       watcher_count: watcher_count,
       watcher_unread_count: watcher_unread_count,
       watcher_you_count: watcher_you_count,
+      browser_challenge_required?: browser_challenge_required?,
       head_meta: PublicShell.head_meta(active_page, head_meta_opts),
       primary_stylesheet: Keyword.get(opts, :primary_stylesheet, primary_stylesheet(conn)),
       primary_stylesheet_id: "stylesheet",
@@ -141,13 +158,16 @@ defmodule EirinchanWeb.PublicControllerHelpers do
       skip_app_stylesheet: true
     ]
 
-    case Keyword.get(opts, :javascript_config) do
+    case javascript_config do
       nil ->
         Keyword.put(assigns, :javascript_urls, PublicShell.javascript_urls(active_page))
 
       config ->
         assigns
-        |> Keyword.put(:eager_javascript_urls, PublicShell.eager_javascript_urls(active_page, config))
+        |> Keyword.put(
+          :eager_javascript_urls,
+          PublicShell.eager_javascript_urls(active_page, config)
+        )
         |> Keyword.put(:javascript_urls, PublicShell.javascript_urls(active_page, config))
     end
   end
@@ -157,9 +177,7 @@ defmodule EirinchanWeb.PublicControllerHelpers do
     primary_board = Enum.find(boards, &(&1.uri == "bant")) || %{uri: "bant"}
 
     common_assigns =
-      public_shell_assigns(conn, active_page,
-        extra_stylesheets: extra_stylesheets()
-      )
+      public_shell_assigns(conn, active_page, extra_stylesheets: extra_stylesheets())
 
     [
       boards: boards,

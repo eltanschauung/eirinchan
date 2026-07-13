@@ -4,6 +4,7 @@ defmodule Eirinchan.TestFailingPostFileRepo do
 
   def transaction(fun), do: Repo.transaction(fun)
   def rollback(reason), do: Repo.rollback(reason)
+
   def update(%Ecto.Changeset{data: %Eirinchan.Posts.Post{}, changes: changes} = changeset) do
     if Process.get(:fail_thread_metrics_update_once) == true and
          Process.get(:test_upload_finalized) == true do
@@ -66,6 +67,8 @@ defmodule Eirinchan.PostsTest do
   alias Eirinchan.AprilFoolsTeams
   alias Eirinchan.Antispam
   alias Eirinchan.Build
+  alias Eirinchan.BrowserAbuse
+  alias Eirinchan.BrowserIdentity
   alias Eirinchan.ModerationLog
   alias Eirinchan.Posts
   alias Eirinchan.Posts.PublicIds
@@ -1562,7 +1565,6 @@ defmodule Eirinchan.PostsTest do
                config: post_config(board.config_overrides),
                request: post_request(board.uri)
              )
-
   end
 
   test "create_post rejects private remote upload hosts by default" do
@@ -2325,6 +2327,47 @@ defmodule Eirinchan.PostsTest do
                config: config,
                request: post_request(board.uri)
              )
+  end
+
+  test "browser abuse history escalates to captcha without becoming a ban" do
+    board =
+      board_fixture(%{
+        config_overrides: %{
+          captcha: %{
+            enabled: true,
+            provider: "native",
+            expected_response: "ok",
+            mode: "none"
+          }
+        }
+      })
+
+    browser_ref = BrowserIdentity.reference("browser-captcha-escalation")
+
+    request =
+      board.uri
+      |> post_request()
+      |> Map.put(:remote_ip, {198, 51, 100, 44})
+      |> Map.put(:browser_ref, browser_ref)
+
+    assert {:ok, _signal} = BrowserAbuse.record(request, :rate_limit, repo: Repo)
+    config = post_config(board.config_overrides)
+
+    assert {:error, :invalid_captcha} =
+             Posts.create_post(board, %{"body" => "first post", "post" => "New Topic"},
+               config: config,
+               request: request
+             )
+
+    assert {:ok, _thread, _meta} =
+             Posts.create_post(
+               board,
+               %{"body" => "first post", "captcha" => "ok", "post" => "New Topic"},
+               config: config,
+               request: request
+             )
+
+    refute Eirinchan.Bans.active_ban_for_request(board, request.remote_ip, repo: Repo)
   end
 
   test "create_post extracts cites and stores nntp references for existing posts" do
@@ -3136,7 +3179,9 @@ defmodule Eirinchan.PostsTest do
     assert {:ok, 1} = Posts.find_thread_page(board, older_thread.id, config: config)
 
     assert {:ok, 2} =
-             Posts.find_thread_page(board, "#{newer_thread.id}-newer-subject.html", config: config)
+             Posts.find_thread_page(board, "#{newer_thread.id}-newer-subject.html",
+               config: config
+             )
 
     assert {:ok, [thread | _]} =
              Posts.get_thread(board, "#{older_thread.id}-older-subject.html", config: config)

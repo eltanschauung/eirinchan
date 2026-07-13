@@ -2,6 +2,7 @@ defmodule Eirinchan.AntispamTest do
   use Eirinchan.DataCase, async: true
 
   alias Eirinchan.Antispam
+  alias Eirinchan.BrowserAbuse
   alias Eirinchan.BrowserIdentity
 
   test "search query entries are stored and rate-limited per ip and board" do
@@ -115,6 +116,8 @@ defmodule Eirinchan.AntispamTest do
              global_count: 0
            )
 
+    assert BrowserAbuse.signaled?(other_ip, repo: Repo)
+
     refute Antispam.public_search_rate_limited?(other_ip,
              repo: Repo,
              query: "feedback",
@@ -155,6 +158,8 @@ defmodule Eirinchan.AntispamTest do
 
     assert {:error, :antispam} =
              Antispam.check_post(board, %{"body" => "second"}, other_ip, config, repo: Repo)
+
+    assert BrowserAbuse.signaled?(other_ip, repo: Repo)
   end
 
   test "post flood limits enforce the combined client and global counters" do

@@ -89,7 +89,10 @@ defmodule Eirinchan.Posts do
                :ok <- PostsRequestGuards.validate_hidden_input(attrs, config, request, board),
                :ok <-
                  PostsRequestGuards.validate_antispam_question(op?, attrs, config, request, board),
-               :ok <- PostsRequestGuards.validate_captcha(attrs, config, request, board, op?),
+               :ok <-
+                 PostsRequestGuards.validate_captcha(attrs, config, request, board, op?,
+                   repo: repo
+                 ),
                :ok <- PostsRequestGuards.validate_board_lock(config, request, board) do
             :ok
           end

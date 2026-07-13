@@ -3,11 +3,13 @@ defmodule Eirinchan.Posts.RequestGuards do
 
   alias Eirinchan.AccessList
   alias Eirinchan.Bans
+  alias Eirinchan.BrowserAbuse
   alias Eirinchan.Captcha
   alias Eirinchan.DNSBL
   alias Eirinchan.Moderation
   alias Eirinchan.Moderation.ModUser
   alias Eirinchan.Posts.Post
+  alias Eirinchan.Repo
   alias Eirinchan.Uploads
 
   def validate_post_button(true, attrs, config) do
@@ -158,8 +160,11 @@ defmodule Eirinchan.Posts.RequestGuards do
     end
   end
 
-  def validate_captcha(attrs, config, request, board, op?) do
-    if moderator_board_access?(request, board) or not captcha_required?(config, op?) do
+  def validate_captcha(attrs, config, request, board, op?, opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+
+    if moderator_board_access?(request, board) or
+         not captcha_required_for_request?(config, op?, request, repo: repo) do
       :ok
     else
       Captcha.verify(config, attrs, request)
@@ -188,6 +193,10 @@ defmodule Eirinchan.Posts.RequestGuards do
       Map.get(captcha, :mode) == "reply" -> not op?
       true -> true
     end
+  end
+
+  def captcha_required_for_request?(config, op?, request, opts \\ []) do
+    captcha_required?(config, op?) or BrowserAbuse.challenge_required?(request, config, opts)
   end
 
   defp valid_post_button?(value, configured, aliases) when is_binary(value) do

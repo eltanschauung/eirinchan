@@ -7,6 +7,7 @@ defmodule Eirinchan.Antispam do
 
   alias Eirinchan.Antispam.{FloodEntry, SearchQuery}
   alias Eirinchan.Boards.BoardRecord
+  alias Eirinchan.BrowserAbuse
   alias Eirinchan.BrowserIdentity
   alias Eirinchan.Moderation.ModUser
   alias Eirinchan.Repo
@@ -126,38 +127,42 @@ defmodule Eirinchan.Antispam do
     global_window_seconds = Keyword.get(opts, :global_window_seconds, 120)
     base_query = maybe_query_by_query(SearchQuery, query)
 
-    search_dimension_limited?(
-      repo,
-      base_query,
-      :ip_subnet,
-      dimensions.ip_subnet,
-      per_ip_count,
-      per_ip_window_seconds
-    ) or
+    limited? =
       search_dimension_limited?(
         repo,
         base_query,
-        :browser_ref,
-        dimensions.browser_ref,
-        per_browser_count,
-        per_browser_window_seconds
+        :ip_subnet,
+        dimensions.ip_subnet,
+        per_ip_count,
+        per_ip_window_seconds
       ) or
-      search_dimension_limited?(
-        repo,
-        base_query,
-        :client_key,
-        dimensions.client_key,
-        per_client_count,
-        per_client_window_seconds
-      ) or
-      search_dimension_limited?(
-        repo,
-        base_query,
-        nil,
-        :global,
-        global_count,
-        global_window_seconds
-      )
+        search_dimension_limited?(
+          repo,
+          base_query,
+          :browser_ref,
+          dimensions.browser_ref,
+          per_browser_count,
+          per_browser_window_seconds
+        ) or
+        search_dimension_limited?(
+          repo,
+          base_query,
+          :client_key,
+          dimensions.client_key,
+          per_client_count,
+          per_client_window_seconds
+        ) or
+        search_dimension_limited?(
+          repo,
+          base_query,
+          nil,
+          :global,
+          global_count,
+          global_window_seconds
+        )
+
+    if limited?, do: BrowserAbuse.record(dimensions, :search_rate_limit, repo: repo)
+    limited?
   end
 
   def search_rate_limited?(query, request, config, opts \\ []) do
@@ -174,38 +179,42 @@ defmodule Eirinchan.Antispam do
         |> query_by_query(normalized_query)
         |> maybe_scope_search_query(board_id)
 
-      search_dimension_limited?(
-        repo,
-        base_query,
-        :ip_subnet,
-        dimensions.ip_subnet,
-        config.search_query_limit_count,
-        config.search_query_limit_window
-      ) or
+      limited? =
         search_dimension_limited?(
           repo,
           base_query,
-          :browser_ref,
-          dimensions.browser_ref,
+          :ip_subnet,
+          dimensions.ip_subnet,
           config.search_query_limit_count,
           config.search_query_limit_window
         ) or
-        search_dimension_limited?(
-          repo,
-          base_query,
-          :client_key,
-          dimensions.client_key,
-          config.search_query_limit_count,
-          config.search_query_limit_window
-        ) or
-        search_dimension_limited?(
-          repo,
-          base_query,
-          nil,
-          :global,
-          config.search_query_global_limit_count,
-          config.search_query_global_limit_window
-        )
+          search_dimension_limited?(
+            repo,
+            base_query,
+            :browser_ref,
+            dimensions.browser_ref,
+            config.search_query_limit_count,
+            config.search_query_limit_window
+          ) or
+          search_dimension_limited?(
+            repo,
+            base_query,
+            :client_key,
+            dimensions.client_key,
+            config.search_query_limit_count,
+            config.search_query_limit_window
+          ) or
+          search_dimension_limited?(
+            repo,
+            base_query,
+            nil,
+            :global,
+            config.search_query_global_limit_count,
+            config.search_query_global_limit_window
+          )
+
+      if limited?, do: BrowserAbuse.record(dimensions, :search_rate_limit, repo: repo)
+      limited?
     end
   end
 
@@ -291,6 +300,7 @@ defmodule Eirinchan.Antispam do
     |> List.wrap()
     |> Enum.reduce_while(:ok, fn filter, :ok ->
       if reject_filter_matches?(repo, board, post, filter, config, now) do
+        record_browser_signal(post, "filter:#{filter_reason(filter)}", config, repo)
         {:halt, {:error, filter_reason(filter)}}
       else
         {:cont, :ok}
@@ -323,12 +333,15 @@ defmodule Eirinchan.Antispam do
       }
     ]
 
-    if Enum.any?(limits, fn {field_name, value, count, window} ->
-         flood_dimension_limited?(repo, field_name, value, count, window, now)
-       end) do
-      {:error, :antispam}
-    else
-      :ok
+    case Enum.find(limits, fn {field_name, value, count, window} ->
+           flood_dimension_limited?(repo, field_name, value, count, window, now)
+         end) do
+      {field_name, _value, _count, _window} ->
+        record_browser_signal(post, "rate_limit:#{field_name || :global}", config, repo)
+        {:error, :antispam}
+
+      nil ->
+        :ok
     end
   end
 
@@ -655,6 +668,13 @@ defmodule Eirinchan.Antispam do
 
   defp non_negative_integer(value, _default) when is_integer(value) and value >= 0, do: value
   defp non_negative_integer(_value, default), do: default
+
+  defp record_browser_signal(post, reason, config, repo) do
+    BrowserAbuse.record(post, reason,
+      repo: repo,
+      ttl_seconds: Map.get(config, :browser_abuse_challenge_seconds, 3_600)
+    )
+  end
 
   defp normalize_query(nil), do: nil
 
