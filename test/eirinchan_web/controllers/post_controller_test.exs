@@ -58,7 +58,7 @@ defmodule EirinchanWeb.PostControllerTest do
 
     conn =
       conn
-      |> put_req_cookie("browser_token", token)
+      |> put_req_cookie("__Host-eirinchan_browser", token)
       |> put_req_header("referer", referer)
       |> post(~p"/#{board.uri}/post", %{
         "thread" => Integer.to_string(PublicIds.public_id(thread)),
@@ -105,7 +105,7 @@ defmodule EirinchanWeb.PostControllerTest do
     conn =
       csrf_conn
       |> recycle()
-      |> put_req_cookie("browser_token", token)
+      |> put_req_cookie("__Host-eirinchan_browser", token)
       |> put_req_header("accept", "application/json")
       |> put_req_header("x-csrf-token", csrf_token)
       |> put_req_header("referer", referer)

@@ -3,10 +3,12 @@ defmodule EirinchanWeb.Plugs.FetchBrowserTokenTest do
 
   alias EirinchanWeb.Plugs.FetchBrowserToken
 
-  test "reuses existing browser token cookie", %{conn: conn} do
+  @cookie_name "__Host-eirinchan_browser"
+
+  test "reuses existing host-only browser token cookie", %{conn: conn} do
     conn =
       conn
-      |> put_req_cookie("browser_token", "token-1234567890123456")
+      |> put_req_cookie(@cookie_name, "token-1234567890123456")
       |> FetchBrowserToken.call([])
 
     assert conn.assigns.browser_token == "token-1234567890123456"
@@ -22,10 +24,25 @@ defmodule EirinchanWeb.Plugs.FetchBrowserTokenTest do
 
     set_cookie =
       conn.resp_cookies
-      |> Map.fetch!("browser_token")
+      |> Map.fetch!(@cookie_name)
 
     assert set_cookie.value == conn.assigns.browser_token
     assert set_cookie.path == "/"
+    assert set_cookie.secure
+    assert set_cookie.http_only
+    assert set_cookie.same_site == "Lax"
+  end
+
+  test "migrates a legacy browser token without changing identity", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_cookie("browser_token", "token-1234567890123456")
+      |> FetchBrowserToken.call([])
+
+    assert conn.assigns.browser_token == "token-1234567890123456"
+    assert conn.assigns.returning_browser_token
+    assert conn.resp_cookies[@cookie_name].value == "token-1234567890123456"
+    assert conn.resp_cookies["browser_token"].max_age == 0
   end
 
   test "rotates oversized attacker-controlled browser tokens", %{conn: conn} do
@@ -33,7 +50,7 @@ defmodule EirinchanWeb.Plugs.FetchBrowserTokenTest do
 
     conn =
       conn
-      |> put_req_cookie("browser_token", oversized)
+      |> put_req_cookie(@cookie_name, oversized)
       |> FetchBrowserToken.call([])
 
     refute conn.assigns.browser_token == oversized
