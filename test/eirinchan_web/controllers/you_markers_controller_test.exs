@@ -8,7 +8,7 @@ defmodule EirinchanWeb.YouMarkersControllerTest do
     board = board_fixture(%{uri: "showyousapi", title: "Show Yous API"})
     thread = thread_fixture(board, %{body: "Opening body"})
     reply = reply_fixture(board, thread, %{body: "Reply body"})
-    token = "show-yous-api-token"
+    token = browser_token("show-yous-api")
 
     assert {:ok, _} = PostOwnership.record(token, thread.id)
 
@@ -17,7 +17,9 @@ defmodule EirinchanWeb.YouMarkersControllerTest do
       |> put_req_cookie("browser_token", token)
       |> put_req_cookie("show_yous", "true")
       |> put_req_header("content-type", "application/json")
-      |> post("/api/you-markers/#{board.uri}", %{post_ids: [PublicIds.public_id(thread), PublicIds.public_id(reply)]})
+      |> post("/api/you-markers/#{board.uri}", %{
+        post_ids: [PublicIds.public_id(thread), PublicIds.public_id(reply)]
+      })
 
     assert %{"enabled" => true, "post_ids" => [owned_id]} = json_response(conn, 200)
     assert owned_id == PublicIds.public_id(thread)
@@ -26,7 +28,7 @@ defmodule EirinchanWeb.YouMarkersControllerTest do
   test "api returns no ids when show yous is disabled", %{conn: conn} do
     board = board_fixture(%{uri: "showyousoff", title: "Show Yous Off"})
     thread = thread_fixture(board, %{body: "Opening body"})
-    token = "show-yous-disabled-token"
+    token = browser_token("show-yous-disabled")
 
     assert {:ok, _} = PostOwnership.record(token, thread.id)
 
@@ -42,7 +44,7 @@ defmodule EirinchanWeb.YouMarkersControllerTest do
 
   test "api bounds oversized ownership lookups", %{conn: conn} do
     board = board_fixture(%{uri: "showyousbound", title: "Bounded Yous"})
-    token = "show-yous-bounded-token"
+    token = browser_token("show-yous-bounded")
 
     conn =
       conn

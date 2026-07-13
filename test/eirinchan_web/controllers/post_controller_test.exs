@@ -54,11 +54,11 @@ defmodule EirinchanWeb.PostControllerTest do
     thread = thread_fixture(board, %{body: "thread body", subject: "thread subject"})
     referer = "http://www.example.com/#{board.uri}/index.html"
 
-    token = "reply-watch-token-123456"
+    token = browser_token("reply-watch")
 
     conn =
       conn
-      |> put_req_cookie("__Host-eirinchan_browser", token)
+      |> put_req_cookie("__Host-eirinchan_browser", Eirinchan.BrowserIdentity.issue(token))
       |> put_req_header("referer", referer)
       |> post(~p"/#{board.uri}/post", %{
         "thread" => Integer.to_string(PublicIds.public_id(thread)),
@@ -97,7 +97,7 @@ defmodule EirinchanWeb.PostControllerTest do
     board = board_fixture(%{title: "Technology"})
     thread = thread_fixture(board, %{body: "thread body", subject: "thread subject"})
     referer = "http://www.example.com/#{board.uri}/index.html"
-    token = "reply-watch-token-api-123456"
+    token = browser_token("reply-watch-api")
 
     csrf_conn = get(conn, "/csrf-token")
     %{"csrf_token" => csrf_token} = json_response(csrf_conn, 200)
@@ -105,7 +105,7 @@ defmodule EirinchanWeb.PostControllerTest do
     conn =
       csrf_conn
       |> recycle()
-      |> put_req_cookie("__Host-eirinchan_browser", token)
+      |> put_req_cookie("__Host-eirinchan_browser", Eirinchan.BrowserIdentity.issue(token))
       |> put_req_header("accept", "application/json")
       |> put_req_header("x-csrf-token", csrf_token)
       |> put_req_header("referer", referer)
@@ -221,7 +221,7 @@ defmodule EirinchanWeb.PostControllerTest do
     board = board_fixture(%{title: "Technology"})
     thread = thread_fixture(board, %{body: "thread body", subject: "thread subject"})
     referer = "http://www.example.com/#{board.uri}/index.html"
-    token = "show-yous-ajax-token-123456"
+    token = browser_token("show-yous-ajax")
 
     first_reply_conn =
       conn

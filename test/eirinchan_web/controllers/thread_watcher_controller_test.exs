@@ -9,7 +9,7 @@ defmodule EirinchanWeb.ThreadWatcherControllerTest do
   test "watches and unwatches a thread with browser token", %{conn: conn} do
     board = board_fixture(%{uri: "watch", title: "Watch"})
     thread = thread_fixture(board, %{body: "Watch me"})
-    token = "token-1234567890123456"
+    token = browser_token("watch-index")
     thread_id = PublicIds.public_id(thread)
 
     conn =
@@ -55,7 +55,7 @@ defmodule EirinchanWeb.ThreadWatcherControllerTest do
 
     conn =
       conn
-      |> put_req_cookie("browser_token", "token-1234567890123456")
+      |> put_req_cookie("browser_token", browser_token("watch-invalid-thread"))
       |> post("/watcher/#{board.uri}/#{PublicIds.public_id(reply)}", %{
         "_csrf_token" => CSRFProtection.get_csrf_token()
       })
@@ -66,7 +66,7 @@ defmodule EirinchanWeb.ThreadWatcherControllerTest do
   test "marks watched thread as seen", %{conn: conn} do
     board = board_fixture(%{uri: "watchseen", title: "Watch Seen"})
     thread = thread_fixture(board, %{body: "Watch me"})
-    token = "token-abcdef1234567890"
+    token = browser_token("watch-moved")
     thread_id = PublicIds.public_id(thread)
 
     {:ok, _watch} =
@@ -94,7 +94,7 @@ defmodule EirinchanWeb.ThreadWatcherControllerTest do
 
   test "unwatching a missing thread purges stale watches", %{conn: conn} do
     board = board_fixture(%{uri: "watchstale", title: "Watch Stale"})
-    token = "token-stale-delete-1234"
+    token = browser_token("watch-stale-delete")
 
     assert {:ok, _watch} = ThreadWatcher.watch_thread(token, board.uri, 999_998)
 
@@ -107,14 +107,14 @@ defmodule EirinchanWeb.ThreadWatcherControllerTest do
     assert %{
              "ok" => true,
              "watched" => false,
-             "thread_id" => 123456,
+             "thread_id" => 123_456,
              "watcher_count" => 0
            } = json_response(conn, 200)
   end
 
   test "clears all watched threads for the browser token", %{conn: conn} do
     board = board_fixture(%{uri: "watchclear", title: "Watch Clear"})
-    token = "token-clear-1234567890"
+    token = browser_token("watch-clear")
     thread = thread_fixture(board, %{body: "OP"})
 
     assert {:ok, _watch} = ThreadWatcher.watch_thread(token, board.uri, thread.id)

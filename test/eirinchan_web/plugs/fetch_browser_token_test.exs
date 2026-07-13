@@ -6,13 +6,16 @@ defmodule EirinchanWeb.Plugs.FetchBrowserTokenTest do
   @cookie_name "__Host-eirinchan_browser"
 
   test "reuses existing host-only browser token cookie", %{conn: conn} do
+    token = browser_token("existing")
+
     conn =
       conn
-      |> put_req_cookie(@cookie_name, "token-1234567890123456")
+      |> put_req_cookie(@cookie_name, Eirinchan.BrowserIdentity.issue(token))
       |> FetchBrowserToken.call([])
 
-    assert conn.assigns.browser_token == "token-1234567890123456"
+    assert conn.assigns.browser_token == token
     assert conn.assigns.returning_browser_token
+    refute Map.has_key?(conn.resp_cookies, @cookie_name)
   end
 
   test "creates browser token cookie when missing", %{conn: conn} do
@@ -26,7 +29,8 @@ defmodule EirinchanWeb.Plugs.FetchBrowserTokenTest do
       conn.resp_cookies
       |> Map.fetch!(@cookie_name)
 
-    assert set_cookie.value == conn.assigns.browser_token
+    assert {:ok, %{token: token}} = Eirinchan.BrowserIdentity.verify(set_cookie.value)
+    assert token == conn.assigns.browser_token
     assert set_cookie.path == "/"
     assert set_cookie.secure
     assert set_cookie.http_only
@@ -34,15 +38,32 @@ defmodule EirinchanWeb.Plugs.FetchBrowserTokenTest do
   end
 
   test "migrates a legacy browser token without changing identity", %{conn: conn} do
+    token = browser_token("legacy")
+
     conn =
       conn
-      |> put_req_cookie("browser_token", "token-1234567890123456")
+      |> put_req_cookie("browser_token", token)
       |> FetchBrowserToken.call([])
 
-    assert conn.assigns.browser_token == "token-1234567890123456"
+    assert conn.assigns.browser_token == token
     assert conn.assigns.returning_browser_token
-    assert conn.resp_cookies[@cookie_name].value == "token-1234567890123456"
+
+    assert {:ok, %{token: ^token}} =
+             Eirinchan.BrowserIdentity.verify(conn.resp_cookies[@cookie_name].value)
+
     assert conn.resp_cookies["browser_token"].max_age == 0
+  end
+
+  test "upgrades an unsigned host-only token", %{conn: conn} do
+    token = browser_token("unsigned-host")
+
+    conn = conn |> put_req_cookie(@cookie_name, token) |> FetchBrowserToken.call([])
+
+    assert conn.assigns.browser_token == token
+    assert conn.assigns.returning_browser_token
+
+    assert {:ok, %{token: ^token}} =
+             Eirinchan.BrowserIdentity.verify(conn.resp_cookies[@cookie_name].value)
   end
 
   test "rotates oversized attacker-controlled browser tokens", %{conn: conn} do
@@ -54,6 +75,16 @@ defmodule EirinchanWeb.Plugs.FetchBrowserTokenTest do
       |> FetchBrowserToken.call([])
 
     refute conn.assigns.browser_token == oversized
+    refute conn.assigns.returning_browser_token
+  end
+
+  test "rotates noncanonical attacker-controlled browser tokens", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_cookie(@cookie_name, "attacker-chosen-token")
+      |> FetchBrowserToken.call([])
+
+    refute conn.assigns.browser_token == "attacker-chosen-token"
     refute conn.assigns.returning_browser_token
   end
 end

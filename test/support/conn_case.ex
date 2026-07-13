@@ -61,6 +61,13 @@ defmodule EirinchanWeb.ConnCase do
     Plug.Conn.put_req_header(conn, "x-secure-token", token)
   end
 
+  def browser_token(seed \\ "browser-token") when is_binary(seed) do
+    :sha256
+    |> :crypto.hash(seed)
+    |> binary_part(0, 24)
+    |> Base.url_encode64(padding: false)
+  end
+
   def with_instance_config(config, fun) when is_map(config) and is_function(fun, 0) do
     original_path = Application.get_env(:eirinchan, :instance_config_path)
 

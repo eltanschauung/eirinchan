@@ -202,7 +202,7 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
 
     response =
       conn
-      |> put_req_cookie("browser_token", "token-1234567890123456")
+      |> put_req_cookie("browser_token", browser_token("board-management-create"))
       |> get(~p"/#{board.uri}")
       |> html_response(200)
 
@@ -326,7 +326,9 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
   end
 
   test "board page resolves stats placeholders in global message", %{conn: conn} do
-    :ok = Eirinchan.Settings.persist_instance_config(%{global_message: "PPH: {stats.posts_perhour}"})
+    :ok =
+      Eirinchan.Settings.persist_instance_config(%{global_message: "PPH: {stats.posts_perhour}"})
+
     board = board_fixture(%{uri: "pphtest", title: "PPH Test"})
     thread = thread_fixture(board)
     _reply = reply_fixture(board, thread)
@@ -342,12 +344,17 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
 
   test "board page resolves users_10minutes placeholder in global message", %{conn: conn} do
     :ets.delete_all_objects(:eirinchan_browser_presence)
-    :ok = Eirinchan.Settings.persist_instance_config(%{global_message: "Users: {stats.users_10minutes}"})
+
+    :ok =
+      Eirinchan.Settings.persist_instance_config(%{
+        global_message: "Users: {stats.users_10minutes}"
+      })
+
     board = board_fixture(%{uri: "user10test", title: "User 10 Test"})
 
     response =
       conn
-      |> put_req_cookie("browser_token", "token-1234567890123456")
+      |> put_req_cookie("browser_token", browser_token("board-management-update"))
       |> get(~p"/#{board.uri}")
       |> html_response(200)
 
@@ -451,6 +458,7 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
 
     assert page =~
              ~s(href="/#{board.uri}/res/#{PublicIds.public_id(thread)}.html##{PublicIds.public_id(thread)}")
+
     assert page =~ ~s(class="quote")
   end
 
@@ -481,6 +489,7 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
 
     assert page =~ ~s([Reply]</a>)
     assert page =~ ~s([Last 100 Posts])
+
     assert Regex.match?(
              ~r/\[Reply\]<\/a>\s*<a href="#{Regex.escape(noko50_path)}">\s*\[Last 100 Posts\]\s*<\/a>/,
              page
@@ -698,7 +707,9 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     assert page =~ "<br/>"
   end
 
-  test "catalog cards expose filter metadata for name trip subject comment and flags", %{conn: conn} do
+  test "catalog cards expose filter metadata for name trip subject comment and flags", %{
+    conn: conn
+  } do
     :ok = Eirinchan.Themes.enable_page_theme("catalog")
 
     board = board_fixture(%{uri: "catfilter", title: "Catalog Filter"})
@@ -842,7 +853,10 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
 
     document = Floki.parse_document!(page)
 
-    assert Floki.find(document, ~s(a[data-quick-reply-thread="#{PublicIds.public_id(thread)}"][data-quote-to])) !=
+    assert Floki.find(
+             document,
+             ~s(a[data-quick-reply-thread="#{PublicIds.public_id(thread)}"][data-quote-to])
+           ) !=
              []
 
     assert Floki.find(document, ~s(form#new-thread-form[data-remember-stuff])) != []
@@ -1014,7 +1028,7 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     board = board_fixture(%{uri: "watchboard", title: "Watch Board"})
     thread = thread_fixture(board, %{body: "Watcher thread"})
     _reply = reply_fixture(board, thread, %{body: "Unread reply"})
-    token = "token-board-watch-123456"
+    token = browser_token("board-watch")
 
     assert {:ok, _watch} =
              ThreadWatcher.watch_thread(token, board.uri, thread.id, %{

@@ -44,8 +44,13 @@ defmodule EirinchanWeb.PageControllerTest do
     thread = thread_fixture(board, %{subject: "Opening", body: "Alpha bravo charlie delta"})
     reply_fixture(board, thread, %{body: "Recent reply body"})
 
-    Repo.update_all(from(b in BoardRecord, where: b.id == ^board.id), set: [next_public_post_id: 336_961])
-    Repo.update_all(from(b in BoardRecord, where: b.id == ^board_two.id), set: [next_public_post_id: 25])
+    Repo.update_all(from(b in BoardRecord, where: b.id == ^board.id),
+      set: [next_public_post_id: 336_961]
+    )
+
+    Repo.update_all(from(b in BoardRecord, where: b.id == ^board_two.id),
+      set: [next_public_post_id: 25]
+    )
 
     conn = get(conn, ~p"/")
     page = html_response(conn, 200)
@@ -75,7 +80,11 @@ defmodule EirinchanWeb.PageControllerTest do
     expected_total_posts =
       Repo.one(
         from board in BoardRecord,
-          select: coalesce(sum(fragment("GREATEST(COALESCE(?, 1) - 1, 0)", board.next_public_post_id)), 0)
+          select:
+            coalesce(
+              sum(fragment("GREATEST(COALESCE(?, 1) - 1, 0)", board.next_public_post_id)),
+              0
+            )
       )
 
     assert page =~ "Total posts: #{with_delimiters(expected_total_posts)}"
@@ -198,7 +207,10 @@ defmodule EirinchanWeb.PageControllerTest do
 
   test "GET / returns an etag and honors if-none-match", %{conn: conn} do
     moderator_fixture()
-    board = board_fixture(%{uri: "etaghome#{System.unique_integer([:positive])}", title: "ETag Home"})
+
+    board =
+      board_fixture(%{uri: "etaghome#{System.unique_integer([:positive])}", title: "ETag Home"})
+
     thread = thread_fixture(board, %{subject: "Opening", body: "Alpha bravo charlie delta"})
     reply_fixture(board, thread, %{body: "Recent reply body"})
 
@@ -226,7 +238,13 @@ defmodule EirinchanWeb.PageControllerTest do
 
   test "forced_theme overrides visitor theme cookies and hides the style selector", %{conn: conn} do
     moderator_fixture()
-    board = board_fixture(%{uri: "forcedtheme#{System.unique_integer([:positive])}", title: "Forced Theme"})
+
+    board =
+      board_fixture(%{
+        uri: "forcedtheme#{System.unique_integer([:positive])}",
+        title: "Forced Theme"
+      })
+
     thread = thread_fixture(board, %{subject: "Opening", body: "Alpha bravo charlie delta"})
     reply_fixture(board, thread, %{body: "Recent reply body"})
     original_config = Eirinchan.Settings.current_instance_config()
@@ -251,7 +269,8 @@ defmodule EirinchanWeb.PageControllerTest do
     refute page =~ ~s(id="style-select")
   end
 
-  test "board forced_theme overrides board theme cookies and hides the style selector on that board", %{conn: conn} do
+  test "board forced_theme overrides board theme cookies and hides the style selector on that board",
+       %{conn: conn} do
     moderator_fixture()
 
     board =
@@ -277,7 +296,10 @@ defmodule EirinchanWeb.PageControllerTest do
 
   test "rules page renders global message stats placeholders and line breaks", %{conn: conn} do
     moderator_fixture()
-    board = board_fixture(%{uri: "gmstats#{System.unique_integer([:positive])}", title: "GM Stats"})
+
+    board =
+      board_fixture(%{uri: "gmstats#{System.unique_integer([:positive])}", title: "GM Stats"})
+
     thread = thread_fixture(board, %{body: "seed"})
     reply_fixture(board, thread, %{body: "recent"})
 
@@ -299,9 +321,10 @@ defmodule EirinchanWeb.PageControllerTest do
     refute page =~ "{stats.posts_perhour}"
   end
 
-  test "faq, formatting, and flags suppress the global message and preserve page-specific layout", %{
-    conn: conn
-  } do
+  test "faq, formatting, and flags suppress the global message and preserve page-specific layout",
+       %{
+         conn: conn
+       } do
     moderator_fixture()
 
     :ok =
@@ -340,7 +363,10 @@ defmodule EirinchanWeb.PageControllerTest do
 
   test "custom pages render global message through the shared blotter renderer", %{conn: conn} do
     author = moderator_fixture(%{username: "pagewriter"})
-    board = board_fixture(%{uri: "customgm#{System.unique_integer([:positive])}", title: "Custom GM"})
+
+    board =
+      board_fixture(%{uri: "customgm#{System.unique_integer([:positive])}", title: "Custom GM"})
+
     thread = thread_fixture(board, %{body: "seed"})
     reply_fixture(board, thread, %{body: "recent"})
 
@@ -602,7 +628,9 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ board.uri
   end
 
-  test "GET /ukko orders threads by recent sage activity and uses plain board labels", %{conn: conn} do
+  test "GET /ukko orders threads by recent sage activity and uses plain board labels", %{
+    conn: conn
+  } do
     moderator_fixture()
     board = board_fixture(%{uri: "sage#{System.unique_integer([:positive])}", title: "Sage"})
 
@@ -677,7 +705,10 @@ defmodule EirinchanWeb.PageControllerTest do
 
   test "GET /ukko renders visible timestamps using the browser timezone cookie", %{conn: conn} do
     moderator_fixture()
-    board = board_fixture(%{uri: "ukkozone#{System.unique_integer([:positive])}", title: "Ukko Zone"})
+
+    board =
+      board_fixture(%{uri: "ukkozone#{System.unique_integer([:positive])}", title: "Ukko Zone"})
+
     thread = thread_fixture(board, %{subject: "Ukko timezone", body: "Ukko body"})
     inserted_at = ~U[2026-03-13 12:00:00Z]
 
@@ -742,7 +773,10 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page_one =~ ~s(data-next-link="/ukko/2.html")
     assert page_one =~ ~s(src="/main.js")
     assert page_one =~ ~s(name="delete_#{PublicIds.public_id(first_thread)}")
-    assert page_one =~ ~s(data-secure-href="/mod.php?/#{board.uri}/delete/#{PublicIds.public_id(first_thread)}/)
+
+    assert page_one =~
+             ~s(data-secure-href="/mod.php?/#{board.uri}/delete/#{PublicIds.public_id(first_thread)}/)
+
     assert page_one =~ ~s(class="controls op")
 
     page_two =
@@ -779,7 +813,13 @@ defmodule EirinchanWeb.PageControllerTest do
 
   test "GET / recent images include video posts with thumbnails", %{conn: conn} do
     moderator_fixture()
-    board = board_fixture(%{uri: "recentvid#{System.unique_integer([:positive])}", title: "Recent Video"})
+
+    board =
+      board_fixture(%{
+        uri: "recentvid#{System.unique_integer([:positive])}",
+        title: "Recent Video"
+      })
+
     thread = thread_fixture(board, %{subject: "Recent video thread", body: "Opening"})
     reply = reply_fixture(board, thread, %{body: "Recent video reply"})
 
@@ -969,14 +1009,16 @@ defmodule EirinchanWeb.PageControllerTest do
 
   test "renders watcher page with watched threads", %{conn: conn} do
     moderator_fixture()
+
     board =
       Eirinchan.BoardsFixtures.board_fixture(%{
         uri: "watchtest",
         title: "Watch Test",
         config_overrides: %{noko50_min: 0}
       })
+
     thread = Eirinchan.PostsFixtures.thread_fixture(board, %{body: "watch body"})
-    token = "token-1234567890123456"
+    token = browser_token("page-watches")
 
     assert {:ok, _} =
              ThreadWatcher.watch_thread(token, board.uri, thread.id, %{
@@ -1001,7 +1043,7 @@ defmodule EirinchanWeb.PageControllerTest do
     board = Eirinchan.BoardsFixtures.board_fixture(%{uri: "watchunread", title: "Watch Unread"})
     thread = Eirinchan.PostsFixtures.thread_fixture(board, %{body: "watch body"})
     _reply = Eirinchan.PostsFixtures.reply_fixture(board, thread, %{body: "Unread reply"})
-    token = "watcher-token-unread"
+    token = browser_token("watcher-unread")
 
     assert {:ok, _} =
              ThreadWatcher.watch_thread(token, board.uri, thread.id, %{
@@ -1021,7 +1063,7 @@ defmodule EirinchanWeb.PageControllerTest do
     moderator_fixture()
     board = board_fixture(%{uri: "watchfrag", title: "Watch Frag"})
     thread = thread_fixture(board, %{subject: "Watched Thread", body: "Opening"})
-    token = "watcher-fragment-token"
+    token = browser_token("watcher-fragment")
 
     {:ok, _watch} =
       ThreadWatcher.watch_thread(token, board.uri, thread.id, %{last_seen_post_id: thread.id})
@@ -1043,8 +1085,11 @@ defmodule EirinchanWeb.PageControllerTest do
     board = board_fixture(%{uri: "watchyoufrag", title: "Watch You Frag"})
     thread = thread_fixture(board, %{subject: "Watched Thread", body: "Opening"})
     owned_reply = reply_fixture(board, thread, %{body: "Owned"})
-    _citing_reply = reply_fixture(board, thread, %{body: ">>#{PublicIds.public_id(owned_reply)} cited"})
-    token = "watcher-you-fragment-token"
+
+    _citing_reply =
+      reply_fixture(board, thread, %{body: ">>#{PublicIds.public_id(owned_reply)} cited"})
+
+    token = browser_token("watcher-you-fragment")
 
     {:ok, _} = PostOwnership.record(token, owned_reply.id)
 
@@ -1067,7 +1112,7 @@ defmodule EirinchanWeb.PageControllerTest do
     moderator_fixture()
     board = board_fixture(%{uri: "watchhome", title: "Watch Home"})
     thread = thread_fixture(board, %{body: "Watcher home thread"})
-    token = "token-home-watch-123456"
+    token = browser_token("home-watch")
 
     assert {:ok, _watch} = ThreadWatcher.watch_thread(token, board.uri, thread.id)
 
@@ -1086,8 +1131,11 @@ defmodule EirinchanWeb.PageControllerTest do
     board = board_fixture(%{uri: "watchyouhome", title: "Watch You Home"})
     thread = thread_fixture(board, %{body: "Watcher home thread"})
     owned_reply = reply_fixture(board, thread, %{body: "Owned"})
-    _citing_reply = reply_fixture(board, thread, %{body: ">>#{PublicIds.public_id(owned_reply)} cited"})
-    token = "token-home-watch-you-123456"
+
+    _citing_reply =
+      reply_fixture(board, thread, %{body: ">>#{PublicIds.public_id(owned_reply)} cited"})
+
+    token = browser_token("home-watch-you")
 
     {:ok, _} = PostOwnership.record(token, owned_reply.id)
 

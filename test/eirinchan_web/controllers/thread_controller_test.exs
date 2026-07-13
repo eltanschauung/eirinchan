@@ -160,41 +160,53 @@ defmodule EirinchanWeb.ThreadControllerTest do
     thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
     _reply = reply_fixture(board, thread, %{body: "Reply body"})
 
-    page = get(conn, "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html") |> html_response(200)
+    page =
+      get(conn, "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html") |> html_response(200)
 
     assert page =~ ~s(<div class="thread")
-    assert page =~ ~s(<form name="postcontrols" id="thread-post-controls" action="/post.php" method="post">)
+
+    assert page =~
+             ~s(<form name="postcontrols" id="thread-post-controls" action="/post.php" method="post">)
+
     assert page =~ ~s(name="delete_post_id")
     assert page =~ ~s(name="report_post_id")
 
     {thread_pos, _} = :binary.match(page, ~s(<div class="thread"))
+
     {form_pos, _} =
-      :binary.match(page, ~s(<form name="postcontrols" id="thread-post-controls" action="/post.php" method="post">))
+      :binary.match(
+        page,
+        ~s(<form name="postcontrols" id="thread-post-controls" action="/post.php" method="post">)
+      )
 
     assert thread_pos < form_pos
   end
 
-  test "thread pages derive watcher paths client-side instead of embedding per-thread watch urls", %{
-    conn: conn
-  } do
+  test "thread pages derive watcher paths client-side instead of embedding per-thread watch urls",
+       %{
+         conn: conn
+       } do
     board = board_fixture()
     thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
     _reply = reply_fixture(board, thread, %{body: "Reply body"})
 
-    page = get(conn, "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html") |> html_response(200)
+    page =
+      get(conn, "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html") |> html_response(200)
 
     refute page =~ "data-watch-url="
     refute page =~ "data-unwatch-url="
   end
 
-  test "thread pages derive post menu targets client-side instead of embedding per-post targets", %{
-    conn: conn
-  } do
+  test "thread pages derive post menu targets client-side instead of embedding per-post targets",
+       %{
+         conn: conn
+       } do
     board = board_fixture()
     thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
     _reply = reply_fixture(board, thread, %{body: "Reply body"})
 
-    page = get(conn, "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html") |> html_response(200)
+    page =
+      get(conn, "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html") |> html_response(200)
 
     refute page =~ "data-post-target="
   end
@@ -323,7 +335,9 @@ defmodule EirinchanWeb.ThreadControllerTest do
     _older_reply = reply_fixture(board, target_thread, %{body: "Older reply"})
     tail_reply = reply_fixture(board, target_thread, %{body: "Tail reply"})
     quoting_thread = thread_fixture(board, %{body: "Quoting thread"})
-    quoting_reply = reply_fixture(board, quoting_thread, %{body: ">>#{PublicIds.public_id(tail_reply)}"})
+
+    quoting_reply =
+      reply_fixture(board, quoting_thread, %{body: ">>#{PublicIds.public_id(tail_reply)}"})
 
     page =
       conn
@@ -338,9 +352,10 @@ defmodule EirinchanWeb.ThreadControllerTest do
     assert page =~ "#{PublicIds.public_id(quoting_reply)}"
   end
 
-  test "cross-thread quote links stay on the full thread when the cited reply is outside the tail", %{
-    conn: conn
-  } do
+  test "cross-thread quote links stay on the full thread when the cited reply is outside the tail",
+       %{
+         conn: conn
+       } do
     board =
       board_fixture(%{
         uri: "ctfull#{System.unique_integer([:positive])}",
@@ -492,7 +507,7 @@ defmodule EirinchanWeb.ThreadControllerTest do
   test "thread page renders watch link state from backend watcher", %{conn: conn} do
     board = board_fixture(%{uri: "watchthread", title: "Watch Thread"})
     thread = thread_fixture(board, %{body: "Thread body"})
-    token = "token-1234567890123456"
+    token = browser_token("thread-yous")
     assert {:ok, _watch} = ThreadWatcher.watch_thread(token, board.uri, thread.id)
 
     page =
@@ -668,7 +683,7 @@ defmodule EirinchanWeb.ThreadControllerTest do
     board = board_fixture(%{uri: "showyous", title: "Show Yous"})
     thread = thread_fixture(board, %{body: "Opening body"})
     reply = reply_fixture(board, thread, %{body: ">>#{PublicIds.public_id(thread)}"})
-    token = "show-yous-thread-token"
+    token = browser_token("show-yous-thread")
 
     assert {:ok, _} = Eirinchan.PostOwnership.record(token, thread.id)
     assert {:ok, _} = Eirinchan.PostOwnership.record(token, reply.id)
@@ -863,7 +878,7 @@ defmodule EirinchanWeb.ThreadControllerTest do
     board = board_fixture(%{uri: "watchthreadstate", title: "Watch Thread State"})
     thread = thread_fixture(board, %{body: "Watcher thread"})
     _reply = reply_fixture(board, thread, %{body: "Unread reply"})
-    token = "token-thread-watch-123456"
+    token = browser_token("thread-watch")
 
     assert {:ok, _watch} =
              ThreadWatcher.watch_thread(token, board.uri, thread.id, %{
