@@ -104,4 +104,23 @@ defmodule EirinchanWeb.BanManagementControllerTest do
 
     assert %{"error" => "forbidden"} = json_response(conn, 403)
   end
+
+  test "janitors cannot read ban lists or ban appeals through the JSON API", %{conn: conn} do
+    board = board_fixture()
+    janitor = moderator_fixture(%{role: "janitor"}) |> grant_board_access_fixture(board)
+
+    for path <- [
+          "/manage/boards/#{board.uri}/bans",
+          "/manage/boards/#{board.uri}/ban-appeals"
+        ] do
+      response =
+        conn
+        |> recycle()
+        |> login_moderator(janitor)
+        |> put_req_header("accept", "application/json")
+        |> get(path)
+
+      assert %{"error" => "forbidden"} = json_response(response, 403)
+    end
+  end
 end

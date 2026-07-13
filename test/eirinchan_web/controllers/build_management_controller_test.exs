@@ -11,7 +11,7 @@ defmodule EirinchanWeb.BuildManagementControllerTest do
     File.rm_rf!(Build.board_root())
 
     board = board_fixture(%{config_overrides: %{generation_strategy: "defer"}})
-    moderator = moderator_fixture(%{role: "mod"}) |> grant_board_access_fixture(board)
+    moderator = moderator_fixture(%{role: "admin"})
     config = Config.compose(nil, %{}, board.config_overrides, request_host: "example.test")
 
     assert {:ok, thread, _meta} =
@@ -27,7 +27,10 @@ defmodule EirinchanWeb.BuildManagementControllerTest do
              )
 
     board_dir = Path.join(Build.board_root(), board.uri)
-    thread_path = Path.join([board_dir, config.dir.res, ThreadPaths.thread_filename(thread, config)])
+
+    thread_path =
+      Path.join([board_dir, config.dir.res, ThreadPaths.thread_filename(thread, config)])
+
     index_path = Path.join(board_dir, config.file_index)
 
     refute File.exists?(thread_path)
@@ -46,5 +49,19 @@ defmodule EirinchanWeb.BuildManagementControllerTest do
 
     assert File.read!(thread_path) =~ "Deferred body"
     assert File.read!(index_path) =~ "Deferred subject"
+  end
+
+  test "moderators cannot rebuild boards through the JSON API", %{conn: conn} do
+    board = board_fixture()
+    moderator = moderator_fixture(%{role: "mod"}) |> grant_board_access_fixture(board)
+
+    response =
+      conn
+      |> login_moderator(moderator)
+      |> put_secure_manage_token()
+      |> put_req_header("accept", "application/json")
+      |> post("/manage/boards/#{board.uri}/rebuild")
+
+    assert %{"error" => "forbidden"} = json_response(response, 403)
   end
 end

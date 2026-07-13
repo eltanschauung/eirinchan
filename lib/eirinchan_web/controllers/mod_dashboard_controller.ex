@@ -9,6 +9,9 @@ defmodule EirinchanWeb.ModDashboardController do
 
   @max_recent_posts 100
 
+  plug EirinchanWeb.Plugs.RequireModeratorPermission,
+       [permission: :recent] when action in [:recent]
+
   def show(conn, _params) do
     boards = Moderation.list_accessible_boards(conn.assigns.current_moderator)
 

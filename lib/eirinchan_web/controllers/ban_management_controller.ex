@@ -8,6 +8,9 @@ defmodule EirinchanWeb.BanManagementController do
 
   action_fallback EirinchanWeb.FallbackController
 
+  plug EirinchanWeb.Plugs.RequireModeratorPermission,
+       [permission: :view_banlist] when action in [:index]
+
   def index(conn, %{"uri" => uri}) do
     with board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          :ok <- authorize_board(conn, board) do

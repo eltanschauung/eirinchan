@@ -10,7 +10,7 @@ defmodule EirinchanWeb.PostManagementControllerTest do
 
   test "shows, edits, deletes files, spoilerizes, and deletes board posts", %{conn: conn} do
     board = board_fixture()
-    moderator = moderator_fixture(%{role: "mod"}) |> grant_board_access_fixture(board)
+    moderator = moderator_fixture(%{role: "admin"})
 
     create_conn =
       conn
@@ -192,10 +192,7 @@ defmodule EirinchanWeb.PostManagementControllerTest do
     target_thread = thread_fixture(target_board)
     reply = reply_fixture(source_board, source_thread, %{body: "Move reply body"})
 
-    moderator =
-      moderator_fixture(%{role: "mod"})
-      |> grant_board_access_fixture(source_board)
-      |> grant_board_access_fixture(target_board)
+    moderator = moderator_fixture(%{role: "admin"})
 
     conn =
       conn
@@ -221,5 +218,42 @@ defmodule EirinchanWeb.PostManagementControllerTest do
     assert reply_id == PublicIds.public_id(moved_reply)
     assert target_board_id == target_board.id
     assert target_thread_id == PublicIds.public_id(target_thread)
+  end
+
+  test "moderators cannot edit or move posts through the JSON API", %{conn: conn} do
+    source_board = board_fixture()
+    target_board = board_fixture()
+    source_thread = thread_fixture(source_board)
+    target_thread = thread_fixture(target_board)
+    reply = reply_fixture(source_board, source_thread)
+
+    moderator =
+      moderator_fixture(%{role: "mod"})
+      |> grant_board_access_fixture(source_board)
+      |> grant_board_access_fixture(target_board)
+
+    edit_response =
+      conn
+      |> login_moderator(moderator)
+      |> put_secure_manage_token()
+      |> put_req_header("accept", "application/json")
+      |> patch("/manage/boards/#{source_board.uri}/posts/#{PublicIds.public_id(reply)}", %{
+        "body" => "unauthorized edit"
+      })
+
+    assert %{"error" => "forbidden"} = json_response(edit_response, 403)
+
+    move_response =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> put_secure_manage_token()
+      |> put_req_header("accept", "application/json")
+      |> patch("/manage/boards/#{source_board.uri}/posts/#{PublicIds.public_id(reply)}/move", %{
+        "target_board_uri" => target_board.uri,
+        "target_thread_id" => Integer.to_string(PublicIds.public_id(target_thread))
+      })
+
+    assert %{"error" => "forbidden"} = json_response(move_response, 403)
   end
 end

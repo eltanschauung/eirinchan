@@ -8,6 +8,9 @@ defmodule EirinchanWeb.ThreadManagementController do
 
   action_fallback EirinchanWeb.FallbackController
 
+  plug EirinchanWeb.Plugs.RequireModeratorPermission,
+       [permission: :move] when action in [:move]
+
   def show(conn, %{"uri" => uri, "thread_id" => thread_id}) do
     with board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          :ok <- authorize_board(conn, board),
@@ -32,6 +35,7 @@ defmodule EirinchanWeb.ThreadManagementController do
       ModerationAudit.log(conn, "Updated thread No. #{PostView.public_post_id(thread)}",
         board: board_record
       )
+
       render(conn, :show, thread: thread)
     else
       nil -> {:error, :not_found}
@@ -57,6 +61,7 @@ defmodule EirinchanWeb.ThreadManagementController do
         "Moved thread No. #{PostView.public_post_id(thread)} from /#{source_board.uri}/ to /#{target_board.uri}/",
         board: target_board
       )
+
       render(conn, :show, thread: thread)
     else
       nil -> {:error, :not_found}

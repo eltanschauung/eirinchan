@@ -7,6 +7,8 @@ defmodule EirinchanWeb.BuildManagementController do
 
   action_fallback EirinchanWeb.FallbackController
 
+  plug EirinchanWeb.Plugs.RequireModeratorPermission, permission: :rebuild
+
   def create(conn, %{"uri" => uri}) do
     with board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          :ok <- authorize_board(conn, board) do

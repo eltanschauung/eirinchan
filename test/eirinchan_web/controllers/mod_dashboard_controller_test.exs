@@ -72,4 +72,17 @@ defmodule EirinchanWeb.ModDashboardControllerTest do
              |> get("/manage/recent-posts", %{"limit" => "not-a-number"})
              |> json_response(200)
   end
+
+  test "janitors cannot read recent posts through the JSON API", %{conn: conn} do
+    board = board_fixture()
+    janitor = moderator_fixture(%{role: "janitor"}) |> grant_board_access_fixture(board)
+
+    response =
+      conn
+      |> login_moderator(janitor)
+      |> put_req_header("accept", "application/json")
+      |> get("/manage/recent-posts")
+
+    assert %{"error" => "forbidden"} = json_response(response, 403)
+  end
 end
