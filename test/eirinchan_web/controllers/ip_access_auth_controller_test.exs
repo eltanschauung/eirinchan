@@ -16,10 +16,12 @@ defmodule EirinchanWeb.IpAccessAuthControllerTest do
     File.rm(path)
     Application.put_env(:eirinchan, :instance_config_path, path)
     Eirinchan.Repo.delete_all(IpAccessEntry)
+    :ets.delete_all_objects(:eirinchan_ip_access_auth_throttle)
 
     on_exit(fn ->
       Application.put_env(:eirinchan, :instance_config_path, original_path)
       File.rm(path)
+      :ets.delete_all_objects(:eirinchan_ip_access_auth_throttle)
     end)
 
     %{settings_path: path}
@@ -77,6 +79,23 @@ defmodule EirinchanWeb.IpAccessAuthControllerTest do
     assert html_response(conn, 422) =~ "Invalid password."
   end
 
+  test "invalid authentication attempts are throttled per subnet", %{conn: conn} do
+    {:ok, _config} =
+      Settings.update_instance_config_from_json(
+        Jason.encode!(%{
+          ip_access_passwords: ["door"],
+          ip_access_auth: %{max_attempts: 2, global_max_attempts: 100, lockout_seconds: 60}
+        })
+      )
+
+    first = post(conn, "/auth", %{"password" => "wrong"})
+    assert html_response(first, 422) =~ "Invalid password."
+
+    limited = conn |> recycle() |> post("/auth", %{"password" => "still-wrong"})
+    assert html_response(limited, 429) =~ "Too many attempts."
+    assert get_resp_header(limited, "retry-after") == ["60"]
+  end
+
   test "successful authentication normalizes same-origin referrers to local paths", %{conn: conn} do
     conn =
       conn
@@ -109,9 +128,7 @@ defmodule EirinchanWeb.IpAccessAuthControllerTest do
 
   defp configured_password(password) do
     {:ok, _config} =
-      Settings.update_instance_config_from_json(
-        Jason.encode!(%{ip_access_passwords: [password]})
-      )
+      Settings.update_instance_config_from_json(Jason.encode!(%{ip_access_passwords: [password]}))
 
     password
   end

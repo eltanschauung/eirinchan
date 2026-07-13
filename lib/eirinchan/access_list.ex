@@ -7,6 +7,7 @@ defmodule Eirinchan.AccessList do
   alias Eirinchan.IpMatching
   alias Eirinchan.Repo
   alias Eirinchan.CredentialHash
+  alias Eirinchan.Settings
 
   @default_config %{enabled: false, entries: [], path: nil}
   @legacy_metadata_regex ~r/^#(?<password>\S+)\s+(?<date>\d{4}-\d{2}-\d{2})\s+(?<time>\d{2}:\d{2}:\d{2})(?:\s+\S+)?$/
@@ -62,15 +63,34 @@ defmodule Eirinchan.AccessList do
   end
 
   def stored_entries do
-    Repo.all(from entry in IpAccessEntry, select: entry.ip)
+    cutoff = expiration_cutoff(grant_ttl_hours())
+    Repo.all(from entry in IpAccessEntry, where: entry.granted_at >= ^cutoff, select: entry.ip)
   end
 
-  def record_access(ip, password, granted_at \\ current_timestamp()) when is_binary(ip) do
-    Repo.insert(%IpAccessEntry{
-      ip: ip,
-      password: hash_password(password),
-      granted_at: granted_at
-    })
+  def record_access(ip, password, opts \\ []) when is_binary(ip) and is_list(opts) do
+    granted_at = Keyword.get(opts, :granted_at, current_timestamp())
+    ttl_hours = Keyword.get(opts, :grant_ttl_hours, grant_ttl_hours())
+    password_hash = hash_password(password)
+    _ = prune_expired(ttl_hours, granted_at)
+
+    Repo.insert(
+      %IpAccessEntry{
+        ip: ip,
+        password: password_hash,
+        granted_at: granted_at
+      },
+      on_conflict: [set: [password: password_hash, granted_at: granted_at]],
+      conflict_target: [:ip],
+      returning: true
+    )
+  end
+
+  def prune_expired(ttl_hours \\ grant_ttl_hours(), now \\ current_timestamp()) do
+    cutoff = expiration_cutoff(ttl_hours, now)
+
+    Repo.delete_all(
+      from entry in IpAccessEntry, where: is_nil(entry.granted_at) or entry.granted_at < ^cutoff
+    )
   end
 
   def import_legacy_file(path) when is_binary(path) do
@@ -98,6 +118,7 @@ defmodule Eirinchan.AccessList do
 
   defp legacy_rows([ip, <<"#", _::binary>> = metadata | rest], acc) do
     {password, granted_at} = parse_legacy_metadata(metadata)
+
     legacy_rows(rest, [%{ip: ip, password: hash_password(password), granted_at: granted_at} | acc])
   end
 
@@ -139,8 +160,28 @@ defmodule Eirinchan.AccessList do
     NaiveDateTime.local_now() |> NaiveDateTime.truncate(:second)
   end
 
+  defp expiration_cutoff(ttl_hours, now \\ current_timestamp()) do
+    NaiveDateTime.add(now, -max(ttl_hours, 1) * 60 * 60, :second)
+  end
+
+  defp grant_ttl_hours do
+    Settings.current_instance_config()
+    |> Map.get(:ip_access_auth, %{})
+    |> Map.get(:grant_ttl_hours, 168)
+    |> case do
+      value when is_integer(value) and value > 0 -> value
+      _ -> 168
+    end
+  end
+
   defp matching_stored_entries(ip) do
-    Repo.all(from entry in IpAccessEntry, select: %{ip: entry.ip, granted_at: entry.granted_at})
+    cutoff = expiration_cutoff(grant_ttl_hours())
+
+    Repo.all(
+      from entry in IpAccessEntry,
+        where: entry.granted_at >= ^cutoff,
+        select: %{ip: entry.ip, granted_at: entry.granted_at}
+    )
     |> Enum.filter(&IpMatching.match?(ip, [&1.ip]))
   end
 end

@@ -2,6 +2,7 @@ defmodule EirinchanWeb.IpAccessAuthController do
   use EirinchanWeb, :controller
 
   alias Eirinchan.IpAccessAuth
+  alias Eirinchan.IpAccessAuthThrottle
   alias Eirinchan.Settings
   alias EirinchanWeb.RequestMeta
   alias EirinchanWeb.ThemeRegistry
@@ -29,8 +30,22 @@ defmodule EirinchanWeb.IpAccessAuthController do
     config = effective_config()
     ip = RequestMeta.effective_remote_ip(conn)
 
-    case IpAccessAuth.authorize(ip, password, config) do
+    with :ok <- IpAccessAuthThrottle.allowed?(ip, config),
+         result <- IpAccessAuth.authorize(ip, password, config) do
+      handle_authorization(conn, result, config, ip, password)
+    else
+      {:error, retry_after} when is_integer(retry_after) ->
+        conn
+        |> put_resp_header("retry-after", Integer.to_string(retry_after))
+        |> render_error(config, "Too many attempts. Try again later.", nil, :too_many_requests)
+    end
+  end
+
+  defp handle_authorization(conn, result, config, ip, password) do
+    case result do
       {:ok, _result} ->
+        IpAccessAuthThrottle.clear(ip)
+
         conn
         |> put_root_layout(false)
         |> render(:show,
@@ -50,7 +65,20 @@ defmodule EirinchanWeb.IpAccessAuthController do
         render_error(conn, config, "Password is required.", password)
 
       {:error, :invalid_password} ->
-        render_error(conn, config, "Invalid password.", password)
+        case IpAccessAuthThrottle.record_failure(ip, config) do
+          :ok ->
+            render_error(conn, config, "Invalid password.", password)
+
+          {:error, retry_after} ->
+            conn
+            |> put_resp_header("retry-after", Integer.to_string(retry_after))
+            |> render_error(
+              config,
+              "Too many attempts. Try again later.",
+              nil,
+              :too_many_requests
+            )
+        end
 
       {:error, :invalid_ip} ->
         render_error(conn, config, "Unable to determine network range.", password)
@@ -60,9 +88,9 @@ defmodule EirinchanWeb.IpAccessAuthController do
     end
   end
 
-  defp render_error(conn, config, message, password) do
+  defp render_error(conn, config, message, password, status \\ :unprocessable_entity) do
     conn
-    |> put_status(:unprocessable_entity)
+    |> put_status(status)
     |> put_root_layout(false)
     |> render(:show,
       layout: false,
@@ -134,7 +162,10 @@ defmodule EirinchanWeb.IpAccessAuthController do
 
   defp effective_port(%URI{scheme: scheme, port: nil}), do: default_port(scheme)
   defp effective_port(%URI{port: port}), do: port
-  defp effective_port(scheme, port) when port in [80, 443], do: default_port(Atom.to_string(scheme))
+
+  defp effective_port(scheme, port) when port in [80, 443],
+    do: default_port(Atom.to_string(scheme))
+
   defp effective_port(_scheme, port), do: port
 
   defp default_port("http"), do: 80

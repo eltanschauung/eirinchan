@@ -8,10 +8,15 @@ defmodule Eirinchan.IpAccessAuth do
   @default_passwords []
   @config_keys %{
     "auth_path" => :auth_path,
+    "global_max_attempts" => :global_max_attempts,
+    "grant_ttl_hours" => :grant_ttl_hours,
+    "lockout_seconds" => :lockout_seconds,
+    "max_attempts" => :max_attempts,
     "message" => :message,
     "passwords" => :passwords,
     "theme" => :theme,
-    "title" => :title
+    "title" => :title,
+    "window_seconds" => :window_seconds
   }
 
   @type config :: %{
@@ -25,23 +30,44 @@ defmodule Eirinchan.IpAccessAuth do
   def default_config do
     %{
       auth_path: "/auth",
+      global_max_attempts: 100,
+      grant_ttl_hours: 168,
+      lockout_seconds: 900,
+      max_attempts: 5,
       passwords: @default_passwords,
       message: "Enter a password to gain access.",
       theme: "ipaccessauth",
-      title: "IP Access Authentication"
+      title: "IP Access Authentication",
+      window_seconds: 300
     }
   end
 
   def effective_config(config \\ %{}) do
     config
     |> Map.new(fn {key, value} -> {normalize_key(key), value} end)
-    |> Map.take([:auth_path, :message, :theme, :passwords, :title])
+    |> Map.take([
+      :auth_path,
+      :global_max_attempts,
+      :grant_ttl_hours,
+      :lockout_seconds,
+      :max_attempts,
+      :message,
+      :theme,
+      :passwords,
+      :title,
+      :window_seconds
+    ])
     |> then(&Map.merge(default_config(), &1))
     |> Map.update!(:auth_path, &normalize_auth_path/1)
     |> Map.update!(:passwords, &normalized_passwords/1)
     |> Map.update!(:message, &normalize_message/1)
     |> Map.update!(:theme, &normalize_theme_name/1)
     |> Map.update!(:title, &normalize_title/1)
+    |> Map.update!(:global_max_attempts, &positive_integer(&1, 100))
+    |> Map.update!(:grant_ttl_hours, &positive_integer(&1, 168))
+    |> Map.update!(:lockout_seconds, &positive_integer(&1, 900))
+    |> Map.update!(:max_attempts, &positive_integer(&1, 5))
+    |> Map.update!(:window_seconds, &positive_integer(&1, 300))
   end
 
   def auth_path(config \\ %{}) do
@@ -90,9 +116,12 @@ defmodule Eirinchan.IpAccessAuth do
     end
   end
 
-  defp do_authorize(ip, normalized_password, _config) do
+  defp do_authorize(ip, normalized_password, config) do
     with {:ok, subnet} <- subnet_for_ip(ip),
-         {:ok, _entry} <- AccessList.record_access(subnet, normalized_password) do
+         {:ok, _entry} <-
+           AccessList.record_access(subnet, normalized_password,
+             grant_ttl_hours: config.grant_ttl_hours
+           ) do
       {:ok, %{subnet: subnet}}
     else
       {:error, :invalid_ip} -> {:error, :invalid_ip}
@@ -160,6 +189,17 @@ defmodule Eirinchan.IpAccessAuth do
       title -> title
     end
   end
+
+  defp positive_integer(value, _default) when is_integer(value) and value > 0, do: value
+
+  defp positive_integer(value, default) when is_binary(value) do
+    case Integer.parse(value) do
+      {parsed, ""} when parsed > 0 -> parsed
+      _ -> default
+    end
+  end
+
+  defp positive_integer(_value, default), do: default
 
   defp normalized_passwords(value) when is_list(value) do
     value

@@ -193,6 +193,11 @@ defmodule Eirinchan.Runtime.ConfigTest do
     assert config.search_limit == 100
     assert config.search_queries_per_minutes == [15, 2]
     assert config.search_queries_per_minutes_all == [50, 2]
+    assert config.ip_access_auth.max_attempts == 5
+    assert config.ip_access_auth.global_max_attempts == 100
+    assert config.ip_access_auth.window_seconds == 300
+    assert config.ip_access_auth.lockout_seconds == 900
+    assert config.ip_access_auth.grant_ttl_hours == 168
     assert config.search_allowed_boards == nil
     assert config.search_disallowed_boards == []
     assert config.search_query_global_limit_window == 60

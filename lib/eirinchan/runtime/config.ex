@@ -146,8 +146,13 @@ defmodule Eirinchan.Runtime.Config do
     post_form_embed: true,
     ip_access_auth: %{
       auth_path: "/auth",
+      global_max_attempts: 100,
+      grant_ttl_hours: 168,
+      lockout_seconds: 900,
+      max_attempts: 5,
       message: "Enter a password to gain access.",
-      theme: "ipaccessauth"
+      theme: "ipaccessauth",
+      window_seconds: 300
     },
     threads_per_page: 10,
     max_pages: 10,

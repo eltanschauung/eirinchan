@@ -56,7 +56,7 @@ defmodule Eirinchan.IpAccessAuthTest do
     assert IpAccessAuth.subnet_for_ip("2001:db8:abcd:1234::1") == {:ok, "2001:db8:abcd::/48"}
   end
 
-  test "records each successful authorization in the database" do
+  test "refreshes one expiring authorization per subnet" do
     config = %{passwords: "door", auth_path: "/auth"}
 
     assert {:ok, %{subnet: "203.0.113.0/24"}} =
@@ -68,10 +68,10 @@ defmodule Eirinchan.IpAccessAuthTest do
     entries =
       Repo.all(from entry in IpAccessEntry, order_by: [asc: entry.granted_at, asc: entry.ip])
 
-    assert length(entries) == 2
-    assert Enum.all?(entries, &(&1.ip == "203.0.113.0/24"))
-    assert Enum.all?(entries, &Eirinchan.CredentialHash.verify("door", &1.password, :ip_access))
-    refute Enum.any?(entries, &(&1.password == "door"))
+    assert [%IpAccessEntry{} = entry] = entries
+    assert entry.ip == "203.0.113.0/24"
+    assert Eirinchan.CredentialHash.verify("door", entry.password, :ip_access)
+    refute entry.password == "door"
   end
 
   test "uses supplied password list" do

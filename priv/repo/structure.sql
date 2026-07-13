@@ -2,10 +2,10 @@
 -- PostgreSQL database dump
 --
 
-\restrict lZVoHfvODA1T4GTCKUWyYAV6fAgaJbU38NCGMyb5KTSLB3jempQOTRNccwjnvKq
+\restrict mqr4C8KjaUJvJKHNvq5c2TvEq4pgUm3tRkNUwy6rOFG4PzPlpJdQQcYowdsOeaB
 
 -- Dumped from database version 13.18 (Debian 13.18-0+deb11u1)
--- Dumped by pg_dump version 15.16 (Debian 15.16-0+deb12u1)
+-- Dumped by pg_dump version 15.18 (Debian 15.18-0+deb12u1)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -60,6 +60,18 @@ CREATE SEQUENCE public.announcement_entries_id_seq
 --
 
 ALTER SEQUENCE public.announcement_entries_id_seq OWNED BY public.announcement_entries.id;
+
+
+--
+-- Name: april_fools_2026; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.april_fools_2026 (
+    team integer NOT NULL,
+    display_name character varying(255) NOT NULL,
+    html_colour character varying(255) NOT NULL,
+    post_count bigint DEFAULT 0 NOT NULL
+);
 
 
 --
@@ -179,7 +191,11 @@ CREATE TABLE public.build_jobs (
     thread_id bigint,
     status character varying(255) DEFAULT 'pending'::character varying NOT NULL,
     finished_at timestamp without time zone,
-    inserted_at timestamp without time zone NOT NULL
+    inserted_at timestamp without time zone NOT NULL,
+    attempts integer DEFAULT 0 NOT NULL,
+    last_error text,
+    started_at timestamp without time zone,
+    available_at timestamp without time zone
 );
 
 
@@ -377,15 +393,6 @@ CREATE TABLE public.ip_access_entries (
 
 
 --
--- Name: ip_access_passwords; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.ip_access_passwords (
-    password character varying(255) NOT NULL
-);
-
-
---
 -- Name: ip_notes; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -532,7 +539,8 @@ CREATE TABLE public.moderation_logs (
     actor_ip character varying(255),
     board_uri character varying(255),
     text text NOT NULL,
-    inserted_at timestamp without time zone NOT NULL
+    inserted_at timestamp without time zone NOT NULL,
+    subject_ip_token character varying(255)
 );
 
 
@@ -803,7 +811,10 @@ CREATE TABLE public.posts (
     legacy_import_id integer,
     cached_reply_count integer DEFAULT 0 NOT NULL,
     cached_image_count integer DEFAULT 0 NOT NULL,
-    cached_last_reply_at timestamp without time zone
+    cached_last_reply_at timestamp without time zone,
+    inactive boolean DEFAULT false NOT NULL,
+    team integer,
+    poster_id character varying(255)
 );
 
 
@@ -1121,6 +1132,14 @@ ALTER TABLE ONLY public.announcement_entries
 
 
 --
+-- Name: april_fools_2026 april_fools_2026_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.april_fools_2026
+    ADD CONSTRAINT april_fools_2026_pkey PRIMARY KEY (team);
+
+
+--
 -- Name: ban_appeals ban_appeals_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1370,6 +1389,13 @@ CREATE UNIQUE INDEX boards_uri_index ON public.boards USING btree (uri);
 
 
 --
+-- Name: build_jobs_active_unique_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX build_jobs_active_unique_index ON public.build_jobs USING btree (board_id, kind, COALESCE(thread_id, ('-1'::integer)::bigint)) WHERE ((status)::text = ANY ((ARRAY['pending'::character varying, 'running'::character varying])::text[]));
+
+
+--
 -- Name: build_jobs_board_id_status_inserted_at_index; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1429,14 +1455,7 @@ CREATE INDEX flood_entries_board_id_ip_subnet_inserted_at_index ON public.flood_
 -- Name: ip_access_entries_ip_index; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX ip_access_entries_ip_index ON public.ip_access_entries USING btree (ip);
-
-
---
--- Name: ip_access_passwords_password_index; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX ip_access_passwords_password_index ON public.ip_access_passwords USING btree (password);
+CREATE UNIQUE INDEX ip_access_entries_ip_index ON public.ip_access_entries USING btree (ip);
 
 
 --
@@ -1514,6 +1533,13 @@ CREATE INDEX moderation_logs_inserted_at_index ON public.moderation_logs USING b
 --
 
 CREATE INDEX moderation_logs_mod_user_id_inserted_at_index ON public.moderation_logs USING btree (mod_user_id, inserted_at);
+
+
+--
+-- Name: moderation_logs_subject_ip_token_inserted_at_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX moderation_logs_subject_ip_token_inserted_at_index ON public.moderation_logs USING btree (subject_ip_token, inserted_at);
 
 
 --
@@ -1956,7 +1982,7 @@ ALTER TABLE ONLY public.search_queries
 -- PostgreSQL database dump complete
 --
 
-\unrestrict lZVoHfvODA1T4GTCKUWyYAV6fAgaJbU38NCGMyb5KTSLB3jempQOTRNccwjnvKq
+\unrestrict mqr4C8KjaUJvJKHNvq5c2TvEq4pgUm3tRkNUwy6rOFG4PzPlpJdQQcYowdsOeaB
 
 INSERT INTO public."schema_migrations" (version) VALUES (20260307000000);
 INSERT INTO public."schema_migrations" (version) VALUES (20260307010000);
@@ -1991,6 +2017,16 @@ INSERT INTO public."schema_migrations" (version) VALUES (20260319180000);
 INSERT INTO public."schema_migrations" (version) VALUES (20260319193000);
 INSERT INTO public."schema_migrations" (version) VALUES (20260319194500);
 INSERT INTO public."schema_migrations" (version) VALUES (20260325190000);
-INSERT INTO public."schema_migrations" (version) VALUES (20260325193000);
 INSERT INTO public."schema_migrations" (version) VALUES (20260327120000);
 INSERT INTO public."schema_migrations" (version) VALUES (20260327184500);
+INSERT INTO public."schema_migrations" (version) VALUES (20260329183000);
+INSERT INTO public."schema_migrations" (version) VALUES (20260331150000);
+INSERT INTO public."schema_migrations" (version) VALUES (20260401010000);
+INSERT INTO public."schema_migrations" (version) VALUES (20260401020000);
+INSERT INTO public."schema_migrations" (version) VALUES (20260401023000);
+INSERT INTO public."schema_migrations" (version) VALUES (20260401030000);
+INSERT INTO public."schema_migrations" (version) VALUES (20260401033000);
+INSERT INTO public."schema_migrations" (version) VALUES (20260402235000);
+INSERT INTO public."schema_migrations" (version) VALUES (20260710150000);
+INSERT INTO public."schema_migrations" (version) VALUES (20260710213000);
+INSERT INTO public."schema_migrations" (version) VALUES (20260713120000);

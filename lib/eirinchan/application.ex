@@ -16,6 +16,7 @@ defmodule Eirinchan.Application do
         {Task.Supervisor, name: Eirinchan.BuildTaskSupervisor},
         Eirinchan.BrowserPresence,
         Eirinchan.ManageLoginThrottle,
+        Eirinchan.IpAccessAuthThrottle,
         EirinchanWeb.FragmentCache,
         maintenance_worker(),
         EirinchanWeb.Endpoint
