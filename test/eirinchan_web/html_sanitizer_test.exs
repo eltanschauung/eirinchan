@@ -83,4 +83,27 @@ defmodule EirinchanWeb.HtmlSanitizerTest do
     assert sanitized =~ ~s|target="_blank"|
     assert sanitized =~ ~s|rel="noopener noreferrer"|
   end
+
+  test "preserves the FAQ's inert legacy tags and narrowly scoped layout styles" do
+    html = """
+    <div style="margin-bottom:40px;position:fixed">
+      <p1>copy <px>blue</px> <py>green</py></p1>
+      <hr style="margin:6px;opacity:0;position:absolute">
+      <img src="/faq/example.png" style="max-width:285px;height:auto;text-align:center;margin:0;position:fixed">
+    </div>
+    """
+
+    sanitized = HtmlSanitizer.sanitize_fragment(html)
+
+    assert sanitized =~ ~s|<div style="margin-bottom:40px">|
+    assert sanitized =~ "<p1>"
+    assert sanitized =~ ~s|<px>blue</px>|
+    assert sanitized =~ ~s|<py>green</py>|
+    assert sanitized =~ ~s|<hr style="margin:6px;opacity:0"|
+
+    assert sanitized =~
+             ~s|<img src="/faq/example.png" style="max-width:285px;height:auto;text-align:center;margin:0"|
+
+    refute sanitized =~ "position:"
+  end
 end

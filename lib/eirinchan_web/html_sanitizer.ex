@@ -4,7 +4,7 @@ defmodule EirinchanWeb.HtmlSanitizer do
   @allowed_tags ~w(
     a abbr article aside b blockquote br caption code col colgroup dd del details div dl dt em
     figcaption figure footer h1 h2 h3 h4 h5 h6 header hr i img kbd li main mark nav ol p pre q
-    s section small span strong sub summary sup table tbody td tfoot th thead tr u ul
+    p1 px py s section small span strong sub summary sup table tbody td tfoot th thead tr u ul
   )
 
   @drop_with_contents ~w(base button embed form iframe input link math meta object script select
@@ -12,6 +12,11 @@ defmodule EirinchanWeb.HtmlSanitizer do
 
   @global_attributes ~w(class id title lang dir role aria-label aria-hidden style)
   @allowed_style_properties ~w(color background-color text-align font-weight font-style text-decoration)
+  @tag_style_properties %{
+    "div" => ~w(margin-top margin-bottom),
+    "hr" => ~w(margin opacity),
+    "img" => ~w(width height max-width margin)
+  }
   @tag_attributes %{
     "a" => ~w(href target rel),
     "div" => ~w(data-video),
@@ -72,7 +77,7 @@ defmodule EirinchanWeb.HtmlSanitizer do
   defp sanitize_attribute("a", "href", value), do: sanitize_url(value, :link)
   defp sanitize_attribute("img", "src", value), do: sanitize_url(value, :image)
   defp sanitize_attribute("div", "data-video", value), do: sanitize_video_id(value)
-  defp sanitize_attribute(_tag, "style", value), do: sanitize_style(value)
+  defp sanitize_attribute(tag, "style", value), do: sanitize_style(tag, value)
   defp sanitize_attribute("a", "target", "_blank"), do: "_blank"
   defp sanitize_attribute("a", "target", _value), do: "_self"
 
@@ -87,7 +92,9 @@ defmodule EirinchanWeb.HtmlSanitizer do
 
   defp sanitize_attribute(_tag, _name, value), do: value
 
-  defp sanitize_style(value) do
+  defp sanitize_style(tag, value) do
+    allowed_properties = @allowed_style_properties ++ Map.get(@tag_style_properties, tag, [])
+
     declarations =
       value
       |> String.split(";", trim: true)
@@ -97,7 +104,7 @@ defmodule EirinchanWeb.HtmlSanitizer do
             property = property |> String.trim() |> String.downcase()
             raw_value = String.trim(raw_value)
 
-            if property in @allowed_style_properties and safe_style_value?(raw_value) do
+            if property in allowed_properties and safe_style_value?(raw_value) do
               ["#{property}:#{raw_value}"]
             else
               []
