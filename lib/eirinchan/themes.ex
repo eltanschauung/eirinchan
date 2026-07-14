@@ -15,7 +15,7 @@ defmodule Eirinchan.Themes do
   alias Eirinchan.ThemeRegistry
 
   @always_enabled_features ["catalog"]
-  @thumbnail_themes ~w(categories feedback frameset index recent rss sitemap ukko)
+  @thumbnail_themes ~w(feedback recent rss sitemap ukko)
 
   def all_themes do
     installed = stored_theme_settings_map()

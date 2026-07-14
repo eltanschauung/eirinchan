@@ -21,11 +21,6 @@ defmodule Eirinchan.LandingPages do
     |> Enum.map(& &1.id)
   end
 
-  def boardlist(settings, boards) when is_map(settings) and is_list(boards) do
-    excluded = board_uri_set(Map.get(settings, "excludeboardlist", ""))
-    Enum.reject(boards, &MapSet.member?(excluded, &1.uri))
-  end
-
   def content(settings, board_ids) when is_map(settings) and is_list(board_ids) do
     image_limit = integer_setting(settings, "limit_images", 3, min: 0, max: 100)
     post_limit = integer_setting(settings, "limit_posts", 30, min: 0, max: 100)

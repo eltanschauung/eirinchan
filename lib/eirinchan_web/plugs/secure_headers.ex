@@ -23,7 +23,7 @@ defmodule EirinchanWeb.Plugs.SecureHeaders do
                                "media-src 'self' blob: https:",
                                "font-src 'self' data:",
                                "connect-src 'self' https: wss:",
-                               "frame-src 'self' https:",
+                               "frame-src https:",
                                "worker-src 'self' blob:",
                                "manifest-src 'self'"
                              ],

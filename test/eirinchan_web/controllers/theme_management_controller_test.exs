@@ -33,12 +33,12 @@ defmodule EirinchanWeb.ThemeManagementControllerTest do
       |> html_response(200)
 
     assert themes_page =~ "Manage Themes"
-    assert themes_page =~ "Categories"
-    assert themes_page =~ "Frameset"
-    assert themes_page =~ "Index"
     assert themes_page =~ "RSS"
     assert themes_page =~ "Sitemap"
     assert themes_page =~ "Overboard (Ukko)"
+    refute themes_page =~ "Categories"
+    refute themes_page =~ "Frameset"
+    refute themes_page =~ ">Index<"
     refute themes_page =~ "IP Access Authentication"
     refute themes_page =~ ">Catalog<"
 
@@ -143,25 +143,27 @@ defmodule EirinchanWeb.ThemeManagementControllerTest do
            |> html_response(200) =~ "Catalog thread"
   end
 
-  test "categories, frameset, index, and recent can be enabled concurrently", %{conn: conn} do
+  test "retired landing themes are unavailable", %{conn: conn} do
     moderator = moderator_fixture(%{role: "admin"})
-    board_fixture(%{uri: "landing#{System.unique_integer([:positive])}", title: "Landing"})
 
-    for name <- ["categories", "frameset", "index"] do
+    for name <- ~w(categories frameset index) do
+      refute Themes.page_theme_enabled?(name)
+
       response =
         conn
         |> recycle()
         |> login_moderator(moderator)
-        |> post("/manage/themes/browser/#{name}", %{})
+        |> get("/manage/themes/browser/#{name}")
 
-      assert redirected_to(response) == "/manage/themes/browser/#{name}"
-      assert Themes.page_theme_enabled?(name)
+      assert html_response(response, 404) =~ "Theme not found"
+
+      assert conn
+             |> recycle()
+             |> get("/#{name}")
+             |> html_response(404)
     end
 
     assert Themes.page_theme_enabled?("recent")
-    assert conn |> recycle() |> get("/categories") |> html_response(200) =~ "landing-sidebar"
-    assert conn |> recycle() |> get("/frameset") |> html_response(200) =~ "landing-main"
-    assert conn |> recycle() |> get("/index") |> html_response(200) =~ "Welcome to Eirinchan"
     assert conn |> recycle() |> get("/") |> html_response(200) =~ "Recent Images"
   end
 
@@ -188,20 +190,11 @@ defmodule EirinchanWeb.ThemeManagementControllerTest do
     refute body =~ "<tag>"
   end
 
-  test "theme settings reject unsafe route and media values", %{conn: conn} do
+  test "theme settings reject unsafe routes", %{conn: conn} do
     moderator = moderator_fixture(%{role: "admin"})
-
-    invalid_index =
-      conn
-      |> login_moderator(moderator)
-      |> post("/manage/themes/browser/index", %{"videoofnow" => "https://example.com/embed/x"})
-
-    assert html_response(invalid_index, 422) =~ "must be a YouTube URL"
-    refute Themes.page_theme_enabled?("index")
 
     invalid_ukko =
       conn
-      |> recycle()
       |> login_moderator(moderator)
       |> post("/manage/themes/browser/ukko", %{"uri" => "manage"})
 
