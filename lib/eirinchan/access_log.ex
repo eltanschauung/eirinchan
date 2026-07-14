@@ -22,7 +22,11 @@ defmodule Eirinchan.AccessLog do
     GenServer.call(server, {:purge_older_than, cutoff}, 120_000)
   end
 
-  def stats(server \\ __MODULE__), do: GenServer.call(server, :stats)
+  def stats(server \\ __MODULE__) do
+    GenServer.call(server, :stats)
+  catch
+    :exit, _reason -> {:error, :unavailable}
+  end
 
   @impl true
   def init(opts) do

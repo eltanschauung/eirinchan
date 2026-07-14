@@ -23,6 +23,7 @@ defmodule Eirinchan.Application do
         EirinchanWeb.FragmentCache,
         global_message_refresh_worker(),
         maintenance_worker(),
+        health_log_worker(),
         EirinchanWeb.Endpoint
       ]
       |> Enum.reject(&is_nil/1)
@@ -45,6 +46,11 @@ defmodule Eirinchan.Application do
   defp global_message_refresh_worker do
     if Application.get_env(:eirinchan, :start_global_message_refresh_worker, true),
       do: Eirinchan.GlobalMessageRefreshWorker
+  end
+
+  defp health_log_worker do
+    if Application.get_env(:eirinchan, :start_health_log_worker, true),
+      do: Eirinchan.HealthLogWorker
   end
 
   # Tell Phoenix to update the endpoint configuration

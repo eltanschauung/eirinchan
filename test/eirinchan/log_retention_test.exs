@@ -22,7 +22,10 @@ defmodule Eirinchan.LogRetentionTest do
     )
 
     path =
-      Path.join(System.tmp_dir!(), "eirinchan-retention-#{System.unique_integer([:positive])}.log")
+      Path.join(
+        System.tmp_dir!(),
+        "eirinchan-retention-#{System.unique_integer([:positive])}.log"
+      )
 
     server = start_supervised!({AccessLog, name: nil, path: path})
     on_exit(fn -> File.rm(path) end)
@@ -34,8 +37,7 @@ defmodule Eirinchan.LogRetentionTest do
         server
       )
 
-    assert {:ok,
-            %{access_lines: 1, cutoff: "2026-07-07T04:00:00Z", moderation_rows: 1}} =
+    assert {:ok, %{access_lines: 1, cutoff: "2026-07-07T04:00:00Z", moderation_rows: 1}} =
              LogRetention.run(
                now: now,
                retention_days: 7,

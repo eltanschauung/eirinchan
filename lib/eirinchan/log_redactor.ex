@@ -79,6 +79,8 @@ defmodule Eirinchan.LogRedactor do
     value |> Tuple.to_list() |> sanitize_value() |> List.to_tuple()
   end
 
+  defp sanitize_value([]), do: []
+
   defp sanitize_value(value) when is_list(value) do
     if List.ascii_printable?(value) do
       sanitize_text(value)
