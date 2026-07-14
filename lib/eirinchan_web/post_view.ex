@@ -13,7 +13,7 @@ defmodule EirinchanWeb.PostView do
   alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Posts.PostFile
   alias Eirinchan.Themes
-  alias EirinchanWeb.HtmlSanitizer
+  alias EirinchanWeb.{BoardlistPresenter, HtmlSanitizer}
   alias Eirinchan.ThreadPaths
   alias Eirinchan.WhaleStickers
   alias EirinchanWeb.{IpPresentation, ManageSecurity, ModeratorPermissions}
@@ -152,7 +152,11 @@ defmodule EirinchanWeb.PostView do
     })
   end
 
-  def boardlist_groups(boards, opts \\ []), do: Boardlist.configured_groups(boards, opts)
+  def boardlist_groups(boards, opts \\ []) do
+    boards
+    |> Boardlist.configured_groups(opts)
+    |> BoardlistPresenter.expand_groups(boards, opts)
+  end
 
   def default_boardlist_groups(boards) do
     [

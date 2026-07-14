@@ -27,9 +27,13 @@ defmodule EirinchanWeb.Announcements do
 
   def global_message(config, opts \\ []) when is_map(config) do
     case Map.get(config, :global_message) do
-      value when is_binary(value) and value != "" -> expand_placeholders_cached(value, opts)
+      value when is_binary(value) and value != "" -> expand_text(value, opts)
       _ -> nil
     end
+  end
+
+  def expand_text(value, opts \\ []) when is_binary(value) do
+    expand_placeholders_cached(value, opts)
   end
 
   def global_message_html(config, opts \\ []) when is_map(config) do
@@ -128,8 +132,8 @@ defmodule EirinchanWeb.Announcements do
   end
 
   defp render_tf2_conditional_lines([line, next_line | rest], show?, rendered) do
-    case tf2_conditional_prefix(line) do
-      {:ok, prefix} ->
+    case tf2_conditional(line) do
+      {:following_line, prefix} ->
         emitted_lines =
           case {prefix, show?} do
             {"", true} -> [next_line]
@@ -141,17 +145,35 @@ defmodule EirinchanWeb.Announcements do
         rendered = Enum.reduce(emitted_lines, rendered, fn emitted, acc -> [emitted | acc] end)
         render_tf2_conditional_lines(rest, show?, rendered)
 
+      {:inline, prefix, conditional_text} ->
+        rendered =
+          prefix
+          |> inline_conditional_value(conditional_text, show?)
+          |> maybe_prepend_rendered(rendered)
+
+        render_tf2_conditional_lines([next_line | rest], show?, rendered)
+
       :error ->
         render_tf2_conditional_lines([next_line | rest], show?, [line | rendered])
     end
   end
 
-  defp render_tf2_conditional_lines([line], _show?, rendered) do
+  defp render_tf2_conditional_lines([line], show?, rendered) do
     rendered =
-      case tf2_conditional_prefix(line) do
-        {:ok, ""} -> rendered
-        {:ok, prefix} -> [prefix | rendered]
-        :error -> [line | rendered]
+      case tf2_conditional(line) do
+        {:following_line, ""} ->
+          rendered
+
+        {:following_line, prefix} ->
+          [prefix | rendered]
+
+        {:inline, prefix, conditional_text} ->
+          prefix
+          |> inline_conditional_value(conditional_text, show?)
+          |> maybe_prepend_rendered(rendered)
+
+        :error ->
+          [line | rendered]
       end
 
     Enum.reverse(rendered)
@@ -159,14 +181,29 @@ defmodule EirinchanWeb.Announcements do
 
   defp render_tf2_conditional_lines([], _show?, rendered), do: Enum.reverse(rendered)
 
-  defp tf2_conditional_prefix(line) do
+  defp inline_conditional_value(prefix, conditional_text, true), do: prefix <> conditional_text
+
+  defp inline_conditional_value(prefix, _conditional_text, false),
+    do: String.trim_trailing(prefix)
+
+  defp maybe_prepend_rendered("", rendered), do: rendered
+  defp maybe_prepend_rendered(value, rendered), do: [value | rendered]
+
+  defp tf2_conditional(line) do
     case Regex.run(
-           ~r/^(.*?)\{if\s+tf2_display\s*>\s*0\s*\}\s*$/u,
+           ~r/^(.*?)\{if\s+tf2_display\s*>\s*0\s*\}(.*)$/u,
            line,
            capture: :all_but_first
          ) do
-      [prefix] -> {:ok, String.trim_trailing(prefix)}
-      _ -> :error
+      [prefix, suffix] ->
+        if String.trim(suffix) == "" do
+          {:following_line, String.trim_trailing(prefix)}
+        else
+          {:inline, prefix, suffix}
+        end
+
+      _ ->
+        :error
     end
   end
 

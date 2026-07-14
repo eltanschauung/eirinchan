@@ -3,6 +3,7 @@ defmodule Eirinchan.BoardlistTest do
 
   alias Eirinchan.Boardlist
   alias Eirinchan.Settings
+  alias EirinchanWeb.{FragmentCache, PostView}
 
   setup do
     original_path = Application.get_env(:eirinchan, :instance_config_path)
@@ -21,9 +22,11 @@ defmodule Eirinchan.BoardlistTest do
       File.rm(path)
     end)
 
+    FragmentCache.clear()
+
     boards = [
-      %{uri: "desk", title: "Desktop Board"},
-      %{uri: "phone", title: "Mobile Board"}
+      %{id: 1, uri: "desk", title: "Desktop Board"},
+      %{id: 2, uri: "phone", title: "Mobile Board"}
     ]
 
     {:ok, boards: boards, path: path}
@@ -76,5 +79,47 @@ defmodule Eirinchan.BoardlistTest do
     assert encoded =~ ~s("mobile")
     assert encoded =~ ~s("desk")
     assert encoded =~ ~s("phone")
+  end
+
+  test "runtime boardlist labels support global message placeholders and inline conditions", %{
+    boards: boards
+  } do
+    label = "TF2 {if tf2_display > 0}TF2 playercount: {tf2_display}/24"
+
+    :ok =
+      Settings.persist_instance_config(%{
+        boardlist: %{
+          desktop: [%{label => "https://kogasa.tf"}],
+          mobile: [%{label => "https://kogasa.tf"}]
+        }
+      })
+
+    [online_group] =
+      PostView.boardlist_groups(boards,
+        variant: :desktop,
+        tf2_now: 6_000,
+        tf2_fetcher: fn ->
+          {:ok, %{"success" => true, "display" => "16", "player_count" => 16}}
+        end
+      )
+
+    assert [%{label: "TF2 TF2 playercount: 16/24", title: "TF2 TF2 playercount: 16/24"} = link] =
+             online_group
+
+    assert link.href == "https://kogasa.tf"
+
+    FragmentCache.clear()
+
+    [offline_group] =
+      PostView.boardlist_groups(boards,
+        variant: :desktop,
+        tf2_now: 6_000,
+        tf2_fetcher: fn ->
+          {:ok, %{"success" => true, "display" => "0", "player_count" => 0}}
+        end
+      )
+
+    assert [%{label: "TF2", title: "TF2", href: "https://kogasa.tf"}] = offline_group
+    assert Boardlist.encode_for_edit(boards) =~ label
   end
 end

@@ -348,6 +348,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
           "desktop": [
             ["bant"],
             {"Administration": "/manage/login"},
+            {"Booru": "https://gyate.net", "TF2 {if tf2_display > 0}TF2 playercount: {tf2_display}/24": "https://kogasa.tf"},
             {"Home": "/"}
           ],
           "mobile": [
@@ -366,11 +367,15 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert persisted =~ "\"label\": \"Administration\""
     assert persisted =~ "\"href\": \"/manage/login\""
     assert persisted =~ "\"label\": \"bant\""
+    assert persisted =~ "TF2 {if tf2_display > 0}TF2 playercount: {tf2_display}/24"
+    assert persisted =~ "https://kogasa.tf"
 
     assert Eirinchan.Boardlist.encode_for_edit(Eirinchan.Boards.list_boards()) =~
              "\"Administration\""
     assert Eirinchan.Boardlist.encode_for_edit(Eirinchan.Boards.list_boards()) =~ "\"desktop\""
     assert Eirinchan.Boardlist.encode_for_edit(Eirinchan.Boards.list_boards()) =~ "\"mobile\""
+    assert Eirinchan.Boardlist.encode_for_edit(Eirinchan.Boards.list_boards()) =~
+             "TF2 {if tf2_display > 0}TF2 playercount: {tf2_display}/24"
   end
 
   test "admin can update dnsbl configuration from the dashboard", %{conn: conn} do

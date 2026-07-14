@@ -1,17 +1,26 @@
 <.flash_group flash={@flash} />
 <h1>Boardlist Configuration</h1>
+
 <p><a href={~p"/manage"}>Back to dashboard</a></p>
+
 <p :if={@error} class="error"><%= @error %></p>
 
-<p>Configure boardlist groups separately for desktop and mobile. Each value must be a JSON array of groups using board URIs as strings or label-to-URL maps.</p>
+<p>
+  Configure boardlist groups separately for desktop and mobile. Each value must be a JSON array of groups using board URIs as strings or label-to-URL maps.
+</p>
+<p>
+  Link labels support the same placeholders as the global message. Inline conditional text can use <code>{if tf2_display &gt; 0}conditional text</code>; the text after the condition is hidden when the player count is zero.
+</p>
 <br />
 <p>See this example:</p>
+
 <pre>
 {
   "desktop": [
     ["a", "b", "c", "j", "qa"],
     {"rules": "/rules"},
     {"faq": "/faq", "format": "/formatting"},
+    {"Booru": "https://gyate.net", "TF2 {if tf2_display > 0}TF2 playercount: {tf2_display}/24": "https://kogasa.tf"},
     {"Home": "/"}
   ],
   "mobile": [
@@ -20,10 +29,12 @@
     {"Home": "/"}
   ]
 }</pre>
-
 <form action={~p"/manage/boardlist/browser"} method="post">
   <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
-  <input type="hidden" name="_method" value="patch" />
-  <textarea name="boardlist_json" rows="18" style="width:100%"><%= @boardlist_json %></textarea>
+  <input type="hidden" name="_method" value="patch" /> <textarea
+    name="boardlist_json"
+    rows="18"
+    style="width:100%"
+  ><%= @boardlist_json %></textarea>
   <p><input type="submit" value="Update boardlist" /></p>
 </form>

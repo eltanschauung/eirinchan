@@ -119,6 +119,28 @@ defmodule EirinchanWeb.AnnouncementsTest do
     assert message =~ ~r/^PPH: \d+\nTF2 playercount: 4$/
   end
 
+  test "TF2 conditional controls the remainder of its line" do
+    config = %{
+      global_message: "TF2 {if tf2_display > 0}TF2 playercount: {tf2_display}/24"
+    }
+
+    assert Announcements.global_message(config,
+             tf2_now: 3_600,
+             tf2_fetcher: fn ->
+               {:ok, %{"success" => true, "display" => "16", "player_count" => 16}}
+             end
+           ) == "TF2 TF2 playercount: 16/24"
+
+    FragmentCache.clear()
+
+    assert Announcements.global_message(config,
+             tf2_now: 3_600,
+             tf2_fetcher: fn ->
+               {:ok, %{"success" => true, "display" => "0", "player_count" => 0}}
+             end
+           ) == "TF2"
+  end
+
   test "malformed parenthesis conditional is not accepted" do
     message =
       Announcements.global_message(

@@ -40,6 +40,13 @@ defmodule EirinchanWeb.BoardChrome do
   end
 
   def boardlist_groups(boards, chrome_groups, opts \\ [])
-  def boardlist_groups(boards, nil, opts), do: EirinchanWeb.PostView.boardlist_groups(boards, opts)
-  def boardlist_groups(boards, chrome_groups, opts), do: Eirinchan.Boardlist.configured_groups_from_value(chrome_groups, boards, opts)
+
+  def boardlist_groups(boards, nil, opts),
+    do: EirinchanWeb.PostView.boardlist_groups(boards, opts)
+
+  def boardlist_groups(boards, chrome_groups, opts) do
+    chrome_groups
+    |> Eirinchan.Boardlist.configured_groups_from_value(boards, opts)
+    |> EirinchanWeb.BoardlistPresenter.expand_groups(boards, opts)
+  end
 end
