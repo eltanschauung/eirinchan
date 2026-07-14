@@ -11,7 +11,7 @@ defmodule EirinchanWeb.PublicControllerHelpers do
 
   @empty_watcher_metrics %{watcher_count: 0, watcher_unread_count: 0, watcher_you_count: 0}
   @public_extra_stylesheets ["/stylesheets/eirinchan-public.css"]
-  @slow_page_log_ms 250
+  @default_slow_page_log_ms 2_000
 
   def fragment_options(params) do
     [fragment?: fragment_request?(params), fragment_md5?: fragment_md5_request?(params)]
@@ -95,7 +95,10 @@ defmodule EirinchanWeb.PublicControllerHelpers do
       when is_binary(page) and is_integer(started_at_us) and is_map(metadata) do
     total_ms = round((System.monotonic_time(:microsecond) - started_at_us) / 1000)
 
-    if total_ms >= @slow_page_log_ms do
+    slow_page_log_ms =
+      Application.get_env(:eirinchan, :slow_page_log_ms, @default_slow_page_log_ms)
+
+    if is_integer(slow_page_log_ms) and total_ms >= slow_page_log_ms do
       LogSystem.log(
         :info,
         "page.performance",

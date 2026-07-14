@@ -1,6 +1,8 @@
 defmodule EirinchanWeb.PublicControllerHelpersTest do
   use ExUnit.Case, async: true
 
+  import ExUnit.CaptureIO
+
   alias EirinchanWeb.PublicControllerHelpers
 
   test "fragment options decode fragment requests" do
@@ -54,5 +56,41 @@ defmodule EirinchanWeb.PublicControllerHelpersTest do
              unread_count: 0,
              last_seen_post_id: 42
            }
+  end
+
+  test "logs only genuinely slow public pages" do
+    config = %{log_system: %{type: "stderr"}}
+
+    fast_output =
+      capture_io(:stderr, fn ->
+        started_at_us = System.monotonic_time(:microsecond)
+
+        assert :ok =
+                 PublicControllerHelpers.maybe_log_page_performance(
+                   "board.index",
+                   started_at_us,
+                   %{board: "test"},
+                   config
+                 )
+      end)
+
+    assert fast_output == ""
+
+    slow_output =
+      capture_io(:stderr, fn ->
+        started_at_us = System.monotonic_time(:microsecond) - 2_100_000
+
+        assert :ok =
+                 PublicControllerHelpers.maybe_log_page_performance(
+                   "board.index",
+                   started_at_us,
+                   %{board: "test"},
+                   config
+                 )
+      end)
+
+    decoded = Jason.decode!(String.trim(slow_output))
+    assert decoded["event"] == "page.performance"
+    assert decoded["metadata"]["total_ms"] >= 2_100
   end
 end
