@@ -32,6 +32,7 @@ config :eirinchan,
     client_ip_headers: ["x-forwarded-for", "x-real-ip"]
   },
   build_output_root: Path.expand("../tmp/build", __DIR__),
+  access_log_path: Path.expand("../access.log", __DIR__),
   generators: [timestamp_type: :utc_datetime]
 
 # Configures the endpoint
@@ -53,6 +54,7 @@ config :logger, :console,
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
+config :phoenix, :filter_parameters, {:keep, []}
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

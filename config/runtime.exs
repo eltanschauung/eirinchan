@@ -28,6 +28,7 @@ if config_env() == :prod do
   config :eirinchan,
     instance_config_path: Path.join(state_root, "var/settings.json"),
     build_output_root: Path.join(state_root, "tmp/build"),
+    access_log_path: Path.join(state_root, "access.log"),
     quarantine_invalid_upload_root: Path.join(state_root, "var/invalid_uploads")
 
   database_url =

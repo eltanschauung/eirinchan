@@ -42,7 +42,9 @@ defmodule EirinchanWeb.Endpoint do
     plug Phoenix.Ecto.CheckRepoStatus, otp_app: :eirinchan
   end
 
-  plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
+  # The dedicated Combined access log owns successful request logging. Phoenix
+  # still records exceptions, without duplicating a start/stop pair per request.
+  plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint], log: false
 
   plug Plug.Parsers,
     parsers: [:urlencoded, :multipart, :json],

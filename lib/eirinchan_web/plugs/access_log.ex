@@ -4,14 +4,15 @@ defmodule EirinchanWeb.Plugs.AccessLog do
   import Plug.Conn
   require Logger
 
+  alias Eirinchan.AccessLog
   alias Eirinchan.CredentialHash
   alias EirinchanWeb.RequestMeta
+
+  @months ~w(Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec)
 
   def init(opts), do: opts
 
   def call(conn, _opts) do
-    started_at = System.monotonic_time()
-
     client_id =
       conn
       |> RequestMeta.effective_remote_ip()
@@ -21,59 +22,92 @@ defmodule EirinchanWeb.Plugs.AccessLog do
     Logger.metadata(remote_ip: client_id)
 
     register_before_send(conn, fn conn ->
-      Logger.info(render_line(conn, started_at, client_id))
+      _ = AccessLog.write(format_line(conn, client_id))
       conn
     end)
   end
 
-  defp render_line(conn, started_at, client_id) do
-    request_id = Logger.metadata()[:request_id] || "-"
-
+  @doc false
+  def format_line(conn, client_id, now \\ DateTime.utc_now()) do
     [
-      "access",
-      "client_id=#{quote_field(client_id)}",
-      "method=#{conn.method}",
-      "path=#{quote_field(conn.request_path)}",
-      "status=#{conn.status || 0}",
-      "bytes=#{response_bytes(conn)}",
-      "request_id=#{quote_field(to_string(request_id))}",
-      "route=#{quote_field(route_name(conn))}",
-      "duration_ms=#{duration_ms(started_at)}"
+      escape_field(client_id, 128),
+      " - - [",
+      timestamp(now),
+      "] \"",
+      escape_field(request_line(conn), 2_048),
+      "\" ",
+      Integer.to_string(conn.status || 0),
+      " ",
+      response_bytes(conn),
+      " \"",
+      escape_field(safe_referer(conn), 512),
+      "\" \"",
+      escape_field(header(conn, "user-agent"), 512),
+      "\"\n"
     ]
-    |> Enum.join(" ")
+    |> IO.iodata_to_binary()
+  rescue
+    _ -> "- - - [#{timestamp(now)}] \"-\" 0 - \"-\" \"-\"\n"
   end
 
   defp response_bytes(conn) do
     case get_resp_header(conn, "content-length") |> List.first() do
-      nil when is_binary(conn.resp_body) -> Integer.to_string(byte_size(conn.resp_body))
+      nil when not is_nil(conn.resp_body) -> body_size(conn.resp_body)
       nil -> "-"
       value -> value
     end
   end
 
-  defp route_name(conn) do
-    case {conn.private[:phoenix_controller], conn.private[:phoenix_action]} do
-      {nil, nil} -> "-"
-      {controller, action} -> "#{inspect(controller)}##{action}"
+  defp body_size(body) do
+    body |> IO.iodata_length() |> Integer.to_string()
+  rescue
+    _ -> "-"
+  end
+
+  defp request_line(conn), do: "#{conn.method} #{conn.request_path} HTTP/1.1"
+
+  defp safe_referer(conn) do
+    case header(conn, "referer") do
+      "-" ->
+        "-"
+
+      value ->
+        case URI.parse(value) do
+          %URI{scheme: scheme, host: host} = uri
+          when scheme in ["http", "https"] and is_binary(host) ->
+            %{uri | query: nil, fragment: nil, userinfo: nil} |> URI.to_string()
+
+          _ ->
+            "-"
+        end
+    end
+  rescue
+    _ -> "-"
+  end
+
+  defp header(conn, name) do
+    case get_req_header(conn, name) do
+      [value | _] when value != "" -> value
+      _ -> "-"
     end
   end
 
-  defp duration_ms(started_at) do
-    System.monotonic_time()
-    |> Kernel.-(started_at)
-    |> System.convert_time_unit(:native, :microsecond)
-    |> Kernel./(1000)
-    |> :erlang.float_to_binary(decimals: 1)
+  defp timestamp(now) do
+    month = Enum.at(@months, now.month - 1)
+
+    :io_lib.format(
+      "~2..0B/~s/~4..0B:~2..0B:~2..0B:~2..0B +0000",
+      [now.day, month, now.year, now.hour, now.minute, now.second]
+    )
+    |> IO.iodata_to_binary()
   end
 
-  defp quote_field(value), do: ~s("#{escape_field(value)}")
-
-  defp escape_field(value) do
+  defp escape_field(value, limit) do
     value
     |> to_string()
     |> String.replace("\\", "\\\\")
     |> String.replace("\"", "\\\"")
     |> String.replace(~r/[\r\n\t]/u, " ")
-    |> String.slice(0, 512)
+    |> String.slice(0, limit)
   end
 end

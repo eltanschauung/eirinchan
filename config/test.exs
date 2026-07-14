@@ -16,6 +16,7 @@ config :eirinchan, build_output_root: Path.expand("../tmp/test_build", __DIR__)
 config :eirinchan, instance_config_path: Path.expand("../tmp/test_settings.json", __DIR__)
 config :eirinchan, start_maintenance_worker: false
 config :eirinchan, start_global_message_refresh_worker: false
+config :eirinchan, start_access_log: false
 
 # We don't run a server during test. If one is required,
 # you can enable the server option below.

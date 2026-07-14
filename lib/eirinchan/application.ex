@@ -13,6 +13,7 @@ defmodule Eirinchan.Application do
       [
         EirinchanWeb.Telemetry,
         Eirinchan.Repo,
+        access_log_worker(),
         {DNSCluster, query: Application.get_env(:eirinchan, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: Eirinchan.PubSub},
         {Task.Supervisor, name: Eirinchan.BuildTaskSupervisor},
@@ -35,6 +36,10 @@ defmodule Eirinchan.Application do
   defp maintenance_worker do
     if Application.get_env(:eirinchan, :start_maintenance_worker, true),
       do: Eirinchan.MaintenanceWorker
+  end
+
+  defp access_log_worker do
+    if Application.get_env(:eirinchan, :start_access_log, true), do: Eirinchan.AccessLog
   end
 
   defp global_message_refresh_worker do
