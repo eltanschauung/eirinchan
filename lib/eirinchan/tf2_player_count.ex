@@ -5,7 +5,6 @@ defmodule Eirinchan.Tf2PlayerCount do
   @default_timeout_ms 2_000
   @default_cache_seconds 60
   @maximum_response_bytes 64 * 1_024
-  @display_pattern ~r/\A(\d+)\/(\d+)\z/u
 
   @type stats :: %{
           display: String.t(),
@@ -94,22 +93,20 @@ defmodule Eirinchan.Tf2PlayerCount do
          "player_count" => player_count
        })
        when is_binary(display) and is_integer(player_count) and player_count >= 0 do
-    normalized_display = Regex.replace(~r/\s+/u, display, "")
-
-    case Regex.run(@display_pattern, normalized_display) do
-      [_, displayed_count, _maximum] ->
-        if String.to_integer(displayed_count) == player_count do
-          {:ok, %{display: normalized_display, player_count: player_count, available?: true}}
-        else
-          {:error, :inconsistent_response}
-        end
-
-      _ ->
-        {:error, :invalid_response}
+    if valid_display?(display) do
+      {:ok, %{display: display, player_count: player_count, available?: true}}
+    else
+      {:error, :invalid_response}
     end
   end
 
   defp normalize_payload(_payload), do: {:error, :invalid_response}
+
+  defp valid_display?(display) do
+    byte_size(display) in 1..64 and
+      String.valid?(display) and
+      not Regex.match?(~r/[\x00-\x1F\x7F]/u, display)
+  end
 
   defp config(key, default) do
     case Application.get_env(:eirinchan, :tf2_player_count, []) do

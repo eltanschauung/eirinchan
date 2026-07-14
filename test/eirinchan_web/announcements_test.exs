@@ -60,11 +60,11 @@ defmodule EirinchanWeb.AnnouncementsTest do
         %{global_message: "TF2 playercount: {tf2_display}"},
         tf2_now: 1_000,
         tf2_fetcher: fn ->
-          {:ok, %{"success" => true, "display" => "12 / 42", "player_count" => 12}}
+          {:ok, %{"success" => true, "display" => "12", "player_count" => 12}}
         end
       )
 
-    assert message == "TF2 playercount: 12/42"
+    assert message == "TF2 playercount: 12"
   end
 
   test "TF2 conditional renders only its following line when players are online" do
@@ -76,11 +76,11 @@ defmodule EirinchanWeb.AnnouncementsTest do
         },
         tf2_now: 2_000,
         tf2_fetcher: fn ->
-          {:ok, %{"success" => true, "display" => "3 / 42", "player_count" => 3}}
+          {:ok, %{"success" => true, "display" => "3", "player_count" => 3}}
         end
       )
 
-    assert message == "Free password: bantptized\nTF2 playercount: 3/42\nAfter"
+    assert message == "Free password: bantptized\nTF2 playercount: 3\nAfter"
   end
 
   test "TF2 conditional can follow content on the preceding line and removes an offline line" do
@@ -93,7 +93,7 @@ defmodule EirinchanWeb.AnnouncementsTest do
         tf2_now: 3_000,
         board_ids: [0],
         tf2_fetcher: fn ->
-          {:ok, %{"success" => true, "display" => "0 / 42", "player_count" => 0}}
+          {:ok, %{"success" => true, "display" => "0", "player_count" => 0}}
         end
       )
 
@@ -112,11 +112,11 @@ defmodule EirinchanWeb.AnnouncementsTest do
         tf2_now: 3_500,
         board_ids: [0],
         tf2_fetcher: fn ->
-          {:ok, %{"success" => true, "display" => "4 / 42", "player_count" => 4}}
+          {:ok, %{"success" => true, "display" => "4", "player_count" => 4}}
         end
       )
 
-    assert message =~ ~r/^PPH: \d+\nTF2 playercount: 4\/42$/
+    assert message =~ ~r/^PPH: \d+\nTF2 playercount: 4$/
   end
 
   test "malformed parenthesis conditional is not accepted" do
@@ -125,11 +125,11 @@ defmodule EirinchanWeb.AnnouncementsTest do
         %{global_message: "{if tf2_display > 0)\nTF2 playercount: {tf2_display}"},
         tf2_now: 3_750,
         tf2_fetcher: fn ->
-          {:ok, %{"success" => true, "display" => "4 / 42", "player_count" => 4}}
+          {:ok, %{"success" => true, "display" => "4", "player_count" => 4}}
         end
       )
 
-    assert message == "{if tf2_display > 0)\nTF2 playercount: 4/42"
+    assert message == "{if tf2_display > 0)\nTF2 playercount: 4"
   end
 
   test "TF2 placeholder fetch is cached and remote failures fail closed" do
