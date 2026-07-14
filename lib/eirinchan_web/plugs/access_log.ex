@@ -21,9 +21,23 @@ defmodule EirinchanWeb.Plugs.AccessLog do
     Logger.metadata(remote_ip: client_id)
 
     register_before_send(conn, fn conn ->
-      _ = AccessLog.write(format_line(conn, client_id))
+      _ = AccessLog.write(format_line(conn, goaccess_host(client_id)))
       conn
     end)
+  end
+
+  @doc false
+  def goaccess_host(client_id) when is_binary(client_id) do
+    # GoAccess requires %h to be an IP address. Embed the 96-bit HMAC
+    # fingerprint in the documentation-only IPv6 prefix so the value remains
+    # useful for aggregate traffic analysis without recording a client IP.
+    with {:ok, <<a::16, b::16, c::16, d::16, e::16, f::16>>} <-
+           Base.url_decode64(client_id, padding: false) do
+      [0x2001, 0xDB8, a, b, c, d, e, f]
+      |> Enum.map_join(":", &Integer.to_string(&1, 16))
+    else
+      _ -> "2001:db8::"
+    end
   end
 
   @doc false

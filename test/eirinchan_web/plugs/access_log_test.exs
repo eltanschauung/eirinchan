@@ -23,13 +23,26 @@ defmodule EirinchanWeb.Plugs.AccessLogTest do
     |> get("/api/boards.json?token=top-secret")
 
     [line] = File.read!(path) |> String.split("\n", trim: true)
+    [host | _] = String.split(line, " ")
 
-    assert line =~ ~r/^[-_A-Za-z0-9]+ - - \[\d{2}\/[A-Z][a-z]{2}\/\d{4}:/
+    assert {:ok, address} = :inet.parse_address(String.to_charlist(host))
+    assert tuple_size(address) == 8
+    assert line =~ ~r/^2001:db8:[0-9a-f:]+ - - \[\d{2}\/[A-Z][a-z]{2}\/\d{4}:/
     assert line =~ ~s|"GET /api/boards.json HTTP/1.1" 200|
     assert line =~ ~r/"https:\/\/bantculture\.com\/search" "Test Browser"$/
     refute line =~ "top-secret"
     refute line =~ "private"
     refute line =~ "127.0.0.1"
+  end
+
+  test "maps client fingerprints to stable documentation-range IPv6 hosts" do
+    assert AccessLogPlug.goaccess_host("DcbMNcCZo4uRIMGG") ==
+             "2001:db8:dc6:cc35:c099:a38b:9120:c186"
+
+    assert AccessLogPlug.goaccess_host("DcbMNcCZo4uRIMGG") ==
+             AccessLogPlug.goaccess_host("DcbMNcCZo4uRIMGG")
+
+    assert AccessLogPlug.goaccess_host("not-base64") == "2001:db8::"
   end
 
   test "bounds and escapes untrusted Combined-log fields", %{conn: conn} do
