@@ -49,5 +49,13 @@ defmodule Eirinchan.LogRetentionTest do
     refute File.read!(path) =~ "GET /old"
     assert Repo.get(LogEntry, old_log.id) == nil
     assert Repo.get(LogEntry, fresh_log.id)
+
+    assert %{access_lines: 0, moderation_rows: 0} =
+             LogRetention.run!(
+               now: now,
+               retention_days: 7,
+               repo: Repo,
+               access_log_server: server
+             )
   end
 end

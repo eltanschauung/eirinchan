@@ -10,4 +10,4 @@ set +a
 
 export SECRET_KEY_BASE="$(tail -n 1 /home/telemazer/.config/eirinchan4001/secret_key_base)"
 
-exec "$(dirname -- "$0")/eirinchan" rpc "Eirinchan.LogRetention.run()"
+exec "$(dirname -- "$0")/eirinchan" rpc "Eirinchan.LogRetention.run!()"

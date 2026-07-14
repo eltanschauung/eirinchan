@@ -7,6 +7,13 @@ defmodule Eirinchan.LogRetention do
 
   @default_days 7
 
+  def run!(opts \\ []) do
+    case run(opts) do
+      {:ok, result} -> result
+      {:error, reason} -> raise "log retention failed: #{inspect(reason)}"
+    end
+  end
+
   def run(opts \\ []) do
     now = Keyword.get(opts, :now, DateTime.utc_now())
     days = Keyword.get(opts, :retention_days, configured_days())

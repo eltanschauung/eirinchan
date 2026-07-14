@@ -112,9 +112,20 @@ sudo install -d -m 0700 -o root -g root /home/telemazer/logs
 sudo touch /home/telemazer/logs/bantculture-phoenix.log
 sudo chown root:root /home/telemazer/logs/bantculture-phoenix.log
 sudo chmod 0600 /home/telemazer/logs/bantculture-phoenix.log
-sudo touch "$REPOSITORY/access.log"
-sudo chown telemazer:telemazer "$REPOSITORY/access.log"
-sudo chmod 0600 "$REPOSITORY/access.log"
+ACCESS_LOG_TARGET="$REPOSITORY/var/log/access.log"
+ACCESS_LOG_LINK="$REPOSITORY/access.log"
+sudo install -d -m 0700 -o telemazer -g telemazer "$REPOSITORY/var/log"
+
+if sudo test -f "$ACCESS_LOG_LINK" && ! sudo test -L "$ACCESS_LOG_LINK"; then
+  sudo mv -fT -- "$ACCESS_LOG_LINK" "$ACCESS_LOG_TARGET"
+elif sudo test -e "$ACCESS_LOG_LINK" || sudo test -L "$ACCESS_LOG_LINK"; then
+  sudo rm -f -- "$ACCESS_LOG_LINK"
+fi
+
+sudo touch "$ACCESS_LOG_TARGET"
+sudo chown telemazer:telemazer "$ACCESS_LOG_TARGET"
+sudo chmod 0600 "$ACCESS_LOG_TARGET"
+sudo ln -s -- "var/log/access.log" "$ACCESS_LOG_LINK"
 
 sudo rm -f -- /opt/eirinchan/current.new /opt/eirinchan/current.rollback
 sudo ln -s -- "$TARGET" /opt/eirinchan/current.new
