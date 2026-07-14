@@ -469,15 +469,11 @@ defmodule EirinchanWeb.PostController do
   end
 
   defp respond_changeset_error(conn, changeset) do
-    persist_post_failure(
-      "post.changeset_error",
-      :warning,
-      conn.assigns.current_board.uri,
-      %{errors: inspect(changeset.errors)}
-    )
-
-    respond_error(
-      conn,
+    conn
+    |> assign(:post_failure_metadata, %{
+      changeset_errors: EirinchanWeb.ChangesetErrors.translate(changeset)
+    })
+    |> respond_error(
       :changeset,
       :unprocessable_entity,
       error_message(changeset),
@@ -951,11 +947,15 @@ defmodule EirinchanWeb.PostController do
         :warning
       end
 
-    metadata = %{
-      reason: reason,
-      status: Plug.Conn.Status.code(status),
-      board: conn.assigns.current_board.uri
-    }
+    metadata =
+      Map.merge(
+        %{
+          reason: reason,
+          status: Plug.Conn.Status.code(status),
+          board: conn.assigns.current_board.uri
+        },
+        conn.assigns[:post_failure_metadata] || %{}
+      )
 
     log_post_failure_details(conn, metadata, level)
   end
@@ -977,6 +977,7 @@ defmodule EirinchanWeb.PostController do
         browser_identity_present: is_binary(conn.assigns[:browser_token]),
         uploads: failure_upload_context(conn.params)
       }
+      |> Map.merge(Map.drop(metadata, [:reason, :status, :board]))
       |> maybe_put_invalid_image_diagnostics(invalid_image_diagnostics)
 
     EventLog.log(conn, "post.rejected", payload, level)

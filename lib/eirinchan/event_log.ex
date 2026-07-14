@@ -10,7 +10,8 @@ defmodule Eirinchan.EventLog do
   def log(conn, event, metadata \\ %{}, level \\ :warning)
 
   def log(%Plug.Conn{} = conn, event, metadata, level)
-      when is_binary(event) and is_map(metadata) and level in [:debug, :info, :notice, :warning, :error] do
+      when is_binary(event) and is_map(metadata) and
+             level in [:debug, :info, :notice, :warning, :error] do
     payload =
       metadata
       |> Map.merge(%{
