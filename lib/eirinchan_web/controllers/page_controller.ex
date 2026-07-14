@@ -1,6 +1,5 @@
 defmodule EirinchanWeb.PageController do
   use EirinchanWeb, :controller
-  import Ecto.Query
   import Phoenix.Template, only: [render_to_string: 4]
 
   alias Eirinchan.Boards
@@ -9,13 +8,13 @@ defmodule EirinchanWeb.PageController do
   alias Eirinchan.FlagsPage
   alias Eirinchan.PublicPages
   alias Eirinchan.Installation
+  alias Eirinchan.LandingPages
   alias Eirinchan.NewsBlotter
   alias Eirinchan.Posts
   alias Eirinchan.ThreadWatcher
-  alias Eirinchan.Posts.{Post, PostFile, PublicIds}
-  alias Eirinchan.Repo
   alias Eirinchan.Settings
   alias Eirinchan.SiteContact
+  alias Eirinchan.ThemeRegistry
   alias Eirinchan.Themes
   alias EirinchanWeb.ErrorPages
   alias EirinchanWeb.BoardRuntime
@@ -96,19 +95,15 @@ defmodule EirinchanWeb.PageController do
     if Installation.setup_required?() do
       redirect(conn, to: ~p"/setup")
     else
-      if Themes.page_theme_enabled?("catalog") do
-        render(
-          conn,
-          :catalog,
-          Keyword.merge(
-            PublicControllerHelpers.public_page_assigns(conn, "active-catalog", "catalog"),
-            layout: false,
-            threads: global_catalog_threads()
-          )
+      render(
+        conn,
+        :catalog,
+        Keyword.merge(
+          PublicControllerHelpers.public_page_assigns(conn, "active-catalog", "catalog"),
+          layout: false,
+          threads: global_catalog_threads()
         )
-      else
-        ErrorPages.not_found(conn)
-      end
+      )
     end
   end
 
@@ -140,6 +135,37 @@ defmodule EirinchanWeb.PageController do
     end
   end
 
+  def index(conn, _params), do: render_landing_theme(conn, "index", :landing_index)
+
+  def categories(conn, _params), do: render_frames_theme(conn, "categories")
+  def categories_sidebar(conn, _params), do: render_frames_sidebar(conn, "categories", true)
+  def categories_news(conn, _params), do: render_frames_news(conn, "categories")
+
+  def frameset(conn, _params), do: render_frames_theme(conn, "frameset")
+  def frameset_sidebar(conn, _params), do: render_frames_sidebar(conn, "frameset", false)
+  def frameset_news(conn, _params), do: render_frames_news(conn, "frameset")
+
+  def rss(conn, _params) do
+    if Installation.setup_required?() do
+      redirect(conn, to: ~p"/setup")
+    else
+      if Themes.page_theme_enabled?("rss") do
+        settings = Themes.theme_settings("rss")
+        boards = Boards.list_boards()
+        board_ids = LandingPages.board_ids(settings, boards)
+        posts = LandingPages.recent_posts(settings, board_ids)
+        xml = render_rss(settings, posts)
+
+        conn
+        |> put_public_document_etag({:rss, settings, Enum.map(posts, &{&1.link, &1.inserted_at})})
+        |> put_resp_content_type("application/rss+xml")
+        |> send_resp(200, xml)
+      else
+        ErrorPages.not_found(conn)
+      end
+    end
+  end
+
   def banners(conn, _params) do
     if Installation.setup_required?() do
       redirect(conn, to: ~p"/setup")
@@ -161,16 +187,18 @@ defmodule EirinchanWeb.PageController do
       redirect(conn, to: ~p"/setup")
     else
       if Themes.page_theme_enabled?("sitemap") do
-        xml =
-          [
-            "/",
-            "/news"
-            | themed_global_paths() ++ sitemap_paths()
-          ]
-          |> Enum.uniq()
-          |> render_sitemap()
+        settings = Themes.theme_settings("sitemap")
+        boards = LandingPages.sitemap_boards(settings, Boards.list_boards())
+        changefreq = Map.get(settings, "changefreq", "hourly")
+
+        entries =
+          global_sitemap_entries() ++
+            board_sitemap_entries(boards) ++ LandingPages.sitemap_thread_entries(boards)
+
+        xml = render_sitemap(entries, changefreq)
 
         conn
+        |> put_public_document_etag({:sitemap, settings, entries})
         |> put_resp_content_type("application/xml")
         |> send_resp(200, xml)
       else
@@ -479,16 +507,241 @@ defmodule EirinchanWeb.PageController do
     end)
   end
 
+  defp render_landing_theme(conn, theme_name, template) do
+    cond do
+      Installation.setup_required?() ->
+        redirect(conn, to: ~p"/setup")
+
+      not Themes.page_theme_enabled?(theme_name) ->
+        ErrorPages.not_found(conn)
+
+      true ->
+        settings = Themes.theme_settings(theme_name)
+        boards = Boards.list_boards()
+        board_ids = LandingPages.board_ids(settings, boards)
+        content = cached_recent_theme_content(settings, board_ids)
+        stats = cached_recent_theme_stats(board_ids)
+        news_limit = LandingPages.integer_setting(settings, "no_recent", 5, min: 0, max: 100)
+
+        news_entries =
+          NewsBlotter.entries(Settings.current_instance_config(),
+            limit: news_limit_or_all(news_limit)
+          )
+
+        conn
+        |> put_public_document_etag({
+          :landing_theme,
+          theme_name,
+          settings,
+          recent_theme_content_cache_key(settings, board_ids),
+          recent_theme_stats_cache_key(board_ids),
+          news_entries
+        })
+        |> render(
+          template,
+          Keyword.merge(
+            PublicControllerHelpers.public_page_assigns(conn, "active-page", theme_name,
+              boards: boards,
+              include_global_message: false
+            ),
+            layout: false,
+            page_title: Map.get(settings, "title", theme_name),
+            landing_settings: settings,
+            landing_boards: LandingPages.boardlist(settings, boards),
+            icon_url: ThemeRegistry.media_url(Map.get(settings, "icon", "")),
+            image_url: ThemeRegistry.media_url(Map.get(settings, "imageofnow", "")),
+            video_url: ThemeRegistry.youtube_embed_url(Map.get(settings, "videoofnow", "")),
+            sanitized_description:
+              HtmlSanitizer.sanitize_fragment(Map.get(settings, "description", "")),
+            sanitized_quote: HtmlSanitizer.sanitize_fragment(Map.get(settings, "quoteofnow", "")),
+            news_entries: news_entries,
+            recent_images: content.recent_images,
+            recent_posts: content.recent_posts,
+            stats: stats,
+            extra_stylesheets: ["/recent.css"]
+          )
+        )
+    end
+  end
+
+  defp render_frames_theme(conn, theme_name) do
+    with :ok <- available_landing_theme(conn, theme_name) do
+      settings = Themes.theme_settings(theme_name)
+
+      conn
+      |> put_public_document_etag({:frames_theme, theme_name, settings})
+      |> render(
+        :landing_frames,
+        Keyword.merge(
+          PublicControllerHelpers.public_page_assigns(conn, "active-page", theme_name,
+            include_global_message: false
+          ),
+          layout: false,
+          page_title: Map.get(settings, "title", theme_name),
+          landing_theme: theme_name,
+          landing_settings: settings,
+          sidebar_path: "/#{theme_name}/sidebar",
+          news_path: "/#{theme_name}/news",
+          extra_stylesheets: ["/recent.css"]
+        )
+      )
+    else
+      {:error, :setup} -> redirect(conn, to: ~p"/setup")
+      {:error, :not_found} -> ErrorPages.not_found(conn)
+    end
+  end
+
+  defp render_frames_sidebar(conn, theme_name, grouped?) do
+    with :ok <- available_landing_theme(conn, theme_name) do
+      settings = Themes.theme_settings(theme_name)
+      boards = Boards.list_boards()
+      groups = landing_sidebar_groups(boards, grouped?, settings)
+
+      conn
+      |> put_public_document_etag({:frames_sidebar, theme_name, settings, groups})
+      |> render(
+        :landing_sidebar,
+        Keyword.merge(
+          PublicControllerHelpers.public_page_assigns(conn, "active-page", theme_name,
+            boards: boards,
+            include_global_message: false
+          ),
+          layout: false,
+          page_title: "#{Map.get(settings, "title", theme_name)} navigation",
+          landing_settings: settings,
+          landing_groups: groups,
+          news_path: "/#{theme_name}/news",
+          extra_stylesheets: ["/recent.css"]
+        )
+      )
+    else
+      {:error, :setup} -> redirect(conn, to: ~p"/setup")
+      {:error, :not_found} -> ErrorPages.not_found(conn)
+    end
+  end
+
+  defp render_frames_news(conn, theme_name) do
+    with :ok <- available_landing_theme(conn, theme_name) do
+      settings = Themes.theme_settings(theme_name)
+      recent_settings = Themes.theme_settings("recent")
+      boards = Boards.list_boards()
+      board_ids = LandingPages.board_ids(recent_settings, boards)
+      content = cached_recent_theme_content(recent_settings, board_ids)
+      stats = cached_recent_theme_stats(board_ids)
+      news_entries = NewsBlotter.entries(Settings.current_instance_config(), limit: 100)
+
+      conn
+      |> put_public_document_etag({
+        :frames_news,
+        theme_name,
+        settings,
+        recent_settings,
+        recent_theme_content_cache_key(recent_settings, board_ids),
+        recent_theme_stats_cache_key(board_ids),
+        news_entries
+      })
+      |> render(
+        :landing_news,
+        Keyword.merge(
+          PublicControllerHelpers.public_page_assigns(conn, "active-page", theme_name,
+            boards: boards,
+            include_global_message: false
+          ),
+          layout: false,
+          page_title: Map.get(settings, "title", theme_name),
+          landing_settings: settings,
+          sanitized_home_body:
+            HtmlSanitizer.sanitize_fragment(Map.get(recent_settings, "body", "")),
+          news_entries: news_entries,
+          recent_images: content.recent_images,
+          recent_posts: content.recent_posts,
+          stats: stats,
+          extra_stylesheets: ["/recent.css"]
+        )
+      )
+    else
+      {:error, :setup} -> redirect(conn, to: ~p"/setup")
+      {:error, :not_found} -> ErrorPages.not_found(conn)
+    end
+  end
+
+  defp available_landing_theme(_conn, theme_name) do
+    cond do
+      Installation.setup_required?() -> {:error, :setup}
+      Themes.page_theme_enabled?(theme_name) -> :ok
+      true -> {:error, :not_found}
+    end
+  end
+
+  defp landing_sidebar_groups(boards, true, settings) do
+    configured_titles =
+      settings
+      |> Map.get("category_titles", "")
+      |> String.split("|", trim: true)
+      |> Enum.map(&String.trim/1)
+
+    boards
+    |> PostView.boardlist_groups()
+    |> Enum.map(fn links ->
+      links
+      |> Enum.filter(fn link -> safe_landing_href?(link.href) end)
+      |> Enum.map(&prepare_landing_link/1)
+    end)
+    |> Enum.reject(&(&1 == []))
+    |> Enum.with_index(1)
+    |> Enum.map(fn {links, index} ->
+      title = Enum.at(configured_titles, index - 1) || inferred_group_title(links, index)
+      {title, links}
+    end)
+  end
+
+  defp landing_sidebar_groups(boards, false, _settings) do
+    links =
+      Enum.map(boards, fn board ->
+        %{href: "/#{board.uri}/index.html", label: board.title, title: "/#{board.uri}/"}
+      end)
+
+    [{"Boards", Enum.map(links, &prepare_landing_link/1)}]
+  end
+
+  defp inferred_group_title(links, index) do
+    cond do
+      Enum.all?(links, &(Map.get(&1, :kind) == :board)) -> "Boards"
+      Enum.all?(links, &String.starts_with?(&1.href, "/")) -> "Site"
+      index == 1 -> "Boards"
+      true -> "Links"
+    end
+  end
+
+  defp prepare_landing_link(%{href: "/" <> _rest} = link),
+    do: Map.merge(link, %{target: "landing-main", rel: nil})
+
+  defp prepare_landing_link(link),
+    do: Map.merge(link, %{target: "_blank", rel: "noopener noreferrer"})
+
+  defp safe_landing_href?("/" <> rest),
+    do:
+      rest != "" and not String.starts_with?(rest, "/") and
+        not String.contains?(rest, ["\\", "\r", "\n", "\0"])
+
+  defp safe_landing_href?(value) when is_binary(value) do
+    uri = URI.parse(value)
+    uri.scheme == "https" and is_binary(uri.host) and uri.host != "" and is_nil(uri.userinfo)
+  end
+
+  defp safe_landing_href?(_value), do: false
+
+  defp news_limit_or_all(0), do: 100
+  defp news_limit_or_all(value), do: value
+
   defp render_recent_theme(conn, active_page) do
     settings = Themes.theme_settings("recent")
     started_at = System.monotonic_time(:microsecond)
     boards = Boards.list_boards()
-    board_ids = recent_board_ids(settings, boards)
+    board_ids = LandingPages.board_ids(settings, boards)
     content = cached_recent_theme_content(settings, board_ids)
     stats = cached_recent_theme_stats(board_ids)
-    contact_email = SiteContact.email()
-    home_page = PublicPages.fetch_named_page("home", contact_email: contact_email)
-    sanitized_home_body = HtmlSanitizer.sanitize_fragment(home_page.body || "")
+    sanitized_home_body = HtmlSanitizer.sanitize_fragment(Map.get(settings, "body", ""))
 
     conn =
       conn
@@ -497,13 +750,12 @@ defmodule EirinchanWeb.PageController do
         active_page,
         recent_theme_content_cache_key(settings, board_ids),
         recent_theme_stats_cache_key(board_ids),
-        contact_email,
-        page_cache_key(home_page)
+        settings
       })
       |> render(
         :recent,
         Keyword.merge(
-          recent_theme_assigns(conn, active_page, boards, home_page),
+          recent_theme_assigns(conn, active_page, boards, settings),
           layout: false,
           recent_settings: settings,
           recent_images: content.recent_images,
@@ -531,96 +783,29 @@ defmodule EirinchanWeb.PageController do
 
   defp cached_recent_theme_content(settings, board_ids) do
     FragmentCache.fetch_or_store(recent_theme_content_cache_key(settings, board_ids), fn ->
-      recent_theme_content(settings, board_ids)
+      LandingPages.content(settings, board_ids)
     end)
   end
 
   defp cached_recent_theme_stats(board_ids) do
     FragmentCache.fetch_or_store(recent_theme_stats_cache_key(board_ids), fn ->
-      recent_theme_stats(board_ids)
+      LandingPages.stats(board_ids)
     end)
   end
 
-  defp recent_theme_assigns(conn, active_page, boards, home_page) do
+  defp recent_theme_assigns(conn, active_page, boards, settings) do
     [
       boards: boards,
       global_boardlist_groups:
         PostView.boardlist_groups(boards, mobile_client?: conn.assigns[:mobile_client?] || false),
       show_footer: true,
-      page_title: home_page.title,
-      body_class: nil,
-      home_page: home_page
+      page_title: Map.get(settings, "title", "Recent Posts"),
+      body_class: nil
     ] ++
       PublicControllerHelpers.public_shell_assigns(conn, active_page,
         extra_stylesheets: ["/recent.css"],
         show_nav_arrows_page: false
       )
-  end
-
-  defp recent_theme_content(settings, board_ids) do
-    image_limit = recent_integer_setting(settings, "limit_images", 3)
-    post_limit = recent_integer_setting(settings, "limit_posts", 30)
-    fetch_limit = Enum.max([post_limit, max(image_limit * 25, image_limit)])
-    posts = Posts.list_recent_posts(limit: fetch_limit, board_ids: board_ids)
-    noko50_paths = recent_noko50_paths(posts)
-
-    %{
-      recent_images:
-        posts
-        |> Enum.filter(&recent_image_post?/1)
-        |> Enum.take(image_limit)
-        |> Enum.map(&recent_image_summary(&1, noko50_paths)),
-      recent_posts:
-        posts
-        |> Enum.take(post_limit)
-        |> Enum.map(&recent_post_summary(&1, noko50_paths))
-    }
-  end
-
-  defp recent_theme_stats(board_ids) do
-    week_cutoff = DateTime.utc_now() |> DateTime.add(-7 * 24 * 60 * 60, :second)
-
-    total_posts =
-      Repo.one(
-        from board in BoardRecord,
-          where: board.id in ^board_ids,
-          select:
-            coalesce(
-              sum(fragment("GREATEST(COALESCE(?, 1) - 1, 0)", board.next_public_post_id)),
-              0
-            )
-      ) || 0
-
-    posts_week =
-      Repo.aggregate(
-        from(post in Post,
-          where: post.board_id in ^board_ids and post.inserted_at > ^week_cutoff
-        ),
-        :count,
-        :id
-      )
-
-    primary_bytes =
-      Repo.one(
-        from post in Post,
-          where: post.board_id in ^board_ids and not is_nil(post.file_size),
-          select: sum(post.file_size)
-      ) || 0
-
-    extra_bytes =
-      Repo.one(
-        from file in PostFile,
-          join: post in Post,
-          on: post.id == file.post_id,
-          where: post.board_id in ^board_ids and not is_nil(file.file_size),
-          select: sum(file.file_size)
-      ) || 0
-
-    %{
-      total_posts: number_with_delimiters(total_posts),
-      posts_week: number_with_delimiters(posts_week),
-      active_content: PostView.file_size_text(%{file_size: primary_bytes + extra_bytes})
-    }
   end
 
   defp recent_theme_content_cache_key(settings, board_ids) do
@@ -639,236 +824,6 @@ defmodule EirinchanWeb.PageController do
       div(System.system_time(:second), @recent_theme_cache_bucket_seconds)
     }
   end
-
-  defp recent_board_ids(settings, boards) do
-    excluded =
-      settings
-      |> Map.get("exclude", "")
-      |> to_string()
-      |> String.split(~r/\s+/, trim: true)
-      |> MapSet.new()
-
-    boards
-    |> Enum.reject(&MapSet.member?(excluded, &1.uri))
-    |> Enum.map(& &1.id)
-  end
-
-  defp recent_image_post?(post) do
-    is_binary(post.thumb_path) and recent_media_file_type?(post.file_type)
-  end
-
-  defp recent_media_file_type?(file_type) when is_binary(file_type) do
-    String.starts_with?(file_type, "image/") or String.starts_with?(file_type, "video/")
-  end
-
-  defp recent_media_file_type?(_file_type), do: false
-
-  defp recent_image_summary(post, noko50_paths) do
-    {thumb_src, thumbwidth, thumbheight} = recent_thumb(post)
-
-    %{
-      link: recent_post_link(post, noko50_paths),
-      src: thumb_src,
-      thumbwidth: thumbwidth,
-      thumbheight: thumbheight,
-      alt: post.subject || post.body || ""
-    }
-  end
-
-  defp recent_post_summary(post, noko50_paths) do
-    %{
-      board_name: post.board.title,
-      link: recent_post_link(post, noko50_paths),
-      snippet: recent_snippet(post.body)
-    }
-  end
-
-  defp recent_noko50_paths(posts) do
-    thread_ids =
-      posts
-      |> Enum.map(&thread_root_id/1)
-      |> Enum.uniq()
-
-    reply_counts =
-      if thread_ids == [] do
-        %{}
-      else
-        Repo.all(
-          from post in Post,
-            where: post.thread_id in ^thread_ids,
-            group_by: post.thread_id,
-            select: {post.thread_id, count(post.id)}
-        )
-        |> Map.new()
-      end
-
-    posts
-    |> Enum.map(fn post ->
-      thread = post.thread || post
-      config = board_config(post.board)
-
-      {thread.id,
-       ThreadPaths.preferred_thread_path(post.board, thread, config,
-         reply_count: Map.get(reply_counts, thread.id, 0)
-       )}
-    end)
-    |> Map.new()
-  end
-
-  defp recent_post_link(post, noko50_paths) do
-    thread = post.thread || post
-    Map.fetch!(noko50_paths, thread.id) <> "##{PublicIds.public_id(post)}"
-  end
-
-  defp thread_root_id(%{thread_id: thread_id}) when is_integer(thread_id), do: thread_id
-  defp thread_root_id(%{id: id}), do: id
-
-  defp recent_snippet(nil), do: "<em>(no comment)</em>"
-
-  defp recent_snippet(body) do
-    len = 32
-
-    body
-    |> String.replace(~r/<br\/?>/i, "  ")
-    |> String.replace(~r/<[^>]+>/, "")
-    |> String.replace(~r/\s+/, " ")
-    |> String.trim()
-    |> case do
-      "" ->
-        "<em>(no comment)</em>"
-
-      cleaned ->
-        strlen = String.length(cleaned)
-        snippet = String.slice(cleaned, 0, len)
-        escaped = Phoenix.HTML.html_escape(snippet) |> Phoenix.HTML.safe_to_string()
-        "<em>" <> escaped <> if(strlen > len, do: "&hellip;", else: "") <> "</em>"
-    end
-  end
-
-  defp recent_integer_setting(settings, key, default) do
-    case Integer.parse(to_string(Map.get(settings, key, default))) do
-      {value, _} when value >= 0 -> value
-      _ -> default
-    end
-  end
-
-  defp number_with_delimiters(value) when is_integer(value) do
-    value
-    |> Integer.to_string()
-    |> String.reverse()
-    |> String.replace(~r/.{1,3}/, "\\0,")
-    |> String.trim_trailing(",")
-    |> String.reverse()
-  end
-
-  defp fit_recent_thumb(width, height)
-       when is_integer(width) and width > 0 and is_integer(height) and height > 0 do
-    max_width = 150
-    max_height = 150
-    scale = min(max_width / width, max_height / height)
-
-    if scale >= 1 do
-      {width, height}
-    else
-      {max(trunc(width * scale), 1), max(trunc(height * scale), 1)}
-    end
-  end
-
-  defp fit_recent_thumb(_, _), do: {125, 125}
-
-  defp recent_thumb(%{spoiler: true}) do
-    {"/static/spoiler_skillet.png", 128, 128}
-  end
-
-  defp recent_thumb(post) do
-    src = "/#{post.board.uri}/thumb/#{Path.basename(post.thumb_path)}"
-
-    case thumb_dimensions(post) do
-      {width, height} ->
-        {src, width, height}
-
-      nil ->
-        {width, height} = fit_recent_thumb(post.image_width, post.image_height)
-        {src, width, height}
-    end
-  end
-
-  defp thumb_dimensions(%{thumb_path: thumb_path}) when is_binary(thumb_path) do
-    path =
-      thumb_path
-      |> String.trim_leading("/")
-      |> then(&Path.join(Application.fetch_env!(:eirinchan, :build_output_root), &1))
-
-    case File.read(path) do
-      {:ok, binary} ->
-        case :binary.match(binary, <<0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A>>) do
-          {0, _} -> png_dimensions(binary)
-          :nomatch -> jpeg_dimensions(binary)
-        end
-
-      _ ->
-        nil
-    end
-  end
-
-  defp thumb_dimensions(_), do: nil
-
-  defp png_dimensions(<<
-         0x89,
-         0x50,
-         0x4E,
-         0x47,
-         0x0D,
-         0x0A,
-         0x1A,
-         0x0A,
-         _len::32,
-         "IHDR",
-         width::32,
-         height::32,
-         _rest::binary
-       >>),
-       do: {width, height}
-
-  defp png_dimensions(_), do: nil
-
-  defp jpeg_dimensions(<<0xFF, 0xD8, rest::binary>>), do: jpeg_dimensions_scan(rest)
-  defp jpeg_dimensions(_), do: nil
-
-  defp jpeg_dimensions_scan(<<0xFF, marker, _len::16, rest::binary>>)
-       when marker in [
-              0xC0,
-              0xC1,
-              0xC2,
-              0xC3,
-              0xC5,
-              0xC6,
-              0xC7,
-              0xC9,
-              0xCA,
-              0xCB,
-              0xCD,
-              0xCE,
-              0xCF
-            ] do
-    <<_precision, height::16, width::16, _rest::binary>> = rest
-    {width, height}
-  end
-
-  defp jpeg_dimensions_scan(<<0xFF, marker, len::16, rest::binary>>)
-       when marker not in [0xD8, 0xD9, 0x01] and marker not in 0xD0..0xD7 do
-    skip = max(len - 2, 0)
-
-    if byte_size(rest) >= skip do
-      <<_segment::binary-size(^skip), tail::binary>> = rest
-      jpeg_dimensions_scan(tail)
-    else
-      nil
-    end
-  end
-
-  defp jpeg_dimensions_scan(<<_byte, rest::binary>>), do: jpeg_dimensions_scan(rest)
-  defp jpeg_dimensions_scan(_), do: nil
 
   defp global_catalog_threads do
     Boards.list_boards()
@@ -900,57 +855,91 @@ defmodule EirinchanWeb.PageController do
     )
   end
 
-  defp sitemap_paths do
-    board_paths =
-      Boards.list_boards()
-      |> Enum.flat_map(fn board ->
-        thread_paths =
-          Posts.list_recent_posts(limit: 100, board_ids: [board.id])
-          |> Enum.map(&PublicIds.thread_public_id/1)
-          |> Enum.uniq()
-          |> Enum.map(&"/#{board.uri}/res/#{&1}.html")
+  defp global_sitemap_entries do
+    theme_entries =
+      Themes.page_themes()
+      |> Enum.filter(& &1.enabled)
+      |> Enum.map(&Themes.public_path(&1.name))
+      |> Enum.reject(&is_nil/1)
 
-        catalog_paths =
-          if Themes.page_theme_enabled?("catalog"),
-            do: ["/#{board.uri}/catalog.html"],
-            else: []
+    custom_page_entries =
+      CustomPages.list_pages()
+      |> Enum.reject(&(&1.slug == "home"))
+      |> Enum.map(&public_custom_page_path/1)
 
-        ["/#{board.uri}" | catalog_paths ++ thread_paths]
+    (["/", "/news", "/catalog"] ++ theme_entries ++ custom_page_entries)
+    |> Enum.uniq()
+    |> Enum.map(&%{path: &1, lastmod: nil})
+  end
+
+  defp board_sitemap_entries(boards) do
+    Enum.flat_map(boards, fn board ->
+      [
+        %{path: "/#{board.uri}", lastmod: nil},
+        %{path: "/#{board.uri}/catalog.html", lastmod: nil}
+      ]
+    end)
+  end
+
+  defp public_custom_page_path(%{slug: slug})
+       when slug in ["faq", "feedback", "flags", "formatting", "rules"],
+       do: "/#{slug}"
+
+  defp public_custom_page_path(%{slug: slug}), do: "/pages/#{slug}"
+
+  defp render_sitemap(entries, changefreq) do
+    origin = public_origin()
+
+    urls =
+      Enum.map_join(entries, "", fn entry ->
+        lastmod =
+          case entry.lastmod do
+            %DateTime{} = value -> "<lastmod>#{DateTime.to_iso8601(value)}</lastmod>"
+            _ -> ""
+          end
+
+        frequency =
+          if entry.lastmod, do: "<changefreq>#{xml_escape(changefreq)}</changefreq>", else: ""
+
+        "<url><loc>#{xml_escape(origin <> entry.path)}</loc>#{lastmod}#{frequency}</url>"
       end)
 
-    page_paths = Enum.map(CustomPages.list_pages(), &"/pages/#{&1.slug}")
-
-    board_paths ++ page_paths
+    ~s(<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">#{urls}</urlset>)
   end
 
-  defp render_sitemap(paths) do
-    entries =
-      Enum.map_join(paths, "", fn path ->
-        "<url><loc>#{html_escape(path)}</loc></url>"
+  defp render_rss(settings, posts) do
+    origin = public_origin()
+    title = xml_escape(Map.get(settings, "title", "Recent Posts RSS"))
+    description = xml_escape(Map.get(settings, "subtitle", "Recent posts"))
+
+    items =
+      Enum.map_join(posts, "", fn post ->
+        link = origin <> post.link
+        pub_date = Calendar.strftime(post.inserted_at, "%a, %d %b %Y %H:%M:%S GMT")
+
+        "<item>" <>
+          "<title>#{xml_escape(post.board_name)}</title>" <>
+          "<description>#{xml_escape(post.plain_snippet)}</description>" <>
+          "<link>#{xml_escape(link)}</link>" <>
+          "<guid isPermaLink=\"true\">#{xml_escape(link)}</guid>" <>
+          "<pubDate>#{pub_date}</pubDate>" <>
+          "</item>"
       end)
 
-    ~s(<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">#{entries}</urlset>)
+    ~s(<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>#{title}</title><description>#{description}</description><link>#{xml_escape(origin <> "/recent")}</link><generator>Eirinchan</generator>#{items}</channel></rss>)
   end
 
-  defp themed_global_paths do
-    []
-    |> maybe_add_path(Themes.page_theme_enabled?("catalog"), "/catalog")
-    |> maybe_add_path(Themes.page_theme_enabled?("ukko"), Themes.overboard_path())
-    |> maybe_add_path(Themes.page_theme_enabled?("recent"), "/recent")
+  defp public_origin do
+    EirinchanWeb.Endpoint.url()
+    |> String.trim_trailing("/")
   end
-
-  defp maybe_add_path(paths, true, path), do: paths ++ [path]
-  defp maybe_add_path(paths, false, _path), do: paths
 
   defp board_config(%BoardRecord{} = board, request_host_or_conn \\ nil) do
     BoardRuntime.board_config(board, request_host_or_conn)
   end
 
   defp overboard_thread_limit(settings) do
-    case Integer.parse(to_string(Map.get(settings, "thread_limit", "15"))) do
-      {value, _} when value >= 0 -> value
-      _ -> 15
-    end
+    LandingPages.integer_setting(settings, "thread_limit", 15, min: 1, max: 100)
   end
 
   defp overboard_title(settings) do
@@ -1006,7 +995,7 @@ defmodule EirinchanWeb.PageController do
   defp overboard_page_link(1), do: Themes.overboard_path()
   defp overboard_page_link(page), do: "#{Themes.overboard_path()}/#{page}.html"
 
-  defp html_escape(value) do
+  defp xml_escape(value) do
     value
     |> Phoenix.HTML.html_escape()
     |> Phoenix.HTML.safe_to_string()

@@ -52,7 +52,6 @@ defmodule EirinchanWeb.ManagePageHTML do
     do: "/manage/noticeboard/#{page_no}"
 
   def custom_page_path(%{slug: slug}), do: custom_page_path(slug)
-  def custom_page_path("home"), do: "/"
   def custom_page_path("faq"), do: "/faq"
   def custom_page_path("flags"), do: "/flags"
   def custom_page_path("formatting"), do: "/formatting"

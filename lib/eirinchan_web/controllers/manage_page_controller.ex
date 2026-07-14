@@ -22,7 +22,14 @@ defmodule EirinchanWeb.ManagePageController do
   alias Eirinchan.Themes
   alias Eirinchan.WhaleStickers
   alias EirinchanWeb.{BoardRuntime, BrowserEntries}
-  alias EirinchanWeb.{ManageSecurity, ModerationAudit, ModeratorPermissions, PostView, RequestMeta}
+
+  alias EirinchanWeb.{
+    ManageSecurity,
+    ModerationAudit,
+    ModeratorPermissions,
+    PostView,
+    RequestMeta
+  }
 
   plug :assign_manage_shell
 
@@ -78,7 +85,13 @@ defmodule EirinchanWeb.ManagePageController do
     with {:ok, moderator} <- ensure_permission(conn, :noticeboard) do
       config = Settings.current_instance_config()
       page = positive_integer_param(params["page"], 1)
-      per_page = positive_integer_param(Map.get(config, :noticeboard_page, 50), Noticeboard.page_size_default())
+
+      per_page =
+        positive_integer_param(
+          Map.get(config, :noticeboard_page, 50),
+          Noticeboard.page_size_default()
+        )
+
       entries = Noticeboard.list_entries(page: page, per_page: per_page)
       total_entries = Noticeboard.count_entries()
 
@@ -205,10 +218,14 @@ defmodule EirinchanWeb.ManagePageController do
       filters = ban_list_filters(params, moderator)
 
       conn
-      |> assign(:extra_stylesheets, (conn.assigns[:extra_stylesheets] || []) ++ [
-        "/stylesheets/longtable/longtable.css",
-        "/stylesheets/mod/ban-list.css"
-      ])
+      |> assign(
+        :extra_stylesheets,
+        (conn.assigns[:extra_stylesheets] || []) ++
+          [
+            "/stylesheets/longtable/longtable.css",
+            "/stylesheets/mod/ban-list.css"
+          ]
+      )
       |> assign(:custom_javascript_urls, [
         "/js/strftime.min.js",
         "/js/longtable/longtable.js",
@@ -254,11 +271,7 @@ defmodule EirinchanWeb.ManagePageController do
 
           redirect(conn,
             to:
-              ~p"/manage/bans/browser?#{%{
-                only_mine: filters["only_mine"],
-                only_not_expired: filters["only_not_expired"],
-                search: filters["search"]
-              }}"
+              ~p"/manage/bans/browser?#{%{only_mine: filters["only_mine"], only_not_expired: filters["only_not_expired"], search: filters["search"]}}"
           )
 
         _ ->
@@ -749,7 +762,9 @@ defmodule EirinchanWeb.ManagePageController do
 
   def new_user(conn, _params) do
     with {:ok, moderator} <- ensure_permission(conn, :createusers) do
-      render(conn, :user,
+      render(
+        conn,
+        :user,
         user_form_assigns(%{
           moderator: moderator,
           user: %Moderation.ModUser{username: "", role: "janitor", all_boards: false},
@@ -797,14 +812,23 @@ defmodule EirinchanWeb.ManagePageController do
         render_users_error(conn, "Administrator access required.", :forbidden)
 
       {:error, %Ecto.Changeset{} = changeset} ->
-        render_user_form_error(conn, nil, params, format_changeset(changeset), :unprocessable_entity)
+        render_user_form_error(
+          conn,
+          nil,
+          params,
+          format_changeset(changeset),
+          :unprocessable_entity
+        )
     end
   end
 
   def user(conn, %{"id" => id}) do
     with {:ok, moderator} <- ensure_user_editor(conn, id),
-         %Moderation.ModUser{} = user <- Moderation.get_user(id, preload: [board_accesses: :board]) do
-      render(conn, :user,
+         %Moderation.ModUser{} = user <-
+           Moderation.get_user(id, preload: [board_accesses: :board]) do
+      render(
+        conn,
+        :user,
         user_form_assigns(%{
           moderator: moderator,
           user: user,
@@ -834,7 +858,8 @@ defmodule EirinchanWeb.ManagePageController do
 
   def update_user_browser(conn, %{"id" => id} = params) do
     with {:ok, moderator} <- ensure_user_editor(conn, id),
-         %Moderation.ModUser{} = user <- Moderation.get_user(id, preload: [board_accesses: :board]) do
+         %Moderation.ModUser{} = user <-
+           Moderation.get_user(id, preload: [board_accesses: :board]) do
       cond do
         params["delete"] in ["1", "true", "on"] ->
           if not ModeratorPermissions.allowed?(moderator, :deleteusers) do
@@ -972,6 +997,9 @@ defmodule EirinchanWeb.ManagePageController do
           "This theme is not implemented in Eirinchan.",
           :unprocessable_entity
         )
+
+      {:error, {:invalid_settings, errors}} ->
+        render_theme_error(conn, name, Enum.join(errors, " "), :unprocessable_entity)
 
       {:error, :not_found} ->
         render_themes_error(conn, "Theme not found.", :not_found)
@@ -1122,7 +1150,7 @@ defmodule EirinchanWeb.ManagePageController do
     with {:ok, moderator} <- ensure_permission(conn, :edit_pages) do
       render(conn, :pages,
         moderator: moderator,
-        pages: CustomPages.list_pages(),
+        pages: editable_custom_pages(),
         error: nil
       )
     else
@@ -1234,7 +1262,8 @@ defmodule EirinchanWeb.ManagePageController do
           %{inserted_at: %DateTime{} = inserted_at} ->
             DateTime.to_unix(inserted_at)
 
-          _ -> nil
+          _ ->
+            nil
         end
 
       conn
@@ -1320,7 +1349,8 @@ defmodule EirinchanWeb.ManagePageController do
         displayed_ip: EirinchanWeb.IpPresentation.display_ip(decoded_ip, moderator),
         board: nil,
         config: config,
-        post_groups: ip_history_post_groups(posts, boards, EirinchanWeb.RequestMeta.request_host(conn)),
+        post_groups:
+          ip_history_post_groups(posts, boards, EirinchanWeb.RequestMeta.request_host(conn)),
         notes: Moderation.list_ip_notes(decoded_ip, board_ids: board_ids),
         bans: matching_bans,
         logs: ip_history_logs(decoded_ip, board_ids),
@@ -1348,7 +1378,9 @@ defmodule EirinchanWeb.ManagePageController do
       config = Settings.current_instance_config()
       matching_bans = Bans.list_matching_bans(decoded_ip, board_id: board.id)
       edit_ban = selected_ip_ban(matching_bans, params)
-      ban_form = ip_ban_form_params(decoded_ip, board.uri, params) |> maybe_apply_edit_ban(edit_ban)
+
+      ban_form =
+        ip_ban_form_params(decoded_ip, board.uri, params) |> maybe_apply_edit_ban(edit_ban)
 
       render(conn, :ip_history,
         moderator: moderator,
@@ -1694,7 +1726,9 @@ defmodule EirinchanWeb.ManagePageController do
 
       conn
       |> put_flash(:info, "Ban created.")
-      |> redirect(to: "/manage/boards/#{board.uri}/ip/#{IpCrypt.cloak_ip(decoded_ip)}/browser#bans")
+      |> redirect(
+        to: "/manage/boards/#{board.uri}/ip/#{IpCrypt.cloak_ip(decoded_ip)}/browser#bans"
+      )
     else
       {:error, :unauthorized} ->
         redirect(conn, to: ~p"/manage/login")
@@ -1739,7 +1773,9 @@ defmodule EirinchanWeb.ManagePageController do
 
       conn
       |> put_flash(:info, "Ban updated.")
-      |> redirect(to: "/manage/boards/#{board.uri}/ip/#{IpCrypt.cloak_ip(decoded_ip)}/browser#bans")
+      |> redirect(
+        to: "/manage/boards/#{board.uri}/ip/#{IpCrypt.cloak_ip(decoded_ip)}/browser#bans"
+      )
     else
       {:error, :unauthorized} ->
         redirect(conn, to: ~p"/manage/login")
@@ -1776,7 +1812,9 @@ defmodule EirinchanWeb.ManagePageController do
 
       conn
       |> put_flash(:info, "Ban removed.")
-      |> redirect(to: "/manage/boards/#{board.uri}/ip/#{IpCrypt.cloak_ip(decoded_ip)}/browser#bans")
+      |> redirect(
+        to: "/manage/boards/#{board.uri}/ip/#{IpCrypt.cloak_ip(decoded_ip)}/browser#bans"
+      )
     else
       {:error, :unauthorized} ->
         redirect(conn, to: ~p"/manage/login")
@@ -2006,7 +2044,10 @@ defmodule EirinchanWeb.ManagePageController do
       ModerationAudit.log(
         conn,
         "Banned #{display_ip_for_log(Map.get(params, "ip", post.ip_subnet))} for post No. #{PostView.public_post_id(post)}" <>
-          if(Map.get(params, "delete") in ["1", "true", "on"], do: " and deleted the post", else: ""),
+          if(Map.get(params, "delete") in ["1", "true", "on"],
+            do: " and deleted the post",
+            else: ""
+          ),
         moderator: moderator,
         board: board
       )
@@ -2306,7 +2347,10 @@ defmodule EirinchanWeb.ManagePageController do
   def create_board(conn, params) do
     with {:ok, moderator} <- ensure_admin(conn),
          {:ok, board} <- Boards.create_board(Map.take(params, ["uri", "title", "subtitle"])) do
-      ModerationAudit.log(conn, "Created board /#{board.uri}/", moderator: moderator, board: board)
+      ModerationAudit.log(conn, "Created board /#{board.uri}/",
+        moderator: moderator,
+        board: board
+      )
 
       conn
       |> put_flash(:info, "Board created.")
@@ -2387,7 +2431,9 @@ defmodule EirinchanWeb.ManagePageController do
   def rebuild_board(conn, %{"uri" => uri}) do
     with {:ok, moderator} <- ensure_permission(conn, :rebuild),
          board when not is_nil(board) <- Boards.get_board_by_uri(uri),
-         true <- Moderation.board_access?(moderator, board) or ModeratorPermissions.allowed?(moderator, :rebuild) do
+         true <-
+           Moderation.board_access?(moderator, board) or
+             ModeratorPermissions.allowed?(moderator, :rebuild) do
       config = effective_board_config(board, EirinchanWeb.RequestMeta.request_host(conn))
 
       _result =
@@ -2475,7 +2521,9 @@ defmodule EirinchanWeb.ManagePageController do
 
   defp safe_logout_path(_path, _uri), do: ~p"/manage/login"
 
-  defp query_string_fragment(%URI{query: query}) when is_binary(query) and query != "", do: "?" <> query
+  defp query_string_fragment(%URI{query: query}) when is_binary(query) and query != "",
+    do: "?" <> query
+
   defp query_string_fragment(_uri), do: ""
 
   defp handle_failed_browser_login(conn, username, remote_ip, config) do
@@ -2519,7 +2567,9 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   defp can_manage_user?(moderator), do: ModeratorPermissions.allowed?(moderator, :editusers)
-  defp can_edit_password?(moderator, nil), do: ModeratorPermissions.allowed?(moderator, :change_password)
+
+  defp can_edit_password?(moderator, nil),
+    do: ModeratorPermissions.allowed?(moderator, :change_password)
 
   defp can_edit_password?(moderator, user) do
     ModeratorPermissions.allowed?(moderator, :editusers) or
@@ -2527,21 +2577,33 @@ defmodule EirinchanWeb.ManagePageController do
          ModeratorPermissions.allowed?(moderator, :change_password))
   end
 
-  defp can_delete_user?(moderator, new?), do: !new? and ModeratorPermissions.allowed?(moderator, :deleteusers)
+  defp can_delete_user?(moderator, new?),
+    do: !new? and ModeratorPermissions.allowed?(moderator, :deleteusers)
+
   defp can_create_board?(moderator), do: ModeratorPermissions.allowed?(moderator, :newboard)
   defp can_manage_board?(moderator), do: ModeratorPermissions.allowed?(moderator, :manageboards)
   defp can_manage_users?(moderator), do: ModeratorPermissions.allowed?(moderator, :manageusers)
   defp can_manage_themes?(moderator), do: ModeratorPermissions.allowed?(moderator, :themes)
   defp can_manage_news?(moderator), do: ModeratorPermissions.allowed?(moderator, :news)
-  defp can_null_post_ips?(moderator), do: ModeratorPermissions.rank(moderator) >= ModeratorPermissions.rank("admin")
+
+  defp can_null_post_ips?(moderator),
+    do: ModeratorPermissions.rank(moderator) >= ModeratorPermissions.rank("admin")
+
   defp can_edit_pages?(moderator), do: ModeratorPermissions.allowed?(moderator, :edit_pages)
   defp can_view_log?(moderator), do: ModeratorPermissions.allowed?(moderator, :modlog)
   defp can_view_recent?(moderator), do: ModeratorPermissions.allowed?(moderator, :recent)
-  defp can_manage_boardlist?(moderator), do: ModeratorPermissions.allowed?(moderator, :manageboards)
+
+  defp can_manage_boardlist?(moderator),
+    do: ModeratorPermissions.allowed?(moderator, :manageboards)
+
   defp can_manage_dnsbl?(moderator), do: ModeratorPermissions.allowed?(moderator, :manageboards)
   defp can_manage_stickers?(moderator), do: ModeratorPermissions.allowed?(moderator, :themes)
-  defp can_post_noticeboard?(moderator), do: ModeratorPermissions.allowed?(moderator, :noticeboard_post)
-  defp can_delete_noticeboard?(moderator), do: ModeratorPermissions.allowed?(moderator, :noticeboard_delete)
+
+  defp can_post_noticeboard?(moderator),
+    do: ModeratorPermissions.allowed?(moderator, :noticeboard_post)
+
+  defp can_delete_noticeboard?(moderator),
+    do: ModeratorPermissions.allowed?(moderator, :noticeboard_delete)
 
   defp stringify(params), do: Enum.into(params, %{}, fn {k, v} -> {to_string(k), v} end)
 
@@ -2581,7 +2643,13 @@ defmodule EirinchanWeb.ManagePageController do
 
   defp render_noticeboard_error(conn, moderator, message, page, status) do
     config = Settings.current_instance_config()
-    per_page = positive_integer_param(Map.get(config, :noticeboard_page, 50), Noticeboard.page_size_default())
+
+    per_page =
+      positive_integer_param(
+        Map.get(config, :noticeboard_page, 50),
+        Noticeboard.page_size_default()
+      )
+
     entries = Noticeboard.list_entries(page: page, per_page: per_page)
     total_entries = Noticeboard.count_entries()
 
@@ -2625,6 +2693,7 @@ defmodule EirinchanWeb.ManagePageController do
     config = Settings.current_instance_config()
     entries = parse_blotter_entries(params)
     limit = max_blotter_limit(Map.get(config, :news_blotter_limit, 100))
+
     button_label =
       params
       |> Map.get("button_label", Eirinchan.NewsBlotter.button_label(config))
@@ -2687,7 +2756,7 @@ defmodule EirinchanWeb.ManagePageController do
                 Noticeboard.dashboard_size_default()
               )
           ),
-        custom_pages: CustomPages.list_pages(),
+        custom_pages: editable_custom_pages(),
         error: nil,
         params: %{"uri" => nil, "title" => nil, "subtitle" => nil}
       },
@@ -2696,7 +2765,9 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   defp verify_noticeboard_delete_token(token) do
-    case Phoenix.Token.verify(EirinchanWeb.Endpoint, "noticeboard-delete", token, max_age: 60 * 60 * 24 * 30) do
+    case Phoenix.Token.verify(EirinchanWeb.Endpoint, "noticeboard-delete", token,
+           max_age: 60 * 60 * 24 * 30
+         ) do
       {:ok, value} ->
         case Integer.parse(value) do
           {id, ""} -> {:ok, id}
@@ -2793,7 +2864,7 @@ defmodule EirinchanWeb.ManagePageController do
     |> put_status(status)
     |> render(:pages,
       moderator: conn.assigns[:current_moderator],
-      pages: CustomPages.list_pages(),
+      pages: editable_custom_pages(),
       error: message
     )
   end
@@ -2828,14 +2899,16 @@ defmodule EirinchanWeb.ManagePageController do
 
     conn
     |> put_status(status)
-    |> render(:user,
+    |> render(
+      :user,
       user_form_assigns(%{
         moderator: moderator,
         user: user || %Moderation.ModUser{},
         boards: Boards.list_boards(),
         form: user_form_params(user, params),
         selected_boards: selected_board_map(params),
-        logs: if(user, do: ModerationLog.list_entries(mod_user_id: user.id, page_size: 5), else: []),
+        logs:
+          if(user, do: ModerationLog.list_entries(mod_user_id: user.id, page_size: 5), else: []),
         error: message,
         new: new?,
         action: if(new?, do: "/manage/users/browser/new", else: "/manage/users/browser/#{id}"),
@@ -3109,7 +3182,9 @@ defmodule EirinchanWeb.ManagePageController do
     board_ids = moderator |> Moderation.list_accessible_boards() |> Enum.map(& &1.id)
 
     case Bans.get_ban(id) do
-      nil -> {:error, :not_found}
+      nil ->
+        {:error, :not_found}
+
       ban ->
         if accessible_ban?(board_ids, ban), do: {:ok, ban}, else: {:error, :forbidden}
     end
@@ -3202,6 +3277,7 @@ defmodule EirinchanWeb.ManagePageController do
 
   defp report_entries(reports, boards, host, session_token, moderator) do
     reports = Repo.preload(reports, [:board, post: [:extra_files], thread: [:extra_files]])
+
     entries =
       reports
       |> Enum.map(& &1.post)
@@ -3265,6 +3341,11 @@ defmodule EirinchanWeb.ManagePageController do
   defp appeal_redirect_path(_params), do: "/manage/ban-appeals/browser"
 
   defp load_custom_page(id), do: Eirinchan.Repo.get(Eirinchan.CustomPages.Page, id)
+
+  defp editable_custom_pages do
+    CustomPages.list_pages()
+    |> Enum.reject(&(&1.slug == "home"))
+  end
 
   defp format_changeset(changeset) do
     changeset.errors
@@ -3463,7 +3544,9 @@ defmodule EirinchanWeb.ManagePageController do
 
   defp shell_boardlist_groups(conn) do
     Boards.list_boards()
-    |> EirinchanWeb.BoardChrome.boardlist_groups(nil, mobile_client?: conn.assigns[:mobile_client?] || false)
+    |> EirinchanWeb.BoardChrome.boardlist_groups(nil,
+      mobile_client?: conn.assigns[:mobile_client?] || false
+    )
   end
 
   defp manage_users do
@@ -3506,8 +3589,11 @@ defmodule EirinchanWeb.ManagePageController do
   defp update_user_role_browser(conn, id, direction) do
     with {:ok, moderator} <- ensure_permission(conn, :promoteusers),
          %Moderation.ModUser{} = user <- Moderation.get_user(id),
-         {:ok, updated} <- Moderation.update_user(user, %{role: next_user_role(user.role, direction)}) do
-      ModerationAudit.log(conn, role_change_log_text(direction, updated.username), moderator: moderator)
+         {:ok, updated} <-
+           Moderation.update_user(user, %{role: next_user_role(user.role, direction)}) do
+      ModerationAudit.log(conn, role_change_log_text(direction, updated.username),
+        moderator: moderator
+      )
 
       conn
       |> put_flash(:info, "User updated.")
@@ -3538,8 +3624,11 @@ defmodule EirinchanWeb.ManagePageController do
   defp next_user_role("janitor", :demote), do: "janitor"
   defp next_user_role(role, _direction), do: role
 
-  defp sync_user_board_accesses(%Moderation.ModUser{role: "admin"} = user, _params), do: {:ok, user}
-  defp sync_user_board_accesses(%Moderation.ModUser{all_boards: true} = user, _params), do: {:ok, user}
+  defp sync_user_board_accesses(%Moderation.ModUser{role: "admin"} = user, _params),
+    do: {:ok, user}
+
+  defp sync_user_board_accesses(%Moderation.ModUser{all_boards: true} = user, _params),
+    do: {:ok, user}
 
   defp sync_user_board_accesses(user, params) do
     Moderation.set_board_accesses(user, selected_boards(params))
@@ -3600,7 +3689,8 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   defp maybe_refresh_user_session(conn, moderator, updated_user, params) do
-    if moderator.id == updated_user.id and String.trim(to_string(Map.get(params, "password", ""))) != "" do
+    if moderator.id == updated_user.id and
+         String.trim(to_string(Map.get(params, "password", ""))) != "" do
       establish_moderator_session(conn, updated_user, RequestMeta.effective_remote_ip(conn))
     else
       conn
@@ -3619,7 +3709,9 @@ defmodule EirinchanWeb.ManagePageController do
     end
 
     if String.trim(to_string(Map.get(params, "password", ""))) != "" do
-      ModerationAudit.log(conn, "Changed password for #{updated_user.username}", moderator: moderator)
+      ModerationAudit.log(conn, "Changed password for #{updated_user.username}",
+        moderator: moderator
+      )
     end
   end
 end

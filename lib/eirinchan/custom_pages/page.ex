@@ -20,6 +20,7 @@ defmodule Eirinchan.CustomPages.Page do
     |> update_change(:body, &normalize/1)
     |> validate_required([:slug, :title, :body, :mod_user_id])
     |> validate_format(:slug, ~r/^[a-z0-9_-]+$/)
+    |> validate_exclusion(:slug, ["home"], message: "is reserved for the RecentPosts theme")
     |> unique_constraint(:slug)
     |> foreign_key_constraint(:mod_user_id)
   end

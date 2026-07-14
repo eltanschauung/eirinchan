@@ -112,16 +112,14 @@ defmodule EirinchanWeb.PageControllerTest do
              ~s(href="/#{board.uri}/res/#{PublicIds.public_id(thread)}+50.html##{PublicIds.public_id(reply)}")
   end
 
-  test "GET / renders the managed home page without replacing live panels", %{conn: conn} do
-    moderator = moderator_fixture()
+  test "GET / renders RecentPosts homepage settings without replacing live panels", %{conn: conn} do
+    moderator_fixture()
 
-    {:ok, _page} =
-      Eirinchan.CustomPages.create_page(%{
-        slug: "home",
-        title: "Managed Home",
-        body:
-          "<div class=\"box middle\"><h2>Managed introduction</h2><script>alert(1)</script></div>",
-        mod_user_id: moderator.id
+    {:ok, _theme} =
+      Eirinchan.Themes.install_theme("recent", %{
+        "title" => "Managed Home",
+        "body" =>
+          "<div class=\"box middle\"><h2>Managed introduction</h2><script>alert(1)</script></div>"
       })
 
     page = conn |> get("/") |> html_response(200)
@@ -876,9 +874,11 @@ defmodule EirinchanWeb.PageControllerTest do
       |> response(200)
 
     assert xml =~ "<?xml version=\"1.0\""
-    assert xml =~ "<loc>/#{board.uri}</loc>"
-    assert xml =~ "<loc>/#{board.uri}/catalog.html</loc>"
-    assert xml =~ "<loc>/#{board.uri}/res/#{PublicIds.public_id(thread)}.html</loc>"
+    assert xml =~ "/#{board.uri}</loc>"
+    assert xml =~ "/#{board.uri}/catalog.html</loc>"
+    assert xml =~ "/#{board.uri}/res/#{PublicIds.public_id(thread)}"
+    assert xml =~ "<lastmod>"
+    assert xml =~ "<changefreq>hourly</changefreq>"
   end
 
   test "GET /pages/flags renders the flags page", %{conn: conn} do

@@ -1,8 +1,8 @@
 defmodule EirinchanWeb.ThemeManagementControllerTest do
   use EirinchanWeb.ConnCase, async: false
 
-  alias Eirinchan.IpAccessEntry
   alias Eirinchan.Settings
+  alias Eirinchan.Themes
 
   setup do
     original_path = Application.get_env(:eirinchan, :instance_config_path)
@@ -12,16 +12,18 @@ defmodule EirinchanWeb.ThemeManagementControllerTest do
 
     File.rm(path)
     Application.put_env(:eirinchan, :instance_config_path, path)
+    Settings.refresh_instance_config_cache()
 
     on_exit(fn ->
       Application.put_env(:eirinchan, :instance_config_path, original_path)
+      Settings.refresh_instance_config_cache()
       File.rm(path)
     end)
 
     :ok
   end
 
-  test "admin can browse available vichan themes and open a theme config page", %{conn: conn} do
+  test "theme manager lists implemented landing themes but not core features", %{conn: conn} do
     moderator = moderator_fixture(%{role: "admin"})
 
     themes_page =
@@ -31,24 +33,25 @@ defmodule EirinchanWeb.ThemeManagementControllerTest do
       |> html_response(200)
 
     assert themes_page =~ "Manage Themes"
-    assert themes_page =~ "Catalog"
-    assert themes_page =~ "FAQ"
+    assert themes_page =~ "Categories"
+    assert themes_page =~ "Frameset"
+    assert themes_page =~ "Index"
+    assert themes_page =~ "RSS"
+    assert themes_page =~ "Sitemap"
     assert themes_page =~ "Overboard (Ukko)"
-    assert themes_page =~ "Install"
+    refute themes_page =~ "IP Access Authentication"
+    refute themes_page =~ ">Catalog<"
 
-    theme_page =
+    missing_catalog =
       conn
       |> recycle()
       |> login_moderator(moderator)
       |> get("/manage/themes/browser/catalog")
-      |> html_response(200)
 
-    assert theme_page =~ "Configuring theme: Catalog"
-    assert theme_page =~ "Included boards"
-    assert theme_page =~ "Use tooltipster"
+    assert html_response(missing_catalog, 404) =~ "Theme not found"
   end
 
-  test "recent theme exposes body fields on its config page", %{conn: conn} do
+  test "recent reconfigure owns the editable homepage HTML", %{conn: conn} do
     moderator = moderator_fixture(%{role: "admin"})
 
     theme_page =
@@ -58,81 +61,151 @@ defmodule EirinchanWeb.ThemeManagementControllerTest do
       |> html_response(200)
 
     assert theme_page =~ "Configuring theme: RecentPosts"
-    assert theme_page =~ "Body Title"
-    assert theme_page =~ "Body"
-    assert theme_page =~ ~s(name="body_title")
+    assert theme_page =~ "Homepage HTML"
     assert theme_page =~ ~s(name="body")
-    assert theme_page =~ "<textarea"
+    assert theme_page =~ ~s(rows="30")
+    refute theme_page =~ ~s(name="body_title")
+    refute theme_page =~ "HTML file"
+    refute theme_page =~ "CSS file"
   end
 
-  test "admin can install, rebuild, and uninstall catalog from the themes page", %{conn: conn} do
+  test "legacy Recent settings migrate the managed home page instead of the placeholder body" do
     moderator = moderator_fixture(%{role: "admin"})
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    Eirinchan.Repo.insert_all(Eirinchan.CustomPages.Page, [
+      %{
+        slug: "home",
+        title: "Managed Home",
+        body: "<div class=\"box middle\">Preserve this enhanced homepage</div>",
+        mod_user_id: moderator.id,
+        inserted_at: now,
+        updated_at: now
+      }
+    ])
+
+    assert :ok =
+             Settings.persist_instance_config(%{
+               template_themes: %{
+                 installed: %{
+                   "IpAccessAuth" => %{"path" => "auth", "title" => "Gate"},
+                   "catalog" => %{"title" => "Catalog"},
+                   "recent" => %{
+                     "title" => "Recent Posts",
+                     "body" => "Welcome to whale town",
+                     "body_title" => "Whale whale",
+                     "html" => "recent.html",
+                     "css" => "recent.css",
+                     "basecss" => "recent.css",
+                     "limit_images" => "3",
+                     "limit_posts" => "30"
+                   }
+                 }
+               }
+             })
+
+    settings = Themes.theme_settings("recent")
+    assert settings["title"] == "Managed Home"
+    assert settings["body"] =~ "Preserve this enhanced homepage"
+    refute settings["body"] =~ "Welcome to whale town"
+
+    assert {:ok, _theme} = Themes.install_theme("recent", settings)
+    refute Eirinchan.CustomPages.get_page_by_slug("home")
+
+    installed =
+      Application.fetch_env!(:eirinchan, :instance_config_path)
+      |> File.read!()
+      |> Jason.decode!()
+      |> get_in(["template_themes", "installed"])
+
+    persisted = installed["recent"]
+
+    assert persisted["title"] == "Managed Home"
+    assert persisted["body"] =~ "Preserve this enhanced homepage"
+    refute Map.has_key?(persisted, "body_title")
+    refute Map.has_key?(persisted, "html")
+    refute Map.has_key?(persisted, "css")
+    refute Map.has_key?(persisted, "basecss")
+    refute Map.has_key?(installed, "catalog")
+    refute Map.has_key?(installed, "IpAccessAuth")
+  end
+
+  test "catalog is always available and is not installable", %{conn: conn} do
     board = board_fixture(%{uri: "meta#{System.unique_integer([:positive])}", title: "Meta"})
     thread_fixture(board, %{subject: "Catalog thread", body: "Body"})
 
-    legacy_conn =
-      conn
-      |> login_moderator(moderator)
-      |> get("/mod.php?/themes")
+    assert Themes.page_theme_enabled?("catalog")
+    assert :ok = Themes.enable_page_theme("catalog")
+    assert {:error, :always_enabled} = Themes.disable_page_theme("catalog")
 
-    assert redirected_to(legacy_conn) == "/manage/themes/browser"
+    assert conn
+           |> get("/#{board.uri}/catalog.html")
+           |> html_response(200) =~ "Catalog thread"
+  end
 
-    disabled_conn =
-      conn
-      |> recycle()
-      |> get("/#{board.uri}/catalog.html")
+  test "categories, frameset, index, and recent can be enabled concurrently", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+    board_fixture(%{uri: "landing#{System.unique_integer([:positive])}", title: "Landing"})
 
-    disabled_html = html_response(disabled_conn, 404)
-    assert disabled_html =~ "Error 404"
-    assert disabled_html =~ "Not found. What is blud doing?"
+    for name <- ["categories", "frameset", "index"] do
+      response =
+        conn
+        |> recycle()
+        |> login_moderator(moderator)
+        |> post("/manage/themes/browser/#{name}", %{})
+
+      assert redirected_to(response) == "/manage/themes/browser/#{name}"
+      assert Themes.page_theme_enabled?(name)
+    end
+
+    assert Themes.page_theme_enabled?("recent")
+    assert conn |> recycle() |> get("/categories") |> html_response(200) =~ "landing-sidebar"
+    assert conn |> recycle() |> get("/frameset") |> html_response(200) =~ "landing-main"
+    assert conn |> recycle() |> get("/index") |> html_response(200) =~ "Welcome to Eirinchan"
+    assert conn |> recycle() |> get("/") |> html_response(200) =~ "Recent Images"
+  end
+
+  test "RSS renders escaped recent-post data at its fixed route", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+    board = board_fixture(%{uri: "rss#{System.unique_integer([:positive])}", title: "RSS & News"})
+    thread_fixture(board, %{body: "A <tag> & text"})
 
     install_conn =
       conn
+      |> login_moderator(moderator)
+      |> post("/manage/themes/browser/rss", %{"title" => "Feed & Updates", "limit_posts" => "10"})
+
+    assert redirected_to(install_conn) == "/manage/themes/browser/rss"
+
+    response = conn |> recycle() |> get("/recent.xml")
+    body = response.resp_body
+
+    assert response.status == 200
+    assert get_resp_header(response, "content-type") |> hd() =~ "application/rss+xml"
+    assert body =~ "<rss version=\"2.0\">"
+    assert body =~ "Feed &amp; Updates"
+    assert body =~ "RSS &amp; News"
+    refute body =~ "<tag>"
+  end
+
+  test "theme settings reject unsafe route and media values", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+
+    invalid_index =
+      conn
+      |> login_moderator(moderator)
+      |> post("/manage/themes/browser/index", %{"videoofnow" => "https://example.com/embed/x"})
+
+    assert html_response(invalid_index, 422) =~ "must be a YouTube URL"
+    refute Themes.page_theme_enabled?("index")
+
+    invalid_ukko =
+      conn
       |> recycle()
       |> login_moderator(moderator)
-      |> post("/manage/themes/browser/catalog", %{
-        "title" => "Catalog",
-        "boards" => "*",
-        "update_on_posts" => "on",
-        "use_tooltipster" => "on"
-      })
+      |> post("/manage/themes/browser/ukko", %{"uri" => "manage"})
 
-    assert redirected_to(install_conn) == "/manage/themes/browser/catalog"
-    assert Eirinchan.Themes.page_theme_enabled?("catalog")
-
-    rebuilt_conn =
-      conn
-      |> recycle()
-      |> login_moderator(moderator)
-      |> post("/manage/themes/browser/catalog/rebuild")
-
-    assert redirected_to(rebuilt_conn) == "/manage/themes/browser/catalog"
-
-    catalog_page =
-      conn
-      |> recycle()
-      |> get("/#{board.uri}/catalog.html")
-      |> html_response(200)
-
-    assert catalog_page =~ "Catalog thread"
-
-    uninstall_conn =
-      conn
-      |> recycle()
-      |> login_moderator(moderator)
-      |> delete("/manage/themes/browser/catalog")
-
-    assert redirected_to(uninstall_conn) == "/manage/themes/browser"
-    refute Eirinchan.Themes.page_theme_enabled?("catalog")
-
-    missing_catalog_conn =
-      conn
-      |> recycle()
-      |> get("/#{board.uri}/catalog.html")
-
-    missing_catalog_html = html_response(missing_catalog_conn, 404)
-    assert missing_catalog_html =~ "Error 404"
-    assert missing_catalog_html =~ "Not found. What is blud doing?"
+    assert html_response(invalid_ukko, 422) =~ "conflicts with a built-in route"
   end
 
   test "admin can install and uninstall faq theme", %{conn: conn} do
@@ -150,13 +223,7 @@ defmodule EirinchanWeb.ThemeManagementControllerTest do
     refute faq_page.body =~ "<!doctype html>"
     assert faq_page.body =~ "What is bnat?"
 
-    faq_page_response =
-      conn
-      |> recycle()
-      |> get("/faq")
-      |> html_response(200)
-
-    assert faq_page_response =~ "What is bnat?"
+    assert conn |> recycle() |> get("/faq") |> html_response(200) =~ "What is bnat?"
 
     uninstall_conn =
       conn
@@ -168,22 +235,11 @@ defmodule EirinchanWeb.ThemeManagementControllerTest do
     refute Eirinchan.CustomPages.get_page_by_slug("faq")
   end
 
-  test "faq theme reconfigure page edits the faq html", %{conn: conn} do
+  test "faq reconfigure page edits sanitized FAQ source", %{conn: conn} do
     moderator = moderator_fixture(%{role: "admin"})
-
-    theme_page =
-      conn
-      |> login_moderator(moderator)
-      |> get("/manage/themes/browser/faq")
-      |> html_response(200)
-
-    assert theme_page =~ "Configuring theme: FAQ"
-    assert theme_page =~ ~s(name="html")
-    assert theme_page =~ ~s(rows="30")
 
     save_conn =
       conn
-      |> recycle()
       |> login_moderator(moderator)
       |> post("/manage/themes/browser/faq", %{
         "html" => "<!doctype html><html><body><h1>Theme FAQ</h1></body></html>"
@@ -192,24 +248,5 @@ defmodule EirinchanWeb.ThemeManagementControllerTest do
     assert redirected_to(save_conn) == "/manage/themes/browser/faq"
     refute Eirinchan.CustomPages.get_page_by_slug("faq").body =~ "<!doctype html>"
     assert Eirinchan.CustomPages.get_page_by_slug("faq").body =~ "Theme FAQ"
-  end
-
-  test "admin can install IpAccessAuth without touching access grants", %{conn: conn} do
-    moderator = moderator_fixture(%{role: "admin"})
-    Eirinchan.Repo.delete_all(IpAccessEntry)
-    Eirinchan.Repo.insert!(%IpAccessEntry{ip: "198.51.100.0/24", password: "tewi"})
-
-    install_conn =
-      conn
-      |> login_moderator(moderator)
-      |> post("/manage/themes/browser/IpAccessAuth", %{
-        "path" => "auth",
-        "title" => "Secret Door"
-      })
-
-    assert redirected_to(install_conn) == "/manage/themes/browser/IpAccessAuth"
-    assert Settings.current_instance_config().ip_access_auth.auth_path == "/auth"
-    assert Settings.current_instance_config().ip_access_auth.title == "Secret Door"
-    assert Eirinchan.Repo.aggregate(IpAccessEntry, :count, :ip) == 1
   end
 end

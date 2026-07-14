@@ -6,7 +6,6 @@ defmodule Eirinchan.PublicPages do
   alias Eirinchan.FlagsPage
   alias Eirinchan.FaqPage
   alias Eirinchan.FormattingPage
-  alias Eirinchan.HomePage
   alias Eirinchan.RulesPage
 
   def fetch_named_page(slug, opts \\ []) when is_binary(slug) do
@@ -29,7 +28,6 @@ defmodule Eirinchan.PublicPages do
     contact_email = Keyword.get(opts, :contact_email, "example@example.com")
 
     case slug do
-      "home" -> %{page | body: HomePage.normalize_body(page.body, contact_email)}
       "faq" -> %{page | body: FaqPage.normalize_body(page.body)}
       "formatting" -> %{page | body: FormattingPage.normalize_body(page.body, current_stickers)}
       "rules" -> %{page | body: RulesPage.normalize_body(page.body, contact_email)}
@@ -53,15 +51,6 @@ defmodule Eirinchan.PublicPages do
 
   defp default_named_page("faq", _current_stickers, _contact_email) do
     %{slug: "faq", title: "FAQ", body: FaqPage.default_body(), mod_user: nil}
-  end
-
-  defp default_named_page("home", _current_stickers, contact_email) do
-    %{
-      slug: "home",
-      title: "Recent Posts",
-      body: HomePage.default_body(contact_email),
-      mod_user: nil
-    }
   end
 
   defp default_named_page("formatting", current_stickers, _contact_email) do

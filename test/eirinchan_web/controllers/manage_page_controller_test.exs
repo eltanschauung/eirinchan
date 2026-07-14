@@ -1254,6 +1254,47 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert Eirinchan.CustomPages.list_pages() == []
   end
 
+  test "home is reserved for RecentPosts and never appears in the custom-page editor", %{
+    conn: conn
+  } do
+    moderator = moderator_fixture(%{role: "admin"})
+
+    invalid_create =
+      conn
+      |> login_moderator(moderator)
+      |> post("/manage/pages/browser", %{
+        "slug" => "home",
+        "title" => "Wrong editor",
+        "body" => "Must not save"
+      })
+
+    assert html_response(invalid_create, 422) =~ "reserved for the RecentPosts theme"
+    refute Eirinchan.CustomPages.get_page_by_slug("home")
+
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    Eirinchan.Repo.insert_all(Eirinchan.CustomPages.Page, [
+      %{
+        slug: "home",
+        title: "Legacy home",
+        body: "Legacy body",
+        mod_user_id: moderator.id,
+        inserted_at: now,
+        updated_at: now
+      }
+    ])
+
+    editor =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> get("/manage/pages/browser")
+      |> html_response(200)
+
+    refute editor =~ "Legacy home"
+    refute editor =~ "Legacy body"
+  end
+
   test "browser recent posts page filters by board, query, and ip", %{conn: conn} do
     moderator = moderator_fixture(%{role: "admin"})
     board = board_fixture(%{uri: "tea#{System.unique_integer([:positive])}", title: "Tea"})

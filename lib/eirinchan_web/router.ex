@@ -292,6 +292,14 @@ defmodule EirinchanWeb.Router do
     get "/catalog", PageController, :catalog
     get "/ukko", PageController, :ukko
     get "/recent", PageController, :recent
+    get "/index", PageController, :index
+    get "/categories", PageController, :categories
+    get "/categories/sidebar", PageController, :categories_sidebar
+    get "/categories/news", PageController, :categories_news
+    get "/frameset", PageController, :frameset
+    get "/frameset/sidebar", PageController, :frameset_sidebar
+    get "/frameset/news", PageController, :frameset_news
+    get "/recent.xml", PageController, :rss
     get "/sitemap.xml", PageController, :sitemap
     get "/search", SearchController, :show
     get "/watcher/fragment", PageController, :watcher_fragment

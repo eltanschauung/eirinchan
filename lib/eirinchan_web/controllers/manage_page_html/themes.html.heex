@@ -1,6 +1,8 @@
 <.flash_group flash={@flash} />
 <h1>Manage Themes</h1>
+
 <p><a href={~p"/manage"}>Back to dashboard</a></p>
+
 <p :if={@error} class="error"><%= @error %></p>
 
 <%= if Enum.empty?(@themes) do %>
@@ -10,28 +12,38 @@
     <%= for theme <- @themes do %>
       <tr>
         <th class="minimal">Name</th>
+
         <td><%= theme.title %></td>
       </tr>
+
       <tr>
         <th class="minimal">Version</th>
+
         <td><%= theme.version %></td>
       </tr>
+
       <tr>
         <th class="minimal">Description</th>
+
         <td><%= theme.description %></td>
       </tr>
+
       <tr>
         <th class="minimal">Thumbnail</th>
         <td>
           <img
+            :if={theme.thumb_uri}
             style={"float:none;margin:4px" <> if(theme.installed, do: ";border:2px solid red;padding:4px", else: "")}
             src={theme.thumb_uri}
             alt={"#{theme.title} thumbnail"}
           />
+          <span :if={!theme.thumb_uri} class="unimportant">No preview available.</span>
         </td>
       </tr>
+
       <tr>
         <th class="minimal">Actions</th>
+
         <td>
           <ul style="padding:0 20px">
             <li>
@@ -39,12 +51,18 @@
                 <%= if theme.installed, do: "Reconfigure", else: "Install" %>
               </a>
             </li>
-            <li :if={theme.installed and theme.supported}>
-              <form action={"/manage/themes/browser/#{theme.name}/rebuild"} method="post" style="display:inline">
+
+            <li :if={theme.installed and theme.rebuildable}>
+              <form
+                action={"/manage/themes/browser/#{theme.name}/rebuild"}
+                method="post"
+                style="display:inline"
+              >
                 <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
                 <button type="submit">Rebuild</button>
               </form>
             </li>
+
             <li :if={theme.installed}>
               <form
                 action={"/manage/themes/browser/#{theme.name}"}
@@ -57,12 +75,20 @@
                 <button type="submit">Uninstall</button>
               </form>
             </li>
-            <li :if={!theme.supported}>Unsupported in Eirinchan</li>
+
+            <li :if={is_binary(theme.public_path)}>
+              <a href={theme.public_path}>View public page</a>
+            </li>
           </ul>
         </td>
       </tr>
-      <tr style="height:40px"><td colspan="2"><hr /></td></tr>
+
+      <tr style="height:40px">
+        <td colspan="2"><hr /></td>
+      </tr>
     <% end %>
   </table>
 <% end %>
-<script defer type="text/javascript" src="/js/manage-forms.js"></script>
+
+<script defer type="text/javascript" src="/js/manage-forms.js">
+</script>

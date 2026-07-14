@@ -1,78 +1,102 @@
 <.flash_group flash={@flash} />
 <h1>Configuring theme: <%= @theme.title %></h1>
+
 <p><a href={~p"/manage/themes/browser"}>Go back to themes</a></p>
+
 <p :if={@error} class="error"><%= @error %></p>
 
 <table class="modlog">
   <tr>
     <th class="minimal">Name</th>
+
     <td><%= @theme.title %></td>
   </tr>
+
   <tr>
     <th class="minimal">Version</th>
+
     <td><%= @theme.version %></td>
   </tr>
+
   <tr>
     <th class="minimal">Description</th>
+
     <td><%= @theme.description %></td>
   </tr>
+
   <tr>
     <th class="minimal">Status</th>
     <td><%= if @theme.installed, do: "Installed", else: "Not installed" %></td>
   </tr>
+  <tr :if={is_binary(@theme.public_path)}>
+    <th class="minimal">Public path</th>
+    <td><a href={@theme.public_path}><%= @theme.public_path %></a></td>
+  </tr>
 </table>
 
-<%= if @theme.supported do %>
-  <form action={"/manage/themes/browser/#{@theme.name}"} method="post">
-    <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
-
-    <%= for field <- @theme.config_fields do %>
-      <div class="field">
-        <label for={"theme-#{@theme.name}-#{field.name}"}><%= field.title %></label>
-        <%= if field.type == "checkbox" do %>
-          <input
-            id={"theme-#{@theme.name}-#{field.name}"}
-            type="checkbox"
-            name={field.name}
-            checked={Map.get(@theme.settings, field.name, false)}
-          />
+<form action={"/manage/themes/browser/#{@theme.name}"} method="post">
+  <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+  <%= for field <- @theme.config_fields do %>
+    <div class="field">
+      <label for={"theme-#{@theme.name}-#{field.name}"}><%= field.title %></label>
+      <%= if field.type == "checkbox" do %>
+        <input
+          id={"theme-#{@theme.name}-#{field.name}"}
+          type="checkbox"
+          name={field.name}
+          checked={Map.get(@theme.settings, field.name, false)}
+        />
+      <% else %>
+        <%= if field.type == "select" do %>
+          <select id={"theme-#{@theme.name}-#{field.name}"} name={field.name}>
+            <option
+              :for={option <- field.options}
+              value={option}
+              selected={Map.get(@theme.settings, field.name, field.default) == option}
+            >
+              <%= option %>
+            </option>
+          </select>
         <% else %>
           <%= if field.type == "textarea" do %>
             <textarea
               id={"theme-#{@theme.name}-#{field.name}"}
               name={field.name}
-              rows={if @theme.name == "faq", do: "30", else: "8"}
+              rows={to_string(Map.get(field, :rows, 8))}
             ><%= Map.get(@theme.settings, field.name, "") %></textarea>
           <% else %>
             <input
               id={"theme-#{@theme.name}-#{field.name}"}
-              type="text"
+              type={if field.type == "number", do: "number", else: "text"}
               name={field.name}
               value={Map.get(@theme.settings, field.name, "")}
+              min={Map.get(field, :min)}
+              max={Map.get(field, :max)}
             />
           <% end %>
         <% end %>
-      </div>
-    <% end %>
+      <% end %>
+      <small :if={Map.get(field, :comment)} class="unimportant">
+        <%= field.comment %>
+      </small>
+    </div>
+  <% end %>
 
-    <p>
-      <button type="submit"><%= if @theme.installed, do: "Save", else: "Install" %></button>
-    </p>
-  </form>
-
-  <p :if={@theme.installed}>
-    <form
-      action={"/manage/themes/browser/#{@theme.name}/rebuild"}
-      method="post"
-      style="display:inline"
-    >
-      <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
-      <button type="submit">Rebuild Theme</button>
-    </form>
+  <p>
+    <button type="submit"><%= if @theme.installed, do: "Save", else: "Install" %></button>
   </p>
-<% else %>
-  <p>This upstream theme is not implemented in Eirinchan yet.</p>
-<% end %>
+</form>
+
+<p :if={@theme.installed and @theme.rebuildable}>
+  <form
+    action={"/manage/themes/browser/#{@theme.name}/rebuild"}
+    method="post"
+    style="display:inline"
+  >
+    <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+    <button type="submit">Rebuild Theme</button>
+  </form>
+</p>
 
 <p :if={@theme.installed}>
   <form
@@ -82,8 +106,9 @@
     data-confirm-submit="Are you sure you want to uninstall this theme?"
   >
     <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
-    <input type="hidden" name="_method" value="delete" />
-    <button type="submit">Uninstall</button>
+    <input type="hidden" name="_method" value="delete" /> <button type="submit">Uninstall</button>
   </form>
 </p>
-<script defer type="text/javascript" src="/js/manage-forms.js"></script>
+
+<script defer type="text/javascript" src="/js/manage-forms.js">
+</script>

@@ -1,0 +1,57 @@
+<header class="landing-header">
+  <img :if={@icon_url != ""} class="landing-icon" src={@icon_url} alt="" />
+  <h1><%= @landing_settings["title"] %></h1>
+
+  <div :if={@landing_settings["subtitle"] != ""} class="subtitle">
+    <%= @landing_settings["subtitle"] %>
+  </div>
+</header>
+
+<main class="landing-index box-wrap">
+  <fieldset class="landing-board-list">
+    <legend>Boards</legend>
+
+    <ul>
+      <li :for={board <- @landing_boards}>
+        <a href={"/#{board.uri}/index.html"}>/<%= board.uri %>/ — <%= board.title %></a>
+      </li>
+    </ul>
+  </fieldset>
+
+  <section :if={@sanitized_description != ""} class="mainBox landing-feature">
+    <%= raw(@sanitized_description) %>
+  </section>
+
+  <section :if={@image_url != ""} class="mainBox landing-feature">
+    <img class="landing-feature-image" src={@image_url} alt="Image of the now" loading="lazy" />
+  </section>
+
+  <section :if={@sanitized_quote != ""} class="mainBox landing-feature landing-quote">
+    <%= raw(@sanitized_quote) %>
+  </section>
+
+  <section :if={@video_url} class="mainBox landing-feature landing-video">
+    <iframe
+      src={@video_url}
+      title="Video of the now"
+      loading="lazy"
+      referrerpolicy="strict-origin-when-cross-origin"
+      allow="fullscreen"
+    >
+    </iframe>
+  </section>
+
+  <section class="mainBox landing-news">
+    <h2>News</h2>
+
+    <p :if={@news_entries == []} class="unimportant">(No news to show.)</p>
+
+    <article :for={entry <- @news_entries}>
+      <h3><%= entry.date %></h3>
+
+      <div><%= raw(Eirinchan.NewsBlotter.render_message_html(entry.message)) %></div>
+    </article>
+  </section>
+  <.recent_panels recent_images={@recent_images} recent_posts={@recent_posts} stats={@stats} />
+</main>
+<hr /> <EirinchanWeb.PostComponents.site_footer />

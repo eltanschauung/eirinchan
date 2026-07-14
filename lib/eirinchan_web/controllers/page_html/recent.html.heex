@@ -4,45 +4,6 @@
 
 <div class="box-wrap">
   <%= raw(@sanitized_home_body) %>
-  <div class="box left">
-    <h2>Recent Images</h2>
-    <ul>
-      <%= for post <- @recent_images do %>
-        <li>
-          <a href={post.link}>
-            <img
-              src={post.src}
-              style={"width:#{post.thumbwidth}px;height:#{post.thumbheight}px"}
-              alt={post.alt}
-            />
-          </a>
-        </li>
-      <% end %>
-    </ul>
-  </div>
-  <div class="box right">
-    <h2>Latest Posts</h2>
-    <ul>
-      <%= for post <- @recent_posts do %>
-        <li>
-          <strong><%= post.board_name %></strong>:
-          <a href={post.link}>
-            <%= raw(post.snippet) %>
-          </a>
-        </li>
-      <% end %>
-    </ul>
-  </div>
-  <div class="box right">
-    <h2>Stats</h2>
-    <ul>
-      <li>Total posts: <%= @stats.total_posts %> | This week: <%= @stats.posts_week %></li>
-      <li>Unique whales: many</li>
-      <li>Active content: <%= @stats.active_content %></li>
-    </ul>
-  </div>
+  <.recent_panels recent_images={@recent_images} recent_posts={@recent_posts} stats={@stats} />
 </div>
-
-<hr />
-
-<EirinchanWeb.PostComponents.site_footer />
+<hr /> <EirinchanWeb.PostComponents.site_footer />
