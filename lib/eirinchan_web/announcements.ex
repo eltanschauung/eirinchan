@@ -116,24 +116,47 @@ defmodule EirinchanWeb.Announcements do
     end
   end
 
-  defp render_tf2_conditional_lines([directive, next_line | rest], show?, rendered) do
-    if tf2_conditional_directive?(directive) do
-      rendered = if show?, do: [next_line | rendered], else: rendered
-      render_tf2_conditional_lines(rest, show?, rendered)
-    else
-      render_tf2_conditional_lines([next_line | rest], show?, [directive | rendered])
+  defp render_tf2_conditional_lines([line, next_line | rest], show?, rendered) do
+    case tf2_conditional_prefix(line) do
+      {:ok, prefix} ->
+        emitted_lines =
+          case {prefix, show?} do
+            {"", true} -> [next_line]
+            {"", false} -> []
+            {prefix, true} -> [prefix, next_line]
+            {prefix, false} -> [prefix]
+          end
+
+        rendered = Enum.reduce(emitted_lines, rendered, fn emitted, acc -> [emitted | acc] end)
+        render_tf2_conditional_lines(rest, show?, rendered)
+
+      :error ->
+        render_tf2_conditional_lines([next_line | rest], show?, [line | rendered])
     end
   end
 
   defp render_tf2_conditional_lines([line], _show?, rendered) do
-    rendered = if tf2_conditional_directive?(line), do: rendered, else: [line | rendered]
+    rendered =
+      case tf2_conditional_prefix(line) do
+        {:ok, ""} -> rendered
+        {:ok, prefix} -> [prefix | rendered]
+        :error -> [line | rendered]
+      end
+
     Enum.reverse(rendered)
   end
 
   defp render_tf2_conditional_lines([], _show?, rendered), do: Enum.reverse(rendered)
 
-  defp tf2_conditional_directive?(line) do
-    Regex.match?(~r/^\s*\{if\s+tf2_display\s*>\s*0\s*[})]\s*$/u, line)
+  defp tf2_conditional_prefix(line) do
+    case Regex.run(
+           ~r/^(.*?)\{if\s+tf2_display\s*>\s*0\s*\}\s*$/u,
+           line,
+           capture: :all_but_first
+         ) do
+      [prefix] -> {:ok, String.trim_trailing(prefix)}
+      _ -> :error
+    end
   end
 
   defp cacheable_aggregate_placeholders?(message, opts) do

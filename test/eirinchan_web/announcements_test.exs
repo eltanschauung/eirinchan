@@ -83,20 +83,53 @@ defmodule EirinchanWeb.AnnouncementsTest do
     assert message == "Free password: bantptized\nTF2 playercount: 3/42\nAfter"
   end
 
-  test "TF2 conditional accepts the requested parenthesis spelling and removes an offline line" do
+  test "TF2 conditional can follow content on the preceding line and removes an offline line" do
     message =
       Announcements.global_message(
         %{
           global_message:
-            "Free password: bantptized\n{if tf2_display > 0)\nTF2 playercount: {tf2_display}"
+            "Visitors: {stats.users_10minutes}\\nPPH: {stats.posts_perhour}{if tf2_display > 0}\\nTF2 playercount: {tf2_display}"
         },
         tf2_now: 3_000,
+        board_ids: [0],
         tf2_fetcher: fn ->
           {:ok, %{"success" => true, "display" => "0 / 42", "player_count" => 0}}
         end
       )
 
-    assert message == "Free password: bantptized"
+    assert message =~ ~r/^Visitors: \d+\nPPH: \d+$/
+    refute message =~ "TF2 playercount"
+    refute message =~ "{if"
+  end
+
+  test "TF2 conditional following content keeps both lines when players are online" do
+    message =
+      Announcements.global_message(
+        %{
+          global_message:
+            "PPH: {stats.posts_perhour}{if tf2_display > 0}\nTF2 playercount: {tf2_display}"
+        },
+        tf2_now: 3_500,
+        board_ids: [0],
+        tf2_fetcher: fn ->
+          {:ok, %{"success" => true, "display" => "4 / 42", "player_count" => 4}}
+        end
+      )
+
+    assert message =~ ~r/^PPH: \d+\nTF2 playercount: 4\/42$/
+  end
+
+  test "malformed parenthesis conditional is not accepted" do
+    message =
+      Announcements.global_message(
+        %{global_message: "{if tf2_display > 0)\nTF2 playercount: {tf2_display}"},
+        tf2_now: 3_750,
+        tf2_fetcher: fn ->
+          {:ok, %{"success" => true, "display" => "4 / 42", "player_count" => 4}}
+        end
+      )
+
+    assert message == "{if tf2_display > 0)\nTF2 playercount: 4/42"
   end
 
   test "TF2 placeholder fetch is cached and remote failures fail closed" do
