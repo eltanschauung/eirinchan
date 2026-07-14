@@ -52,17 +52,6 @@
               </a>
             </li>
 
-            <li :if={theme.installed and theme.rebuildable}>
-              <form
-                action={"/manage/themes/browser/#{theme.name}/rebuild"}
-                method="post"
-                style="display:inline"
-              >
-                <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
-                <button type="submit">Rebuild</button>
-              </form>
-            </li>
-
             <li :if={theme.installed}>
               <form
                 action={"/manage/themes/browser/#{theme.name}"}

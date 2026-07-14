@@ -36,6 +36,7 @@ defmodule EirinchanWeb.ThemeManagementControllerTest do
     assert themes_page =~ "RSS"
     assert themes_page =~ "Sitemap"
     assert themes_page =~ "Overboard (Ukko)"
+    refute themes_page =~ ">FAQ<"
     refute themes_page =~ "Categories"
     refute themes_page =~ "Frameset"
     refute themes_page =~ ">Index<"
@@ -201,45 +202,34 @@ defmodule EirinchanWeb.ThemeManagementControllerTest do
     assert html_response(invalid_ukko, 422) =~ "conflicts with a built-in route"
   end
 
-  test "admin can install and uninstall faq theme", %{conn: conn} do
+  test "faq is managed only as a global static page", %{conn: conn} do
     moderator = moderator_fixture(%{role: "admin"})
 
-    refute Eirinchan.CustomPages.get_page_by_slug("faq")
+    assert {:ok, faq_page} =
+             Eirinchan.CustomPages.create_page(%{
+               slug: "faq",
+               title: "FAQ",
+               body: "Static FAQ body",
+               mod_user_id: moderator.id
+             })
 
-    install_conn =
+    missing_theme =
       conn
       |> login_moderator(moderator)
-      |> post("/manage/themes/browser/faq", %{})
+      |> get("/manage/themes/browser/faq")
 
-    assert redirected_to(install_conn) == "/manage/themes/browser/faq"
-    assert faq_page = Eirinchan.CustomPages.get_page_by_slug("faq")
-    refute faq_page.body =~ "<!doctype html>"
-    assert faq_page.body =~ "What is bnat?"
+    assert html_response(missing_theme, 404) =~ "Theme not found"
 
-    assert conn |> recycle() |> get("/faq") |> html_response(200) =~ "What is bnat?"
-
-    uninstall_conn =
+    static_pages =
       conn
       |> recycle()
       |> login_moderator(moderator)
-      |> delete("/manage/themes/browser/faq")
+      |> get("/manage/pages/browser")
+      |> html_response(200)
 
-    assert redirected_to(uninstall_conn) == "/manage/themes/browser"
-    refute Eirinchan.CustomPages.get_page_by_slug("faq")
-  end
-
-  test "faq reconfigure page edits sanitized FAQ source", %{conn: conn} do
-    moderator = moderator_fixture(%{role: "admin"})
-
-    save_conn =
-      conn
-      |> login_moderator(moderator)
-      |> post("/manage/themes/browser/faq", %{
-        "html" => "<!doctype html><html><body><h1>Theme FAQ</h1></body></html>"
-      })
-
-    assert redirected_to(save_conn) == "/manage/themes/browser/faq"
-    refute Eirinchan.CustomPages.get_page_by_slug("faq").body =~ "<!doctype html>"
-    assert Eirinchan.CustomPages.get_page_by_slug("faq").body =~ "Theme FAQ"
+    assert static_pages =~ "Static FAQ body"
+    assert static_pages =~ ~s(href="/faq")
+    assert conn |> recycle() |> get("/faq") |> html_response(200) =~ "Static FAQ body"
+    assert Eirinchan.CustomPages.get_page_by_slug("faq").id == faq_page.id
   end
 end

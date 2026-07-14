@@ -1034,34 +1034,6 @@ defmodule EirinchanWeb.ManagePageController do
     end
   end
 
-  def rebuild_theme(conn, %{"name" => name}) do
-    with {:ok, moderator} <- ensure_admin(conn),
-         :ok <- Themes.rebuild_theme(name) do
-      ModerationAudit.log(conn, "Rebuilt theme #{name}", moderator: moderator)
-
-      conn
-      |> put_flash(:info, "Theme rebuilt.")
-      |> redirect(to: "/manage/themes/browser/#{name}")
-    else
-      {:error, :unauthorized} ->
-        redirect(conn, to: ~p"/manage/login")
-
-      {:error, :forbidden} ->
-        render_dashboard_error(conn, "Administrator access required.", %{}, :forbidden)
-
-      {:error, :unsupported} ->
-        render_theme_error(
-          conn,
-          name,
-          "This theme does not support rebuilds in Eirinchan.",
-          :unprocessable_entity
-        )
-
-      {:error, :not_found} ->
-        render_themes_error(conn, "Theme not found.", :not_found)
-    end
-  end
-
   defp assign_manage_shell(conn, _opts) do
     conn
     |> assign(:global_boardlist_groups, shell_boardlist_groups(conn))

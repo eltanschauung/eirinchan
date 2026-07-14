@@ -106,7 +106,6 @@ defmodule EirinchanWeb.Router do
     post "/users/browser/:id/demote", ManagePageController, :demote_user_browser
     get "/themes/browser/:name", ManagePageController, :theme
     post "/themes/browser/:name", ManagePageController, :install_theme
-    post "/themes/browser/:name/rebuild", ManagePageController, :rebuild_theme
     delete "/themes/browser/:name", ManagePageController, :delete_theme
     get "/announcement/browser", ManagePageController, :blotter
     post "/announcement/browser", ManagePageController, :update_blotter

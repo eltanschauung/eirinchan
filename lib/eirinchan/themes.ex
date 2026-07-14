@@ -8,7 +8,6 @@ defmodule Eirinchan.Themes do
   """
 
   alias Eirinchan.CustomPages
-  alias Eirinchan.FaqPage
   alias Eirinchan.HomePage
   alias Eirinchan.Settings
   alias Eirinchan.SiteContact
@@ -26,7 +25,6 @@ defmodule Eirinchan.Themes do
 
       theme
       |> Map.put(:installed, installed?)
-      |> Map.put(:rebuildable, theme.name == "faq")
       |> Map.put(
         :thumb_uri,
         if(theme.name in @thumbnail_themes, do: "/theme-thumbs/#{theme.name}.png", else: nil)
@@ -118,27 +116,10 @@ defmodule Eirinchan.Themes do
         modules = installed_theme_settings_map()
 
         if Map.has_key?(modules, normalized) do
-          with :ok <- persist_installed_theme_settings(Map.delete(modules, normalized)) do
-            case maybe_uninstall_side_effect(normalized) do
-              :ok ->
-                :ok
-
-              error ->
-                rollback_theme_settings(modules)
-                error
-            end
-          end
+          persist_installed_theme_settings(Map.delete(modules, normalized))
         else
           {:error, :not_found}
         end
-    end
-  end
-
-  def rebuild_theme(name) when is_binary(name) do
-    case theme(name) do
-      nil -> {:error, :not_found}
-      %{name: "faq"} -> rebuild_faq_page()
-      _theme -> {:error, :unsupported}
     end
   end
 
@@ -168,71 +149,8 @@ defmodule Eirinchan.Themes do
     end
   end
 
-  defp maybe_install_side_effect("faq", params), do: ensure_faq_page(params)
   defp maybe_install_side_effect("recent", _params), do: delete_legacy_home_page()
   defp maybe_install_side_effect(_name, _params), do: :ok
-
-  defp maybe_uninstall_side_effect("faq"), do: delete_faq_page()
-  defp maybe_uninstall_side_effect(_name), do: :ok
-
-  defp ensure_faq_page(params) do
-    mod_user_id = normalize_mod_user_id(params)
-
-    body =
-      case Map.get(params, "html") || Map.get(params, :html) do
-        value when is_binary(value) and value != "" -> value
-        _ -> FaqPage.default_body()
-      end
-      |> FaqPage.normalize_body()
-
-    attrs = %{slug: "faq", title: "FAQ", body: body, mod_user_id: mod_user_id}
-
-    case CustomPages.get_page_by_slug("faq") do
-      nil -> write_custom_page(CustomPages.create_page(attrs))
-      page -> write_custom_page(CustomPages.update_page(page, attrs))
-    end
-  end
-
-  defp normalize_mod_user_id(params) do
-    case Map.get(params, "mod_user_id") || Map.get(params, :mod_user_id) do
-      nil ->
-        1
-
-      value when is_integer(value) ->
-        value
-
-      value ->
-        case Integer.parse(to_string(value)) do
-          {parsed, ""} when parsed > 0 -> parsed
-          _ -> 1
-        end
-    end
-  end
-
-  defp rebuild_faq_page do
-    html = theme_settings("faq") |> Map.fetch!("html") |> FaqPage.normalize_body()
-
-    case CustomPages.get_page_by_slug("faq") do
-      nil ->
-        :ok
-
-      page ->
-        CustomPages.update_page(page, %{
-          slug: "faq",
-          title: page.title || "FAQ",
-          body: html,
-          mod_user_id: page.mod_user_id
-        })
-        |> write_custom_page()
-    end
-  end
-
-  defp delete_faq_page do
-    case CustomPages.get_page_by_slug("faq") do
-      nil -> :ok
-      page -> page |> CustomPages.delete_page() |> write_custom_page()
-    end
-  end
 
   defp delete_legacy_home_page do
     case CustomPages.get_page_by_slug("home") do
@@ -336,26 +254,11 @@ defmodule Eirinchan.Themes do
     :ok
   end
 
-  defp theme_settings_for(%{name: "faq"} = theme, stored),
-    do: faq_theme_settings(theme, stored)
-
   defp theme_settings_for(%{name: "recent"} = theme, stored),
     do: recent_theme_settings(theme, stored)
 
   defp theme_settings_for(theme, stored),
     do: ThemeRegistry.normalize_settings(theme, stored)
-
-  defp faq_theme_settings(theme, stored) do
-    base = ThemeRegistry.normalize_settings(theme, stored)
-
-    html =
-      case CustomPages.get_page_by_slug("faq") do
-        %{body: body} when is_binary(body) and body != "" -> FaqPage.normalize_body(body)
-        _ -> base |> Map.get("html", FaqPage.default_body()) |> FaqPage.normalize_body()
-      end
-
-    Map.put(base, "html", html)
-  end
 
   defp recent_theme_settings(theme, stored) do
     base = ThemeRegistry.normalize_settings(theme, stored)

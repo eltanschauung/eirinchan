@@ -21,27 +21,6 @@ defmodule Eirinchan.ThemeRegistry do
 
   @themes [
     %{
-      name: "faq",
-      title: "FAQ",
-      description: "Manage the public FAQ page.",
-      version: "1.1-elixir",
-      page_theme: false,
-      default_installed: false,
-      public_path: "/faq",
-      config_fields: [
-        %{
-          name: "html",
-          title: "HTML",
-          type: "textarea",
-          default: "",
-          max: 100_000,
-          trim: false,
-          rows: 30,
-          comment: "Sanitized before it is shown publicly."
-        }
-      ]
-    },
-    %{
       name: "feedback",
       title: "Feedback",
       description: "Public feedback page and submission form.",
