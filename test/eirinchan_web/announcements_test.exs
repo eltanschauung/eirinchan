@@ -15,7 +15,11 @@ defmodule EirinchanWeb.AnnouncementsTest do
   test "global message resolves april fools team placeholders for name colour and post_count" do
     team =
       Repo.get!(AprilFoolsTeam, 6)
-      |> Ecto.Changeset.change(display_name: "Finasteride 💊", html_colour: "#ADD8E6", post_count: 200)
+      |> Ecto.Changeset.change(
+        display_name: "Finasteride 💊",
+        html_colour: "#ADD8E6",
+        post_count: 200
+      )
       |> Repo.update!()
 
     html =
@@ -32,7 +36,11 @@ defmodule EirinchanWeb.AnnouncementsTest do
   test "global message also supports canonical team field names" do
     _team =
       Repo.get!(AprilFoolsTeam, 1)
-      |> Ecto.Changeset.change(display_name: "Yukari Whale 🐋", html_colour: "#FFFF00", post_count: 11)
+      |> Ecto.Changeset.change(
+        display_name: "Yukari Whale 🐋",
+        html_colour: "#FFFF00",
+        post_count: 11
+      )
       |> Repo.update!()
 
     html =
@@ -44,6 +52,72 @@ defmodule EirinchanWeb.AnnouncementsTest do
     assert html =~ "Name: Yukari Whale 🐋"
     assert html =~ "Colour: #FFFF00"
     assert html =~ "Count: 14881488"
+  end
+
+  test "global message resolves and normalizes the TF2 display placeholder" do
+    message =
+      Announcements.global_message(
+        %{global_message: "TF2 playercount: {tf2_display}"},
+        tf2_now: 1_000,
+        tf2_fetcher: fn ->
+          {:ok, %{"success" => true, "display" => "12 / 42", "player_count" => 12}}
+        end
+      )
+
+    assert message == "TF2 playercount: 12/42"
+  end
+
+  test "TF2 conditional renders only its following line when players are online" do
+    message =
+      Announcements.global_message(
+        %{
+          global_message:
+            "Free password: bantptized\\n{if tf2_display > 0}\\nTF2 playercount: {tf2_display}\\nAfter"
+        },
+        tf2_now: 2_000,
+        tf2_fetcher: fn ->
+          {:ok, %{"success" => true, "display" => "3 / 42", "player_count" => 3}}
+        end
+      )
+
+    assert message == "Free password: bantptized\nTF2 playercount: 3/42\nAfter"
+  end
+
+  test "TF2 conditional accepts the requested parenthesis spelling and removes an offline line" do
+    message =
+      Announcements.global_message(
+        %{
+          global_message:
+            "Free password: bantptized\n{if tf2_display > 0)\nTF2 playercount: {tf2_display}"
+        },
+        tf2_now: 3_000,
+        tf2_fetcher: fn ->
+          {:ok, %{"success" => true, "display" => "0 / 42", "player_count" => 0}}
+        end
+      )
+
+    assert message == "Free password: bantptized"
+  end
+
+  test "TF2 placeholder fetch is cached and remote failures fail closed" do
+    {:ok, calls} = Agent.start_link(fn -> 0 end)
+
+    fetcher = fn ->
+      Agent.update(calls, &(&1 + 1))
+      {:error, :offline}
+    end
+
+    config = %{
+      global_message: "Before\n{if tf2_display > 0}\nTF2 playercount: {tf2_display}\nAfter"
+    }
+
+    assert Announcements.global_message(config, tf2_now: 4_000, tf2_fetcher: fetcher) ==
+             "Before\nAfter"
+
+    assert Announcements.global_message(config, tf2_now: 4_000, tf2_fetcher: fetcher) ==
+             "Before\nAfter"
+
+    assert Agent.get(calls, & &1) == 1
   end
 
   test "silly post count applies the requested replacements" do

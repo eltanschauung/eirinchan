@@ -4,6 +4,7 @@ defmodule EirinchanWeb.Announcements do
   alias Eirinchan.AprilFoolsTeams
   alias Eirinchan.NewsBlotter
   alias Eirinchan.Stats
+  alias Eirinchan.Tf2PlayerCount
   alias EirinchanWeb.FragmentCache
   alias EirinchanWeb.HtmlSanitizer
 
@@ -62,9 +63,77 @@ defmodule EirinchanWeb.Announcements do
 
   defp expand_placeholders(message, opts) do
     message
+    |> maybe_replace_tf2_placeholders(opts)
     |> maybe_replace_posts_perhour(opts)
     |> maybe_replace_users_10minutes()
     |> maybe_replace_team_placeholders()
+  end
+
+  defp maybe_replace_tf2_placeholders(message, opts) do
+    if tf2_placeholder?(message) do
+      stats = cached_tf2_stats(opts)
+
+      message
+      |> maybe_render_tf2_conditionals(stats)
+      |> String.replace("{tf2_display}", stats.display)
+    else
+      message
+    end
+  end
+
+  defp tf2_placeholder?(message) do
+    String.contains?(message, "{tf2_display}") or
+      String.contains?(message, "{if tf2_display")
+  end
+
+  defp cached_tf2_stats(opts) do
+    now = Keyword.get(opts, :tf2_now, System.system_time(:second))
+    cache_bucket = div(now, Tf2PlayerCount.cache_seconds())
+
+    FragmentCache.fetch_or_store({:tf2_player_count, cache_bucket}, fn ->
+      fetch_opts =
+        case Keyword.get(opts, :tf2_fetcher) do
+          fetcher when is_function(fetcher, 0) -> [fetcher: fetcher]
+          _ -> []
+        end
+
+      case Tf2PlayerCount.fetch(fetch_opts) do
+        {:ok, stats} -> stats
+        {:error, _reason} -> Tf2PlayerCount.unavailable()
+      end
+    end)
+  end
+
+  defp maybe_render_tf2_conditionals(message, stats) do
+    if String.contains?(message, "{if tf2_display") do
+      message
+      |> String.replace("\\n", "\n")
+      |> String.split(~r/\r\n|\r|\n/u, trim: false)
+      |> render_tf2_conditional_lines(stats.player_count > 0, [])
+      |> Enum.join("\n")
+    else
+      message
+    end
+  end
+
+  defp render_tf2_conditional_lines([directive, next_line | rest], show?, rendered) do
+    if tf2_conditional_directive?(directive) do
+      rendered = if show?, do: [next_line | rendered], else: rendered
+      render_tf2_conditional_lines(rest, show?, rendered)
+    else
+      render_tf2_conditional_lines([next_line | rest], show?, [directive | rendered])
+    end
+  end
+
+  defp render_tf2_conditional_lines([line], _show?, rendered) do
+    rendered = if tf2_conditional_directive?(line), do: rendered, else: [line | rendered]
+    Enum.reverse(rendered)
+  end
+
+  defp render_tf2_conditional_lines([], _show?, rendered), do: Enum.reverse(rendered)
+
+  defp tf2_conditional_directive?(line) do
+    Regex.match?(~r/^\s*\{if\s+tf2_display\s*>\s*0\s*[})]\s*$/u, line)
   end
 
   defp cacheable_aggregate_placeholders?(message, opts) do
@@ -87,7 +156,11 @@ defmodule EirinchanWeb.Announcements do
       board_scoped?:
         String.contains?(message, "{stats.posts_perhour}") or
           String.contains?(message, "{stats.users_10minutes}"),
-      team_scoped?: Regex.match?(~r/\{stats\.team_\d+\.(?:name|display_name|colour|color|html_colour|post_count)\}/u, message)
+      team_scoped?:
+        Regex.match?(
+          ~r/\{stats\.team_\d+\.(?:name|display_name|colour|color|html_colour|post_count)\}/u,
+          message
+        )
     }
   end
 
@@ -128,7 +201,11 @@ defmodule EirinchanWeb.Announcements do
 
   defp maybe_replace_users_10minutes(message) do
     if String.contains?(message, "{stats.users_10minutes}") do
-      String.replace(message, "{stats.users_10minutes}", Stats.users_10minutes() |> Integer.to_string())
+      String.replace(
+        message,
+        "{stats.users_10minutes}",
+        Stats.users_10minutes() |> Integer.to_string()
+      )
     else
       message
     end

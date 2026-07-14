@@ -19,6 +19,11 @@ config :eirinchan,
   quarantine_invalid_uploads: false,
   quarantine_invalid_upload_root: Path.expand("../var/invalid_uploads", __DIR__),
   fragment_cache: [max_entries: 5_000, ttl_ms: 300_000],
+  tf2_player_count: [
+    url: "https://kogasa.tf/api/playercount",
+    timeout_ms: 2_000,
+    cache_seconds: 60
+  ],
   instance_config_path: Path.expand("../var/settings.json", __DIR__),
   proxy_request: %{
     trust_headers: true,
