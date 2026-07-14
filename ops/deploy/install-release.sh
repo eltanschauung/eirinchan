@@ -135,7 +135,9 @@ sudo systemctl restart "$SERVICE"
 
 healthy=0
 for _attempt in $(seq 1 45); do
-  if curl -fsS --max-time 5 https://bantculture.com/ >/dev/null; then
+  # Probe Bandit directly. The public route may legitimately return 403 when
+  # IP-access protection or an upstream edge policy blocks the VPS itself.
+  if curl -fsS --max-time 5 -H 'Host: bantculture.com' http://127.0.0.1:4001/ >/dev/null; then
     tail -n 1 "$REPOSITORY/access.log" >"$BUILD_ROOT/goaccess-smoke.log"
 
     if goaccess "$BUILD_ROOT/goaccess-smoke.log" \
