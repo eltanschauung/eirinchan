@@ -35,6 +35,7 @@ defmodule EirinchanWeb.Plugs.AccessLog do
            Base.url_decode64(client_id, padding: false) do
       [0x2001, 0xDB8, a, b, c, d, e, f]
       |> Enum.map_join(":", &Integer.to_string(&1, 16))
+      |> String.downcase()
     else
       _ -> "2001:db8::"
     end
