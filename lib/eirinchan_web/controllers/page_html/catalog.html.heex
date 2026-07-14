@@ -1,5 +1,6 @@
 <header>
   <h1>Global Catalog</h1>
+
   <div class="subtitle"></div>
   <.admin_shortcuts moderator={@current_moderator} />
 </header>
@@ -15,12 +16,13 @@
             /<%= board.uri %>/ <%= summary.thread.subject || "Untitled" %>
           </a>
         </h2>
+
         <.summary_body
           class="body"
           post={summary.thread}
           board={board}
           thread={summary.thread}
-          config={%{fileboard: false}}
+          config={Map.put(config, :fileboard, false)}
         />
         <p><%= summary.reply_count %> replies</p>
       </article>

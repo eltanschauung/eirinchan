@@ -621,8 +621,12 @@ defmodule EirinchanWeb.PageControllerTest do
     other_board =
       board_fixture(%{uri: "meta#{System.unique_integer([:positive])}", title: "Meta"})
 
-    thread_fixture(board, %{subject: "Tea thread", body: "Green tea"})
-    thread_fixture(other_board, %{subject: "Meta thread", body: "Board ops"})
+    quoted_thread = thread_fixture(board, %{subject: "Tea thread", body: "Green tea"})
+
+    thread_fixture(other_board, %{
+      subject: "Meta thread",
+      body: ">>#{PublicIds.public_id(quoted_thread)} Board ops"
+    })
 
     page =
       conn
@@ -632,6 +636,7 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ "Global Catalog"
     assert page =~ "Tea thread"
     assert page =~ "Meta thread"
+    assert page =~ "&gt;&gt;#{PublicIds.public_id(quoted_thread)}"
   end
 
   test "GET /ukko renders aggregated board threads", %{conn: conn} do
