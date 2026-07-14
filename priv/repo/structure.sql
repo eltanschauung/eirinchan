@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict mqr4C8KjaUJvJKHNvq5c2TvEq4pgUm3tRkNUwy6rOFG4PzPlpJdQQcYowdsOeaB
+\restrict fe7xDgGNywO5X5ZvqPehaHl3pvOzzHL2FeTTi8dWZcirlCGsHEaRMhKxKhGlMqJ
 
 -- Dumped from database version 13.18 (Debian 13.18-0+deb11u1)
 -- Dumped by pg_dump version 15.18 (Debian 15.18-0+deb12u1)
@@ -178,6 +178,32 @@ CREATE SEQUENCE public.boards_id_seq
 --
 
 ALTER SEQUENCE public.boards_id_seq OWNED BY public.boards.id;
+
+
+--
+-- Name: browser_abuse_signals; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.browser_abuse_signals (
+    browser_ref character varying(255) NOT NULL,
+    client_key character varying(255),
+    reason character varying(255) NOT NULL,
+    expires_at timestamp(0) without time zone NOT NULL,
+    inserted_at timestamp(0) without time zone NOT NULL,
+    updated_at timestamp(0) without time zone NOT NULL
+);
+
+
+--
+-- Name: browser_identities; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.browser_identities (
+    browser_ref character varying(255) NOT NULL,
+    issued_at timestamp(0) without time zone NOT NULL,
+    last_seen_at timestamp(0) without time zone NOT NULL,
+    expires_at timestamp(0) without time zone NOT NULL
+);
 
 
 --
@@ -358,7 +384,9 @@ CREATE TABLE public.flood_entries (
     board_id bigint NOT NULL,
     ip_subnet character varying(255) NOT NULL,
     body_hash character varying(255),
-    inserted_at timestamp without time zone NOT NULL
+    inserted_at timestamp without time zone NOT NULL,
+    browser_ref character varying(255),
+    client_key character varying(255)
 );
 
 
@@ -664,39 +692,6 @@ ALTER SEQUENCE public.noticeboard_entries_id_seq OWNED BY public.noticeboard_ent
 
 
 --
--- Name: post_failure_logs; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.post_failure_logs (
-    id bigint NOT NULL,
-    event character varying(255) NOT NULL,
-    level character varying(255) NOT NULL,
-    board_uri character varying(255),
-    metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
-    inserted_at timestamp without time zone NOT NULL
-);
-
-
---
--- Name: post_failure_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.post_failure_logs_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: post_failure_logs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.post_failure_logs_id_seq OWNED BY public.post_failure_logs.id;
-
-
---
 -- Name: post_files; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -891,7 +886,9 @@ CREATE TABLE public.search_queries (
     board_id bigint,
     ip_subnet character varying(255) NOT NULL,
     query character varying(255) NOT NULL,
-    inserted_at timestamp without time zone NOT NULL
+    inserted_at timestamp without time zone NOT NULL,
+    browser_ref character varying(255),
+    client_key character varying(255)
 );
 
 
@@ -1075,13 +1072,6 @@ ALTER TABLE ONLY public.noticeboard_entries ALTER COLUMN id SET DEFAULT nextval(
 
 
 --
--- Name: post_failure_logs id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.post_failure_logs ALTER COLUMN id SET DEFAULT nextval('public.post_failure_logs_id_seq'::regclass);
-
-
---
 -- Name: post_files id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -1161,6 +1151,22 @@ ALTER TABLE ONLY public.bans
 
 ALTER TABLE ONLY public.boards
     ADD CONSTRAINT boards_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: browser_abuse_signals browser_abuse_signals_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.browser_abuse_signals
+    ADD CONSTRAINT browser_abuse_signals_pkey PRIMARY KEY (browser_ref);
+
+
+--
+-- Name: browser_identities browser_identities_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.browser_identities
+    ADD CONSTRAINT browser_identities_pkey PRIMARY KEY (browser_ref);
 
 
 --
@@ -1276,14 +1282,6 @@ ALTER TABLE ONLY public.noticeboard_entries
 
 
 --
--- Name: post_failure_logs post_failure_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.post_failure_logs
-    ADD CONSTRAINT post_failure_logs_pkey PRIMARY KEY (id);
-
-
---
 -- Name: post_files post_files_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1389,6 +1387,20 @@ CREATE UNIQUE INDEX boards_uri_index ON public.boards USING btree (uri);
 
 
 --
+-- Name: browser_abuse_signals_expires_at_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX browser_abuse_signals_expires_at_index ON public.browser_abuse_signals USING btree (expires_at);
+
+
+--
+-- Name: browser_identities_expires_at_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX browser_identities_expires_at_index ON public.browser_identities USING btree (expires_at);
+
+
+--
 -- Name: build_jobs_active_unique_index; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1449,6 +1461,27 @@ CREATE INDEX flood_entries_board_id_ip_subnet_body_hash_inserted_at_index ON pub
 --
 
 CREATE INDEX flood_entries_board_id_ip_subnet_inserted_at_index ON public.flood_entries USING btree (board_id, ip_subnet, inserted_at);
+
+
+--
+-- Name: flood_entries_browser_ref_inserted_at_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX flood_entries_browser_ref_inserted_at_index ON public.flood_entries USING btree (browser_ref, inserted_at);
+
+
+--
+-- Name: flood_entries_client_key_inserted_at_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX flood_entries_client_key_inserted_at_index ON public.flood_entries USING btree (client_key, inserted_at);
+
+
+--
+-- Name: flood_entries_inserted_at_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX flood_entries_inserted_at_index ON public.flood_entries USING btree (inserted_at);
 
 
 --
@@ -1578,27 +1611,6 @@ CREATE INDEX noticeboard_entries_posted_at_index ON public.noticeboard_entries U
 
 
 --
--- Name: post_failure_logs_board_uri_index; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX post_failure_logs_board_uri_index ON public.post_failure_logs USING btree (board_uri);
-
-
---
--- Name: post_failure_logs_event_index; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX post_failure_logs_event_index ON public.post_failure_logs USING btree (event);
-
-
---
--- Name: post_failure_logs_inserted_at_index; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX post_failure_logs_inserted_at_index ON public.post_failure_logs USING btree (inserted_at);
-
-
---
 -- Name: post_files_post_id_position_index; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1708,6 +1720,27 @@ CREATE UNIQUE INDEX reports_post_reason_dismissed_unique_index ON public.reports
 --
 
 CREATE INDEX search_queries_board_id_ip_subnet_query_inserted_at_index ON public.search_queries USING btree (board_id, ip_subnet, query, inserted_at);
+
+
+--
+-- Name: search_queries_browser_ref_query_inserted_at_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX search_queries_browser_ref_query_inserted_at_index ON public.search_queries USING btree (browser_ref, query, inserted_at);
+
+
+--
+-- Name: search_queries_client_key_query_inserted_at_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX search_queries_client_key_query_inserted_at_index ON public.search_queries USING btree (client_key, query, inserted_at);
+
+
+--
+-- Name: search_queries_inserted_at_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX search_queries_inserted_at_index ON public.search_queries USING btree (inserted_at);
 
 
 --
@@ -1982,7 +2015,7 @@ ALTER TABLE ONLY public.search_queries
 -- PostgreSQL database dump complete
 --
 
-\unrestrict mqr4C8KjaUJvJKHNvq5c2TvEq4pgUm3tRkNUwy6rOFG4PzPlpJdQQcYowdsOeaB
+\unrestrict fe7xDgGNywO5X5ZvqPehaHl3pvOzzHL2FeTTi8dWZcirlCGsHEaRMhKxKhGlMqJ
 
 INSERT INTO public."schema_migrations" (version) VALUES (20260307000000);
 INSERT INTO public."schema_migrations" (version) VALUES (20260307010000);
@@ -2030,3 +2063,8 @@ INSERT INTO public."schema_migrations" (version) VALUES (20260402235000);
 INSERT INTO public."schema_migrations" (version) VALUES (20260710150000);
 INSERT INTO public."schema_migrations" (version) VALUES (20260710213000);
 INSERT INTO public."schema_migrations" (version) VALUES (20260713120000);
+INSERT INTO public."schema_migrations" (version) VALUES (20260713150000);
+INSERT INTO public."schema_migrations" (version) VALUES (20260713160000);
+INSERT INTO public."schema_migrations" (version) VALUES (20260713170000);
+INSERT INTO public."schema_migrations" (version) VALUES (20260713180000);
+INSERT INTO public."schema_migrations" (version) VALUES (20260714072000);
