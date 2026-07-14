@@ -61,6 +61,7 @@ thread_watcher_spec.md
 /var/*.tmp
 /var/.*.tmp
 /var/invalid_uploads/
+/var/log/
 /priv/static/secret_bfc.png
 
 posting_pipeline_examination.txt
