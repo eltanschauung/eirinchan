@@ -90,6 +90,17 @@ sudo install -m 0644 -o root -g root \
 sudo install -m 0644 -o root -g root \
   "$REPOSITORY/ops/logrotate/bantculture-phoenix" \
   /etc/logrotate.d/bantculture-phoenix
+
+if ! command -v goaccess >/dev/null 2>&1; then
+  echo "GoAccess is required to validate the production access log." >&2
+  exit 1
+fi
+
+# Debian ships every log format disabled. Select the standard Combined preset
+# so `goaccess ~/eirinchan-v1/access.log` works without additional arguments.
+sudo sed -i 's/^#log-format COMBINED$/log-format COMBINED/' /etc/goaccess/goaccess.conf
+sudo grep -qxF 'log-format COMBINED' /etc/goaccess/goaccess.conf
+
 sudo install -m 0644 -o root -g root \
   "$REPOSITORY/ops/systemd/eirinchan-log-retention.service" \
   /etc/systemd/system/eirinchan-log-retention.service
@@ -114,8 +125,14 @@ sudo systemctl restart "$SERVICE"
 healthy=0
 for _attempt in $(seq 1 45); do
   if curl -fsS --max-time 5 https://bantculture.com/ >/dev/null; then
-    healthy=1
-    break
+    tail -n 1 "$REPOSITORY/access.log" >"$BUILD_ROOT/goaccess-smoke.log"
+
+    if goaccess "$BUILD_ROOT/goaccess-smoke.log" \
+      --output="$BUILD_ROOT/goaccess-smoke.html" >/dev/null 2>&1 &&
+      test -s "$BUILD_ROOT/goaccess-smoke.html"; then
+      healthy=1
+      break
+    fi
   fi
   sleep 1
 done
