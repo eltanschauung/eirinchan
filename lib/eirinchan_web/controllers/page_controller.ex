@@ -225,7 +225,10 @@ defmodule EirinchanWeb.PageController do
           "x-watcher-unread-count",
           Integer.to_string(watcher_metrics.watcher_unread_count)
         )
-        |> put_resp_header("x-watcher-you-count", Integer.to_string(watcher_metrics.watcher_you_count))
+        |> put_resp_header(
+          "x-watcher-you-count",
+          Integer.to_string(watcher_metrics.watcher_you_count)
+        )
 
       html(
         conn,
@@ -258,7 +261,9 @@ defmodule EirinchanWeb.PageController do
     else
       render_custom_page(
         conn,
-        PublicPages.fetch_named_page("formatting", stickers: sticker_entries(current_sticker_config()))
+        PublicPages.fetch_named_page("formatting",
+          stickers: sticker_entries(current_sticker_config())
+        )
       )
     end
   end
@@ -289,10 +294,13 @@ defmodule EirinchanWeb.PageController do
   def render_overboard(conn, page \\ 1) do
     settings = Themes.theme_settings("ukko")
     boards = Boards.list_boards()
+
     case overboard_threads(settings, boards, page, conn) do
       {:ok, overboard_page} ->
         threads = overboard_page.threads
-        posts = Enum.flat_map(threads, fn %{summary: summary} -> [summary.thread | summary.replies] end)
+
+        posts =
+          Enum.flat_map(threads, fn %{summary: summary} -> [summary.thread | summary.replies] end)
 
         conn
         |> put_view(EirinchanWeb.PageHTML)
@@ -392,7 +400,11 @@ defmodule EirinchanWeb.PageController do
         public_page_assigns,
         layout: false,
         page: page,
-        global_message_html: if(show_global_message, do: Keyword.get(public_page_assigns, :global_message_html), else: nil),
+        global_message_html:
+          if(show_global_message,
+            do: Keyword.get(public_page_assigns, :global_message_html),
+            else: nil
+          ),
         sanitized_body: HtmlSanitizer.sanitize_fragment(page.body || ""),
         flag_board: board,
         flag_assets: flag_assets(),
@@ -425,7 +437,7 @@ defmodule EirinchanWeb.PageController do
 
   defp maybe_add_page_stylesheet(stylesheets, %{slug: slug})
        when slug in ["faq", "formatting", "rules"],
-    do: stylesheets ++ ["/faq/recent.css"]
+       do: stylesheets ++ ["/faq/recent.css"]
 
   defp maybe_add_page_stylesheet(stylesheets, _page), do: stylesheets
 
@@ -474,6 +486,8 @@ defmodule EirinchanWeb.PageController do
     content = cached_recent_theme_content(settings, board_ids)
     stats = cached_recent_theme_stats(board_ids)
     contact_email = SiteContact.email()
+    home_page = PublicPages.fetch_named_page("home", contact_email: contact_email)
+    sanitized_home_body = HtmlSanitizer.sanitize_fragment(home_page.body || "")
 
     conn =
       conn
@@ -482,17 +496,19 @@ defmodule EirinchanWeb.PageController do
         active_page,
         recent_theme_content_cache_key(settings, board_ids),
         recent_theme_stats_cache_key(board_ids),
-        contact_email
+        contact_email,
+        page_cache_key(home_page)
       })
       |> render(
         :recent,
         Keyword.merge(
-          recent_theme_assigns(conn, active_page, boards, contact_email),
+          recent_theme_assigns(conn, active_page, boards, home_page),
           layout: false,
           recent_settings: settings,
           recent_images: content.recent_images,
           recent_posts: content.recent_posts,
-          stats: stats
+          stats: stats,
+          sanitized_home_body: sanitized_home_body
         )
       )
 
@@ -524,19 +540,20 @@ defmodule EirinchanWeb.PageController do
     end)
   end
 
-  defp recent_theme_assigns(conn, active_page, boards, contact_email) do
+  defp recent_theme_assigns(conn, active_page, boards, home_page) do
     [
       boards: boards,
       global_boardlist_groups:
         PostView.boardlist_groups(boards, mobile_client?: conn.assigns[:mobile_client?] || false),
       show_footer: true,
-      page_title: "Recent Posts",
+      page_title: home_page.title,
       body_class: nil,
-      contact_email: contact_email
-    ] ++ PublicControllerHelpers.public_shell_assigns(conn, active_page,
-      extra_stylesheets: ["/recent.css"],
-      show_nav_arrows_page: false
-    )
+      home_page: home_page
+    ] ++
+      PublicControllerHelpers.public_shell_assigns(conn, active_page,
+        extra_stylesheets: ["/recent.css"],
+        show_nav_arrows_page: false
+      )
   end
 
   defp recent_theme_content(settings, board_ids) do
@@ -566,12 +583,18 @@ defmodule EirinchanWeb.PageController do
       Repo.one(
         from board in BoardRecord,
           where: board.id in ^board_ids,
-          select: coalesce(sum(fragment("GREATEST(COALESCE(?, 1) - 1, 0)", board.next_public_post_id)), 0)
+          select:
+            coalesce(
+              sum(fragment("GREATEST(COALESCE(?, 1) - 1, 0)", board.next_public_post_id)),
+              0
+            )
       ) || 0
 
     posts_week =
       Repo.aggregate(
-        from(post in Post, where: post.board_id in ^board_ids and post.inserted_at > ^week_cutoff),
+        from(post in Post,
+          where: post.board_id in ^board_ids and post.inserted_at > ^week_cutoff
+        ),
         :count,
         :id
       )
@@ -682,6 +705,7 @@ defmodule EirinchanWeb.PageController do
     |> Enum.map(fn post ->
       thread = post.thread || post
       config = board_config(post.board)
+
       {thread.id,
        ThreadPaths.preferred_thread_path(post.board, thread, config,
          reply_count: Map.get(reply_counts, thread.id, 0)
@@ -759,7 +783,9 @@ defmodule EirinchanWeb.PageController do
     src = "/#{post.board.uri}/thumb/#{Path.basename(post.thumb_path)}"
 
     case thumb_dimensions(post) do
-      {width, height} -> {src, width, height}
+      {width, height} ->
+        {src, width, height}
+
       nil ->
         {width, height} = fit_recent_thumb(post.image_width, post.image_height)
         {src, width, height}
@@ -809,8 +835,21 @@ defmodule EirinchanWeb.PageController do
   defp jpeg_dimensions(_), do: nil
 
   defp jpeg_dimensions_scan(<<0xFF, marker, _len::16, rest::binary>>)
-       when marker in [0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE,
-                       0xCF] do
+       when marker in [
+              0xC0,
+              0xC1,
+              0xC2,
+              0xC3,
+              0xC5,
+              0xC6,
+              0xC7,
+              0xC9,
+              0xCA,
+              0xCB,
+              0xCD,
+              0xCE,
+              0xCF
+            ] do
     <<_precision, height::16, width::16, _rest::binary>> = rest
     {width, height}
   end
@@ -1025,5 +1064,4 @@ defmodule EirinchanWeb.PageController do
       }
     end)
   end
-
 end

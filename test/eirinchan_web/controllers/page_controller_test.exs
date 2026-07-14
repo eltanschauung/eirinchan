@@ -112,6 +112,29 @@ defmodule EirinchanWeb.PageControllerTest do
              ~s(href="/#{board.uri}/res/#{PublicIds.public_id(thread)}+50.html##{PublicIds.public_id(reply)}")
   end
 
+  test "GET / renders the managed home page without replacing live panels", %{conn: conn} do
+    moderator = moderator_fixture()
+
+    {:ok, _page} =
+      Eirinchan.CustomPages.create_page(%{
+        slug: "home",
+        title: "Managed Home",
+        body:
+          "<div class=\"box middle\"><h2>Managed introduction</h2><script>alert(1)</script></div>",
+        mod_user_id: moderator.id
+      })
+
+    page = conn |> get("/") |> html_response(200)
+
+    assert page =~ "<title>Managed Home</title>"
+    assert page =~ "Managed introduction"
+    assert page =~ "Recent Images"
+    assert page =~ "Latest Posts"
+    assert page =~ "Stats"
+    refute page =~ "alert(1)"
+    refute page =~ "What is bnat?"
+  end
+
   test "GET / redirects to setup when no admin exists", %{conn: conn} do
     conn = get(conn, ~p"/")
     assert redirected_to(conn) == "/setup"

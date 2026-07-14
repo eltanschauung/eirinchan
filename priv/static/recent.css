@@ -36,6 +36,17 @@
         font-weight:700;
         font-size:131%;
 }
+.box.middle.home-page-links {
+	text-align: center;
+	border: none;
+	background-color: rgb(0, 0, 0, 0);
+}
+.box.middle.home-page-links > span {
+	width: 100%;
+}
+.home-page-introduction {
+	padding: 2px;
+}
 .box.left {
 	background: #efe;
 	color: #060;
