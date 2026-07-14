@@ -10,6 +10,17 @@ defmodule EirinchanWeb.Announcements do
 
   @aggregate_cache_bucket_seconds 30
 
+  @refresh_cache_namespaces [
+    :announcement_global_message,
+    :tf2_player_count,
+    :board_fragment_md5,
+    :thread_fragment_md5
+  ]
+
+  def refresh_cache do
+    FragmentCache.delete_namespaces(@refresh_cache_namespaces)
+  end
+
   def news_blotter_html(config) when is_map(config) do
     NewsBlotter.render_html(config)
   end

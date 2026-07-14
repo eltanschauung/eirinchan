@@ -4,6 +4,13 @@ defmodule Eirinchan.Runtime.ConfigTest do
   alias Eirinchan.Boards.Board
   alias Eirinchan.Runtime.Config
 
+  test "defaults global message cache refreshes to 30 seconds" do
+    assert Config.default_config().global_message_refresh_seconds == 30
+
+    assert Config.compose(%{}, %{global_message_refresh_seconds: 45}).global_message_refresh_seconds ==
+             45
+  end
+
   test "merges default, instance, and board config before applying computed defaults" do
     defaults = %{
       root: "/",

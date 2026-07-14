@@ -20,6 +20,7 @@ defmodule Eirinchan.Application do
         Eirinchan.ManageLoginThrottle,
         Eirinchan.IpAccessAuthThrottle,
         EirinchanWeb.FragmentCache,
+        global_message_refresh_worker(),
         maintenance_worker(),
         EirinchanWeb.Endpoint
       ]
@@ -34,6 +35,11 @@ defmodule Eirinchan.Application do
   defp maintenance_worker do
     if Application.get_env(:eirinchan, :start_maintenance_worker, true),
       do: Eirinchan.MaintenanceWorker
+  end
+
+  defp global_message_refresh_worker do
+    if Application.get_env(:eirinchan, :start_global_message_refresh_worker, true),
+      do: Eirinchan.GlobalMessageRefreshWorker
   end
 
   # Tell Phoenix to update the endpoint configuration

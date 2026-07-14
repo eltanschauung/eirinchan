@@ -57,6 +57,7 @@ defmodule Eirinchan.Runtime.Config do
     anonymous: "Anonymous",
     contact_email: "example@example.com",
     global_message: false,
+    global_message_refresh_seconds: 30,
     footer: [
       "All trademarks, copyrights, comments, and images on this page are owned by and are the responsibility of their respective parties."
     ],
@@ -507,6 +508,7 @@ defmodule Eirinchan.Runtime.Config do
     config
     |> Map.put(:upload_by_url_enabled, false)
     |> Map.put_new(:global_message, false)
+    |> Map.put_new(:global_message_refresh_seconds, 30)
     |> Map.put_new(:news_blotter_entries, [])
     |> Map.put_new(:news_blotter_limit, 100)
     |> Map.put_new(:noticeboard_page, 50)

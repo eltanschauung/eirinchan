@@ -20,6 +20,30 @@ defmodule EirinchanWeb.FragmentCacheTest do
     assert FragmentCache.fetch_or_store(:alpha, fn -> "two" end) == "one"
   end
 
+  test "deletes only entries in the requested tuple namespace" do
+    assert FragmentCache.fetch_or_store({:announcement, :first}, fn -> "old" end) == "old"
+    assert FragmentCache.fetch_or_store({:other, :first}, fn -> "kept" end) == "kept"
+    assert FragmentCache.fetch_or_store(:plain, fn -> "plain" end) == "plain"
+
+    assert :ok = FragmentCache.delete_namespace(:announcement)
+
+    assert FragmentCache.fetch_or_store({:announcement, :first}, fn -> "new" end) == "new"
+    assert FragmentCache.fetch_or_store({:other, :first}, fn -> "changed" end) == "kept"
+    assert FragmentCache.fetch_or_store(:plain, fn -> "changed" end) == "plain"
+  end
+
+  test "deletes several tuple namespaces in one pass" do
+    assert FragmentCache.fetch_or_store({:first, 1}, fn -> :old end) == :old
+    assert FragmentCache.fetch_or_store({:second, 1}, fn -> :old end) == :old
+    assert FragmentCache.fetch_or_store({:other, 1}, fn -> :kept end) == :kept
+
+    assert :ok = FragmentCache.delete_namespaces([:first, :second])
+
+    assert FragmentCache.fetch_or_store({:first, 1}, fn -> :new end) == :new
+    assert FragmentCache.fetch_or_store({:second, 1}, fn -> :new end) == :new
+    assert FragmentCache.fetch_or_store({:other, 1}, fn -> :changed end) == :kept
+  end
+
   test "cache recovers after the owner process restarts" do
     assert FragmentCache.fetch_or_store(:alpha, fn -> "one" end) == "one"
 

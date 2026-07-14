@@ -6,13 +6,16 @@ import Config
 # to provide built-in test partitioning in CI environment.
 # Run `mix help test` for more information.
 config :eirinchan, Eirinchan.Repo,
-  url: System.get_env("TEST_DATABASE_URL") || "ecto://localhost/eirinchan_test#{System.get_env("MIX_TEST_PARTITION")}",
+  url:
+    System.get_env("TEST_DATABASE_URL") ||
+      "ecto://localhost/eirinchan_test#{System.get_env("MIX_TEST_PARTITION")}",
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online() * 2
 
 config :eirinchan, build_output_root: Path.expand("../tmp/test_build", __DIR__)
 config :eirinchan, instance_config_path: Path.expand("../tmp/test_settings.json", __DIR__)
 config :eirinchan, start_maintenance_worker: false
+config :eirinchan, start_global_message_refresh_worker: false
 
 # We don't run a server during test. If one is required,
 # you can enable the server option below.

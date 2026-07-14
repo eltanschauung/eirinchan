@@ -21,6 +21,12 @@ defmodule EirinchanWeb.FragmentCache do
 
   def clear, do: clear(@retry_attempts)
 
+  def delete_namespace(namespace), do: delete_namespaces([namespace])
+
+  def delete_namespaces(namespaces) when is_list(namespaces) do
+    delete_namespaces(MapSet.new(namespaces), @retry_attempts)
+  end
+
   def size do
     ensure_table()
     :ets.info(@table, :size)
@@ -45,7 +51,9 @@ defmodule EirinchanWeb.FragmentCache do
     ensure_table()
 
     case lookup_fresh_unsafe(key) do
-      {:hit, value} -> value
+      {:hit, value} ->
+        value
+
       :miss ->
         value = fun.()
         insert_unsafe(key, value)
@@ -127,6 +135,39 @@ defmodule EirinchanWeb.FragmentCache do
     :ets.delete_all_objects(@table)
     :ok
   end
+
+  defp delete_namespaces(namespaces, attempts_left) when attempts_left > 0 do
+    ensure_table()
+
+    try do
+      delete_namespaces_unsafe(namespaces)
+    rescue
+      error in ArgumentError ->
+        case handle_stale_table(error) do
+          :retry -> delete_namespaces(namespaces, attempts_left - 1)
+        end
+    end
+  end
+
+  defp delete_namespaces(namespaces, _attempts_left) do
+    ensure_table()
+    delete_namespaces_unsafe(namespaces)
+  end
+
+  defp delete_namespaces_unsafe(namespaces) do
+    @table
+    |> :ets.tab2list()
+    |> Enum.each(fn {key, _inserted_at, _value} ->
+      if namespaced_key?(key, namespaces), do: :ets.delete(@table, key)
+    end)
+
+    :ok
+  end
+
+  defp namespaced_key?(key, namespaces) when is_tuple(key) and tuple_size(key) > 0,
+    do: MapSet.member?(namespaces, elem(key, 0))
+
+  defp namespaced_key?(_key, _namespace), do: false
 
   defp ensure_table do
     ensure_owner_started()
