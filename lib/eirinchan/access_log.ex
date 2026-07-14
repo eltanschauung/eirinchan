@@ -144,7 +144,7 @@ defmodule Eirinchan.AccessLog do
 
         {kept, removed} =
           path
-          |> File.stream!([], :line)
+          |> File.stream!(:line, [])
           |> Enum.reduce({0, 0}, fn line, {kept, removed} ->
             if expired_line?(line, cutoff) do
               {kept, removed + 1}

@@ -26,7 +26,7 @@ defmodule EirinchanWeb.Plugs.AccessLogTest do
 
     assert line =~ ~r/^[-_A-Za-z0-9]+ - - \[\d{2}\/[A-Z][a-z]{2}\/\d{4}:/
     assert line =~ ~s|"GET /api/boards.json HTTP/1.1" 200|
-    assert line =~ ~s|"https://bantculture.com/search" "Test Browser"$|
+    assert line =~ ~r/"https:\/\/bantculture\.com\/search" "Test Browser"$/
     refute line =~ "top-secret"
     refute line =~ "private"
     refute line =~ "127.0.0.1"
