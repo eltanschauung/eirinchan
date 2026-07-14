@@ -48,7 +48,8 @@ defmodule Eirinchan.HealthLogWorker do
       process_count: :erlang.system_info(:process_count),
       run_queue: :erlang.statistics(:run_queue),
       uptime_seconds: elem(:erlang.statistics(:wall_clock), 0) |> div(1_000),
-      vm_memory_bytes: Map.take(:erlang.memory(), [:atom, :binary, :ets, :processes, :total])
+      vm_memory_bytes:
+        :erlang.memory() |> Map.new() |> Map.take([:atom, :binary, :ets, :processes, :total])
     }
 
     level = if payload.database.status == "ok", do: :info, else: :error
