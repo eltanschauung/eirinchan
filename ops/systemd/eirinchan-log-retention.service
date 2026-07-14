@@ -1,0 +1,27 @@
+[Unit]
+Description=Purge Eirinchan logging data older than seven whole days
+Requires=bantculture-phoenix.service
+After=bantculture-phoenix.service
+
+[Service]
+Type=oneshot
+User=telemazer
+Group=telemazer
+WorkingDirectory=/home/telemazer/eirinchan-v1
+ExecStart=/opt/eirinchan/current/bin/log-retention
+ExecStart=+/usr/bin/find /home/telemazer/logs -type f ! -name *.log -mmin +10080 -delete
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/telemazer/eirinchan-v1/access.log
+ReadWritePaths=/home/telemazer/eirinchan-v1/tmp
+ReadWritePaths=/home/telemazer/logs
+PrivateDevices=true
+PrivateTmp=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+RestrictSUIDSGID=true
+UMask=0077

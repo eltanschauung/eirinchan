@@ -90,11 +90,20 @@ sudo install -m 0644 -o root -g root \
 sudo install -m 0644 -o root -g root \
   "$REPOSITORY/ops/logrotate/bantculture-phoenix" \
   /etc/logrotate.d/bantculture-phoenix
+sudo install -m 0644 -o root -g root \
+  "$REPOSITORY/ops/systemd/eirinchan-log-retention.service" \
+  /etc/systemd/system/eirinchan-log-retention.service
+sudo install -m 0644 -o root -g root \
+  "$REPOSITORY/ops/systemd/eirinchan-log-retention.timer" \
+  /etc/systemd/system/eirinchan-log-retention.timer
 sudo rm -f -- /etc/tmpfiles.d/eirinchan-logs.conf
 sudo install -d -m 0700 -o root -g root /home/telemazer/logs
 sudo touch /home/telemazer/logs/bantculture-phoenix.log
 sudo chown root:root /home/telemazer/logs/bantculture-phoenix.log
 sudo chmod 0600 /home/telemazer/logs/bantculture-phoenix.log
+sudo touch "$REPOSITORY/access.log"
+sudo chown telemazer:telemazer "$REPOSITORY/access.log"
+sudo chmod 0600 "$REPOSITORY/access.log"
 
 sudo rm -f -- /opt/eirinchan/current.new /opt/eirinchan/current.rollback
 sudo ln -s -- "$TARGET" /opt/eirinchan/current.new
@@ -126,5 +135,7 @@ if [[ "$healthy" -ne 1 ]]; then
   echo "Release health check failed; restored the previous release." >&2
   exit 1
 fi
+
+sudo systemctl enable --now eirinchan-log-retention.timer
 
 printf 'Deployed immutable release %s\n' "$COMMIT"

@@ -44,6 +44,12 @@ defmodule Eirinchan.ModerationLog do
     |> repo.aggregate(:count, :id)
   end
 
+  def purge_older_than(%DateTime{} = cutoff, opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+    {count, _rows} = repo.delete_all(from log in LogEntry, where: log.inserted_at < ^cutoff)
+    count
+  end
+
   def latest_entries_for_users(user_ids, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
 

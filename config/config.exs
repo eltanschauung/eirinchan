@@ -10,6 +10,7 @@ import Config
 config :eirinchan,
   environment: config_env(),
   ecto_repos: [Eirinchan.Repo],
+  log_retention_days: 7,
   feedback_store_ip: false,
   ip_access_list: %{enabled: false, entries: []},
   ip_privacy: %{enabled: true, cloak_key: "eirinchan-dev-ip", immune_ips: [], immune_cidrs: []},

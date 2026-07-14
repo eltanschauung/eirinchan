@@ -1,12 +1,12 @@
 /home/telemazer/logs/*phoenix*.log {
     su root root
     daily
-    size 10M
-    rotate 14
+    maxsize 10M
+    rotate 8
+    maxage 7
     missingok
     notifempty
     compress
-    delaycompress
     dateext
     create 0600 root root
     copytruncate

@@ -1,0 +1,12 @@
+[Unit]
+Description=Run Eirinchan log retention every Monday at midnight
+
+[Timer]
+OnCalendar=Mon *-*-* 00:00:00
+Persistent=true
+AccuracySec=1s
+RandomizedDelaySec=0
+Unit=eirinchan-log-retention.service
+
+[Install]
+WantedBy=timers.target
