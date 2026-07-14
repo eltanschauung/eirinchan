@@ -12,7 +12,6 @@ defmodule EirinchanWeb.PostView do
   alias Eirinchan.Posts.Post
   alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Posts.PostFile
-  alias Eirinchan.Themes
   alias EirinchanWeb.{BoardlistPresenter, HtmlSanitizer}
   alias Eirinchan.ThreadPaths
   alias Eirinchan.WhaleStickers
@@ -210,10 +209,7 @@ defmodule EirinchanWeb.PostView do
       end
 
     catalog_link =
-      if Themes.page_theme_enabled?("catalog"),
-        do:
-          ~s( | <a href="/#{board_uri}/catalog.html">#{html_escape_to_string(catalog_label)}</a>),
-        else: ""
+      ~s( | <a href="/#{board_uri}/catalog.html">#{html_escape_to_string(catalog_label)}</a>)
 
     ~s(<div class="pages">#{previous_html}  #{page_links}#{if next_html != "", do: "  " <> next_html, else: ""}#{catalog_link}</div>)
   end
@@ -900,17 +896,38 @@ defmodule EirinchanWeb.PostView do
 
     action_path =
       case action do
-        :delete -> "#{board.uri}/delete/#{public_post_id}"
-        :deletebyip -> "#{board.uri}/deletebyip/#{public_post_id}"
-        :ban24 -> "#{board.uri}/ban24/#{public_post_id}"
-        :ban -> "#{board.uri}/ban/#{public_post_id}"
-        :bandelete -> "#{board.uri}/ban&delete/#{public_post_id}"
-        :sticky -> "#{board.uri}/#{if post.sticky, do: "unsticky", else: "sticky"}/#{public_post_id}"
-        :bumplock -> "#{board.uri}/#{if post.sage, do: "bumpunlock", else: "bumplock"}/#{public_post_id}"
-        :lock -> "#{board.uri}/#{if post.locked, do: "unlock", else: "lock"}/#{public_post_id}"
-        :move -> "#{board.uri}/#{if thread_op?(post), do: "move", else: "move_reply"}/#{public_post_id}"
-        :cycle -> "#{board.uri}/#{if post.cycle, do: "uncycle", else: "cycle"}/#{public_post_id}"
-        :editpost -> "#{board.uri}/edit/#{public_post_id}"
+        :delete ->
+          "#{board.uri}/delete/#{public_post_id}"
+
+        :deletebyip ->
+          "#{board.uri}/deletebyip/#{public_post_id}"
+
+        :ban24 ->
+          "#{board.uri}/ban24/#{public_post_id}"
+
+        :ban ->
+          "#{board.uri}/ban/#{public_post_id}"
+
+        :bandelete ->
+          "#{board.uri}/ban&delete/#{public_post_id}"
+
+        :sticky ->
+          "#{board.uri}/#{if post.sticky, do: "unsticky", else: "sticky"}/#{public_post_id}"
+
+        :bumplock ->
+          "#{board.uri}/#{if post.sage, do: "bumpunlock", else: "bumplock"}/#{public_post_id}"
+
+        :lock ->
+          "#{board.uri}/#{if post.locked, do: "unlock", else: "lock"}/#{public_post_id}"
+
+        :move ->
+          "#{board.uri}/#{if thread_op?(post), do: "move", else: "move_reply"}/#{public_post_id}"
+
+        :cycle ->
+          "#{board.uri}/#{if post.cycle, do: "uncycle", else: "cycle"}/#{public_post_id}"
+
+        :editpost ->
+          "#{board.uri}/edit/#{public_post_id}"
       end
 
     href = "/mod.php?/" <> action_path
@@ -951,7 +968,10 @@ defmodule EirinchanWeb.PostView do
 
   defp control_title(post, :move),
     do:
-      if(thread_op?(post), do: "Move thread to another board", else: "Move reply to another board")
+      if(thread_op?(post),
+        do: "Move thread to another board",
+        else: "Move reply to another board"
+      )
 
   defp control_title(post, :cycle),
     do: if(post.cycle, do: "Make thread not cycle", else: "Make thread cycle")
@@ -976,7 +996,8 @@ defmodule EirinchanWeb.PostView do
     do: "Are you sure you want to delete all posts by this IP address?"
 
   defp control_confirm(:ban24),
-    do: "Are you sure you want to ban this /24 subnet across all boards and delete files from this post?"
+    do:
+      "Are you sure you want to ban this /24 subnet across all boards and delete files from this post?"
 
   defp control_confirm(:sticky),
     do: "Are you sure you want to change sticky state for this thread?"
@@ -1204,7 +1225,8 @@ defmodule EirinchanWeb.PostView do
   defp local_quote_hrefs(%{body: body}, board, thread, config),
     do: local_quote_hrefs(body, board, thread, config)
 
-  defp local_quote_hrefs(body, %Boards.BoardRecord{} = board, thread, config) when is_binary(body) do
+  defp local_quote_hrefs(body, %Boards.BoardRecord{} = board, thread, config)
+       when is_binary(body) do
     ids = extract_local_quote_ids(body)
 
     cond do
@@ -1225,7 +1247,8 @@ defmodule EirinchanWeb.PostView do
         current_thread_public_id = PublicIds.thread_public_id(thread)
 
         Map.new(ids, fn id ->
-          {id, %{href: current_thread_href <> "##{id}", thread_public_id: current_thread_public_id}}
+          {id,
+           %{href: current_thread_href <> "##{id}", thread_public_id: current_thread_public_id}}
         end)
 
       true ->
@@ -1252,7 +1275,12 @@ defmodule EirinchanWeb.PostView do
     }
   end
 
-  defp local_quote_ref(%Boards.BoardRecord{} = board, %Post{thread_id: nil} = post, config, _tail_reply_ids) do
+  defp local_quote_ref(
+         %Boards.BoardRecord{} = board,
+         %Post{thread_id: nil} = post,
+         config,
+         _tail_reply_ids
+       ) do
     local_quote_ref(board, post, config)
   end
 
@@ -1267,7 +1295,9 @@ defmodule EirinchanWeb.PostView do
       local_quote_reply_uses_noko50?(post, thread, config, tail_reply_ids)
 
     %{
-      href: ThreadPaths.thread_path(board, thread, config, noko50: use_noko50) <> "##{PublicIds.public_id(post)}",
+      href:
+        ThreadPaths.thread_path(board, thread, config, noko50: use_noko50) <>
+          "##{PublicIds.public_id(post)}",
       thread_public_id: PublicIds.public_id(thread)
     }
   end
@@ -1334,21 +1364,21 @@ defmodule EirinchanWeb.PostView do
   end
 
   defp cross_board_post_href(current_board, target_board_uri, post_id, config) do
-      # 1. Assign the value to a simple variable first cobson
-      current_uri = current_board.uri
+    # 1. Assign the value to a simple variable first cobson
+    current_uri = current_board.uri
 
-      case target_board_uri do
-        # 2. Pin the simple variable here
-        ^current_uri ->
-          resolve_post_href(current_board, post_id, config)
+    case target_board_uri do
+      # 2. Pin the simple variable here
+      ^current_uri ->
+        resolve_post_href(current_board, post_id, config)
 
-        _ ->
-          case Boards.get_board_by_uri(target_board_uri) do
-            nil -> "/#{target_board_uri}/res/#{post_id}.html##{post_id}"
-            board -> resolve_post_href(board, post_id, config)
-          end
-      end
+      _ ->
+        case Boards.get_board_by_uri(target_board_uri) do
+          nil -> "/#{target_board_uri}/res/#{post_id}.html##{post_id}"
+          board -> resolve_post_href(board, post_id, config)
+        end
     end
+  end
 
   defp resolve_post_href(board, post_id, config) do
     case Integer.parse(to_string(post_id)) do

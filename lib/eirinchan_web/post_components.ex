@@ -29,6 +29,7 @@ defmodule EirinchanWeb.PostComponents do
         </span>
         <%= if group != List.last(@groups), do: "  " %>
       <% end %>
+
       <span :if={!@hide_admin_options} id="admin_options_links" style="float: right;">
         <button
           :if={!@mobile_client?}
@@ -46,6 +47,7 @@ defmodule EirinchanWeb.PostComponents do
         >
           👁
         </button>
+
         <span :if={!@mobile_client?}>&nbsp;</span><a id="admin-link" href="/manage" title="Admin">[Admin]</a><span>&nbsp;</span><a
           id="options-link"
           href="#"
@@ -113,10 +115,12 @@ defmodule EirinchanWeb.PostComponents do
     <a id="bottom"></a>
     <footer>
       <p class="unimportant" style="margin-top:20px;text-align:center;">
-        - Tinyboard + vichan 5.2.2 + <a href="https://github.com/eltanschauung/eirinchan-v1">Eirinchan</a> -<br />
-        Tinyboard Copyright &copy; 2010-2014 Tinyboard Development Group<br />
+        - Tinyboard + vichan 5.2.2 +
+        <a href="https://github.com/eltanschauung/eirinchan-v1">Eirinchan</a>
+        -<br /> Tinyboard Copyright &copy; 2010-2014 Tinyboard Development Group<br />
         vichan Copyright &copy; 2012-2026 vichan-devel<br />
       </p>
+
       <p :for={entry <- @entries} class="unimportant" style="text-align:center;"><%= entry %></p>
     </footer>
     """
@@ -155,23 +159,30 @@ defmodule EirinchanWeb.PostComponents do
     ~H"""
     <div id="options_handler" style="display:none">
       <div id="options_background"></div>
+
       <div id="options_div">
-        <button type="button" id="options_close" class="js-link-button"><i class="fa fa-times"></i></button>
+        <button type="button" id="options_close" class="js-link-button">
+          <i class="fa fa-times"></i>
+        </button>
         <div id="options_tablist">
           <div id="options-tab-icon-general" class="options_tab_icon">
             <i class="fa fa-home"></i>
             <div>General</div>
           </div>
+
           <div id="options-tab-icon-watcher" class="options_tab_icon">
             <i class="fa fa-eye"></i>
             <div>Watcher</div>
           </div>
+
           <div id="options-exit-tab" class="options_tab_icon options_exit_tab">
             <div>Exit</div>
           </div>
         </div>
+
         <div id="options-tab-general" class="options_tab" style="display:none">
           <h2>General</h2>
+
           <div id="general-preferences">
             <div :if={@theme_options != []} id="style-select" style="float:none;margin-bottom:0px">
               Style:
@@ -183,18 +194,20 @@ defmodule EirinchanWeb.PostComponents do
               </select>
             </div>
           </div>
+
           <div id="options-storage-controls">
-            <span>Storage: </span>
-            <button id="options-storage-export" type="button">Export</button>
+            <span>Storage: </span> <button id="options-storage-export" type="button">Export</button>
             <button id="options-storage-import" type="button">Import</button>
             <button id="options-storage-erase" type="button">Erase</button>
             <input id="options-storage-output" type="text" class="output" hidden />
           </div>
         </div>
+
         <div id="options-tab-watcher" class="options_tab" style="display:none">
           <h2>
             Watcher | <a id="watcher-unwatch-all" href="#" style="color: inherit;">Unwatch All</a>
           </h2>
+
           <div id="watcher-tab-content">
             <div class="watcher-loading">Loading...</div>
           </div>
@@ -218,25 +231,18 @@ defmodule EirinchanWeb.PostComponents do
   def file_selector_shell(assigns) do
     ~H"""
     <div data-native-upload>
-      <input
-        type="file"
-        name={@input_name}
-        id={@input_id}
-        data-upload-file
-        multiple={@multiple}
-      />
+      <input type="file" name={@input_name} id={@input_id} data-upload-file multiple={@multiple} />
     </div>
+
     <div class="dropzone-wrap" data-file-selector-shell hidden>
       <div class="dropzone" tabindex="0">
         <div class="file-hint">Select/drop/paste files here</div>
+
         <div class="file-thumbs"></div>
       </div>
     </div>
-    <div
-      :if={@upload_by_url_enabled}
-      style="float:none;text-align:left;display:none"
-      id="upload_url"
-    >
+
+    <div :if={@upload_by_url_enabled} style="float:none;text-align:left;display:none" id="upload_url">
       <label for="file_url">Or URL</label>:
       <input style="display:inline" type="text" id="file_url" name="file_url" size="35" />
     </div>
@@ -281,6 +287,7 @@ defmodule EirinchanWeb.PostComponents do
     <% else %>
       <span class="name"><%= PostView.display_name(@post, @config) %></span>
     <% end %>
+
     <%= if @own, do: " " %><span :if={@own} class="own_post">(You)</span><%= if @post.tripcode,
       do: " " %><span :if={@post.tripcode} class="trip"><%= @post.tripcode %></span><%= if @visible_ip,
       do: " " %><a
@@ -299,6 +306,7 @@ defmodule EirinchanWeb.PostComponents do
         style={PostView.flag_style(@config)}
       />
     <% end %>
+
     <%= if @flags != [], do: " " %><time
       datetime={PostView.iso_timestamp(@post)}
       data-local="true"
@@ -321,7 +329,13 @@ defmodule EirinchanWeb.PostComponents do
 
   def post_number_links(assigns) do
     ~H"""
-    &nbsp;<a class="post_no" id={"post_no_#{@post_id}"} data-highlight-reply={@post_id} href={@post_href}>No.</a><a
+    &nbsp;<a
+      class="post_no"
+      id={"post_no_#{@post_id}"}
+      data-highlight-reply={@post_id}
+      href={@post_href}
+    >No.</a>
+    <a
       class="post_no"
       data-cite-reply={@post_id}
       data-cite-mode={quote_mode_value(@quote_mode)}
@@ -329,7 +343,9 @@ defmodule EirinchanWeb.PostComponents do
       data-quote-to={@quote_to}
       data-quick-reply-thread={@quick_reply_thread}
       {@attrs}
-    ><%= @post_id %></a>
+    >
+      <%= @post_id %>
+    </a>
     """
   end
 
@@ -423,7 +439,12 @@ defmodule EirinchanWeb.PostComponents do
 
     ~H"""
     <span class="thread-top-controls">
-      <button :if={@show_hide} type="button" class="hide-thread-link js-link-button" title="Hide thread">
+      <button
+        :if={@show_hide}
+        type="button"
+        class="hide-thread-link js-link-button"
+        title="Hide thread"
+      >
         [–]
       </button>
       <a href="#" class="post-btn" title="Post menu">▶</a>
@@ -447,12 +468,10 @@ defmodule EirinchanWeb.PostComponents do
     <div :if={@moderator} class="admin-shortcuts unimportant">
       <a href="/manage">Return to Dashboard</a>
       |
-      <a
-        href="/manage/logout/browser"
-        data-submit-form="admin-shortcuts-logout-form"
-      >
+      <a href="/manage/logout/browser" data-submit-form="admin-shortcuts-logout-form">
         Logout
       </a>
+
       <form
         id="admin-shortcuts-logout-form"
         action="/manage/logout/browser"
@@ -478,6 +497,7 @@ defmodule EirinchanWeb.PostComponents do
         <img src="/reisen_up.png" alt="Scroll to top" style="width:30px;height:80px;" />
       </a>
     </div>
+
     <div
       class="navarrow navarrow-bottom"
       aria-hidden="true"
@@ -498,7 +518,8 @@ defmodule EirinchanWeb.PostComponents do
   attr :secure_manage_token, :string, default: nil
 
   def files_block(assigns) do
-    assigns = assign(assigns, :media_entries, PostView.media_entries(assigns.post, assigns.config))
+    assigns =
+      assign(assigns, :media_entries, PostView.media_entries(assigns.post, assigns.config))
 
     ~H"""
     <div class="files">
@@ -553,14 +574,15 @@ defmodule EirinchanWeb.PostComponents do
         <a href={@file.file_path} class="postfilename" title={PostView.original_file_name(@file)}>
           <%= PostView.display_file_name(@file, @config) %>
         </a>
+
         <a
           href={@file.file_path}
           download={PostView.original_file_name(@file) || PostView.stored_file_name(@file)}
           class="fa fa-download download-button"
           title="Download"
           aria-label="Download"
-        ></a>
-        <span>(<%= PostView.file_inline_details_text(@file) %>)</span>
+        >
+        </a> <span>(<%= PostView.file_inline_details_text(@file) %>)</span>
         <.file_controls
           post={@post}
           file={@file}
@@ -678,7 +700,11 @@ defmodule EirinchanWeb.PostComponents do
     <span
       :if={@controls != []}
       class={if is_nil(@post.thread_id), do: "controls op", else: "controls"}
-    ><%= for {control, index} <- Enum.with_index(@controls) do %><%= if index > 0, do: raw("&nbsp;") %><.control_link control={control} /><% end %></span>
+    >
+      <%= for {control, index} <- Enum.with_index(@controls) do %>
+        <%= if index > 0, do: raw("&nbsp;") %><.control_link control={control} />
+      <% end %>
+    </span>
     """
   end
 
@@ -703,7 +729,11 @@ defmodule EirinchanWeb.PostComponents do
       |> assign(:controls, controls)
 
     ~H"""
-    <span :if={@controls != []} class="controls"><%= for {control, index} <- Enum.with_index(@controls) do %><%= if index > 0, do: raw("&nbsp;") %><.control_link control={control} /><% end %></span>
+    <span :if={@controls != []} class="controls">
+      <%= for {control, index} <- Enum.with_index(@controls) do %>
+        <%= if index > 0, do: raw("&nbsp;") %><.control_link control={control} />
+      <% end %>
+    </span>
     """
   end
 
@@ -724,7 +754,9 @@ defmodule EirinchanWeb.PostComponents do
       href={@control.href}
       data-confirm-message={confirm_message(@control)}
       data-secure-href={secure_href(@control)}
-    ><%= @control.label %></a>
+    >
+      <%= @control.label %>
+    </a>
     """
   end
 
@@ -754,7 +786,7 @@ defmodule EirinchanWeb.PostComponents do
       |> assign(:previous_page, previous_page(assigns.page_data))
       |> assign(:next_page, next_page(assigns.page_data))
       |> assign(:catalog_label, catalog_label(assigns.config))
-      |> assign(:show_catalog, Eirinchan.Themes.page_theme_enabled?("catalog"))
+      |> assign(:show_catalog, true)
 
     ~H"""
     <div class="pages">
@@ -763,6 +795,7 @@ defmodule EirinchanWeb.PostComponents do
       <% else %>
         Previous
       <% end %>
+
       <%= for page <- @page_data.pages do %>
         <%= if page.num == @page_data.page do %>
           [<a class="selected"><%= page.num %></a>]
@@ -770,9 +803,11 @@ defmodule EirinchanWeb.PostComponents do
           [<a href={page.link}><%= page.num %></a>]
         <% end %>
       <% end %>
+
       <%= if @next_page do %>
         <form action={@next_page.link} method="get"><input type="submit" value="Next" /></form>
       <% end %>
+
       <%= if @show_catalog do %>
         | <a href={"/#{@board_uri}/catalog.html"}><%= @catalog_label %></a>
       <% end %>
@@ -801,11 +836,10 @@ defmodule EirinchanWeb.PostComponents do
       <input type="hidden" name="board" value={@board_uri} />
       <input type="hidden" name="delete_post_id" value="" />
       <input type="hidden" name="report_post_id" value="" />
-
       <div id="post-moderation-fields">
         <div id="delete-fields">
-          Delete Post [<input title="Delete file only" type="checkbox" name="file" id="delete_file" />
-          <label for="delete_file">File</label>] <label for="password">Password</label>
+          Delete Post [<input title="Delete file only" type="checkbox" name="file" id="delete_file" /> <label for="delete_file">File</label>]
+          <label for="password">Password</label>
           <input
             id="password"
             type="password"
@@ -813,8 +847,7 @@ defmodule EirinchanWeb.PostComponents do
             size="12"
             maxlength="18"
             autocomplete="off"
-          />
-          <input type="submit" name="delete" value="Delete" />
+          /> <input type="submit" name="delete" value="Delete" />
         </div>
 
         <div id="report-fields">
@@ -868,14 +901,22 @@ defmodule EirinchanWeb.PostComponents do
       |> assign(:formatted_html, formatted_html)
       |> assign(:body_attrs, body_attrs(assigns.post, assigns.config, assigns.op?))
       |> assign(:tag_line_text, tag_line_text(assigns.post, assigns.config))
-      |> assign(:fileboard_line_text, fileboard_line(assigns.post, assigns.config, assigns.hide_fileboard))
+      |> assign(
+        :fileboard_line_text,
+        fileboard_line(assigns.post, assigns.config, assigns.hide_fileboard)
+      )
 
     ~H"""
-    <div {@body_attrs}><%= raw(@formatted_html) %><span :if={@tag_line_text} class="tag-line"><%= @tag_line_text %></span><span
+    <div {@body_attrs}>
+      <%= raw(@formatted_html) %><span :if={@tag_line_text} class="tag-line"><%= @tag_line_text %></span>
+      <span
         :if={@fileboard_line_text}
         class="tag-line"
         style={if @hide_fileboard, do: "display:none", else: nil}
-      ><%= @fileboard_line_text %></span></div>
+      >
+        <%= @fileboard_line_text %>
+      </span>
+    </div>
     """
   end
 
@@ -1026,7 +1067,9 @@ defmodule EirinchanWeb.PostComponents do
         <.files_block post={@post} config={@config} />
       <% end %>
       <.post_identity post={@post} board={@board} config={@config} />
-      <p><.formatted_body_segments post={@post} board={@board} thread={@thread} config={@config} /></p>
+      <p>
+        <.formatted_body_segments post={@post} board={@board} thread={@thread} config={@config} />
+      </p>
     </div>
     """
   end
@@ -1066,8 +1109,7 @@ defmodule EirinchanWeb.PostComponents do
           id={"delete_#{@public_post_id}"}
           value={@public_post_id}
           data-post-select=""
-        />
-        <.reply_post_button post_target={"reply_#{@public_post_id}"} />
+        /> <.reply_post_button post_target={"reply_#{@public_post_id}"} />
         <label for={"delete_#{@public_post_id}"}>
           <.post_identity
             post={@post}
@@ -1077,6 +1119,7 @@ defmodule EirinchanWeb.PostComponents do
             own={@show_yous and MapSet.member?(@own_post_ids, @public_post_id)}
           />
         </label>
+
         <.post_number_links
           post_id={@public_post_id}
           post_href={PostView.thread_path(@board, @thread, @config) <> "##{@public_post_id}"}
@@ -1091,6 +1134,7 @@ defmodule EirinchanWeb.PostComponents do
           config={@config}
         />
       </p>
+
       <.files_block
         post={@post}
         config={@config}

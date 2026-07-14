@@ -1,10 +1,8 @@
-<% post = @summary.thread %>
-<% template = PostView.template_assigns(@board, post, @config) %>
-<a id="top"></a>
-<.board_banner />
-
+<% post = @summary.thread %> <% template = PostView.template_assigns(@board, post, @config) %>
+<a id="top"></a> <.board_banner />
 <header>
   <h1><%= PostView.board_heading(@board) %></h1>
+
   <div class="subtitle"><%= @board_chrome.subtitle || @board.subtitle %></div>
   <.admin_shortcuts moderator={@current_moderator} />
 </header>
@@ -38,10 +36,10 @@
   <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
   <input type="hidden" name="board" value={@board.uri} />
   <input type="hidden" name="thread" value={PostView.public_post_id(@summary.thread)} />
-
   <table>
     <tr :if={!@config.field_disable_name}>
       <th>Name</th>
+
       <td>
         <input
           type="text"
@@ -57,6 +55,7 @@
         </span>
       </td>
     </tr>
+
     <tr :if={!@config.field_disable_email}>
       <th>
         <%= if Map.get(@config, :field_email_selectbox, false) ||
@@ -64,6 +63,7 @@
                do: "Options",
                else: "Email" %>
       </th>
+
       <td>
         <select
           :if={
@@ -75,8 +75,10 @@
           autocomplete="off"
         >
           <option value=""></option>
+
           <option value="sage">sage</option>
         </select>
+
         <input
           :if={
             !(Map.get(@config, :field_email_selectbox, false) ||
@@ -103,8 +105,10 @@
         <% end %>
       </td>
     </tr>
+
     <tr :if={!@config.field_disable_reply_subject}>
       <th>Subject</th>
+
       <td>
         <input type="text" name="subject" size="25" maxlength="100" autocomplete="off" />
         <input
@@ -120,12 +124,22 @@
         </span>
       </td>
     </tr>
+
     <tr>
       <th>Comment</th>
+
       <td><textarea name="body" id="body" rows="5" cols="35" data-post-body></textarea></td>
     </tr>
-    <tr :if={captcha_enabled?(@config, @browser_challenge_required?) && @config.captcha.provider == "native"} class="captcha">
+
+    <tr
+      :if={
+        captcha_enabled?(@config, @browser_challenge_required?) &&
+          @config.captcha.provider == "native"
+      }
+      class="captcha"
+    >
       <th>Verification</th>
+
       <td>
         <label data-captcha-lazy>
           <span><%= @config.captcha.challenge || "Captcha" %></span>
@@ -133,20 +147,32 @@
         </label>
       </td>
     </tr>
-    <tr :if={captcha_enabled?(@config, @browser_challenge_required?) && @config.captcha.provider == "recaptcha"}>
+
+    <tr :if={
+      captcha_enabled?(@config, @browser_challenge_required?) &&
+        @config.captcha.provider == "recaptcha"
+    }>
       <th>Verification</th>
+
       <td>
         <input type="text" name="g-recaptcha-response" placeholder="reCAPTCHA" data-captcha-lazy />
       </td>
     </tr>
-    <tr :if={captcha_enabled?(@config, @browser_challenge_required?) && @config.captcha.provider == "hcaptcha"}>
+
+    <tr :if={
+      captcha_enabled?(@config, @browser_challenge_required?) &&
+        @config.captcha.provider == "hcaptcha"
+    }>
       <th>Verification</th>
+
       <td>
         <input type="text" name="h-captcha-response" placeholder="hCaptcha" data-captcha-lazy />
       </td>
     </tr>
+
     <tr :if={@config.user_flag}>
       <th>Flags</th>
+
       <td>
         <input
           :if={@config.multiple_flags}
@@ -159,31 +185,33 @@
           autocomplete="off"
           value={@config.default_user_flag}
         />
-        <select
-          :if={!@config.multiple_flags}
-          name="user_flag"
-          id="user_flag"
-        >
+        <select :if={!@config.multiple_flags} name="user_flag" id="user_flag">
           <option value="">None</option>
+
           <%= for {flag, text} <- @config.user_flags do %>
             <option value={flag} selected={@config.default_user_flag == flag}><%= text %></option>
           <% end %>
         </select>
       </td>
     </tr>
+
     <tr :if={is_map(@config.allowed_tags)}>
       <th>Tag</th>
+
       <td>
         <select name="tag">
           <option value="">None</option>
+
           <%= for {tag, label} <- @config.allowed_tags do %>
             <option value={tag}><%= label %></option>
           <% end %>
         </select>
       </td>
     </tr>
+
     <tr id="upload">
       <th>File</th>
+
       <td>
         <.file_selector_shell
           input_name={if @config.max_images > 1, do: "files[]", else: "file"}
@@ -192,41 +220,47 @@
         />
       </td>
     </tr>
+
     <tr
       :if={Map.get(@config, :enable_embedding, false) && Map.get(@config, :post_form_embed, true)}
       id="upload_embed"
     >
       <th>Embed</th>
+
       <td>
         <input type="text" name="embed" value="" size="30" maxlength="120" autocomplete="off" />
       </td>
     </tr>
+
     <tr :if={!@config.field_disable_password}>
       <th>Password</th>
+
       <td>
         <input type="text" name="password" value="" size="12" maxlength="18" autocomplete="off" />
         <span class="unimportant">(For file deletion.)</span>
       </td>
     </tr>
+
     <tr :if={@config.hidden_input_hash}>
       <th></th>
+
       <td>
         <input type="hidden" name={@config.hidden_input_name} value={@config.hidden_input_hash} />
       </td>
     </tr>
+
     <tr :if={@config.antispam_question}>
       <th><%= @config.antispam_question %></th>
+
       <td><input type="text" name="antispam_answer" size="12" /></td>
     </tr>
   </table>
 </form>
-
 <template id="quick-reply-template"><%= raw(@quick_reply_html) %></template>
-
 <%= if @board_chrome.post_form_blotter_html do %>
-  <%= raw(@board_chrome.post_form_blotter_html) %>
-  <hr />
+  <%= raw(@board_chrome.post_form_blotter_html) %> <hr />
 <% end %>
+
 <div id="global-message-refresh-target">
   <%= if @global_message_html && @global_message_html != "" do %>
     <%= raw(@global_message_html) %>
@@ -240,174 +274,156 @@
   data-thread-id={PostView.public_post_id(post)}
   data-watched={to_string(@thread_watch.watched)}
 >
-    <a id={to_string(PostView.public_post_id(post))} class="post_anchor"></a>
-    <.files_block
-      :if={PostView.media_entries(post, @config) != []}
-      post={post}
-      config={@config}
-      op?={true}
-      board={@board}
-      moderator={@current_moderator}
-      secure_manage_token={@secure_manage_token}
-    />
-
-    <div
-      class="post op"
-      id={"op_#{PostView.public_post_id(post)}"}
-      {case PostView.post_container_style(post) do
+  <a id={to_string(PostView.public_post_id(post))} class="post_anchor"></a>
+  <.files_block
+    :if={PostView.media_entries(post, @config) != []}
+    post={post}
+    config={@config}
+    op?={true}
+    board={@board}
+    moderator={@current_moderator}
+    secure_manage_token={@secure_manage_token}
+  />
+  <div
+    class="post op"
+    id={"op_#{PostView.public_post_id(post)}"}
+    {case PostView.post_container_style(post) do
         nil -> []
         style -> [style: style]
       end}
-    >
-      <p class="intro">
-        <input
-          :if={!@mobile_client?}
-          type="checkbox"
-          class="delete"
-          name={"delete_#{PostView.public_post_id(post)}"}
-          id={"delete_#{PostView.public_post_id(post)}"}
+  >
+    <p class="intro">
+      <input
+        :if={!@mobile_client?}
+        type="checkbox"
+        class="delete"
+        name={"delete_#{PostView.public_post_id(post)}"}
+        id={"delete_#{PostView.public_post_id(post)}"}
+      /> <.thread_top_controls thread_id={PostView.public_post_id(post)} watch={@thread_watch} />
+      <label for={"delete_#{PostView.public_post_id(post)}"}>
+        <.post_identity
+          post={post}
+          config={@config}
+          board={@board}
+          moderator={@current_moderator}
         />
-        <.thread_top_controls
-          thread_id={PostView.public_post_id(post)}
-          watch={@thread_watch}
-        />
-        <label for={"delete_#{PostView.public_post_id(post)}"}>
-          <.post_identity
-            post={post}
-            config={@config}
-            board={@board}
-            moderator={@current_moderator}
-          />
-        </label>
-        <.post_number_links
-          post_id={PostView.public_post_id(post)}
-          post_href={
+      </label>
+
+      <.post_number_links
+        post_id={PostView.public_post_id(post)}
+        post_href={
             Eirinchan.ThreadPaths.thread_path(template.board, template.post, template.config) <>
               "##{PostView.public_post_id(post)}"
           }
-          quote_href={
-            PostView.reply_path(
-              template.board,
-              template.post,
-              template.post,
-              template.config,
-              :quote
-            )
-          }
-          quote_to={PostView.public_post_id(post)}
-        />
-        <.backlinks
-          post={post}
-          backlinks_map={@backlinks_map}
-          board={@board}
-          thread={@summary.thread}
+        quote_href={
+          PostView.reply_path(
+            template.board,
+            template.post,
+            template.post,
+            template.config,
+            :quote
+          )
+        }
+        quote_to={PostView.public_post_id(post)}
+      />
+      <.backlinks
+        post={post}
+        backlinks_map={@backlinks_map}
+        board={@board}
+        thread={@summary.thread}
+        config={@config}
+      />
+      <%= for icon <- PostView.state_icons(post, @config) do %>
+        <img class="icon" title={icon.title} src={icon.path} alt={icon.title} />
+      <% end %>
+
+      <%= if @summary.is_noko50 do %>
+        <a href={Eirinchan.ThreadPaths.thread_path(@board, post, @config)}>[View All]</a>
+      <% end %>
+
+      <%= if @summary.has_noko50 and not @summary.is_noko50 do %>
+        <a href={Eirinchan.ThreadPaths.thread_path(@board, post, @config, noko50: true)}>
+          [Last <%= @summary.last_count %> Posts]
+        </a>
+      <% end %>
+
+      <.post_controls
+        post={post}
+        board={@board}
+        moderator={@current_moderator}
+        secure_manage_token={@secure_manage_token}
+      />
+    </p>
+    <.body_container post={post} board={@board} thread={post} config={@config} op?={true} />
+  </div>
+
+  <div
+    id="thread-refresh-target"
+    data-fragment-md5={@fragment_md5}
+    data-board-page-num={@page_num}
+    data-board-page-path={Eirinchan.ThreadPaths.board_page_path(@board, @page_num, @config)}
+  >
+    <%= for reply <- @summary.replies do %>
+      <% reply_public_id = PostView.public_post_id(reply) %>
+      <div class="post reply" id={"reply_#{reply_public_id}"}>
+        <p class="intro">
+          <a id={to_string(reply_public_id)} class="post_anchor"></a>
+          <input
+            :if={!@mobile_client?}
+            type="checkbox"
+            class="delete"
+            name={"delete_#{reply_public_id}"}
+            id={"delete_#{reply_public_id}"}
+          /> <.reply_post_button />
+          <label for={"delete_#{reply_public_id}"}>
+            <.post_identity
+              post={reply}
+              config={@config}
+              board={@board}
+              moderator={@current_moderator}
+            />
+          </label>
+
+          <.post_number_links
+            post_id={reply_public_id}
+            post_href={Eirinchan.ThreadPaths.thread_path(@board, post, @config) <> "##{reply_public_id}"}
+            quote_href={PostView.reply_path(@board, post, reply, @config, :quote)}
+            quote_to={reply_public_id}
+          />
+          <.backlinks
+            post={reply}
+            backlinks_map={@backlinks_map}
+            board={@board}
+            thread={@summary.thread}
+            config={@config}
+          />
+        </p>
+
+        <.files_block
+          post={reply}
           config={@config}
-        />
-        <%= for icon <- PostView.state_icons(post, @config) do %>
-          <img class="icon" title={icon.title} src={icon.path} alt={icon.title} />
-        <% end %>
-        <%= if @summary.is_noko50 do %>
-          <a href={Eirinchan.ThreadPaths.thread_path(@board, post, @config)}>[View All]</a>
-        <% end %>
-        <%= if @summary.has_noko50 and not @summary.is_noko50 do %>
-          <a href={Eirinchan.ThreadPaths.thread_path(@board, post, @config, noko50: true)}>
-            [Last <%= @summary.last_count %> Posts]
-          </a>
-        <% end %>
-        <.post_controls
-          post={post}
           board={@board}
           moderator={@current_moderator}
           secure_manage_token={@secure_manage_token}
         />
-      </p>
-
-      <.body_container
-        post={post}
-        board={@board}
-        thread={post}
-        config={@config}
-        op?={true}
-      />
-    </div>
-
-    <div
-      id="thread-refresh-target"
-      data-fragment-md5={@fragment_md5}
-      data-board-page-num={@page_num}
-      data-board-page-path={Eirinchan.ThreadPaths.board_page_path(@board, @page_num, @config)}
-    >
-      <%= for reply <- @summary.replies do %>
-        <% reply_public_id = PostView.public_post_id(reply) %>
-        <div class="post reply" id={"reply_#{reply_public_id}"}>
-          <p class="intro">
-            <a id={to_string(reply_public_id)} class="post_anchor"></a>
-            <input
-              :if={!@mobile_client?}
-              type="checkbox"
-              class="delete"
-              name={"delete_#{reply_public_id}"}
-              id={"delete_#{reply_public_id}"}
-            />
-            <.reply_post_button />
-            <label for={"delete_#{reply_public_id}"}>
-              <.post_identity
-                post={reply}
-                config={@config}
-                board={@board}
-                moderator={@current_moderator}
-              />
-            </label>
-            <.post_number_links
-              post_id={reply_public_id}
-              post_href={Eirinchan.ThreadPaths.thread_path(@board, post, @config) <> "##{reply_public_id}"}
-              quote_href={PostView.reply_path(@board, post, reply, @config, :quote)}
-              quote_to={reply_public_id}
-            />
-            <.backlinks
-              post={reply}
-              backlinks_map={@backlinks_map}
-              board={@board}
-              thread={@summary.thread}
-              config={@config}
-            />
-          </p>
-
-          <.files_block
-            post={reply}
-            config={@config}
-            board={@board}
-            moderator={@current_moderator}
-            secure_manage_token={@secure_manage_token}
-          />
-
-          <.post_controls
-            post={reply}
-            board={@board}
-            moderator={@current_moderator}
-            secure_manage_token={@secure_manage_token}
-          />
-          <.body_container
-            post={reply}
-            board={@board}
-            thread={post}
-            config={@config}
-          />
-        </div>
-        <br class="clear" />
-      <% end %>
-    </div>
-
-    <br class="clear" />
-    <hr />
+        <.post_controls
+          post={reply}
+          board={@board}
+          moderator={@current_moderator}
+          secure_manage_token={@secure_manage_token}
+        /> <.body_container post={reply} board={@board} thread={post} config={@config} />
+      </div>
+      <br class="clear" />
+    <% end %>
   </div>
+  <br class="clear" /> <hr />
+</div>
 
-  <form name="postcontrols" id="thread-post-controls" action="/post.php" method="post">
-    <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
-    <input type="hidden" name="board" value={@board.uri} />
-    <input type="hidden" id="thread_delete_post_id" name="delete_post_id" value="" />
-    <input type="hidden" id="thread_report_post_id" name="report_post_id" value="" />
-
+<form name="postcontrols" id="thread-post-controls" action="/post.php" method="post">
+  <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+  <input type="hidden" name="board" value={@board.uri} />
+  <input type="hidden" id="thread_delete_post_id" name="delete_post_id" value="" />
+  <input type="hidden" id="thread_report_post_id" name="report_post_id" value="" />
   <div id="thread-interactions">
     <span id="thread-links">
       <a
@@ -417,13 +433,10 @@
         [Return]
       </a>
       <a id="thread-top" href="#top">[Go to top]</a>
-      <a
-        :if={Eirinchan.Themes.page_theme_enabled?("catalog")}
-        id="thread-catalog"
-        href={"/#{@board.uri}/catalog.html"}
-      >
+      <a id="thread-catalog" href={"/#{@board.uri}/catalog.html"}>
         [<%= @config.catalog_name %>]
       </a>
+
       <span id="updater" class="board-live-updater">
         <a
           href="#"
@@ -436,14 +449,15 @@
         <span id="update_secs" hidden>5</span>
       </span>
     </span>
+
     <span id="thread-quick-reply">
       <a id="link-quick-reply" href="#reply-form">[Post a Reply]</a>
     </span>
 
     <div id="post-moderation-fields">
       <div id="delete-fields">
-        Delete Post [<input title="Delete file only" type="checkbox" name="file" id="delete_file" />
-        <label for="delete_file">File</label>] <label for="password">Password</label>
+        Delete Post [<input title="Delete file only" type="checkbox" name="file" id="delete_file" /> <label for="delete_file">File</label>]
+        <label for="password">Password</label>
         <input
           id="password"
           type="password"
@@ -451,8 +465,7 @@
           size="12"
           maxlength="18"
           autocomplete="off"
-        />
-        <input type="submit" name="delete" value="Delete" data-post-action="delete" />
+        /> <input type="submit" name="delete" value="Delete" data-post-action="delete" />
       </div>
 
       <div id="report-fields">
@@ -464,13 +477,16 @@
   </div>
 
   <div id="thread_stats">
-    <span id="thread_stats_posts"><%= length(@summary.replies) %></span> replies |&nbsp;
-    <span id="thread_stats_images"><%= Enum.count(@summary.replies, &(PostView.media_entries(&1, @config) != [])) %></span>
+    <span id="thread_stats_posts"><%= length(@summary.replies) %></span>
+    replies |&nbsp;
+    <span id="thread_stats_images">
+      <%= Enum.count(@summary.replies, &(PostView.media_entries(&1, @config) != [])) %>
+    </span>
     images |&nbsp;Page <span id="thread_stats_page"><%= @page_num %></span>
   </div>
 
   <div class="clearfix"></div>
-  </form>
+</form>
 
 <%= if @board_chrome.show_footer do %>
   <EirinchanWeb.PostComponents.site_footer />

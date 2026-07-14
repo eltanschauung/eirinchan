@@ -122,4 +122,26 @@ defmodule Eirinchan.BoardlistTest do
     assert [%{label: "TF2", title: "TF2", href: "https://kogasa.tf"}] = offline_group
     assert Boardlist.encode_for_edit(boards) =~ label
   end
+
+  test "rejects script, protocol-relative, and credential-bearing boardlist links", %{
+    boards: boards
+  } do
+    raw =
+      Jason.encode!(%{
+        "desktop" => [
+          %{
+            "Safe" => "https://example.com/path",
+            "Local" => "/news",
+            "Script" => "javascript:alert(1)",
+            "Protocol relative" => "//evil.example/path",
+            "Credentials" => "https://user:pass@example.com/path"
+          }
+        ]
+      })
+
+    assert {:ok, _groups} = Boardlist.update_from_json(raw, boards)
+
+    [links] = Boardlist.configured_groups(boards, variant: :desktop)
+    assert links |> Enum.map(& &1.label) |> MapSet.new() == MapSet.new(["Local", "Safe"])
+  end
 end

@@ -1,8 +1,6 @@
 defmodule EirinchanWeb.BoardChrome do
   @moduledoc false
 
-  alias Eirinchan.Themes
-
   def for_board(_board), do: default()
 
   def default(config \\ %{}) do
@@ -22,11 +20,7 @@ defmodule EirinchanWeb.BoardChrome do
       top_news_html: nil,
       post_form_blotter_html: nil,
       show_footer: true,
-      search_links:
-        if(Themes.page_theme_enabled?("catalog"),
-          do: [%{href: "/__BOARD__/catalog.html", label: "[#{catalog_name}]"}],
-          else: []
-        ),
+      search_links: [%{href: "/__BOARD__/catalog.html", label: "[#{catalog_name}]"}],
       show_default_announcement: true
     }
   end

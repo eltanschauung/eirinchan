@@ -12,7 +12,6 @@ defmodule Eirinchan.Build do
   alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Purge
   alias Eirinchan.Repo
-  alias Eirinchan.Themes
   alias Eirinchan.ThreadPaths
   alias EirinchanWeb.Announcements
   alias EirinchanWeb.{PostComponents, PostView}
@@ -111,8 +110,11 @@ defmodule Eirinchan.Build do
 
         result =
           case running_job.kind do
-            "thread" -> thread_builder.(current_board, running_job.thread_id, config: config, repo: repo)
-            "indexes" -> index_builder.(current_board, config: config, repo: repo)
+            "thread" ->
+              thread_builder.(current_board, running_job.thread_id, config: config, repo: repo)
+
+            "indexes" ->
+              index_builder.(current_board, config: config, repo: repo)
           end
 
         case result do
@@ -150,7 +152,12 @@ defmodule Eirinchan.Build do
           result =
             if get_in(config, [:api, :enabled]) do
               json_output =
-                Path.join([board_root(), board.uri, config.dir.res, "#{PublicIds.public_id(summary.thread)}.json"])
+                Path.join([
+                  board_root(),
+                  board.uri,
+                  config.dir.res,
+                  "#{PublicIds.public_id(summary.thread)}.json"
+                ])
 
               maybe_write_file(
                 json_output,
@@ -245,36 +252,27 @@ defmodule Eirinchan.Build do
   end
 
   defp write_catalog_pages(board, config, repo) do
-    if Themes.page_theme_enabled?("catalog") do
-      catalog_pages = build_catalog_pages(board, config, repo)
+    catalog_pages = build_catalog_pages(board, config, repo)
 
-      Enum.reduce_while(catalog_pages, :ok, fn page_data, :ok ->
-        filename =
-          if page_data.page == 1 do
-            config.file_catalog
-          else
-            String.replace(config.file_catalog_page, "%d", Integer.to_string(page_data.page))
-          end
-
-        html = render_catalog(board, page_data, config)
-        output = Path.join([board_root(), board.uri, filename])
-
-        case maybe_write_file(output, html, page_last_modified(page_data), config) do
-          :ok -> {:cont, :ok}
-          error -> {:halt, error}
+    Enum.reduce_while(catalog_pages, :ok, fn page_data, :ok ->
+      filename =
+        if page_data.page == 1 do
+          config.file_catalog
+        else
+          String.replace(config.file_catalog_page, "%d", Integer.to_string(page_data.page))
         end
-      end)
-      |> case do
-        :ok ->
-          remove_stale_catalog_pages(board, length(catalog_pages), config)
 
-        error ->
-          error
+      html = render_catalog(board, page_data, config)
+      output = Path.join([board_root(), board.uri, filename])
+
+      case maybe_write_file(output, html, page_last_modified(page_data), config) do
+        :ok -> {:cont, :ok}
+        error -> {:halt, error}
       end
-    else
-      File.rm(Path.join([board_root(), board.uri, config.file_catalog]))
-      remove_stale_catalog_pages(board, 0, config)
-      :ok
+    end)
+    |> case do
+      :ok -> remove_stale_catalog_pages(board, length(catalog_pages), config)
+      error -> error
     end
   end
 
@@ -292,26 +290,20 @@ defmodule Eirinchan.Build do
         end
       end)
 
-    if Themes.page_theme_enabled?("catalog") do
-      with :ok <- per_page_results,
-           :ok <-
-             maybe_write_file(
-               Path.join([board_root(), board.uri, "catalog.json"]),
-               Jason.encode!(Api.catalog_json(page_data_list)),
-               pages_last_modified(page_data_list),
-               config
-             ) do
-        maybe_write_file(
-          Path.join([board_root(), board.uri, "threads.json"]),
-          Jason.encode!(Api.catalog_json(page_data_list, threads_page: true)),
-          pages_last_modified(page_data_list),
-          config
-        )
-      end
-    else
-      File.rm(Path.join([board_root(), board.uri, "catalog.json"]))
-      File.rm(Path.join([board_root(), board.uri, "threads.json"]))
-      per_page_results
+    with :ok <- per_page_results,
+         :ok <-
+           maybe_write_file(
+             Path.join([board_root(), board.uri, "catalog.json"]),
+             Jason.encode!(Api.catalog_json(page_data_list)),
+             pages_last_modified(page_data_list),
+             config
+           ) do
+      maybe_write_file(
+        Path.join([board_root(), board.uri, "threads.json"]),
+        Jason.encode!(Api.catalog_json(page_data_list, threads_page: true)),
+        pages_last_modified(page_data_list),
+        config
+      )
     end
   end
 
@@ -450,6 +442,7 @@ defmodule Eirinchan.Build do
         media = render_media(summary.thread, config)
         replies = render_preview_replies(summary.replies, board, summary.thread, config)
         omitted = render_omitted(summary)
+
         thread_path =
           ThreadPaths.thread_path(
             board,
@@ -460,6 +453,7 @@ defmodule Eirinchan.Build do
                 Map.get(summary, :reply_count, 0) >= Map.get(config, :noko50_min, 0)
               end)
           )
+
         badges = render_thread_badges(summary.thread, config)
         delete_form = render_delete_form(board, PublicIds.public_id(summary.thread))
 
@@ -535,6 +529,7 @@ defmodule Eirinchan.Build do
       |> Enum.map_join("\n", fn summary ->
         title = html_escape(PostView.post_title(board, summary.thread, config))
         media = render_media(summary.thread, config)
+
         thread_path =
           ThreadPaths.thread_path(
             board,
@@ -545,6 +540,7 @@ defmodule Eirinchan.Build do
                 Map.get(summary, :reply_count, 0) >= Map.get(config, :noko50_min, 0)
               end)
           )
+
         badges = render_thread_badges(summary.thread, config)
         delete_form = render_delete_form(board, PublicIds.public_id(summary.thread))
 
@@ -617,7 +613,9 @@ defmodule Eirinchan.Build do
       _ = Purge.purge_output_path(path, config, board_root: board_root())
     end)
 
-    json_path = Path.join([board_root(), board.uri, config.dir.res, "#{PublicIds.public_id(thread)}.json"])
+    json_path =
+      Path.join([board_root(), board.uri, config.dir.res, "#{PublicIds.public_id(thread)}.json"])
+
     _ = File.rm(json_path)
     _ = Purge.purge_output_path(json_path, config, board_root: board_root())
     :ok

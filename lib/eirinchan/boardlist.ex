@@ -99,8 +99,12 @@ defmodule Eirinchan.Boardlist do
     end)
     |> case do
       {:ok, variants} when map_size(variants) > 0 ->
-        desktop = Map.get(variants, :desktop) || Map.get(variants, :mobile) || default_groups(boards)
-        mobile = Map.get(variants, :mobile) || Map.get(variants, :desktop) || default_groups(boards)
+        desktop =
+          Map.get(variants, :desktop) || Map.get(variants, :mobile) || default_groups(boards)
+
+        mobile =
+          Map.get(variants, :mobile) || Map.get(variants, :desktop) || default_groups(boards)
+
         {:ok, %{desktop: desktop, mobile: mobile}}
 
       _ ->
@@ -168,7 +172,8 @@ defmodule Eirinchan.Boardlist do
     Settings.persist_instance_config(Map.put(config, :boardlist, groups))
   end
 
-  defp normalize_variants_for_runtime(nil, boards), do: %{desktop: default_groups(boards), mobile: default_groups(boards)}
+  defp normalize_variants_for_runtime(nil, boards),
+    do: %{desktop: default_groups(boards), mobile: default_groups(boards)}
 
   defp normalize_variants_for_runtime(%Jason.OrderedObject{} = groups, boards) do
     groups
@@ -248,7 +253,9 @@ defmodule Eirinchan.Boardlist do
       end)
   end
 
-  defp variant_object?(%Jason.OrderedObject{} = value), do: value |> ordered_values() |> variant_object?()
+  defp variant_object?(%Jason.OrderedObject{} = value),
+    do: value |> ordered_values() |> variant_object?()
+
   defp variant_object?(_value), do: false
 
   defp normalize_variant_key("desktop"), do: :desktop
@@ -328,7 +335,7 @@ defmodule Eirinchan.Boardlist do
         normalized_href = String.trim(href)
         normalized_title = normalize_optional_title(title, normalized_label, boards)
 
-        if normalized_label == "" or normalized_href == "" do
+        if normalized_label == "" or not safe_href?(normalized_href) do
           nil
         else
           %{
@@ -351,7 +358,7 @@ defmodule Eirinchan.Boardlist do
     normalized_href = href |> to_string() |> String.trim()
 
     cond do
-      normalized_label == "" or normalized_href == "" ->
+      normalized_label == "" or not safe_href?(normalized_href) ->
         nil
 
       true ->
@@ -399,6 +406,21 @@ defmodule Eirinchan.Boardlist do
       :link
     end
   end
+
+  defp safe_href?("/"), do: true
+
+  defp safe_href?("/" <> rest) do
+    rest != "" and not String.starts_with?(rest, "/") and not unsafe_href_text?(rest)
+  end
+
+  defp safe_href?(value) do
+    uri = URI.parse(value)
+
+    uri.scheme == "https" and is_binary(uri.host) and uri.host != "" and is_nil(uri.userinfo) and
+      not unsafe_href_text?(value)
+  end
+
+  defp unsafe_href_text?(value), do: String.contains?(value, ["\\", "\r", "\n", "\0"])
 
   defp ordered_values(%Jason.OrderedObject{values: values}), do: values
 end

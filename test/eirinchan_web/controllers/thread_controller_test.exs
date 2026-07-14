@@ -625,7 +625,7 @@ defmodule EirinchanWeb.ThreadControllerTest do
     assert page =~ ~s(src="/main.js)
     assert page =~ ~s(class="board_image")
     assert page =~ "/static/banners/" or page =~ "/static/file.png"
-    refute page =~ "[Catalog]"
+    assert page =~ "[Catalog]"
     assert page =~ ~s(class="boardlist")
   end
 
