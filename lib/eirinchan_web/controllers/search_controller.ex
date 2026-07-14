@@ -34,7 +34,7 @@ defmodule EirinchanWeb.SearchController do
 
       public_search_rate_limited?(request, config) ->
         EventLog.log(conn, "search.rejected", %{
-          board: if(board, do: board.uri, else: nil),
+          board: board.uri,
           outcome: "rate_limited",
           query_length: String.length(query)
         })

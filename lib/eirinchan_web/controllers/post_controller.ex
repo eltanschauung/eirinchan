@@ -952,7 +952,8 @@ defmodule EirinchanWeb.PostController do
         %{
           reason: reason,
           status: Plug.Conn.Status.code(status),
-          board: conn.assigns.current_board.uri
+          board: conn.assigns.current_board.uri,
+          request_id: Logger.metadata()[:request_id]
         },
         conn.assigns[:post_failure_metadata] || %{}
       )
