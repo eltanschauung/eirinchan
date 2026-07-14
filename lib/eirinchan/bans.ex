@@ -6,6 +6,7 @@ defmodule Eirinchan.Bans do
   import Ecto.Query, only: [from: 2]
 
   alias Eirinchan.Bans.{Appeal, Ban}
+  alias Eirinchan.Bans.TargetResolver
   alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.IpMatching
   alias Eirinchan.Repo
@@ -56,23 +57,7 @@ defmodule Eirinchan.Bans do
   def parse_length(_length), do: {:error, :invalid_length}
 
   @spec valid_ip_mask?(term()) :: boolean()
-  def valid_ip_mask?(value) when is_binary(value) do
-    mask = String.trim(value)
-
-    cond do
-      mask == "" ->
-        false
-
-      String.contains?(mask, "/") ->
-        [address | _rest] = String.split(mask, "/", parts: 2)
-        IpMatching.ip_in_cidr?(address, mask)
-
-      true ->
-        not is_nil(IpMatching.normalize_ip(mask))
-    end
-  end
-
-  def valid_ip_mask?(_value), do: false
+  def valid_ip_mask?(value), do: match?({:ok, _target}, TargetResolver.resolve(value))
 
   @spec list_bans(keyword()) :: [Ban.t()]
   def list_bans(opts \\ []) do

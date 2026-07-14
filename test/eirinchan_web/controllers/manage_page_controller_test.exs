@@ -1528,6 +1528,38 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert DateTime.diff(ban.expires_at, DateTime.utc_now(), :second) in 3598..3602
   end
 
+  test "post ban form keeps the raw target out of HTML and accepts its cloak", %{conn: conn} do
+    with_instance_config(%{"ipcrypt_key" => "ban-browser-test-key"}, fn ->
+      moderator = moderator_fixture(%{role: "admin"})
+      board = board_fixture(%{uri: "cloakban#{System.unique_integer([:positive])}"})
+      thread = thread_fixture(board, %{ip_subnet: "198.51.100.7"})
+      post_id = PublicIds.public_id(thread)
+
+      page =
+        conn
+        |> login_moderator(moderator)
+        |> get("/manage/boards/#{board.uri}/posts/#{post_id}/ban/browser")
+        |> html_response(200)
+
+      assert [_, cloak] = Regex.run(~r/name="ip"[^>]*value="([^"]+)"/, page)
+      assert Eirinchan.IpCrypt.uncloak_ip(cloak) == "198.51.100.7"
+      refute page =~ "198.51.100.7"
+
+      create_conn =
+        conn
+        |> recycle()
+        |> login_moderator(moderator)
+        |> post("/manage/boards/#{board.uri}/posts/#{post_id}/ban/browser", %{
+          "ip" => cloak,
+          "reason" => "Cloaked target",
+          "board" => board.uri
+        })
+
+      assert redirected_to(create_conn) == "/#{board.uri}/res/#{post_id}.html"
+      assert [%{ip_subnet: "198.51.100.7"}] = Bans.list_bans(board_id: board.id)
+    end)
+  end
+
   test "browser ban routes enforce the ban capability", %{conn: conn} do
     board = board_fixture()
     thread = thread_fixture(board, %{ip_subnet: "198.51.100.7"})

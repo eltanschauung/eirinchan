@@ -337,7 +337,7 @@ defmodule EirinchanWeb.ManagePageController do
          {:ok, _ban} <-
            Bans.update_ban(ban, %{
              board_id: target_board_id,
-             ip_subnet: normalize_ban_ip_mask(Map.get(params, "ip_mask", ban.ip_subnet)),
+             ip_subnet: Map.get(params, "ip_mask", ban.ip_subnet),
              reason: params["reason"],
              length: params["length"],
              active: true
@@ -1569,7 +1569,7 @@ defmodule EirinchanWeb.ManagePageController do
            Bans.create_ban(%{
              board_id: target_board_id,
              mod_user_id: moderator.id,
-             ip_subnet: normalize_ban_ip_mask(Map.get(params, "ip_mask", ip)),
+             ip_subnet: Map.get(params, "ip_mask", ip),
              reason: params["reason"],
              length: params["length"],
              active: true
@@ -1609,7 +1609,7 @@ defmodule EirinchanWeb.ManagePageController do
          {:ok, _ban} <-
            Bans.update_ban(ban, %{
              board_id: target_board_id,
-             ip_subnet: normalize_ban_ip_mask(Map.get(params, "ip_mask", ban.ip_subnet)),
+             ip_subnet: Map.get(params, "ip_mask", ban.ip_subnet),
              reason: params["reason"],
              length: params["length"],
              active: true
@@ -1685,7 +1685,7 @@ defmodule EirinchanWeb.ManagePageController do
            Bans.create_ban(%{
              board_id: target_board_id,
              mod_user_id: moderator.id,
-             ip_subnet: normalize_ban_ip_mask(Map.get(params, "ip_mask", ip)),
+             ip_subnet: Map.get(params, "ip_mask", ip),
              reason: params["reason"],
              length: params["length"],
              active: true
@@ -1732,7 +1732,7 @@ defmodule EirinchanWeb.ManagePageController do
          {:ok, _ban} <-
            Bans.update_ban(ban, %{
              board_id: target_board_id,
-             ip_subnet: normalize_ban_ip_mask(Map.get(params, "ip_mask", ban.ip_subnet)),
+             ip_subnet: Map.get(params, "ip_mask", ban.ip_subnet),
              reason: params["reason"],
              length: params["length"],
              active: true
@@ -1962,7 +1962,7 @@ defmodule EirinchanWeb.ManagePageController do
         params: %{
           "ip" =>
             if(PostView.can_view_ip?(moderator, board),
-              do: Map.get(params, "ip", post.ip_subnet || ""),
+              do: Map.get(params, "ip", IpCrypt.cloak_ip(post.ip_subnet || "")),
               else: ""
             ),
           "reason" => Map.get(params, "reason", ""),
@@ -1990,7 +1990,7 @@ defmodule EirinchanWeb.ManagePageController do
          {:ok, board} <- load_accessible_board(moderator, uri),
          {:ok, post} <- Eirinchan.Posts.get_post(board, post_id),
          {:ok, target_board_id} <- target_ban_board_id(moderator, params["board"]),
-         {:ok, _ban} <-
+         {:ok, ban} <-
            Bans.create_ban(%{
              board_id: target_board_id,
              mod_user_id: moderator.id,
@@ -2015,13 +2015,14 @@ defmodule EirinchanWeb.ManagePageController do
            ) do
       ModerationAudit.log(
         conn,
-        "Banned #{display_ip_for_log(Map.get(params, "ip", post.ip_subnet))} for post No. #{PostView.public_post_id(post)}" <>
+        "Banned #{display_ip_for_log(ban.ip_subnet)} for post No. #{PostView.public_post_id(post)}" <>
           if(Map.get(params, "delete") in ["1", "true", "on"],
             do: " and deleted the post",
             else: ""
           ),
         moderator: moderator,
-        board: board
+        board: board,
+        subject_ip: ban.ip_subnet
       )
 
       conn
@@ -3005,23 +3006,6 @@ defmodule EirinchanWeb.ManagePageController do
     case IpCrypt.uncloak_ip(ip) do
       nil -> {:error, :invalid_ip}
       decoded -> {:ok, decoded}
-    end
-  end
-
-  defp normalize_ban_ip_mask(nil), do: nil
-
-  defp normalize_ban_ip_mask(value) do
-    trimmed = value |> to_string() |> String.trim()
-
-    cond do
-      trimmed == "" ->
-        trimmed
-
-      String.contains?(trimmed, "/") ->
-        trimmed
-
-      true ->
-        IpCrypt.uncloak_ip(trimmed) || trimmed
     end
   end
 

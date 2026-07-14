@@ -11,6 +11,9 @@ defmodule EirinchanWeb.BanManagementController do
   plug EirinchanWeb.Plugs.RequireModeratorPermission,
        [permission: :view_banlist] when action in [:index]
 
+  plug EirinchanWeb.Plugs.RequireModeratorPermission,
+       [permission: :ban] when action in [:create, :update]
+
   def index(conn, %{"uri" => uri}) do
     with board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          :ok <- authorize_board(conn, board) do
@@ -40,8 +43,9 @@ defmodule EirinchanWeb.BanManagementController do
            }) do
       ModerationAudit.log(
         conn,
-        "Created ban for #{cloak_or_hidden(params["ip_subnet"])}",
-        board: board
+        "Created ban for #{cloak_or_hidden(ban.ip_subnet)}",
+        board: board,
+        subject_ip: ban.ip_subnet
       )
 
       conn
@@ -66,7 +70,8 @@ defmodule EirinchanWeb.BanManagementController do
       ModerationAudit.log(
         conn,
         "Updated ban ##{ban.id} for #{cloak_or_hidden(ban.ip_subnet)}",
-        board: board
+        board: board,
+        subject_ip: ban.ip_subnet
       )
 
       render(conn, :show, ban: ban, board: board, moderator: conn.assigns.current_moderator)

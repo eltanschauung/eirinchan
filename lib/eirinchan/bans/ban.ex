@@ -3,6 +3,7 @@ defmodule Eirinchan.Bans.Ban do
   import Ecto.Changeset
 
   alias Eirinchan.Bans
+  alias Eirinchan.Bans.TargetResolver
 
   schema "bans" do
     field :ip_subnet, :string
@@ -20,6 +21,7 @@ defmodule Eirinchan.Bans.Ban do
   def changeset(ban, attrs) do
     ban
     |> cast(attrs, [:board_id, :mod_user_id, :ip_subnet, :reason, :expires_at, :active])
+    |> update_change(:ip_subnet, &TargetResolver.normalize_for_storage/1)
     |> validate_required([:ip_subnet])
     |> validate_change(:ip_subnet, fn :ip_subnet, value ->
       if Bans.valid_ip_mask?(value), do: [], else: [ip_subnet: "is invalid"]

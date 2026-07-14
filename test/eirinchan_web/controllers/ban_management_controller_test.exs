@@ -1,5 +1,5 @@
 defmodule EirinchanWeb.BanManagementControllerTest do
-  use EirinchanWeb.ConnCase, async: true
+  use EirinchanWeb.ConnCase, async: false
 
   alias Eirinchan.Bans
 
@@ -44,6 +44,30 @@ defmodule EirinchanWeb.BanManagementControllerTest do
 
     assert %{"data" => %{"id" => ^ban_id, "reason" => "Resolved spammer", "active" => false}} =
              json_response(update_conn, 200)
+  end
+
+  test "JSON ban writes resolve cloaks before storage", %{conn: conn} do
+    with_instance_config(%{"ipcrypt_key" => "ban-json-test-key"}, fn ->
+      board = board_fixture()
+      moderator = moderator_fixture(%{role: "mod"}) |> grant_board_access_fixture(board)
+      cloak = Eirinchan.IpCrypt.cloak_ip("198.51.100.7")
+
+      create_conn =
+        conn
+        |> login_moderator(moderator)
+        |> put_secure_manage_token()
+        |> put_req_header("accept", "application/json")
+        |> post("/manage/boards/#{board.uri}/bans", %{
+          "ip_subnet" => cloak,
+          "reason" => "Cloaked target"
+        })
+
+      assert %{"data" => %{"id" => ban_id, "ip_subnet" => returned_cloak}} =
+               json_response(create_conn, 201)
+
+      assert Bans.get_ban(ban_id).ip_subnet == "198.51.100.7"
+      assert Eirinchan.IpCrypt.uncloak_ip(returned_cloak) == "198.51.100.7"
+    end)
   end
 
   test "moderators can list and resolve board ban appeals", %{conn: conn} do

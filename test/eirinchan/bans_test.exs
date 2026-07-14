@@ -2,6 +2,14 @@ defmodule Eirinchan.BansTest do
   use Eirinchan.DataCase, async: true
 
   alias Eirinchan.Bans
+  alias Eirinchan.Bans.TargetResolver
+  alias Eirinchan.IpCrypt
+
+  setup do
+    IpCrypt.clear_request_context()
+    on_exit(&IpCrypt.clear_request_context/0)
+    :ok
+  end
 
   test "creates and lists bans" do
     board = board_fixture()
@@ -19,6 +27,39 @@ defmodule Eirinchan.BansTest do
              Bans.list_bans(board_id: board.id)
 
     assert ban_id == ban.id
+  end
+
+  test "resolves authenticated cloaks at the ban storage boundary" do
+    board = board_fixture()
+    IpCrypt.configure_for_request(%{ipcrypt_key: "ban-target-test-key"}, "203.0.113.5")
+    cloak = IpCrypt.cloak_ip("198.51.100.7")
+
+    assert {:ok, ban} =
+             Bans.create_ban(%{board_id: board.id, ip_subnet: cloak, reason: "Spam"})
+
+    assert ban.ip_subnet == "198.51.100.7"
+    assert %{} = Bans.active_ban_for_request(board, "198.51.100.7")
+
+    replacement = IpCrypt.cloak_ip("2001:db8::7")
+    assert {:ok, updated} = Bans.update_ban(ban, %{ip_subnet: replacement})
+    assert updated.ip_subnet == "2001:db8::7"
+  end
+
+  test "normalizes valid targets and rejects invalid or tampered cloaks" do
+    IpCrypt.configure_for_request(%{ipcrypt_key: "ban-target-test-key"}, "203.0.113.5")
+
+    assert {:ok, "203.0.113.7"} = TargetResolver.resolve(" 203.0.113.7 ")
+    assert {:ok, "2001:db8::7"} = TargetResolver.resolve("2001:0db8:0:0:0:0:0:7")
+    assert {:ok, "203.0.113.4/24"} = TargetResolver.resolve(" 203.0.113.4 / 24 ")
+    assert {:error, :invalid_target} = TargetResolver.resolve("203.0.113.7/129")
+
+    cloak = IpCrypt.cloak_ip("198.51.100.7")
+    "Cloak:v2:" <> <<first_character>> <> rest = cloak
+    replacement = if first_character == ?A, do: ?B, else: ?A
+    tampered = "Cloak:v2:" <> <<replacement>> <> rest
+
+    assert {:error, changeset} = Bans.create_ban(%{ip_subnet: tampered})
+    assert "is invalid" in errors_on(changeset).ip_subnet
   end
 
   test "creates ban appeals for existing bans" do
