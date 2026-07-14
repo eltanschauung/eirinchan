@@ -1,5 +1,6 @@
 defmodule EirinchanWeb.FeedbackControllerTest do
   use EirinchanWeb.ConnCase, async: false
+  import ExUnit.CaptureLog
 
   test "public feedback page renders and accepts submissions", %{conn: conn} do
     moderator_fixture()
@@ -33,11 +34,16 @@ defmodule EirinchanWeb.FeedbackControllerTest do
   end
 
   test "feedback submission rejects bodies without a space as antispam", %{conn: conn} do
-    conn =
-      conn
-      |> post("/feedback", %{"body" => "singleword", "json_response" => "1"})
+    {conn, log} =
+      with_log(fn ->
+        conn
+        |> post("/feedback", %{"body" => "singleword", "json_response" => "1"})
+      end)
 
     assert %{"error" => "Spam filter triggered."} = json_response(conn, 422)
+    assert log =~ ~s|"event":"feedback.rejected"|
+    assert log =~ ~s|"outcome":"body_shape"|
+    refute log =~ "singleword"
     assert Eirinchan.Feedback.unread_count() == 0
   end
 

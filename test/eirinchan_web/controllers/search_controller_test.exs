@@ -6,13 +6,6 @@ defmodule EirinchanWeb.SearchControllerTest do
   alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Repo
 
-  setup do
-    previous_level = Logger.level()
-    Logger.configure(level: :info)
-    on_exit(fn -> Logger.configure(level: previous_level) end)
-    :ok
-  end
-
   test "public search returns matching posts only for the selected board", %{conn: conn} do
     board =
       board_fixture(%{uri: "tea#{System.unique_integer([:positive, :monotonic])}", title: "Tea"})
@@ -52,7 +45,7 @@ defmodule EirinchanWeb.SearchControllerTest do
     refute page =~ "meta tea"
   end
 
-  test "public search logs queries", %{conn: _conn} do
+  test "public search persists only bounded antispam state", %{conn: _conn} do
     board =
       board_fixture(%{
         uri: "tea#{System.unique_integer([:positive, :monotonic])}",
@@ -64,19 +57,12 @@ defmodule EirinchanWeb.SearchControllerTest do
 
     conn = %{build_conn() | remote_ip: {198, 51, 100, 99}}
 
-    {first_page, log} =
-      with_log(fn ->
-        conn
-        |> get("/search.php", %{"search" => "tripcode", "board" => board.uri})
-        |> html_response(200)
-      end)
+    first_page =
+      conn
+      |> get("/search.php", %{"search" => "tripcode", "board" => board.uri})
+      |> html_response(200)
 
     assert first_page =~ "(No results.)"
-    assert log =~ "search.request"
-    assert log =~ "client_id="
-    assert log =~ "query_length=8"
-    refute log =~ "tripcode"
-    refute log =~ "198.51.100.99"
 
     assert Enum.any?(
              Eirinchan.Antispam.list_search_queries("198.51.100.99", repo: Eirinchan.Repo),
@@ -101,9 +87,18 @@ defmodule EirinchanWeb.SearchControllerTest do
            |> get("/search.php", %{"search" => "tripcode", "board" => board.uri})
            |> html_response(200) =~ "(No results.)"
 
-    assert second_conn
-           |> get("/search.php", %{"search" => "tripcode", "board" => board.uri})
-           |> html_response(200) =~ "Wait a while before searching again, please."
+    {second_page, log} =
+      with_log(fn ->
+        second_conn
+        |> get("/search.php", %{"search" => "tripcode", "board" => board.uri})
+        |> html_response(200)
+      end)
+
+    assert second_page =~ "Wait a while before searching again, please."
+    assert log =~ ~s|"event":"search.rejected"|
+    assert log =~ ~s|"outcome":"rate_limited"|
+    assert log =~ ~s|"query_length":8|
+    refute log =~ "tripcode"
   end
 
   test "public search supports id, thread, subject, and name filters", %{conn: conn} do

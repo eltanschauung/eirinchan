@@ -2,6 +2,7 @@ defmodule EirinchanWeb.FeedbackController do
   use EirinchanWeb, :controller
 
   alias Eirinchan.Antispam
+  alias Eirinchan.EventLog
   alias Eirinchan.Feedback
   alias Eirinchan.PublicPages
   alias Eirinchan.Runtime.Config
@@ -21,9 +22,11 @@ defmodule EirinchanWeb.FeedbackController do
 
     cond do
       invalid_feedback_body?(params["body"]) ->
+        EventLog.log(conn, "feedback.rejected", %{outcome: "body_shape"})
         reject_feedback(conn, params, config.error.antispam, :unprocessable_entity)
 
       feedback_rate_limited?(request, config) ->
+        EventLog.log(conn, "feedback.rejected", %{outcome: "rate_limited"})
         message = "Feedback is limited to three submissions per 24 hours. Please try again later."
 
         reject_feedback(conn, params, message, :too_many_requests)

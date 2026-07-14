@@ -1,5 +1,6 @@
 defmodule EirinchanWeb.IpAccessAuthControllerTest do
   use EirinchanWeb.ConnCase, async: false
+  import ExUnit.CaptureLog
 
   alias Eirinchan.IpAccessEntry
   alias Eirinchan.Settings
@@ -88,8 +89,11 @@ defmodule EirinchanWeb.IpAccessAuthControllerTest do
   end
 
   test "invalid passwords return validation feedback", %{conn: conn} do
-    conn = post(conn, "/auth", %{"password" => "wrong"})
+    {conn, log} = with_log(fn -> post(conn, "/auth", %{"password" => "wrong"}) end)
     assert html_response(conn, 422) =~ "Invalid password."
+    assert log =~ ~s|"event":"auth.ip_access.rejected"|
+    assert log =~ ~s|"outcome":"invalid_password"|
+    refute log =~ "wrong"
   end
 
   test "invalid authentication attempts are throttled per subnet", %{conn: conn} do

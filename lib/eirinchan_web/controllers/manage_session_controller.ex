@@ -1,6 +1,7 @@
 defmodule EirinchanWeb.ManageSessionController do
   use EirinchanWeb, :controller
 
+  alias Eirinchan.EventLog
   alias Eirinchan.ManageLoginThrottle
   alias Eirinchan.Moderation
   alias EirinchanWeb.{ManageSecurity, ModerationAudit, RequestMeta}
@@ -25,6 +26,8 @@ defmodule EirinchanWeb.ManageSessionController do
         end
 
       {:error, retry_after} ->
+        log_rejected_login(conn, username, "rate_limited")
+
         conn
         |> put_resp_header("retry-after", Integer.to_string(retry_after))
         |> put_status(:too_many_requests)
@@ -81,16 +84,27 @@ defmodule EirinchanWeb.ManageSessionController do
   defp handle_failed_login(conn, username, remote_ip, config) do
     case ManageLoginThrottle.record_failure(username, remote_ip, config) do
       {:error, retry_after} ->
+        log_rejected_login(conn, username, "rate_limited")
+
         conn
         |> put_resp_header("retry-after", Integer.to_string(retry_after))
         |> put_status(:too_many_requests)
         |> json(%{error: "rate_limited"})
 
       :ok ->
+        log_rejected_login(conn, username, "invalid_credentials")
+
         conn
         |> put_status(:unauthorized)
         |> json(%{error: "invalid_credentials"})
     end
+  end
+
+  defp log_rejected_login(conn, username, outcome) do
+    EventLog.log(conn, "auth.manage.rejected", %{
+      outcome: outcome,
+      username_id: EventLog.subject_id(username, :manage_login_username)
+    })
   end
 
   defp current_config do

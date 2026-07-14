@@ -1,6 +1,7 @@
 defmodule EirinchanWeb.IpAccessAuthController do
   use EirinchanWeb, :controller
 
+  alias Eirinchan.EventLog
   alias Eirinchan.IpAccessAuth
   alias Eirinchan.IpAccessAuthThrottle
   alias Eirinchan.Settings
@@ -37,6 +38,8 @@ defmodule EirinchanWeb.IpAccessAuthController do
       handle_authorization(conn, result, config, ip, password)
     else
       {:error, retry_after} when is_integer(retry_after) ->
+        EventLog.log(conn, "auth.ip_access.rejected", %{outcome: "rate_limited"})
+
         conn
         |> put_resp_header("retry-after", Integer.to_string(retry_after))
         |> render_error(config, "Too many attempts. Try again later.", nil, :too_many_requests)
@@ -47,6 +50,7 @@ defmodule EirinchanWeb.IpAccessAuthController do
     case result do
       {:ok, _result} ->
         IpAccessAuthThrottle.clear(ip)
+        EventLog.log(conn, "auth.ip_access.granted", %{}, :info)
 
         conn
         |> put_root_layout(false)
@@ -65,14 +69,18 @@ defmodule EirinchanWeb.IpAccessAuthController do
         )
 
       {:error, :password_required} ->
+        EventLog.log(conn, "auth.ip_access.rejected", %{outcome: "password_required"})
         render_error(conn, config, "Password is required.", password)
 
       {:error, :invalid_password} ->
         case IpAccessAuthThrottle.record_failure(ip, config) do
           :ok ->
+            EventLog.log(conn, "auth.ip_access.rejected", %{outcome: "invalid_password"})
             render_error(conn, config, "Invalid password.", password)
 
           {:error, retry_after} ->
+            EventLog.log(conn, "auth.ip_access.rejected", %{outcome: "rate_limited"})
+
             conn
             |> put_resp_header("retry-after", Integer.to_string(retry_after))
             |> render_error(
@@ -84,9 +92,11 @@ defmodule EirinchanWeb.IpAccessAuthController do
         end
 
       {:error, :invalid_ip} ->
+        EventLog.log(conn, "auth.ip_access.failed", %{outcome: "invalid_ip"}, :error)
         render_error(conn, config, "Unable to determine network range.", password)
 
-      {:error, _reason} ->
+      {:error, reason} ->
+        EventLog.log(conn, "auth.ip_access.failed", %{outcome: reason}, :error)
         render_error(conn, config, "Unable to update access list.", password)
     end
   end

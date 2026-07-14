@@ -8,8 +8,7 @@ defmodule Eirinchan.MaintenanceTest do
     Bans,
     BrowserIdentities,
     BrowserIdentity,
-    Maintenance,
-    PostFailureLog
+    Maintenance
   }
 
   alias Eirinchan.BrowserIdentities.Identity
@@ -65,34 +64,17 @@ defmodule Eirinchan.MaintenanceTest do
       set: [inserted_at: stale_time]
     )
 
-    {:ok, stale_log} =
-      %PostFailureLog{}
-      |> PostFailureLog.changeset(%{event: "old", level: "warning", metadata: %{}})
-      |> Repo.insert()
-
-    {:ok, _fresh_log} =
-      %PostFailureLog{}
-      |> PostFailureLog.changeset(%{event: "fresh", level: "warning", metadata: %{}})
-      |> Repo.insert()
-
-    Repo.update_all(
-      from(log in PostFailureLog, where: log.id == ^stale_log.id),
-      set: [inserted_at: DateTime.add(DateTime.utc_now(), -2 * 86_400, :second)]
-    )
-
     config = %{
       auto_maintenance: true,
       maintenance_interval_seconds: 1,
-      antispam_retention_seconds: 172_800,
-      post_failure_log_retention_days: 1
+      antispam_retention_seconds: 172_800
     }
 
     assert {:ok,
             %{
               bans: 1,
               browser_identities: 1,
-              antispam: antispam_count,
-              post_failure_logs: 1
+              antispam: antispam_count
             }} =
              Maintenance.run(config, repo: Repo)
 
@@ -100,7 +82,6 @@ defmodule Eirinchan.MaintenanceTest do
     assert length(Bans.list_bans(board_id: board.id, repo: Repo)) == 1
     assert Antispam.list_flood_entries("198.51.100.20", repo: Repo) == []
     assert Antispam.list_search_queries("198.51.100.20", repo: Repo) == []
-    assert Repo.aggregate(PostFailureLog, :count) == 1
     assert Repo.get(Identity, browser_ref) == nil
   end
 end

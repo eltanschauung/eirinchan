@@ -7,14 +7,12 @@ defmodule EirinchanWeb.PostController do
   alias Eirinchan.Bans
   alias Eirinchan.Boards
   alias Eirinchan.Command
-  alias Eirinchan.CredentialHash
+  alias Eirinchan.EventLog
   alias Eirinchan.IpAccessAuth
   alias Eirinchan.ModerationLog
-  alias Eirinchan.PostFailureLog
   alias Eirinchan.PostOwnership
   alias Eirinchan.Posts
   alias Eirinchan.Posts.PublicIds
-  alias Eirinchan.Repo
   alias Eirinchan.Reports
   alias Eirinchan.ThreadWatcher
   alias Eirinchan.ThreadPaths
@@ -956,16 +954,8 @@ defmodule EirinchanWeb.PostController do
     metadata = %{
       reason: reason,
       status: Plug.Conn.Status.code(status),
-      board: conn.assigns.current_board.uri,
-      request_id: Logger.metadata()[:request_id],
-      client_id:
-        conn
-        |> RequestMeta.effective_remote_ip()
-        |> RequestMeta.ip_to_string()
-        |> CredentialHash.fingerprint(:post_failure_ip)
+      board: conn.assigns.current_board.uri
     }
-
-    persist_post_failure("post.error", level, conn.assigns.current_board.uri, metadata)
 
     log_post_failure_details(conn, metadata, level)
   end
@@ -975,56 +965,24 @@ defmodule EirinchanWeb.PostController do
 
     payload =
       %{
-        timestamp: DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601(),
         board: conn.assigns.current_board.uri,
-        request_id: metadata.request_id,
         status: metadata.status,
         reason: metadata.reason,
         method: conn.method,
         request_path: conn.request_path,
-        client_id: metadata.client_id,
         content_type: List.first(get_req_header(conn, "content-type")),
         content_length: List.first(get_req_header(conn, "content-length")),
         branch: branch(conn.params),
         moderator: failure_moderator_metadata(conn.assigns[:current_moderator]),
-        browser_token_present: is_binary(conn.assigns[:browser_token]),
+        browser_identity_present: is_binary(conn.assigns[:browser_token]),
         uploads: failure_upload_context(conn.params)
       }
       |> maybe_put_invalid_image_diagnostics(invalid_image_diagnostics)
 
-    persist_post_failure("post.failure_details", level, conn.assigns.current_board.uri, payload)
+    EventLog.log(conn, "post.rejected", payload, level)
 
     :ok
   end
-
-  defp persist_post_failure(event, level, board_uri, metadata) do
-    %PostFailureLog{}
-    |> PostFailureLog.changeset(%{
-      event: event,
-      level: Atom.to_string(level),
-      board_uri: board_uri,
-      metadata: json_failure_value(metadata)
-    })
-    |> Repo.insert()
-
-    :ok
-  rescue
-    _error ->
-      :ok
-  end
-
-  defp json_failure_value(value) when is_binary(value), do: value
-  defp json_failure_value(value) when is_integer(value), do: value
-  defp json_failure_value(value) when is_float(value), do: value
-  defp json_failure_value(value) when is_boolean(value), do: value
-  defp json_failure_value(nil), do: nil
-  defp json_failure_value(value) when is_atom(value), do: Atom.to_string(value)
-
-  defp json_failure_value(value) when is_map(value),
-    do: Map.new(value, fn {k, v} -> {to_string(k), json_failure_value(v)} end)
-
-  defp json_failure_value(value) when is_list(value), do: Enum.map(value, &json_failure_value/1)
-  defp json_failure_value(value), do: inspect(value)
 
   defp maybe_put_invalid_image_diagnostics(payload, diagnostics) when is_list(diagnostics) do
     Map.put(payload, :invalid_image_diagnostics, diagnostics)

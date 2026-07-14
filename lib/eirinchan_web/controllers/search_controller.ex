@@ -1,11 +1,9 @@
 defmodule EirinchanWeb.SearchController do
   use EirinchanWeb, :controller
-  require Logger
-
   alias Eirinchan.Antispam
   alias Eirinchan.Boards
   alias Eirinchan.Boards.BoardRecord
-  alias Eirinchan.CredentialHash
+  alias Eirinchan.EventLog
   alias Eirinchan.Posts
   alias Eirinchan.Runtime.Config
   alias Eirinchan.Settings
@@ -27,8 +25,6 @@ defmodule EirinchanWeb.SearchController do
     config = search_config(board, instance_overrides)
     request = RequestMeta.public_identity(conn)
 
-    log_search_request(query, board, request, conn)
-
     cond do
       not search_enabled?(config) ->
         render_search(conn, query, board, boards, [], "Post search is disabled", config)
@@ -37,6 +33,12 @@ defmodule EirinchanWeb.SearchController do
         render_search(conn, query, board, boards, [], nil, config)
 
       public_search_rate_limited?(request, config) ->
+        EventLog.log(conn, "search.rejected", %{
+          board: if(board, do: board.uri, else: nil),
+          outcome: "rate_limited",
+          query_length: String.length(query)
+        })
+
         render_search(
           conn,
           query,
@@ -62,23 +64,6 @@ defmodule EirinchanWeb.SearchController do
             render_search(conn, query, board, boards, results, nil, config)
         end
     end
-  end
-
-  defp log_search_request("", _board, _request, _conn), do: :ok
-
-  defp log_search_request(query, board, request, conn) do
-    client_id =
-      request.remote_ip
-      |> RequestMeta.ip_to_string()
-      |> CredentialHash.fingerprint(:search_log_ip)
-
-    Logger.info(
-      "search.request " <>
-        "client_id=#{client_id} " <>
-        "board=#{if(board, do: board.uri, else: "-")} " <>
-        "query_length=#{String.length(query)} " <>
-        "request_path=#{conn.request_path}"
-    )
   end
 
   defp render_search(conn, query, board, boards, results, error, config) do

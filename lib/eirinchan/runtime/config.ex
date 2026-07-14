@@ -95,7 +95,6 @@ defmodule Eirinchan.Runtime.Config do
     ban_appeals_max: 1,
     auto_maintenance: true,
     maintenance_interval_seconds: 60 * 60 * 12,
-    post_failure_log_retention_days: 7,
     antispam_retention_seconds: 60 * 60 * 48,
     antispam_question: false,
     antispam_question_answer: nil,

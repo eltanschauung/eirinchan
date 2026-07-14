@@ -1,10 +1,10 @@
 defmodule EirinchanWeb.PostControllerTest do
-  use EirinchanWeb.ConnCase, async: true
+  use EirinchanWeb.ConnCase, async: false
 
   import Ecto.Query
+  import ExUnit.CaptureLog
 
   alias Eirinchan.Moderation.LogEntry
-  alias Eirinchan.PostFailureLog
   alias Eirinchan.Posts.Post
   alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Repo
@@ -964,32 +964,26 @@ defmodule EirinchanWeb.PostControllerTest do
 
     unique_name = "diag-#{System.unique_integer([:positive])}.png"
 
-    conn =
-      conn
-      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
-      |> post(~p"/#{board.uri}/post", %{
-        "body" => "first post",
-        "file" => raw_upload_fixture(unique_name, <<0x89, "PNG\r\n", 0x1A, "\ncorrupt">>),
-        "json_response" => "1",
-        "post" => "New Topic"
-      })
+    {conn, captured_log} =
+      with_log(fn ->
+        conn
+        |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+        |> post(~p"/#{board.uri}/post", %{
+          "body" => "first post",
+          "file" => raw_upload_fixture(unique_name, <<0x89, "PNG\r\n", 0x1A, "\ncorrupt">>),
+          "json_response" => "1",
+          "post" => "New Topic"
+        })
+      end)
 
     assert %{"error" => "Invalid image."} = json_response(conn, 422)
 
-    log =
-      Repo.one!(
-        from entry in PostFailureLog,
-          where: entry.event == "post.failure_details" and entry.board_uri == ^board.uri,
-          order_by: [desc: entry.inserted_at],
-          limit: 1
-      )
-
-    metadata = log.metadata
+    metadata = event_payload(captured_log, "post.rejected")
     [diagnostic] = metadata["invalid_image_diagnostics"]
 
     assert metadata["branch"] == "post"
     assert metadata["content_type"] =~ "multipart/"
-    assert metadata["browser_token_present"] == true
+    assert metadata["browser_identity_present"] == true
     assert is_binary(metadata["client_id"])
     refute Map.has_key?(metadata, "post_context")
     refute Map.has_key?(metadata, "params")
@@ -1360,14 +1354,16 @@ defmodule EirinchanWeb.PostControllerTest do
         }
       })
 
-    conn =
-      conn
-      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
-      |> post(~p"/#{board.uri}/post", %{
-        "body" => "first post",
-        "json_response" => "1",
-        "post" => "New Topic"
-      })
+    {conn, captured_log} =
+      with_log(fn ->
+        conn
+        |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+        |> post(~p"/#{board.uri}/post", %{
+          "body" => "first post",
+          "json_response" => "1",
+          "post" => "New Topic"
+        })
+      end)
 
     assert %{
              "error" => "Captcha validation failed.",
@@ -1378,16 +1374,9 @@ defmodule EirinchanWeb.PostControllerTest do
              "captcha_refresh_token" => _
            } = json_response(conn, 422)
 
-    log =
-      Repo.one!(
-        from entry in PostFailureLog,
-          where: entry.event == "post.error" and entry.board_uri == ^board.uri,
-          order_by: [desc: entry.inserted_at],
-          limit: 1
-      )
-
-    assert log.metadata["reason"] == "invalid_captcha"
-    assert log.metadata["status"] == 422
+    metadata = event_payload(captured_log, "post.rejected")
+    assert metadata["reason"] == "invalid_captcha"
+    assert metadata["status"] == 422
   end
 
   test "posting validates hosted captcha providers over http", %{conn: conn} do
@@ -1891,5 +1880,23 @@ defmodule EirinchanWeb.PostControllerTest do
     assert redirected_to(conn) == "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html"
     [report] = Eirinchan.Reports.list_reports(board)
     assert report.post_id == thread.id
+  end
+
+  defp event_payload(log, event) do
+    log
+    |> String.split("\n", trim: true)
+    |> Enum.find_value(fn line ->
+      with [_, json] <- Regex.run(~r/event (\{.*\})$/, line),
+           {:ok, payload} <- Jason.decode(json),
+           true <- payload["event"] == event do
+        payload
+      else
+        _ -> nil
+      end
+    end)
+    |> case do
+      nil -> flunk("missing structured #{event} event in log: #{log}")
+      payload -> payload
+    end
   end
 end

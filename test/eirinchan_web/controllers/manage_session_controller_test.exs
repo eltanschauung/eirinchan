@@ -1,6 +1,7 @@
 defmodule EirinchanWeb.ManageSessionControllerTest do
   use EirinchanWeb.ConnCase, async: false
   import Ecto.Query, only: [from: 2]
+  import ExUnit.CaptureLog
 
   setup do
     :ets.delete_all_objects(:eirinchan_manage_login_throttle)
@@ -191,12 +192,18 @@ defmodule EirinchanWeb.ManageSessionControllerTest do
   test "login rejects invalid credentials", %{conn: conn} do
     moderator_fixture(%{username: "admin", password: "correct horse battery staple"})
 
-    conn =
-      conn
-      |> put_req_header("accept", "application/json")
-      |> post("/manage/login", %{"username" => "admin", "password" => "wrong"})
+    {conn, log} =
+      with_log(fn ->
+        conn
+        |> put_req_header("accept", "application/json")
+        |> post("/manage/login", %{"username" => "admin", "password" => "wrong"})
+      end)
 
     assert %{"error" => "invalid_credentials"} = json_response(conn, 401)
+    assert log =~ ~s|"event":"auth.manage.rejected"|
+    assert log =~ ~s|"outcome":"invalid_credentials"|
+    assert log =~ ~s|"username_id":|
+    refute log =~ "wrong"
   end
 
   test "login is rate limited after repeated failures", %{conn: conn} do
