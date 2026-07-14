@@ -45,6 +45,24 @@ defmodule EirinchanWeb.Plugs.AccessLogTest do
     assert AccessLogPlug.goaccess_host("not-base64") == "2001:db8::"
   end
 
+  test "omits successful bant you-marker polling while retaining failures", %{path: path} do
+    build_conn()
+    |> Map.put(:method, "POST")
+    |> Map.put(:request_path, "/api/you-markers/bant")
+    |> AccessLogPlug.call([])
+    |> send_resp(200, "{}")
+
+    assert File.read!(path) == ""
+
+    build_conn()
+    |> Map.put(:method, "POST")
+    |> Map.put(:request_path, "/api/you-markers/bant")
+    |> AccessLogPlug.call([])
+    |> send_resp(500, "error")
+
+    assert File.read!(path) =~ ~s|"POST /api/you-markers/bant HTTP/1.1" 500|
+  end
+
   test "bounds and escapes untrusted Combined-log fields", %{conn: conn} do
     now = ~U[2026-07-14 12:34:56Z]
 

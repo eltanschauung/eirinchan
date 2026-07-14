@@ -21,10 +21,23 @@ defmodule EirinchanWeb.Plugs.AccessLog do
     Logger.metadata(remote_ip: client_id)
 
     register_before_send(conn, fn conn ->
-      _ = AccessLog.write(format_line(conn, goaccess_host(client_id)))
+      unless skip_access_log?(conn) do
+        _ = AccessLog.write(format_line(conn, goaccess_host(client_id)))
+      end
+
       conn
     end)
   end
+
+  defp skip_access_log?(%Plug.Conn{
+         method: "POST",
+         request_path: "/api/you-markers/bant",
+         status: status
+       })
+       when status in 200..299,
+       do: true
+
+  defp skip_access_log?(_conn), do: false
 
   @doc false
   def goaccess_host(client_id) when is_binary(client_id) do
