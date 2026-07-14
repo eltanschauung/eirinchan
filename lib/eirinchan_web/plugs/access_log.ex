@@ -2,7 +2,6 @@ defmodule EirinchanWeb.Plugs.AccessLog do
   @moduledoc false
 
   import Plug.Conn
-  require Logger
 
   alias Eirinchan.AccessLog
   alias Eirinchan.CredentialHash
