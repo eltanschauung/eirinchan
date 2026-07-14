@@ -1,0 +1,7 @@
+<div class="center-container">
+  <div class="image-canvas">
+    <%= for asset <- @flag_assets do %>
+      <img src={asset.url} alt={asset.name} title={asset.name} />
+    <% end %>
+  </div>
+</div>

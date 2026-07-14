@@ -96,17 +96,28 @@ defmodule EirinchanWeb.ManagePageControllerTest do
                  EirinchanWeb.BoardRuntime.board_config(board, nil),
                  noko50: true
                )
+
       assert page =~ "##{PublicIds.public_id(reply)}"
     end)
   end
 
-  test "recent posts browser renders visible timestamps using the browser timezone cookie", %{conn: conn} do
+  test "recent posts browser renders visible timestamps using the browser timezone cookie", %{
+    conn: conn
+  } do
     moderator = moderator_fixture(%{role: "admin"})
-    board = board_fixture(%{uri: "recentzone#{System.unique_integer([:positive])}", title: "Recent Zone"})
+
+    board =
+      board_fixture(%{
+        uri: "recentzone#{System.unique_integer([:positive])}",
+        title: "Recent Zone"
+      })
+
     thread = thread_fixture(board, %{body: "Recent timezone"})
     inserted_at = ~U[2026-03-13 12:00:00Z]
 
-    Repo.update_all(from(p in Eirinchan.Posts.Post, where: p.id == ^thread.id), set: [inserted_at: inserted_at])
+    Repo.update_all(from(p in Eirinchan.Posts.Post, where: p.id == ^thread.id),
+      set: [inserted_at: inserted_at]
+    )
 
     page =
       conn
@@ -372,8 +383,10 @@ defmodule EirinchanWeb.ManagePageControllerTest do
 
     assert Eirinchan.Boardlist.encode_for_edit(Eirinchan.Boards.list_boards()) =~
              "\"Administration\""
+
     assert Eirinchan.Boardlist.encode_for_edit(Eirinchan.Boards.list_boards()) =~ "\"desktop\""
     assert Eirinchan.Boardlist.encode_for_edit(Eirinchan.Boards.list_boards()) =~ "\"mobile\""
+
     assert Eirinchan.Boardlist.encode_for_edit(Eirinchan.Boards.list_boards()) =~
              "TF2 {if tf2_display > 0}TF2 playercount: {tf2_display}/24"
   end
@@ -599,7 +612,12 @@ defmodule EirinchanWeb.ManagePageControllerTest do
 
     assert redirected_to(conn) == "/manage/users/browser"
 
-    created = Enum.find(Moderation.list_users(preload: [board_accesses: :board]), &(&1.username == "newmod"))
+    created =
+      Enum.find(
+        Moderation.list_users(preload: [board_accesses: :board]),
+        &(&1.username == "newmod")
+      )
+
     assert created
     assert created.role == "mod"
     refute created.all_boards
@@ -850,7 +868,12 @@ defmodule EirinchanWeb.ManagePageControllerTest do
              )
 
     refute File.exists?(
-             Path.join([Build.board_root(), board.uri, "res", "#{PublicIds.public_id(thread)}.html"])
+             Path.join([
+               Build.board_root(),
+               board.uri,
+               "res",
+               "#{PublicIds.public_id(thread)}.html"
+             ])
            )
 
     rebuild_conn =
@@ -859,8 +882,14 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       |> post("/manage/boards/#{board.uri}/browser/rebuild")
 
     assert redirected_to(rebuild_conn) == "/manage"
+
     assert File.exists?(
-             Path.join([Build.board_root(), board.uri, "res", "#{PublicIds.public_id(thread)}.html"])
+             Path.join([
+               Build.board_root(),
+               board.uri,
+               "res",
+               "#{PublicIds.public_id(thread)}.html"
+             ])
            )
   end
 
@@ -1062,6 +1091,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
 
     refute page =~ "<script>alert(1)</script>"
     refute String.contains?(page, "href=\"javascript:alert(1)\"")
+
     assert page =~
              "<textarea name=\"body\" rows=\"6\">&lt;script&gt;alert(1)&lt;/script&gt;&lt;a href=&quot;javascript:alert(1)&quot; onclick=&quot;alert(1)&quot;&gt;notice&lt;/a&gt;</textarea>"
   end
@@ -1101,10 +1131,14 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       |> html_response(200)
 
     refute page =~ "PPH: <b>7</b><br /><i>italic</i>"
-    assert page =~ ~s(<textarea name="body" rows="6">PPH: &lt;b&gt;7&lt;/b&gt;\\n&lt;i&gt;italic&lt;/i&gt;</textarea>)
+
+    assert page =~
+             ~s(<textarea name="body" rows="6">PPH: &lt;b&gt;7&lt;/b&gt;\\n&lt;i&gt;italic&lt;/i&gt;</textarea>)
   end
 
-  test "announcement preview resolves users and aggregate posts-per-hour placeholders", %{conn: conn} do
+  test "announcement preview resolves users and aggregate posts-per-hour placeholders", %{
+    conn: conn
+  } do
     original_path = Application.get_env(:eirinchan, :instance_config_path)
 
     path =
@@ -1147,7 +1181,9 @@ defmodule EirinchanWeb.ManagePageControllerTest do
 
     refute page =~ "Visitors in the last 10 minutes: 1"
     refute page =~ "PPH: 2"
-    assert page =~ ~s(<textarea name="body" rows="6">This software is receiving updates again;\\n&lt;i&gt;Visitors in the last 10 minutes: {stats.users_10minutes}\\nPPH: {stats.posts_perhour}&lt;/i&gt;</textarea>)
+
+    assert page =~
+             ~s(<textarea name="body" rows="6">This software is receiving updates again;\\n&lt;i&gt;Visitors in the last 10 minutes: {stats.users_10minutes}\\nPPH: {stats.posts_perhour}&lt;/i&gt;</textarea>)
   end
 
   test "browser custom page management creates, updates, and deletes pages", %{conn: conn} do
@@ -1174,6 +1210,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert pages_page =~ "Manage Custom Pages"
     assert pages_page =~ "Rules"
     assert pages_page =~ "Be civil"
+    assert length(Regex.scan(~r/Be civil/, pages_page)) == 1
 
     [page] = Eirinchan.CustomPages.list_pages()
 
@@ -1272,9 +1309,16 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     refute page =~ ~s(id="op_#{other_post.id}")
   end
 
-  test "browser recent posts page preserves manage shell JS for secure file controls", %{conn: conn} do
+  test "browser recent posts page preserves manage shell JS for secure file controls", %{
+    conn: conn
+  } do
     moderator = moderator_fixture(%{role: "admin"})
-    board = board_fixture(%{uri: "recentfiles#{System.unique_integer([:positive])}", title: "Recent Files"})
+
+    board =
+      board_fixture(%{
+        uri: "recentfiles#{System.unique_integer([:positive])}",
+        title: "Recent Files"
+      })
 
     create_conn =
       conn
@@ -1491,7 +1535,9 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert redirected_to(create_conn) == "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html"
 
     {:ok, updated_thread} = Eirinchan.Posts.get_post(board, PublicIds.public_id(thread))
-    assert updated_thread.body =~ "&lt;tinyboard ban message>USER WAS BANNED FOR THIS POST&lt;/tinyboard&gt;"
+
+    assert updated_thread.body =~
+             "&lt;tinyboard ban message>USER WAS BANNED FOR THIS POST&lt;/tinyboard&gt;"
   end
 
   test "browser IP history page supports notes and delete-by-ip actions", %{conn: conn} do
@@ -1640,16 +1686,20 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     move_thread_conn =
       conn
       |> login_moderator(moderator)
-      |> patch("/manage/boards/#{source_board.uri}/threads/#{PublicIds.public_id(source_thread)}/browser/move", %{
-        "target_board_uri" => target_board.uri
-      })
+      |> patch(
+        "/manage/boards/#{source_board.uri}/threads/#{PublicIds.public_id(source_thread)}/browser/move",
+        %{
+          "target_board_uri" => target_board.uri
+        }
+      )
 
     {:ok, moved_thread} = Eirinchan.Posts.get_post_by_internal_id(target_board, source_thread.id)
 
     assert redirected_to(move_thread_conn) ==
              "/#{target_board.uri}/res/#{PublicIds.public_id(moved_thread)}.html"
 
-    assert {:error, :not_found} = Eirinchan.Posts.get_thread(source_board, PublicIds.public_id(source_thread))
+    assert {:error, :not_found} =
+             Eirinchan.Posts.get_thread(source_board, PublicIds.public_id(source_thread))
 
     assert {:ok, [_moved_thread, _moved_reply]} =
              Eirinchan.Posts.get_thread(target_board, PublicIds.public_id(moved_thread))
@@ -1666,7 +1716,8 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert redirected_to(move_reply_conn) ==
              "/#{target_board.uri}/res/#{PublicIds.public_id(target_thread)}.html"
 
-    assert {:ok, [_thread]} = Eirinchan.Posts.get_thread(source_board, PublicIds.public_id(reply_source_thread))
+    assert {:ok, [_thread]} =
+             Eirinchan.Posts.get_thread(source_board, PublicIds.public_id(reply_source_thread))
 
     assert {:ok, [_target, moved_reply]} =
              Eirinchan.Posts.get_thread(target_board, PublicIds.public_id(target_thread))
@@ -1765,7 +1816,9 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert page =~ "PM inbox (0 unread)"
   end
 
-  test "noticeboard page renders old-vichan style entries and admin can delete them", %{conn: conn} do
+  test "noticeboard page renders old-vichan style entries and admin can delete them", %{
+    conn: conn
+  } do
     moderator = moderator_fixture(%{role: "admin", username: "admin"})
 
     {:ok, entry} =
@@ -1815,7 +1868,9 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       })
 
     assert redirected_to(conn) =~ "/manage/noticeboard#"
-    assert [%Noticeboard.Entry{subject: "Heads up", author_name: "moduser"} | _] = Noticeboard.list_entries()
+
+    assert [%Noticeboard.Entry{subject: "Heads up", author_name: "moduser"} | _] =
+             Noticeboard.list_entries()
 
     denied =
       conn

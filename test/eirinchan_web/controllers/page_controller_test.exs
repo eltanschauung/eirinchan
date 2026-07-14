@@ -898,6 +898,7 @@ defmodule EirinchanWeb.PageControllerTest do
       |> html_response(200)
 
     assert page =~ "To rizz your posts"
+    assert page =~ "You can click the flags."
     assert page =~ "/flags/compiled/"
     assert page =~ ~s(id="user_flag")
     assert page =~ "Apply"

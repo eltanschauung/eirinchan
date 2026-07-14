@@ -385,6 +385,17 @@ defmodule EirinchanWeb.PageController do
         contact_email: contact_email
       )
 
+    sanitized_body = HtmlSanitizer.sanitize_fragment(page.body || "")
+    current_flag_assets = flag_assets()
+
+    flag_body_html =
+      if page.slug == "flags" do
+        FlagsPage.expand_dynamic(sanitized_body,
+          flag_assets: current_flag_assets,
+          flag_board: board
+        )
+      end
+
     public_page_assigns =
       PublicControllerHelpers.public_page_assigns(conn, "active-page", page.slug,
         include_global_message: show_global_message
@@ -405,16 +416,10 @@ defmodule EirinchanWeb.PageController do
             do: Keyword.get(public_page_assigns, :global_message_html),
             else: nil
           ),
-        sanitized_body: HtmlSanitizer.sanitize_fragment(page.body || ""),
+        sanitized_body: sanitized_body,
         flag_board: board,
-        flag_assets: flag_assets(),
         flag_storage_key: "flag_",
-        flag_article_html:
-          if(page.slug == "flags", do: sanitize_fragment(FlagsPage.article_html(page.body || ""))),
-        flag_description_html:
-          if(page.slug == "flags", do: sanitize_fragment(FlagsPage.description_html())),
-        flag_footer_html:
-          if(page.slug == "flags", do: sanitize_fragment(FlagsPage.footer_html())),
+        flag_body_html: flag_body_html,
         extra_stylesheets: extra_stylesheets,
         page_subtitle: PublicPages.page_subtitle(page.slug),
         show_global_message: show_global_message,
@@ -440,10 +445,6 @@ defmodule EirinchanWeb.PageController do
        do: stylesheets ++ ["/faq/recent.css"]
 
   defp maybe_add_page_stylesheet(stylesheets, _page), do: stylesheets
-
-  defp sanitize_fragment(nil), do: nil
-  defp sanitize_fragment(""), do: nil
-  defp sanitize_fragment(html), do: HtmlSanitizer.sanitize_fragment(html)
 
   defp put_public_document_etag(conn, term) do
     hash =

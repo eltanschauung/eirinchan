@@ -38,7 +38,6 @@
           </a>
         </h3>
         <p>Slug: <%= page.slug %></p>
-        <p><%= page.body %></p>
         <p :if={page.mod_user}>Updated by <%= page.mod_user.username %></p>
 
         <form action={"/manage/pages/browser/#{page.id}"} method="post">
