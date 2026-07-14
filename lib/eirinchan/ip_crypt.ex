@@ -2,6 +2,7 @@ defmodule Eirinchan.IpCrypt do
   @moduledoc false
 
   alias Eirinchan.IpMatching
+  alias Eirinchan.IpCloaks
   alias Eirinchan.Runtime.Config
   alias Eirinchan.Settings
 
@@ -72,18 +73,13 @@ defmodule Eirinchan.IpCrypt do
         candidate
 
       blank?(cfg.ipcrypt_key) ->
-        candidate
+        nil
+
+      IpCloaks.short_token?(strip_dns_suffix(candidate)) ->
+        decrypt_short_cloak(strip_dns_suffix(candidate), cfg)
 
       String.starts_with?(candidate, cfg.ipcrypt_prefix <> ":") ->
-        encoded =
-          candidate
-          |> strip_dns_suffix()
-          |> String.replace_prefix(cfg.ipcrypt_prefix <> ":", "")
-
-        case encoded do
-          @aead_version <> ":" <> ciphertext -> decrypt_ip(ciphertext, cfg.ipcrypt_key)
-          legacy_ciphertext -> decrypt_legacy_ip(legacy_ciphertext, cfg.ipcrypt_key)
-        end
+        decrypt_prefixed_cloak(candidate, cfg)
 
       true ->
         nil
@@ -110,7 +106,8 @@ defmodule Eirinchan.IpCrypt do
     cfg = config()
     immune_entry = cfg.ipcrypt_immune_ip |> to_string() |> String.trim()
 
-    not blank?(immune_entry) and immune_entry != "0.0.0.0" and IpMatching.entry_match?(ip, immune_entry)
+    not blank?(immune_entry) and immune_entry != "0.0.0.0" and
+      IpMatching.entry_match?(ip, immune_entry)
   end
 
   def config do
@@ -126,7 +123,8 @@ defmodule Eirinchan.IpCrypt do
   defp normalize_config(config) do
     Map.merge(@default_config, %{
       ipcrypt_key: Map.get(config, :ipcrypt_key) || Map.get(config, "ipcrypt_key") || "",
-      ipcrypt_prefix: Map.get(config, :ipcrypt_prefix) || Map.get(config, "ipcrypt_prefix") || "Cloak",
+      ipcrypt_prefix:
+        Map.get(config, :ipcrypt_prefix) || Map.get(config, "ipcrypt_prefix") || "Cloak",
       ipcrypt_immune_ip:
         Map.get(config, :ipcrypt_immune_ip) || Map.get(config, "ipcrypt_immune_ip") || "0.0.0.0"
     })
@@ -169,7 +167,10 @@ defmodule Eirinchan.IpCrypt do
         cloak
 
       :error ->
-        cloak = cfg.ipcrypt_prefix <> ":" <> @aead_version <> ":" <> encrypt_ip(ip, cfg.ipcrypt_key)
+        authenticated_cloak =
+          cfg.ipcrypt_prefix <> ":" <> @aead_version <> ":" <> encrypt_ip(ip, cfg.ipcrypt_key)
+
+        cloak = issue_short_cloak(authenticated_cloak)
         Process.put(@request_cloak_cache_key, Map.put(cache, cache_key, cloak))
         cloak
     end
@@ -177,7 +178,8 @@ defmodule Eirinchan.IpCrypt do
 
   defp decrypt_ip(encoded, key) do
     with {:ok, payload} <- Base.url_decode64(encoded, padding: false),
-         <<nonce::binary-size(@aead_nonce_bytes), tag::binary-size(@aead_tag_bytes), ciphertext::binary>> <-
+         <<nonce::binary-size(@aead_nonce_bytes), tag::binary-size(@aead_tag_bytes),
+           ciphertext::binary>> <-
            payload,
          plaintext when is_binary(plaintext) <-
            :crypto.crypto_one_time_aead(
@@ -196,10 +198,56 @@ defmodule Eirinchan.IpCrypt do
     end
   end
 
+  defp decrypt_short_cloak(token, cfg) do
+    case resolve_short_cloak(token) do
+      payload when is_binary(payload) -> decrypt_prefixed_cloak(payload, cfg)
+      _ -> nil
+    end
+  end
+
+  defp decrypt_prefixed_cloak(candidate, cfg) do
+    if String.starts_with?(candidate, cfg.ipcrypt_prefix <> ":") do
+      encoded =
+        candidate
+        |> strip_dns_suffix()
+        |> String.replace_prefix(cfg.ipcrypt_prefix <> ":", "")
+
+      case encoded do
+        @aead_version <> ":" <> ciphertext -> decrypt_ip(ciphertext, cfg.ipcrypt_key)
+        legacy_ciphertext -> decrypt_legacy_ip(legacy_ciphertext, cfg.ipcrypt_key)
+      end
+    end
+  end
+
+  defp issue_short_cloak(authenticated_cloak) do
+    case IpCloaks.issue(authenticated_cloak) do
+      {:ok, token} -> token
+      _ -> authenticated_cloak
+    end
+  rescue
+    _error -> authenticated_cloak
+  catch
+    :exit, _reason -> authenticated_cloak
+  end
+
+  defp resolve_short_cloak(token) do
+    IpCloaks.resolve(token)
+  rescue
+    _error -> nil
+  catch
+    :exit, _reason -> nil
+  end
+
   defp decrypt_legacy_ip(encoded, key) do
     with {:ok, ciphertext} <- decode32(encoded),
          plaintext <-
-           :crypto.crypto_one_time(:aes_256_ctr, encryption_key(key), zero_iv(), ciphertext, false),
+           :crypto.crypto_one_time(
+             :aes_256_ctr,
+             encryption_key(key),
+             zero_iv(),
+             ciphertext,
+             false
+           ),
          {:ok, ip} <- binary_to_ip(plaintext) do
       ip
     else
@@ -219,9 +267,14 @@ defmodule Eirinchan.IpCrypt do
 
   defp ip_to_binary(value) do
     case IpMatching.parse_ip(value) do
-      {:ok, {a, b, c, d}} -> <<a, b, c, d>>
-      {:ok, {a, b, c, d, e, f, g, h}} -> <<a::16, b::16, c::16, d::16, e::16, f::16, g::16, h::16>>
-      _ -> raise ArgumentError, "invalid IP"
+      {:ok, {a, b, c, d}} ->
+        <<a, b, c, d>>
+
+      {:ok, {a, b, c, d, e, f, g, h}} ->
+        <<a::16, b::16, c::16, d::16, e::16, f::16, g::16, h::16>>
+
+      _ ->
+        raise ArgumentError, "invalid IP"
     end
   end
 

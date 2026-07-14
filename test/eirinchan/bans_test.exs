@@ -54,9 +54,9 @@ defmodule Eirinchan.BansTest do
     assert {:error, :invalid_target} = TargetResolver.resolve("203.0.113.7/129")
 
     cloak = IpCrypt.cloak_ip("198.51.100.7")
-    "Cloak:v2:" <> <<first_character>> <> rest = cloak
+    "c2_" <> <<first_character>> <> rest = cloak
     replacement = if first_character == ?A, do: ?B, else: ?A
-    tampered = "Cloak:v2:" <> <<replacement>> <> rest
+    tampered = "c2_" <> <<replacement>> <> rest
 
     assert {:error, changeset} = Bans.create_ban(%{ip_subnet: tampered})
     assert "is invalid" in errors_on(changeset).ip_subnet

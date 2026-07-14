@@ -1,7 +1,7 @@
 defmodule Eirinchan.Maintenance do
   @moduledoc false
 
-  alias Eirinchan.{Antispam, Bans, BrowserAbuse, BrowserIdentities}
+  alias Eirinchan.{Antispam, Bans, BrowserAbuse, BrowserIdentities, IpCloaks}
 
   @table :eirinchan_maintenance
 
@@ -11,6 +11,7 @@ defmodule Eirinchan.Maintenance do
     {:ok,
      %{
        bans: Bans.purge_expired(repo: repo),
+       ip_cloaks: IpCloaks.prune_expired(repo: repo),
        browser_abuse_signals: BrowserAbuse.prune_expired(repo: repo),
        browser_identities: BrowserIdentities.prune_expired(repo: repo),
        antispam: Antispam.purge_old(config, repo: repo)

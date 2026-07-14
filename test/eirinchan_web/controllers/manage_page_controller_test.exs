@@ -1542,6 +1542,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
         |> html_response(200)
 
       assert [_, cloak] = Regex.run(~r/name="ip"[^>]*value="([^"]+)"/, page)
+      assert page =~ ~s(name="ip" id="ip" size="30" maxlength="128")
       assert Eirinchan.IpCrypt.uncloak_ip(cloak) == "198.51.100.7"
       refute page =~ "198.51.100.7"
 
@@ -1698,7 +1699,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
 
       assert recent_page =~ ~s(class="post-wrapper")
       refute recent_page =~ "198.51.100.7"
-      assert recent_page =~ "Cloak:"
+      assert recent_page =~ "c2_"
 
       history_page =
         conn
@@ -1709,7 +1710,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
 
       cloaked = Eirinchan.IpCrypt.cloak_ip("198.51.100.7")
 
-      assert history_page =~ "IP History: Cloak:"
+      assert history_page =~ "IP History: c2_"
       refute history_page =~ "IP History: 198.51.100.7"
       assert history_page =~ "/manage/boards/#{board.uri}/ip/#{cloaked}/browser/posts"
       refute history_page =~ "/manage/boards/#{board.uri}/ip/198.51.100.7/browser/posts"

@@ -18,7 +18,7 @@
         </th>
         <td>
           <%= if @show_ip do %>
-            <input type="text" name="ip" id="ip" size="30" maxlength="40" value={@params["ip"]} />
+            <input type="text" name="ip" id="ip" size="30" maxlength="128" value={@params["ip"]} />
           <% else %>
             <em>hidden</em>
           <% end %>

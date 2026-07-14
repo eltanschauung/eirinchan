@@ -421,6 +421,38 @@ CREATE TABLE public.ip_access_entries (
 
 
 --
+-- Name: ip_cloak_aliases; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.ip_cloak_aliases (
+    id bigint NOT NULL,
+    token character varying(255) NOT NULL,
+    payload character varying(255) NOT NULL,
+    expires_at timestamp without time zone NOT NULL,
+    inserted_at timestamp without time zone NOT NULL
+);
+
+
+--
+-- Name: ip_cloak_aliases_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.ip_cloak_aliases_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: ip_cloak_aliases_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.ip_cloak_aliases_id_seq OWNED BY public.ip_cloak_aliases.id;
+
+
+--
 -- Name: ip_notes; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1016,6 +1048,13 @@ ALTER TABLE ONLY public.flood_entries ALTER COLUMN id SET DEFAULT nextval('publi
 
 
 --
+-- Name: ip_cloak_aliases id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ip_cloak_aliases ALTER COLUMN id SET DEFAULT nextval('public.ip_cloak_aliases_id_seq'::regclass);
+
+
+--
 -- Name: ip_notes id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -1215,6 +1254,14 @@ ALTER TABLE ONLY public.feedback
 
 ALTER TABLE ONLY public.flood_entries
     ADD CONSTRAINT flood_entries_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: ip_cloak_aliases ip_cloak_aliases_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ip_cloak_aliases
+    ADD CONSTRAINT ip_cloak_aliases_pkey PRIMARY KEY (id);
 
 
 --
@@ -1489,6 +1536,20 @@ CREATE INDEX flood_entries_inserted_at_index ON public.flood_entries USING btree
 --
 
 CREATE UNIQUE INDEX ip_access_entries_ip_index ON public.ip_access_entries USING btree (ip);
+
+
+--
+-- Name: ip_cloak_aliases_expires_at_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ip_cloak_aliases_expires_at_index ON public.ip_cloak_aliases USING btree (expires_at);
+
+
+--
+-- Name: ip_cloak_aliases_token_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX ip_cloak_aliases_token_index ON public.ip_cloak_aliases USING btree (token);
 
 
 --
@@ -2068,3 +2129,9 @@ INSERT INTO public."schema_migrations" (version) VALUES (20260713160000);
 INSERT INTO public."schema_migrations" (version) VALUES (20260713170000);
 INSERT INTO public."schema_migrations" (version) VALUES (20260713180000);
 INSERT INTO public."schema_migrations" (version) VALUES (20260714072000);
+INSERT INTO public."schema_migrations" (version) VALUES (20260714160000);
+INSERT INTO public."schema_migrations" (version) VALUES (20260714170000);
+INSERT INTO public."schema_migrations" (version) VALUES (20260714190000);
+INSERT INTO public."schema_migrations" (version) VALUES (20260714210000);
+INSERT INTO public."schema_migrations" (version) VALUES (20260714213000);
+INSERT INTO public."schema_migrations" (version) VALUES (20260714220000);

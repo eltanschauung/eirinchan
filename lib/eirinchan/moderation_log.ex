@@ -199,7 +199,7 @@ defmodule Eirinchan.ModerationLog do
   defp cloak_tokens(text) do
     prefix = IpCrypt.config().ipcrypt_prefix |> to_string() |> Regex.escape()
 
-    Regex.scan(~r/#{prefix}:(?:v2:)?[A-Za-z0-9_-]+/, text)
+    Regex.scan(~r/(?:#{prefix}:(?:v2:)?[A-Za-z0-9_-]+|c2_[A-Za-z0-9_-]{13})/, text)
     |> List.flatten()
   end
 

@@ -1,5 +1,5 @@
 defmodule Eirinchan.IpCryptTest do
-  use ExUnit.Case, async: false
+  use Eirinchan.DataCase, async: false
 
   alias Eirinchan.IpCrypt
 
@@ -17,10 +17,15 @@ defmodule Eirinchan.IpCryptTest do
     IpCrypt.configure_for_request(%{ipcrypt_key: "test-key"}, "203.0.113.5")
 
     cloaked = IpCrypt.cloak_ip("198.51.100.7")
+    ipv6_cloak = IpCrypt.cloak_ip("2001:db8:abcd::7")
 
-    assert cloaked =~ "Cloak:v2:"
+    assert String.starts_with?(cloaked, "c2_")
+    assert byte_size(cloaked) == 16
+    assert String.starts_with?(ipv6_cloak, "c2_")
+    assert byte_size(ipv6_cloak) == 16
     refute cloaked == "198.51.100.7"
     assert IpCrypt.uncloak_ip(cloaked) == "198.51.100.7"
+    assert IpCrypt.uncloak_ip(ipv6_cloak) == "2001:db8:abcd::7"
   end
 
   test "ipcrypt_immune_ip lets matching viewers see raw ips" do
@@ -61,10 +66,19 @@ defmodule Eirinchan.IpCryptTest do
     IpCrypt.configure_for_request(%{ipcrypt_key: "test-key"}, "203.0.113.5")
     refute IpCrypt.cloak_ip("198.51.100.7") == first
 
-    "Cloak:v2:" <> <<first_character>> <> rest = first
+    "c2_" <> <<first_character>> <> rest = first
     replacement = if first_character == ?A, do: ?B, else: ?A
-    tampered = "Cloak:v2:" <> <<replacement>> <> rest
+    tampered = "c2_" <> <<replacement>> <> rest
     assert IpCrypt.uncloak_ip(tampered) == nil
+  end
+
+  test "uncloak_ip remains compatible with full authenticated v2 cloaks" do
+    key = "test-key"
+    IpCrypt.configure_for_request(%{ipcrypt_key: key}, "203.0.113.5")
+    full_cloak = authenticated_v2_cloak("198.51.100.7", key)
+
+    assert String.starts_with?(full_cloak, "Cloak:v2:")
+    assert IpCrypt.uncloak_ip(full_cloak) == "198.51.100.7"
   end
 
   test "uncloak_ip remains compatible with legacy ctr cloaks" do
@@ -77,4 +91,24 @@ defmodule Eirinchan.IpCryptTest do
 
     assert IpCrypt.uncloak_ip(legacy) == "198.51.100.7"
   end
+
+  defp authenticated_v2_cloak(ip, key) do
+    nonce = :crypto.strong_rand_bytes(12)
+    plaintext = ip |> Eirinchan.IpMatching.normalize_ip() |> ip_to_binary()
+
+    {ciphertext, tag} =
+      :crypto.crypto_one_time_aead(
+        :aes_256_gcm,
+        :crypto.hash(:sha256, key),
+        nonce,
+        plaintext,
+        "eirinchan-ipcrypt-v2",
+        16,
+        true
+      )
+
+    "Cloak:v2:" <> Base.url_encode64(nonce <> tag <> ciphertext, padding: false)
+  end
+
+  defp ip_to_binary({a, b, c, d}), do: <<a, b, c, d>>
 end

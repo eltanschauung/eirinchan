@@ -8,6 +8,7 @@ defmodule Eirinchan.MaintenanceTest do
     Bans,
     BrowserIdentities,
     BrowserIdentity,
+    IpCloaks,
     Maintenance
   }
 
@@ -47,6 +48,12 @@ defmodule Eirinchan.MaintenanceTest do
       })
       |> Repo.insert()
 
+    {:ok, _expired_cloak} =
+      IpCloaks.issue("Cloak:v2:expired-payload",
+        now: DateTime.add(DateTime.utc_now(), -120, :second),
+        ttl_seconds: 60
+      )
+
     stale_request = %{remote_ip: {198, 51, 100, 20}}
     {:ok, flood_entry} = Antispam.log_post(board, %{"body" => "old"}, stale_request)
     {:ok, search_entry} = Antispam.log_search_query("old", stale_request, board_id: board.id)
@@ -73,6 +80,7 @@ defmodule Eirinchan.MaintenanceTest do
     assert {:ok,
             %{
               bans: 1,
+              ip_cloaks: 1,
               browser_identities: 1,
               antispam: antispam_count
             }} =
