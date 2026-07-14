@@ -81,4 +81,15 @@ defmodule Eirinchan.IpAccessAuthTest do
     assert {:error, :invalid_password} =
              IpAccessAuth.authorize({203, 0, 113, 9}, "configonly", %{passwords: ["dbpass"]})
   end
+
+  test "accepts existing HMAC entries alongside newly stored plaintext entries" do
+    encoded = Eirinchan.CredentialHash.hash("legacydoor", :ip_access)
+    config = %{passwords: [encoded, "newdoor"]}
+
+    assert {:ok, _grant} = IpAccessAuth.authorize({203, 0, 113, 10}, "LegacyDoor", config)
+    assert {:ok, _grant} = IpAccessAuth.authorize({203, 0, 114, 10}, "NewDoor", config)
+
+    assert {:error, :invalid_password} =
+             IpAccessAuth.authorize({203, 0, 115, 10}, "wrong", config)
+  end
 end

@@ -4,10 +4,8 @@ defmodule Eirinchan.Settings do
   """
 
   alias Eirinchan.Runtime.Config
-  alias Eirinchan.CredentialHash
   alias Eirinchan.SecureFile
 
-  @default_page_enabled_themes ["ukko", "recent", "sitemap"]
   @settings_cache_key {__MODULE__, :instance_config}
   @raw_json_cache_key {__MODULE__, :raw_instance_config_json}
 
@@ -57,41 +55,6 @@ defmodule Eirinchan.Settings do
     end
   end
 
-  @spec set_page_theme_enabled(binary(), boolean()) :: :ok | {:error, term()}
-  def set_page_theme_enabled(name, enabled) when is_binary(name) and is_boolean(enabled) do
-    normalized_name = String.trim(name)
-    config = current_instance_config()
-    themes = Map.get(config, :themes, %{})
-
-    current_enabled =
-      case Map.fetch(themes, :page_enabled) do
-        {:ok, list} when is_list(list) ->
-          list
-          |> Enum.map(&to_string/1)
-          |> Enum.map(&String.trim/1)
-          |> Enum.reject(&(&1 == ""))
-          |> Enum.uniq()
-
-        _ ->
-          @default_page_enabled_themes
-      end
-
-    updated_enabled =
-      if enabled do
-        Enum.uniq(current_enabled ++ [normalized_name])
-      else
-        Enum.reject(current_enabled, &(&1 == normalized_name))
-      end
-
-    new_config =
-      Map.put(config, :themes, Map.put(themes, :page_enabled, updated_enabled))
-
-    case persist_instance_config(new_config |> bump_asset_version()) do
-      :ok -> :ok
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
   @spec persisted_instance_config() :: map() | nil
   def persisted_instance_config do
     current_instance_config()
@@ -100,7 +63,11 @@ defmodule Eirinchan.Settings do
   def refresh_instance_config_cache do
     clear_cache_entry(@settings_cache_key)
     clear_cache_entry(@raw_json_cache_key)
-    EirinchanWeb.FragmentCache.clear()
+
+    if Process.whereis(EirinchanWeb.FragmentCache) do
+      EirinchanWeb.FragmentCache.clear()
+    end
+
     :ok
   end
 
@@ -147,10 +114,10 @@ defmodule Eirinchan.Settings do
   @spec persist_instance_config(map()) :: :ok | {:error, term()}
   def persist_instance_config(overrides) when is_map(overrides) do
     path = config_path()
+
     overrides =
       overrides
       |> preserve_hidden_instance_state(current_instance_config())
-      |> hash_sensitive_values()
 
     path
     |> Path.dirname()
@@ -175,7 +142,6 @@ defmodule Eirinchan.Settings do
       decoded
       |> Config.normalize_override_keys()
       |> preserve_hidden_instance_state(current_instance_config())
-      |> hash_sensitive_values()
       |> stringify_keys()
 
     persisted_json =
@@ -363,7 +329,11 @@ defmodule Eirinchan.Settings do
         overrides
 
       true ->
-        Map.put(overrides, parent, Map.put(override_parent || %{}, child, Map.get(current_parent, child)))
+        Map.put(
+          overrides,
+          parent,
+          Map.put(override_parent || %{}, child, Map.get(current_parent, child))
+        )
     end
   end
 
@@ -373,29 +343,6 @@ defmodule Eirinchan.Settings do
 
   defp bump_asset_version(config) do
     Map.put(config, :asset_version, Integer.to_string(System.system_time(:millisecond)))
-  end
-
-  defp hash_sensitive_values(config) do
-    case Map.fetch(config, :ip_access_passwords) do
-      {:ok, passwords} -> Map.put(config, :ip_access_passwords, hash_ip_access_passwords(passwords))
-      :error -> config
-    end
-  end
-
-  defp hash_ip_access_passwords(passwords) do
-    passwords
-    |> List.wrap()
-    |> Enum.flat_map(&String.split(to_string(&1), ",", trim: true))
-    |> Enum.map(&String.trim/1)
-    |> Enum.reject(&(&1 == ""))
-    |> Enum.map(fn password ->
-      if CredentialHash.encoded?(password) do
-        password
-      else
-        password |> String.downcase() |> CredentialHash.hash(:ip_access)
-      end
-    end)
-    |> Enum.uniq()
   end
 
   defp cache_key(base_key), do: {base_key, config_path()}
