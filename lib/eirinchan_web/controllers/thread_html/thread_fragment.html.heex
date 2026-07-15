@@ -11,7 +11,13 @@
 >
   <%= for reply <- @summary.replies do %>
     <% reply_public_id = PostView.public_post_id(reply) %>
-    <div class="post reply" id={"reply_#{reply_public_id}"}>
+    <div
+      class="post reply"
+      id={"reply_#{reply_public_id}"}
+      data-fragment-version={
+        PostView.post_fragment_version(reply, @backlinks_map, @post_fragment_context)
+      }
+    >
       <p class="intro">
         <a id={to_string(reply_public_id)} class="post_anchor"></a>
         <input
@@ -48,6 +54,12 @@
       <.files_block
         post={reply}
         config={@config}
+        board={@board}
+        moderator={@current_moderator}
+        secure_manage_token={@secure_manage_token}
+      />
+      <.post_controls
+        post={reply}
         board={@board}
         moderator={@current_moderator}
         secure_manage_token={@secure_manage_token}

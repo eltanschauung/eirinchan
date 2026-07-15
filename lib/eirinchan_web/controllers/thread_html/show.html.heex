@@ -365,7 +365,13 @@
   >
     <%= for reply <- @summary.replies do %>
       <% reply_public_id = PostView.public_post_id(reply) %>
-      <div class="post reply" id={"reply_#{reply_public_id}"}>
+      <div
+        class="post reply"
+        id={"reply_#{reply_public_id}"}
+        data-fragment-version={
+          PostView.post_fragment_version(reply, @backlinks_map, @post_fragment_context)
+        }
+      >
         <p class="intro">
           <a id={to_string(reply_public_id)} class="post_anchor"></a>
           <input
@@ -437,17 +443,7 @@
         [<%= @config.catalog_name %>]
       </a>
 
-      <span id="updater" class="board-live-updater">
-        <a
-          href="#"
-          id="update_thread"
-          title="This thread is updated automatically. Click to toggle this functionality persistently."
-        >
-          [Live&nbsp;<span class="live-page-indicator" aria-hidden="true">⬤</span>]
-        </a>
-        <input type="checkbox" id="auto_update_status" checked hidden />
-        <span id="update_secs" hidden>5</span>
-      </span>
+      <.live_updater page_kind={:thread} />
     </span>
 
     <span id="thread-quick-reply">

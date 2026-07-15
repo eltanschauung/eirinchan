@@ -11,6 +11,7 @@ defmodule EirinchanWeb.ThreadController do
   alias EirinchanWeb.BoardChrome
   alias EirinchanWeb.ErrorPages
   alias EirinchanWeb.Param
+  alias EirinchanWeb.PostView
   alias EirinchanWeb.PublicControllerHelpers
 
   plug EirinchanWeb.Plugs.LoadBoard
@@ -92,6 +93,19 @@ defmodule EirinchanWeb.ThreadController do
               javascript_config: config,
               head_meta_opts: [board_name: board.uri, thread_id: PublicIds.public_id(summary.thread)]
             )
+
+          post_fragment_context =
+            PostView.post_fragment_context(
+              board,
+              summary.thread,
+              config,
+              conn.assigns[:current_moderator],
+              conn.assigns[:secure_manage_token],
+              conn.assigns[:mobile_client?] || false
+            )
+
+          render_assigns =
+            Keyword.put(render_assigns, :post_fragment_context, post_fragment_context)
 
           quick_reply_html =
             Phoenix.Template.render_to_string(

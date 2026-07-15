@@ -100,6 +100,41 @@ defmodule EirinchanWeb.PostComponents do
     """
   end
 
+  attr :page_kind, :atom, required: true
+
+  def live_updater(assigns) do
+    assigns = assign(assigns, :title, live_updater_title(assigns.page_kind))
+
+    ~H"""
+    <span
+      id="updater"
+      class="board-live-updater"
+      data-live-updater="true"
+      data-page-kind={to_string(@page_kind)}
+    >
+      <a
+        href="#"
+        id="update_thread"
+        title={@title}
+        aria-pressed="true"
+      >
+        [Live&nbsp;<span class="live-page-indicator" aria-hidden="true">⬤</span>]
+      </a>
+      <input type="checkbox" id="auto_update_status" checked hidden />
+      <span id="update_secs" hidden>5</span>
+    </span>
+    """
+  end
+
+  defp live_updater_title(:index),
+    do: "This index page is updated automatically to display new posts."
+
+  defp live_updater_title(:catalog),
+    do: "This catalog page is updated automatically to display new posts."
+
+  defp live_updater_title(:thread),
+    do: "This thread is updated automatically. Click to toggle this functionality persistently."
+
   attr :entries, :list, default: nil
 
   def site_footer(assigns) do

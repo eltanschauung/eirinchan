@@ -64,8 +64,45 @@ defmodule EirinchanWeb.ThreadControllerTest do
 
     assert page =~ ~s(id="thread-refresh-target")
     assert page =~ ~s(class="post reply")
+    assert page =~ "data-fragment-version="
     refute page =~ ~s(class="post op")
     refute page =~ ~s(<html)
+  end
+
+  test "reply fragment versions change only when that reply's rendering changes", %{conn: conn} do
+    board = board_fixture()
+    thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
+    reply = reply_fixture(board, thread, %{body: "Original reply"})
+    path = "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html?fragment=1"
+
+    version_before =
+      conn
+      |> get(path)
+      |> html_response(200)
+      |> reply_fragment_version(reply)
+
+    _other_reply = reply_fixture(board, thread, %{body: "Unrelated reply"})
+
+    version_after_other_reply =
+      conn
+      |> recycle()
+      |> get(path)
+      |> html_response(200)
+      |> reply_fragment_version(reply)
+
+    assert version_after_other_reply == version_before
+
+    assert {:ok, _updated} =
+             Posts.update_post(board, PublicIds.public_id(reply), %{"body" => "Edited reply"})
+
+    version_after_edit =
+      conn
+      |> recycle()
+      |> get(path)
+      |> html_response(200)
+      |> reply_fragment_version(reply)
+
+    refute version_after_edit == version_before
   end
 
   test "thread fragment md5 is stable across requests", %{conn: conn} do
@@ -87,6 +124,14 @@ defmodule EirinchanWeb.ThreadControllerTest do
       |> String.trim()
 
     assert md5_a == md5_b
+  end
+
+  defp reply_fragment_version(html, reply) do
+    html
+    |> Floki.parse_document!()
+    |> Floki.find("#reply_#{PublicIds.public_id(reply)}")
+    |> Floki.attribute("data-fragment-version")
+    |> List.first()
   end
 
   test "thread fragments honor weak if-none-match values", %{conn: conn} do

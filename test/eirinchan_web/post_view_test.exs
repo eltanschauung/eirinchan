@@ -21,6 +21,37 @@ defmodule EirinchanWeb.PostViewTest do
     assert assigns.config == config
   end
 
+  test "public reply fragment versions do not expose hidden credential or IP inputs" do
+    context = %{stamp: "stable-render-context", visible_ip?: false}
+
+    post = %Post{
+      id: 10,
+      public_id: 20,
+      body: "Visible body",
+      password: "hidden-delete-hash",
+      ip_subnet: "192.0.2.10",
+      proxy: "hidden-proxy-signal"
+    }
+
+    hidden_fields_changed = %{
+      post
+      | password: "different-delete-hash",
+        ip_subnet: "192.0.2.11",
+        proxy: "different-proxy-signal"
+    }
+
+    assert PostView.post_fragment_version(post, %{}, context) ==
+             PostView.post_fragment_version(hidden_fields_changed, %{}, context)
+
+    refute PostView.post_fragment_version(post, %{}, context) ==
+             PostView.post_fragment_version(%{post | body: "Different body"}, %{}, context)
+
+    ip_visible_context = %{context | visible_ip?: true}
+
+    refute PostView.post_fragment_version(post, %{}, ip_visible_context) ==
+             PostView.post_fragment_version(hidden_fields_changed, %{}, ip_visible_context)
+  end
+
   test "name_html wraps the name in a mailto link when email is present" do
     config = Config.compose()
     post = %Post{name: "Anonymous", email: "sage"}

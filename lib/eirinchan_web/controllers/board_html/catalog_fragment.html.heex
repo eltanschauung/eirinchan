@@ -12,6 +12,8 @@
     <%= for summary <- @threads do %>
       <% post = summary.thread %>
       <% post_public_id = PostView.public_post_id(post) %>
+      <% watch =
+        Map.get(@thread_watch_state, post_public_id, %{watched: false, unread_count: 0}) %>
       <div
         class="mix"
         data-board={@board.uri}
@@ -22,7 +24,13 @@
         data-sticky={to_string(post.sticky || false)}
         data-locked={to_string(post.locked || false)}
       >
-        <div class="thread grid-li grid-size-large" id={"catalog-#{post_public_id}"}>
+        <div
+          class="thread grid-li grid-size-large"
+          id={"catalog-#{post_public_id}"}
+          data-board={@board.uri}
+          data-thread-id={post_public_id}
+          data-watched={to_string(watch.watched)}
+        >
           <a href={PostView.thread_summary_path(@board, summary, @config)}>
             <img
               :if={PostView.catalog_media_path(post, @config)}
