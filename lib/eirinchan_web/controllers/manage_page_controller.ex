@@ -687,7 +687,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def board_config(conn, %{"uri" => uri}) do
-    with {:ok, moderator} <- ensure_admin(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :manageboards),
          board when not is_nil(board) <- Boards.get_board_by_uri(uri) do
       render(conn, :board_config,
         moderator: moderator,
@@ -708,7 +708,7 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   def update_board_config(conn, %{"uri" => uri, "config_json" => config_json}) do
-    with {:ok, moderator} <- ensure_admin(conn),
+    with {:ok, moderator} <- ensure_permission(conn, :manageboards),
          board when not is_nil(board) <- Boards.get_board_by_uri(uri),
          {:ok, overrides} <- parse_config_json(config_json),
          {:ok, _board} <- Boards.update_board(board, %{"config_overrides" => overrides}) do

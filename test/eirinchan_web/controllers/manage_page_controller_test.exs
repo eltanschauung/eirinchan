@@ -716,6 +716,48 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     refute janitor_dashboard =~ ~s(href="/manage/pages/browser")
   end
 
+  test "lower roles cannot read or replace raw board configuration", %{conn: conn} do
+    secret = "runtime-secret-#{System.unique_integer([:positive])}"
+
+    board =
+      board_fixture(%{
+        config_overrides: %{"private_runtime_value" => secret, "force_body" => true}
+      })
+
+    actors =
+      for role <- ["mod", "janitor"] do
+        moderator_fixture(%{role: role}) |> grant_board_access_fixture(board)
+      end
+
+    for actor <- actors do
+      read_conn =
+        conn
+        |> recycle()
+        |> login_moderator(actor)
+        |> get("/manage/boards/#{board.uri}/config/browser")
+
+      response = html_response(read_conn, 403)
+      assert response =~ "Administrator access required."
+      refute response =~ secret
+
+      update_conn =
+        conn
+        |> recycle()
+        |> login_moderator(actor)
+        |> patch("/manage/boards/#{board.uri}/config/browser", %{
+          "config_json" => Jason.encode!(%{"private_runtime_value" => "replaced"})
+        })
+
+      update_response = html_response(update_conn, 403)
+      assert update_response =~ "Administrator access required."
+      refute update_response =~ secret
+    end
+
+    stored_board = Eirinchan.Boards.get_board_by_uri(board.uri)
+    assert stored_board.config_overrides["private_runtime_value"] == secret
+    assert stored_board.config_overrides["force_body"]
+  end
+
   test "dnsbl editor shows vichan defaults before overrides exist", %{conn: conn} do
     original_path = Application.get_env(:eirinchan, :instance_config_path)
 
