@@ -46,13 +46,6 @@ trap cleanup EXIT
 
 git -C "$REPOSITORY" worktree add --detach "$SOURCE_ROOT" "$COMMIT"
 
-# This legacy static alias points at the mutable upload tree. Mix release
-# dereferences application priv symlinks, so omit it while assembling and add
-# it back to the finished release as a symlink.
-if [[ -L "$SOURCE_ROOT/priv/static/bant_files" ]]; then
-  rm -- "$SOURCE_ROOT/priv/static/bant_files"
-fi
-
 export PATH="/home/telemazer/.local/elixir-1.20.2-otp-27/bin:/home/telemazer/.local/otp-27.3.4.12/bin:${PATH}"
 export MIX_HOME=/home/telemazer/.mix-1.20
 export HEX_HOME=/home/telemazer/.hex-1.20
@@ -68,8 +61,7 @@ if [[ -z "$APP_STATIC" ]]; then
   echo "Release static directory was not generated." >&2
   exit 1
 fi
-rsync -a --exclude=/bant_files -- "$REPOSITORY/priv/static/" "$APP_STATIC/"
-ln -s -- /home/telemazer/eirinchan-v1/tmp/build/bant/src "$APP_STATIC/bant_files"
+rsync -a -- "$REPOSITORY/priv/static/" "$APP_STATIC/"
 
 sudo install -d -m 0755 -o root -g root /opt/eirinchan "$RELEASE_ROOT"
 if [[ ! -e "$TARGET" ]]; then
