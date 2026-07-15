@@ -32,7 +32,7 @@ eirinchan-*.tar
 
 AGENTS.md
 security_skeleton.txt
-/priv/static/whalestickers/
+/priv/static/whalestickers/.htaccess
 
 js_migration_plan.txt
 thread_watcher_spec.md
