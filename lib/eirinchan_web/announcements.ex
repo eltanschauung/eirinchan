@@ -88,7 +88,7 @@ defmodule EirinchanWeb.Announcements do
     message
     |> maybe_replace_tf2_placeholders(opts)
     |> maybe_replace_posts_perhour(opts)
-    |> maybe_replace_users_10minutes()
+    |> maybe_replace_users_10minutes(opts)
     |> maybe_replace_team_placeholders()
   end
 
@@ -304,15 +304,22 @@ defmodule EirinchanWeb.Announcements do
     end
   end
 
-  defp maybe_replace_users_10minutes(message) do
+  defp maybe_replace_users_10minutes(message, opts) do
     if String.contains?(message, "{stats.users_10minutes}") do
       String.replace(
         message,
         "{stats.users_10minutes}",
-        Stats.users_10minutes() |> Integer.to_string()
+        users_10minutes(opts) |> Integer.to_string()
       )
     else
       message
+    end
+  end
+
+  defp users_10minutes(opts) do
+    case opts[:users_10minutes_fetcher] do
+      fetcher when is_function(fetcher, 0) -> fetcher.()
+      _other -> Stats.users_10minutes()
     end
   end
 

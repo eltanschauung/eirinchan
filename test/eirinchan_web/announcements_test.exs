@@ -176,25 +176,37 @@ defmodule EirinchanWeb.AnnouncementsTest do
   end
 
   test "single-board stats use the configured aggregate cache interval" do
-    now = System.system_time(:second)
-    :ets.delete_all_objects(:eirinchan_browser_presence)
-    true = :ets.insert(:eirinchan_browser_presence, {"token-1234567890123456", now})
+    {:ok, calls} = Agent.start_link(fn -> 0 end)
+
+    fetcher = fn -> Agent.get_and_update(calls, fn count -> {count + 1, count + 1} end) end
 
     config = %{
       global_message: "Visitors: {stats.users_10minutes}",
       global_message_refresh_seconds: 7
     }
 
-    assert Announcements.global_message(config, board: %{id: 42}, aggregate_now: 98) ==
+    assert Announcements.global_message(config,
+             board: %{id: 42},
+             aggregate_now: 98,
+             users_10minutes_fetcher: fetcher
+           ) ==
              "Visitors: 1"
 
-    true = :ets.insert(:eirinchan_browser_presence, {"token-abcdefghijklmnop", now})
-
-    assert Announcements.global_message(config, board: %{id: 42}, aggregate_now: 104) ==
+    assert Announcements.global_message(config,
+             board: %{id: 42},
+             aggregate_now: 104,
+             users_10minutes_fetcher: fetcher
+           ) ==
              "Visitors: 1"
 
-    assert Announcements.global_message(config, board: %{id: 42}, aggregate_now: 105) ==
+    assert Announcements.global_message(config,
+             board: %{id: 42},
+             aggregate_now: 105,
+             users_10minutes_fetcher: fetcher
+           ) ==
              "Visitors: 2"
+
+    assert Agent.get(calls, & &1) == 2
   end
 
   test "silly post count applies the requested replacements" do

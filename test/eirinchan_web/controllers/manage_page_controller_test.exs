@@ -3,7 +3,6 @@ defmodule EirinchanWeb.ManagePageControllerTest do
   import Ecto.Query, only: [from: 2]
 
   alias Eirinchan.Bans
-  alias Eirinchan.BrowserPresence
   alias Eirinchan.Feedback
   alias Eirinchan.Moderation
   alias Eirinchan.ModerationLog
@@ -1196,9 +1195,6 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       Application.put_env(:eirinchan, :instance_config_path, original_path)
       File.rm(path)
     end)
-
-    :ets.delete_all_objects(:eirinchan_browser_presence)
-    BrowserPresence.touch("token-1234567890123456")
 
     moderator = moderator_fixture(%{role: "admin"})
     board = board_fixture(%{uri: "annstats", title: "Announcement Stats"})

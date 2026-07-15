@@ -26,10 +26,11 @@ defmodule Eirinchan.Stats do
     ) || 0
   end
 
-  @spec users_10minutes() :: integer()
-  def users_10minutes do
-    BrowserPresence.users_10minutes()
-  end
+  @spec active_browsers_10minutes() :: non_neg_integer()
+  def active_browsers_10minutes, do: BrowserPresence.active_browsers_10minutes()
+
+  @spec users_10minutes() :: non_neg_integer()
+  def users_10minutes, do: active_browsers_10minutes()
 
   def team_variable(name) when is_binary(name) do
     AprilFoolsTeams.dynamic_team_variable(name)

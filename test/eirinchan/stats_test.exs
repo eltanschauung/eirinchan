@@ -2,12 +2,16 @@ defmodule Eirinchan.StatsTest do
   use Eirinchan.DataCase
 
   alias Eirinchan.AprilFoolsTeam
+  alias Eirinchan.BrowserIdentities
+  alias Eirinchan.BrowserIdentities.Identity
+  alias Eirinchan.BrowserIdentity
   alias Eirinchan.BrowserPresence
   alias Eirinchan.Repo
   alias Eirinchan.Stats
 
   setup do
     :ets.delete_all_objects(:eirinchan_browser_presence)
+    :ets.delete_all_objects(:eirinchan_browser_presence_dirty)
     :ok
   end
 
@@ -29,22 +33,33 @@ defmodule Eirinchan.StatsTest do
   end
 
   test "users_10minutes counts tracked browser presence" do
-    BrowserPresence.touch("token-1234567890123456")
-    BrowserPresence.touch("token-abcdefghijklmnop")
+    first = identity_fixture()
+    second = identity_fixture()
+
+    BrowserPresence.touch(first.browser_ref)
+    BrowserPresence.touch(second.browser_ref)
 
     assert Stats.users_10minutes() == 2
+    assert Stats.active_browsers_10minutes() == 2
   end
 
   test "users_10minutes excludes crawler requests from tracked presence" do
+    crawler = identity_fixture()
+    human = identity_fixture()
+
     conn =
       Phoenix.ConnTest.build_conn()
       |> Map.put(:method, "GET")
       |> Map.put(:request_path, "/bant/")
-      |> Plug.Conn.put_req_header("user-agent", "Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)")
-      |> Plug.Conn.assign(:browser_token, "token-1234567890123456")
+      |> Plug.Conn.put_req_header(
+        "user-agent",
+        "Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)"
+      )
+      |> Plug.Conn.assign(:browser_token, crawler.browser_ref)
+      |> Plug.Conn.assign(:returning_browser_token, true)
 
     _ = EirinchanWeb.Plugs.TrackBrowserPresence.call(conn, [])
-    BrowserPresence.touch("token-abcdefghijklmnop")
+    BrowserPresence.touch(human.browser_ref)
 
     assert Stats.users_10minutes() == 1
   end
@@ -61,11 +76,35 @@ defmodule Eirinchan.StatsTest do
     assert Stats.team_10() == {10, limbus.display_name, limbus.html_colour, limbus.post_count}
     assert Stats.team_11() == {11, cobson.display_name, cobson.html_colour, cobson.post_count}
     assert Stats.team_12() == {12, haters.display_name, haters.html_colour, haters.post_count}
-    assert Stats.team_variable("team_2") == {2, team.display_name, team.html_colour, team.post_count}
-    assert Stats.team_variable("team_7") == {7, futa.display_name, futa.html_colour, futa.post_count}
-    assert Stats.team_variable("team_10") == {10, limbus.display_name, limbus.html_colour, limbus.post_count}
-    assert Stats.team_variable("team_11") == {11, cobson.display_name, cobson.html_colour, cobson.post_count}
-    assert Stats.team_variable("team_12") == {12, haters.display_name, haters.html_colour, haters.post_count}
+
+    assert Stats.team_variable("team_2") ==
+             {2, team.display_name, team.html_colour, team.post_count}
+
+    assert Stats.team_variable("team_7") ==
+             {7, futa.display_name, futa.html_colour, futa.post_count}
+
+    assert Stats.team_variable("team_10") ==
+             {10, limbus.display_name, limbus.html_colour, limbus.post_count}
+
+    assert Stats.team_variable("team_11") ==
+             {11, cobson.display_name, cobson.html_colour, cobson.post_count}
+
+    assert Stats.team_variable("team_12") ==
+             {12, haters.display_name, haters.html_colour, haters.post_count}
+
     assert Stats.team_variable("team_99") == nil
+  end
+
+  defp identity_fixture do
+    now = DateTime.utc_now(:second)
+
+    %Identity{}
+    |> Identity.changeset(%{
+      browser_ref: BrowserIdentity.generate_token() |> BrowserIdentity.reference(),
+      issued_at: now,
+      last_seen_at: now,
+      expires_at: DateTime.add(now, BrowserIdentities.ttl_seconds(), :second)
+    })
+    |> Repo.insert!()
   end
 end

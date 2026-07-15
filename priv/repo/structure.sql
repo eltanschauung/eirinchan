@@ -202,7 +202,8 @@ CREATE TABLE public.browser_identities (
     browser_ref character varying(255) NOT NULL,
     issued_at timestamp(0) without time zone NOT NULL,
     last_seen_at timestamp(0) without time zone NOT NULL,
-    expires_at timestamp(0) without time zone NOT NULL
+    expires_at timestamp(0) without time zone NOT NULL,
+    presence_seen_at timestamp(0) without time zone
 );
 
 
@@ -1448,6 +1449,13 @@ CREATE INDEX browser_identities_expires_at_index ON public.browser_identities US
 
 
 --
+-- Name: browser_identities_presence_seen_at_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX browser_identities_presence_seen_at_index ON public.browser_identities USING btree (presence_seen_at);
+
+
+--
 -- Name: build_jobs_active_unique_index; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2135,3 +2143,4 @@ INSERT INTO public."schema_migrations" (version) VALUES (20260714190000);
 INSERT INTO public."schema_migrations" (version) VALUES (20260714210000);
 INSERT INTO public."schema_migrations" (version) VALUES (20260714213000);
 INSERT INTO public."schema_migrations" (version) VALUES (20260714220000);
+INSERT INTO public."schema_migrations" (version) VALUES (20260715033000);
