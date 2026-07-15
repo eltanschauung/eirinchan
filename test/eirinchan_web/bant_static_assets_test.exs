@@ -22,4 +22,8 @@ defmodule EirinchanWeb.BantStaticAssetsTest do
            Missing: #{inspect(missing)}
            """
   end
+
+  test "allows the recent-page logo through Plug.Static" do
+    assert "site_logo2_recent.png" in EirinchanWeb.static_paths()
+  end
 end

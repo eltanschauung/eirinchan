@@ -32,6 +32,7 @@ defmodule EirinchanWeb do
         recent.css
         secret_bfc.png
         site_logo.png
+        site_logo2_recent.png
         site_logo2.png
         static
         stylesheets
