@@ -609,12 +609,20 @@ defmodule EirinchanWeb.PostComponents do
   attr :op?, :boolean, default: false
 
   def file_image(assigns) do
+    {thumb_width, thumb_height} =
+      case PostView.thumb_dimensions(assigns.file, assigns.config, op?: assigns.op?) do
+        {width, height} -> {width, height}
+        nil -> {nil, nil}
+      end
+
     assigns =
       assigns
       |> assign(
         :thumb_style,
         PostView.thumb_style(assigns.file, assigns.config, op?: assigns.op?)
       )
+      |> assign(:thumb_width, thumb_width)
+      |> assign(:thumb_height, thumb_height)
       |> assign(:link_class, PostView.file_link_class(assigns.file))
       |> assign(:deleted_file?, PostView.deleted_file?(assigns.file))
       |> assign(
@@ -654,6 +662,8 @@ defmodule EirinchanWeb.PostComponents do
       <img
         class={@image_classes}
         src={PostView.file_thumb_src(@file, @config)}
+        width={@thumb_width}
+        height={@thumb_height}
         loading="lazy"
         decoding="async"
         style={@thumb_style}

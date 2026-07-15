@@ -331,6 +331,25 @@ defmodule EirinchanWeb.PostViewTest do
     refute html =~ "onclick="
   end
 
+  test "file_image_html emits fitted intrinsic thumbnail dimensions" do
+    config = Config.compose()
+
+    file = %{
+      file_name: "example.jpg",
+      file_path: "/bant/src/example.jpg",
+      thumb_path: "/bant/thumb/example.jpg",
+      image_width: 640,
+      image_height: 480
+    }
+
+    html = PostView.file_image_html(file, config)
+
+    assert PostView.thumb_dimensions(file, config) == {208, 156}
+    assert html =~ ~s(width="208")
+    assert html =~ ~s(height="156")
+    assert html =~ ~s(style="width:208px;height:156px")
+  end
+
   test "file_image_html uses blurred spoiler class on the normal thumbnail" do
     config = Config.compose()
 
