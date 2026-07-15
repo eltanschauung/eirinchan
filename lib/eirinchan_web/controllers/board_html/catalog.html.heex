@@ -338,7 +338,16 @@
                 <span class="name"><%= PostView.display_name(post, @config) %></span>
                 <span :if={post.tripcode} class="trip"><%= post.tripcode %></span>
                 <%= for flag <- PostView.post_flags(post, @config) do %>
-                  <img class="flag" src={flag.src} alt={flag.alt} title={flag.alt} />
+                <img
+                  class="flag"
+                  src={flag.src}
+                  alt={flag.alt}
+                  title={flag.alt}
+                  width="16"
+                  height="11"
+                  loading="eager"
+                  decoding="async"
+                />
                 <% end %>
               </div>
               <strong>R: <%= summary.reply_count %> / I: <%= summary.image_count %></strong>

@@ -309,6 +309,10 @@ defmodule EirinchanWeb.PostComponents do
         src={flag.src}
         alt={flag.alt}
         title={flag.alt}
+        width="16"
+        height="11"
+        loading="eager"
+        decoding="async"
         style={PostView.flag_style(@config)}
       />
     <% end %>
@@ -481,7 +485,15 @@ defmodule EirinchanWeb.PostComponents do
       style="position:fixed;bottom:100px;right:20px;cursor:pointer;z-index:50;"
     >
       <a href="#top" title="Scroll to top" aria-label="Scroll to top">
-        <img src="/reisen_up.png" alt="Scroll to top" style="width:30px;height:80px;" />
+        <img
+          src="/reisen_up.png"
+          alt="Scroll to top"
+          width="30"
+          height="80"
+          loading="eager"
+          decoding="async"
+          fetchpriority="high"
+        />
       </a>
     </div>
 
@@ -491,7 +503,15 @@ defmodule EirinchanWeb.PostComponents do
       style="position:fixed;bottom:30px;right:20px;cursor:pointer;z-index:50;"
     >
       <a href="#bottom" title="Scroll to bottom" aria-label="Scroll to bottom">
-        <img src="/tewi_down.png" alt="Scroll to bottom" style="width:30px;height:80px;" />
+        <img
+          src="/tewi_down.png"
+          alt="Scroll to bottom"
+          width="30"
+          height="80"
+          loading="eager"
+          decoding="async"
+          fetchpriority="high"
+        />
       </a>
     </div>
     """
