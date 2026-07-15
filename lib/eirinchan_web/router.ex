@@ -20,6 +20,10 @@ defmodule EirinchanWeb.Router do
     plug :put_html_no_store
   end
 
+  pipeline :uploaded_media do
+    plug EirinchanWeb.Plugs.SecureHeaders
+  end
+
   pipeline :api do
     plug :accepts, ["json"]
     plug :fetch_session
@@ -274,6 +278,16 @@ defmodule EirinchanWeb.Router do
     post "/post", PostController, :create_json
   end
 
+  # Uploaded files are already guarded by the endpoint's host, IP-access, and
+  # access-log plugs. Keep them out of the HTML browser pipeline so each image
+  # request does not perform session, identity, moderator, theme, and board work.
+  scope "/", EirinchanWeb do
+    pipe_through :uploaded_media
+
+    get "/:board/thumb/:filename", UploadedFileController, :show_thumb
+    get "/:board/src/:filename", UploadedFileController, :show
+  end
+
   scope "/", EirinchanWeb do
     pipe_through :browser
 
@@ -293,8 +307,6 @@ defmodule EirinchanWeb.Router do
     get "/pages/:slug", PageController, :page
     get "/feedback", PageController, :feedback
     post "/feedback", FeedbackController, :create
-    get "/:board/thumb/:filename", UploadedFileController, :show_thumb
-    get "/:board/src/:filename", UploadedFileController, :show
     get "/:board/catalog.json", ApiController, :catalog
     get "/:board/threads.json", ApiController, :threads
     get "/:board/catalog/:page_num_html", BoardController, :catalog_page

@@ -331,7 +331,7 @@ defmodule EirinchanWeb.PostViewTest do
     assert html =~ ~s(style="width:208px;height:156px")
   end
 
-  test "opening-post thumbnails load eagerly while reply thumbnails stay lazy" do
+  test "all post thumbnails load eagerly with their intrinsic dimensions reserved" do
     config = Config.compose()
 
     file = %{
@@ -357,7 +357,7 @@ defmodule EirinchanWeb.PostViewTest do
       })
 
     assert op_html =~ ~s(loading="eager")
-    assert reply_html =~ ~s(loading="lazy")
+    assert reply_html =~ ~s(loading="eager")
   end
 
   test "file_image_html uses blurred spoiler class on the normal thumbnail" do
