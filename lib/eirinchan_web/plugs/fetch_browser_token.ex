@@ -77,7 +77,6 @@ defmodule EirinchanWeb.Plugs.FetchBrowserToken do
   defp issue_new_identity(conn) do
     token = generate_token()
     issued_at = System.system_time(:second)
-    {:ok, _reference, _options} = BrowserIdentities.resolve(token, issued_at)
 
     conn
     |> assign_identity(token)

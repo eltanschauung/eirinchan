@@ -23,7 +23,7 @@ defmodule EirinchanWeb.Plugs.FetchBrowserTokenTest do
     refute Map.has_key?(conn.resp_cookies, @cookie_name)
   end
 
-  test "creates browser token cookie when missing", %{conn: conn} do
+  test "creates a browser token cookie without persisting an unreturned identity", %{conn: conn} do
     conn = FetchBrowserToken.call(conn, [])
 
     assert is_binary(conn.assigns.browser_token)
@@ -37,11 +37,41 @@ defmodule EirinchanWeb.Plugs.FetchBrowserTokenTest do
     assert {:ok, %{token: token}} = BrowserIdentity.verify(set_cookie.value)
     assert BrowserIdentity.reference(token) == conn.assigns.browser_token
     assert conn.assigns.browser_identity_token == token
-    assert Repo.get(Identity, conn.assigns.browser_token)
+    refute Repo.get(Identity, conn.assigns.browser_token)
     assert set_cookie.path == "/"
     assert set_cookie.secure
     assert set_cookie.http_only
     assert set_cookie.same_site == "Lax"
+  end
+
+  test "repeated cookie-less requests do not create database identities", %{conn: conn} do
+    identity_count = Repo.aggregate(Identity, :count)
+
+    for _attempt <- 1..5 do
+      conn
+      |> recycle()
+      |> FetchBrowserToken.call([])
+    end
+
+    assert Repo.aggregate(Identity, :count) == identity_count
+  end
+
+  test "persists an identity only after the signed cookie returns", %{conn: conn} do
+    first_conn = FetchBrowserToken.call(conn, [])
+    signed_cookie = first_conn.resp_cookies[@cookie_name].value
+    browser_ref = first_conn.assigns.browser_token
+
+    refute Repo.get(Identity, browser_ref)
+
+    returning_conn =
+      conn
+      |> recycle()
+      |> put_req_cookie(@cookie_name, signed_cookie)
+      |> FetchBrowserToken.call([])
+
+    assert returning_conn.assigns.returning_browser_token
+    assert returning_conn.assigns.browser_token == browser_ref
+    assert Repo.get(Identity, browser_ref)
   end
 
   test "migrates a legacy browser token without changing identity", %{conn: conn} do
