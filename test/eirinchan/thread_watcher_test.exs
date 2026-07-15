@@ -1,35 +1,63 @@
 defmodule Eirinchan.ThreadWatcherTest do
   use Eirinchan.DataCase, async: true
+  import Ecto.Query, only: [from: 2]
 
-  alias Eirinchan.Posts.PublicIds
-  alias Eirinchan.ThreadWatcher
   alias Eirinchan.PostOwnership
+  alias Eirinchan.Posts.Post
+  alias Eirinchan.Posts.PublicIds
+  alias Eirinchan.Repo
+  alias Eirinchan.ThreadWatcher
+  alias Eirinchan.ThreadWatcher.Watch
 
   test "watch_thread upserts and watched_thread_ids batches" do
-    assert {:ok, watch} = ThreadWatcher.watch_thread("token-1234567890123456", "bant", 10)
-    assert watch.browser_token == Eirinchan.BrowserIdentity.reference("token-1234567890123456")
-    assert {:ok, _watch} = ThreadWatcher.watch_thread("token-1234567890123456", "bant", 11)
-    assert {:ok, _watch} = ThreadWatcher.watch_thread("token-1234567890123456", "bant", 10)
+    board = board_fixture(%{uri: "watchbatch", title: "Watch Batch"})
+    first_thread = thread_fixture(board, %{body: "First"})
+    second_thread = thread_fixture(board, %{body: "Second"})
+    token = "token-1234567890123456"
 
-    assert MapSet.new([10, 11]) ==
-             ThreadWatcher.watched_thread_ids("token-1234567890123456", "bant")
+    assert {:ok, watch} = ThreadWatcher.watch_thread(token, board.uri, first_thread.id)
+    assert watch.browser_token == Eirinchan.BrowserIdentity.reference(token)
+    assert {:ok, _watch} = ThreadWatcher.watch_thread(token, board.uri, second_thread.id)
+    assert {:ok, _watch} = ThreadWatcher.watch_thread(token, board.uri, first_thread.id)
+
+    assert MapSet.new([first_thread.id, second_thread.id]) ==
+             ThreadWatcher.watched_thread_ids(token, board.uri)
   end
 
   test "mark_seen updates last_seen_post_id" do
-    assert {:ok, _watch} = ThreadWatcher.watch_thread("token-1234567890123456", "bant", 12)
-    assert {:ok, watch} = ThreadWatcher.mark_seen("token-1234567890123456", "bant", 12, 99)
-    assert watch.last_seen_post_id == 99
+    board = board_fixture(%{uri: "watchseenctx", title: "Watch Seen"})
+    thread = thread_fixture(board, %{body: "OP"})
+    reply = reply_fixture(board, thread, %{body: "Reply"})
+    token = "token-seen-1234567890"
+
+    assert {:ok, _watch} = ThreadWatcher.watch_thread(token, board.uri, thread.id)
+    assert {:ok, watch} = ThreadWatcher.mark_seen(token, board.uri, thread.id, reply.id)
+    assert watch.last_seen_post_id == reply.id
   end
 
   test "mark_seen does not create a watch for untracked threads" do
-    assert {:ok, nil} = ThreadWatcher.mark_seen("token-1234567890123456", "bant", 999, 1000)
-    refute ThreadWatcher.watched?("token-1234567890123456", "bant", 999)
+    board = board_fixture(%{uri: "watchmissing", title: "Watch Missing"})
+    thread = thread_fixture(board, %{body: "OP"})
+
+    assert {:ok, nil} =
+             ThreadWatcher.mark_seen(
+               "token-missing-1234567890",
+               board.uri,
+               thread.id,
+               thread.id
+             )
+
+    refute ThreadWatcher.watched?("token-missing-1234567890", board.uri, thread.id)
   end
 
   test "unwatch_thread removes one watch" do
-    assert {:ok, _watch} = ThreadWatcher.watch_thread("token-1234567890123456", "bant", 13)
-    assert {:ok, 1} = ThreadWatcher.unwatch_thread("token-1234567890123456", "bant", 13)
-    refute ThreadWatcher.watched?("token-1234567890123456", "bant", 13)
+    board = board_fixture(%{uri: "watchremove", title: "Watch Remove"})
+    thread = thread_fixture(board, %{body: "OP"})
+    token = "token-remove-1234567890"
+
+    assert {:ok, _watch} = ThreadWatcher.watch_thread(token, board.uri, thread.id)
+    assert {:ok, 1} = ThreadWatcher.unwatch_thread(token, board.uri, thread.id)
+    refute ThreadWatcher.watched?(token, board.uri, thread.id)
   end
 
   test "watch_state_for_board returns unread counts and watch_count totals" do
@@ -70,21 +98,103 @@ defmodule Eirinchan.ThreadWatcherTest do
                last_seen_post_id: owned_reply.id
              })
 
+    snapshot = ThreadWatcher.snapshot(token, summaries: true)
+
     assert %{watcher_count: 1, watcher_unread_count: 2, watcher_you_count: 1} =
-             ThreadWatcher.watch_metrics(token)
+             snapshot.metrics
 
-    state = ThreadWatcher.watch_state_for_board(token, board.uri)
-    assert %{you_unread_count: 1} = state[PublicIds.public_id(thread)]
+    assert %{you_unread_count: 1} =
+             snapshot.watch_state_by_board[board.uri][PublicIds.public_id(thread)]
 
-    [summary] = ThreadWatcher.list_watch_summaries(token)
+    [summary] = snapshot.summaries
     assert summary.you_unread_count == 1
+    assert summary.you_unread_post_id
+    assert summary.last_post_id == PublicIds.public_id(List.last(Repo.all(from_post(thread.id))))
   end
 
-  test "purge_missing_watches removes stale watches" do
-    token = "token-stale-1234567890"
-    assert {:ok, _watch} = ThreadWatcher.watch_thread(token, "bant", 999_999)
+  test "watch_thread rejects a last-seen post from another thread" do
+    board = board_fixture(%{uri: "watchseenscope", title: "Watch Seen Scope"})
+    watched_thread = thread_fixture(board, %{body: "Watched"})
+    other_thread = thread_fixture(board, %{body: "Other"})
+    other_reply = reply_fixture(board, other_thread, %{body: "Other reply"})
+    token = "token-invalid-seen-1234"
+
+    assert {:error, :invalid_last_seen_post} =
+             ThreadWatcher.watch_thread(token, board.uri, watched_thread.id, %{
+               last_seen_post_id: other_reply.id
+             })
+
+    refute ThreadWatcher.watched?(token, board.uri, watched_thread.id)
+  end
+
+  test "seen high-water marks never move backwards" do
+    board = board_fixture(%{uri: "watchhighwater", title: "Watch High Water"})
+    thread = thread_fixture(board, %{body: "OP"})
+    first_reply = reply_fixture(board, thread, %{body: "First"})
+    second_reply = reply_fixture(board, thread, %{body: "Second"})
+    token = "token-high-water-12345"
+
+    assert {:ok, watch} =
+             ThreadWatcher.watch_thread(token, board.uri, thread.id, %{
+               last_seen_post_id: second_reply.id
+             })
+
+    assert watch.last_seen_post_id == second_reply.id
+
+    assert {:ok, watch} =
+             ThreadWatcher.watch_thread(token, board.uri, thread.id, %{
+               last_seen_post_id: first_reply.id
+             })
+
+    assert watch.last_seen_post_id == second_reply.id
+
+    assert {:ok, watch} =
+             ThreadWatcher.mark_seen(token, board.uri, thread.id, first_reply.id)
+
+    assert watch.last_seen_post_id == second_reply.id
+  end
+
+  test "a watch follows a thread moved to another board without duplication" do
+    source_board = board_fixture(%{uri: "watchsource", title: "Watch Source"})
+    target_board = board_fixture(%{uri: "watchtarget", title: "Watch Target"})
+    thread = thread_fixture(source_board, %{body: "Moving"})
+    token = "token-moved-123456789"
+
+    assert {:ok, _watch} = ThreadWatcher.watch_thread(token, source_board.uri, thread.id)
+
+    thread
+    |> Ecto.Changeset.change(board_id: target_board.id, public_id: 77)
+    |> Repo.update!()
+
+    assert ThreadWatcher.watch_state_for_board(token, source_board.uri) == %{}
+
+    assert %{77 => %{watched: true}} =
+             ThreadWatcher.watch_state_for_board(token, target_board.uri)
+
+    assert {:ok, _watch} = ThreadWatcher.watch_thread(token, target_board.uri, thread.id)
+    assert ThreadWatcher.watch_count(token) == 1
+
+    assert [%Watch{board_uri: "watchtarget"}] = ThreadWatcher.list_watches(token)
+  end
+
+  test "deleting a watched thread cascades the watch" do
+    board = board_fixture(%{uri: "watchcascade", title: "Watch Cascade"})
+    thread = thread_fixture(board, %{body: "OP"})
+    token = "token-cascade-1234567"
+
+    assert {:ok, _watch} = ThreadWatcher.watch_thread(token, board.uri, thread.id)
+    assert ThreadWatcher.watch_count(token) == 1
+
+    Repo.delete!(thread)
 
     assert ThreadWatcher.watch_count(token) == 0
     assert ThreadWatcher.list_watch_summaries(token) == []
+  end
+
+  defp from_post(thread_id) do
+    from(post in Post,
+      where: post.id == ^thread_id or post.thread_id == ^thread_id,
+      order_by: [asc: post.id]
+    )
   end
 end

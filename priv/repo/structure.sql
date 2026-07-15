@@ -952,8 +952,8 @@ CREATE TABLE public.thread_watches (
     id bigint NOT NULL,
     browser_token character varying(255) NOT NULL,
     board_uri character varying(255) NOT NULL,
-    thread_id integer NOT NULL,
-    last_seen_post_id integer,
+    thread_id bigint NOT NULL,
+    last_seen_post_id bigint,
     inserted_at timestamp(0) without time zone NOT NULL,
     updated_at timestamp(0) without time zone NOT NULL
 );
@@ -1834,6 +1834,13 @@ CREATE UNIQUE INDEX thread_watches_browser_token_board_uri_thread_id_index ON pu
 
 
 --
+-- Name: thread_watches_browser_token_thread_id_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX thread_watches_browser_token_thread_id_index ON public.thread_watches USING btree (browser_token, thread_id);
+
+
+--
 -- Name: thread_watches_browser_token_updated_at_index; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2049,6 +2056,14 @@ ALTER TABLE ONLY public.posts
 
 
 --
+-- Name: thread_watches thread_watches_thread_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.thread_watches
+    ADD CONSTRAINT thread_watches_thread_id_fkey FOREIGN KEY (thread_id) REFERENCES public.posts(id) ON DELETE CASCADE;
+
+
+--
 -- Name: reports reports_board_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2144,3 +2159,4 @@ INSERT INTO public."schema_migrations" (version) VALUES (20260714210000);
 INSERT INTO public."schema_migrations" (version) VALUES (20260714213000);
 INSERT INTO public."schema_migrations" (version) VALUES (20260714220000);
 INSERT INTO public."schema_migrations" (version) VALUES (20260715033000);
+INSERT INTO public."schema_migrations" (version) VALUES (20260715190000);
