@@ -9,6 +9,15 @@
     }
   }
 
+  function positivePage(value) {
+    var page = Number.parseInt(value, 10);
+    return Number.isInteger(page) && page > 0 ? page : 1;
+  }
+
+  function validSortField(value) {
+    return ["mask", "reason", "board", "created"].indexOf(value) !== -1 ? value : null;
+  }
+
   function currentUnixTime() {
     return Math.floor(Date.now() / 1000);
   }
@@ -85,27 +94,21 @@
     return detail;
   }
 
-  function parseBoards(form) {
-    try {
-      var boards = JSON.parse(form.getAttribute("data-my-boards") || "[]");
-      return Array.isArray(boards) ? boards : [];
-    } catch (_error) {
-      return [];
-    }
-  }
-
   function BanList(form) {
     this.form = form;
     this.url = form.getAttribute("data-banlist-url");
-    this.myBoards = parseBoards(form);
+    this.browserPath = new URL(form.action, window.location.origin).pathname;
     this.rows = [];
-    this.visibleRows = [];
     this.selectedIds = new Set();
     this.sortField = null;
     this.sortDescending = false;
+    this.currentPage = 1;
+    this.paginationData = null;
     this.searchTimer = null;
+    this.requestController = null;
     this.tableWrap = form.querySelector(".banlist-table-wrap");
     this.tableBody = form.querySelector("#banlist tbody");
+    this.pagination = form.querySelector("#banlist-pagination");
     this.status = form.querySelector("#banlist-status");
     this.selectAll = form.querySelector("#select-all");
     this.onlyMine = form.querySelector("#only_mine");
@@ -115,13 +118,67 @@
   }
 
   BanList.prototype.start = function () {
-    var list = this;
-
+    this.applyLocationState();
     this.bindControls();
+    this.loadPage(this.currentPage, null);
+  };
+
+  BanList.prototype.applyLocationState = function () {
+    var params = new URLSearchParams(window.location.search);
+
+    this.currentPage = positivePage(params.get("page"));
+    this.sortField = validSortField(params.get("sort_by"));
+    this.sortDescending = params.get("sort_dir") === "desc";
+
+    if (this.onlyMine) {
+      this.onlyMine.checked = params.get("only_mine") === "1";
+    }
+
+    if (this.onlyActive) {
+      this.onlyActive.checked = params.get("only_not_expired") === "1";
+    }
+
+    if (this.search) {
+      this.search.value = params.get("search") || "";
+    }
+  };
+
+  BanList.prototype.requestParams = function (page) {
+    var params = new URLSearchParams();
+
+    if (this.onlyMine && this.onlyMine.checked) params.set("only_mine", "1");
+    if (this.onlyActive && this.onlyActive.checked) params.set("only_not_expired", "1");
+    if (this.search && this.search.value.trim()) params.set("search", this.search.value.trim());
+    if (this.sortField) params.set("sort_by", this.sortField);
+    if (this.sortField && this.sortDescending) params.set("sort_dir", "desc");
+    if (page > 1) params.set("page", String(page));
+
+    return params;
+  };
+
+  BanList.prototype.loadPage = function (page, historyMode) {
+    var list = this;
+    var requestPage = positivePage(page);
+    var params = this.requestParams(requestPage);
+    var requestUrl = new URL(this.url, window.location.origin);
+
+    requestUrl.search = params.toString();
+
+    if (this.requestController) {
+      this.requestController.abort();
+    }
+
+    this.requestController = new AbortController();
+    this.status.classList.remove("is-error");
+    this.status.hidden = false;
+    this.status.textContent = "Loading bans...";
 
     // Keep fetch's default */* Accept header: this JSON action shares the
     // authenticated browser pipeline, whose content negotiation accepts HTML.
-    fetch(this.url, {credentials: "same-origin"})
+    fetch(requestUrl, {
+      credentials: "same-origin",
+      signal: this.requestController.signal
+    })
       .then(function (response) {
         if (!response.ok) {
           throw new Error("Ban list request failed with status " + response.status);
@@ -129,16 +186,26 @@
 
         return response.json();
       })
-      .then(function (rows) {
-        if (!Array.isArray(rows)) {
-          throw new Error("Ban list response was not an array");
+      .then(function (payload) {
+        if (!payload || !Array.isArray(payload.rows) || !payload.pagination) {
+          throw new Error("Ban list response had an invalid shape");
         }
 
-        list.rows = rows;
+        list.rows = payload.rows;
+        list.paginationData = payload.pagination;
+        list.currentPage = payload.pagination.page;
         list.tableWrap.hidden = false;
         list.render();
+
+        if (historyMode) {
+          var browserUrl = list.browserPath;
+          var query = list.requestParams(list.currentPage).toString();
+          if (query) browserUrl += "?" + query;
+          window.history[historyMode + "State"]({}, "", browserUrl);
+        }
       })
-      .catch(function () {
+      .catch(function (error) {
+        if (error.name === "AbortError") return;
         list.status.classList.add("is-error");
         list.status.textContent = "The ban list could not be loaded. Refresh the page to try again.";
       });
@@ -158,14 +225,15 @@
           list.sortDescending = false;
         }
 
-        list.render();
+        list.loadPage(1, "replace");
       });
     });
 
     [this.onlyMine, this.onlyActive].forEach(function (control) {
       if (control) {
         control.addEventListener("change", function () {
-          list.render();
+          list.selectedIds.clear();
+          list.loadPage(1, "replace");
         });
       }
     });
@@ -174,21 +242,36 @@
       this.search.addEventListener("input", function () {
         window.clearTimeout(list.searchTimer);
         list.searchTimer = window.setTimeout(function () {
-          list.render();
-        }, 120);
+          list.selectedIds.clear();
+          list.loadPage(1, "replace");
+        }, 250);
       });
 
       this.search.addEventListener("keydown", function (event) {
         if (event.key === "Enter") {
           event.preventDefault();
           window.clearTimeout(list.searchTimer);
-          list.render();
+          list.selectedIds.clear();
+          list.loadPage(1, "replace");
         }
       });
     }
 
+    this.pagination.addEventListener("click", function (event) {
+      var link = event.target.closest("a[data-ban-page]");
+      if (!link) return;
+      event.preventDefault();
+      list.loadPage(positivePage(link.getAttribute("data-ban-page")), "push");
+    });
+
+    window.addEventListener("popstate", function () {
+      list.applyLocationState();
+      list.selectedIds.clear();
+      list.loadPage(list.currentPage, null);
+    });
+
     this.selectAll.addEventListener("change", function () {
-      list.visibleRows.forEach(function (row) {
+      list.rows.forEach(function (row) {
         if (row.access !== false) {
           if (list.selectAll.checked) {
             list.selectedIds.add(String(row.id));
@@ -204,9 +287,7 @@
     this.form.addEventListener("submit", function (event) {
       var submitter = event.submitter;
 
-      if (!submitter || submitter.value !== "unban") {
-        return;
-      }
+      if (!submitter || submitter.value !== "unban") return;
 
       if (list.selectedIds.size === 0) {
         event.preventDefault();
@@ -235,81 +316,21 @@
     });
   };
 
-  BanList.prototype.matchesFilters = function (row) {
-    if (this.onlyMine && this.onlyMine.checked && this.myBoards.indexOf(row.board) === -1) {
-      return false;
-    }
-
-    if (this.onlyActive && this.onlyActive.checked) {
-      if (row.active === false || (row.expires && Number(row.expires) < currentUnixTime())) {
-        return false;
-      }
-    }
-
-    var query = this.search ? this.search.value.trim().toLowerCase() : "";
-    if (!query) {
-      return true;
-    }
-
-    return query.split(/\s+/).every(function (term) {
-      var match = term.match(/^(mask|reason|board|staff|message):(.*)$/);
-      var fields = match ? [match[1]] : ["mask", "reason", "board", "staff", "message"];
-      var needle = match ? match[2] : term;
-
-      return fields.some(function (field) {
-        var value = row[field];
-        return value != null && String(value).toLowerCase().indexOf(needle) !== -1;
-      });
-    });
-  };
-
-  BanList.prototype.sortedRows = function (rows) {
-    var field = this.sortField;
-    var descending = this.sortDescending;
-
-    if (!field) {
-      return rows;
-    }
-
-    return rows.slice().sort(function (left, right) {
-      var a = left[field] == null ? "" : left[field];
-      var b = right[field] == null ? "" : right[field];
-      var result;
-
-      if (typeof a === "number" && typeof b === "number") {
-        result = a - b;
-      } else {
-        result = String(a).localeCompare(String(b), undefined, {
-          numeric: true,
-          sensitivity: "base"
-        });
-      }
-
-      return descending ? -result : result;
-    });
-  };
-
   BanList.prototype.render = function () {
-    var list = this;
-    var filteredRows = this.rows.filter(function (row) {
-      return list.matchesFilters(row);
-    });
+    var pagination = this.paginationData;
 
-    this.visibleRows = this.sortedRows(filteredRows);
     this.renderRows();
+    this.renderPagination();
     this.updateSortState();
-
     this.status.classList.remove("is-error");
     this.status.hidden = false;
 
-    if (this.visibleRows.length === 0) {
-      this.status.textContent = this.rows.length === 0
-        ? "There are no active bans."
-        : "No bans match the current filters.";
-    } else if (this.visibleRows.length === this.rows.length) {
-      this.status.textContent = "Showing " + this.rows.length + " ban" + (this.rows.length === 1 ? "." : "s.");
+    if (pagination.total_entries === 0) {
+      this.status.textContent = "No bans match the current filters.";
     } else {
-      this.status.textContent = "Showing " + this.visibleRows.length + " of " + this.rows.length + " bans.";
+      var first = (pagination.page - 1) * pagination.page_size + 1;
+      var last = first + this.rows.length - 1;
+      this.status.textContent = "Showing bans " + first + "-" + last + " of " + pagination.total_entries + ".";
     }
   };
 
@@ -317,7 +338,7 @@
     var list = this;
     var fragment = document.createDocumentFragment();
 
-    this.visibleRows.forEach(function (row) {
+    this.rows.forEach(function (row) {
       fragment.appendChild(list.rowElement(row));
     });
 
@@ -325,13 +346,78 @@
     this.updateSelectAll();
   };
 
+  BanList.prototype.renderPagination = function () {
+    var list = this;
+    var data = this.paginationData;
+    var fragment = document.createDocumentFragment();
+
+    this.pagination.replaceChildren();
+    this.pagination.hidden = data.total_pages <= 1;
+    if (this.pagination.hidden) return;
+
+    fragment.appendChild(this.paginationControl("Previous", data.page - 1, data.page > 1, "prev"));
+
+    var pages = document.createElement("span");
+    pages.className = "banlist-pagination-pages";
+
+    data.page_items.forEach(function (page) {
+      if (page == null) {
+        var ellipsis = document.createElement("span");
+        ellipsis.className = "banlist-pagination-ellipsis";
+        ellipsis.setAttribute("aria-hidden", "true");
+        ellipsis.textContent = "\u2026";
+        pages.appendChild(ellipsis);
+        return;
+      }
+
+      pages.appendChild(document.createTextNode("["));
+
+      if (page === data.page) {
+        var current = document.createElement("span");
+        current.className = "selected";
+        current.setAttribute("aria-current", "page");
+        current.textContent = String(page);
+        pages.appendChild(current);
+      } else {
+        pages.appendChild(list.paginationControl(String(page), page, true, null));
+      }
+
+      pages.appendChild(document.createTextNode("]"));
+    });
+
+    fragment.appendChild(pages);
+    fragment.appendChild(this.paginationControl("Next", data.page + 1, data.page < data.total_pages, "next"));
+    this.pagination.appendChild(fragment);
+  };
+
+  BanList.prototype.paginationControl = function (label, page, enabled, relation) {
+    var control;
+
+    if (enabled) {
+      control = document.createElement("a");
+      control.href = this.browserPath + this.paginationQuery(page);
+      control.setAttribute("data-ban-page", String(page));
+      if (relation) control.rel = relation;
+    } else {
+      control = document.createElement("span");
+      control.className = "banlist-pagination-disabled";
+      control.setAttribute("aria-disabled", "true");
+    }
+
+    control.textContent = label;
+    return control;
+  };
+
+  BanList.prototype.paginationQuery = function (page) {
+    var query = this.requestParams(page).toString();
+    return query ? "?" + query : "";
+  };
+
   BanList.prototype.rowElement = function (row) {
     var tableRow = document.createElement("tr");
     var expired = row.expires && Number(row.expires) < currentUnixTime();
 
-    if (row.active === false || expired) {
-      tableRow.className = "banlist-row-inactive";
-    }
+    if (row.active === false || expired) tableRow.className = "banlist-row-inactive";
 
     tableRow.appendChild(this.targetCell(row));
     tableRow.appendChild(this.reasonCell(row));
@@ -382,9 +468,7 @@
 
     key.className = "banlist-key";
     key.textContent = row.mask || "Unknown target";
-    if (historyPath) {
-      key.href = historyPath;
-    }
+    if (historyPath) key.href = historyPath;
 
     wrapper.appendChild(checkbox);
     wrapper.appendChild(key);
@@ -459,7 +543,7 @@
 
   BanList.prototype.updateSelectAll = function () {
     var list = this;
-    var selectable = this.visibleRows.filter(function (row) {
+    var selectable = this.rows.filter(function (row) {
       return row.access !== false;
     });
     var selectedCount = selectable.filter(function (row) {
@@ -491,9 +575,6 @@
 
   onReady(function () {
     var form = document.querySelector(".banform[data-banlist-url]");
-
-    if (form) {
-      new BanList(form).start();
-    }
+    if (form) new BanList(form).start();
   });
 })();

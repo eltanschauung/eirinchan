@@ -218,8 +218,13 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       |> json_response(200)
 
     cloaked_ip = Eirinchan.IpCrypt.cloak_ip("198.51.100.7")
+    rows = response["rows"]
 
-    assert Enum.any?(response, fn row ->
+    assert response["pagination"]["page"] == 1
+    assert response["pagination"]["page_size"] == 50
+    assert response["pagination"]["total_entries"] == 1
+
+    assert Enum.any?(rows, fn row ->
              row["mask"] == cloaked_ip and row["reason"] == "Spam" and
                row["history_url"] == "/manage/ip/#{cloaked_ip}/browser" and
                row["edit_url"] == "/manage/bans/#{ban.id}/browser"
@@ -241,7 +246,81 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       |> get("/manage/bans/browser.json")
       |> json_response(200)
 
-    refute Enum.any?(response_after, fn row -> row["id"] == ban.id end)
+    assert Enum.any?(response_after["rows"], fn row ->
+             row["id"] == ban.id and row["active"] == false
+           end)
+
+    active_response =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> get("/manage/bans/browser.json?only_not_expired=1")
+      |> json_response(200)
+
+    refute Enum.any?(active_response["rows"], fn row -> row["id"] == ban.id end)
+  end
+
+  test "ban list paginates and filters the complete result set using the configured size", %{
+    conn: conn
+  } do
+    moderator = moderator_fixture(%{role: "admin"})
+    board = board_fixture(%{uri: "pagedbans"})
+
+    with_instance_config(%{"ban_list_page_size" => 2}, fn ->
+      for {ip, reason} <- [
+            {"198.51.100.10", "Needle one"},
+            {"198.51.100.11", "Needle two"},
+            {"198.51.100.12", "Other reason"}
+          ] do
+        {:ok, _ban} =
+          Bans.create_ban(%{
+            board_id: board.id,
+            mod_user_id: moderator.id,
+            ip_subnet: ip,
+            reason: reason
+          })
+      end
+
+      first_page =
+        conn
+        |> login_moderator(moderator)
+        |> get("/manage/bans/browser.json")
+        |> json_response(200)
+
+      assert length(first_page["rows"]) == 2
+      assert first_page["pagination"]["page_size"] == 2
+      assert first_page["pagination"]["total_entries"] == 3
+      assert first_page["pagination"]["total_pages"] == 2
+      assert first_page["pagination"]["page_items"] == [1, 2]
+
+      second_page =
+        conn
+        |> recycle()
+        |> login_moderator(moderator)
+        |> get("/manage/bans/browser.json?page=2")
+        |> json_response(200)
+
+      assert length(second_page["rows"]) == 1
+      assert second_page["pagination"]["page"] == 2
+
+      filtered =
+        conn
+        |> recycle()
+        |> login_moderator(moderator)
+        |> get("/manage/bans/browser.json?search=needle")
+        |> json_response(200)
+
+      assert length(filtered["rows"]) == 2
+      assert filtered["pagination"]["total_entries"] == 2
+      assert Enum.all?(filtered["rows"], &String.contains?(&1["reason"], "Needle"))
+
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> get("/manage/bans/browser.json?page=3")
+      |> json_response(404)
+      |> then(&assert(&1["error"] == "not_found"))
+    end)
   end
 
   test "ban browser page edits subnet bans by id", %{conn: conn} do

@@ -5,7 +5,6 @@
   method="post"
   class="banform"
   data-banlist-url={~p"/manage/bans/browser.json"}
-  data-my-boards={Jason.encode!(Enum.map(@boards, & &1.uri))}
 >
   <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
 
@@ -63,7 +62,7 @@
 
   <div class="banlist-table-wrap" hidden>
     <table class="mod banlist-table" id="banlist">
-      <caption class="banlist-visually-hidden">Active bans</caption>
+      <caption class="banlist-visually-hidden">Bans</caption>
       <colgroup>
         <col class="banlist-col-target" />
         <col class="banlist-col-reason" />
@@ -92,4 +91,7 @@
       <tbody></tbody>
     </table>
   </div>
+
+  <nav id="banlist-pagination" class="banlist-pagination" aria-label="Ban list pages" hidden>
+  </nav>
 </form>

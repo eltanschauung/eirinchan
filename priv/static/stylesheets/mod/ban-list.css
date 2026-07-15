@@ -72,6 +72,39 @@
   width: 100%;
 }
 
+.banlist-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.65rem;
+  margin: 0.9rem 0;
+}
+
+.banlist-pagination[hidden] {
+  display: none;
+}
+
+.banlist-pagination-pages {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.2rem;
+}
+
+.banlist-pagination .selected {
+  color: inherit;
+  font-weight: bold;
+}
+
+.banlist-pagination-disabled {
+  opacity: 0.62;
+}
+
+.banlist-pagination-ellipsis {
+  padding: 0 0.15rem;
+}
+
 #banlist {
   width: 100%;
   margin: 0;

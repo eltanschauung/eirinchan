@@ -14,6 +14,7 @@ defmodule EirinchanWeb.ManagePageController do
   alias Eirinchan.Moderation
   alias Eirinchan.ModerationLog
   alias Eirinchan.Noticeboard
+  alias Eirinchan.Pagination
   alias Eirinchan.Reports
   alias Eirinchan.Repo
   alias Eirinchan.Runtime.Config
@@ -31,6 +32,9 @@ defmodule EirinchanWeb.ManagePageController do
   }
 
   plug :assign_manage_shell
+
+  @ban_list_page_size_default 50
+  @ban_list_page_size_max 500
 
   def login(conn, _params) do
     cond do
@@ -233,19 +237,36 @@ defmodule EirinchanWeb.ManagePageController do
     end
   end
 
-  def bans_json(conn, _params) do
+  def bans_json(conn, params) do
     with {:ok, moderator} <- ensure_permission(conn, :view_banlist) do
       boards = Moderation.list_accessible_boards(moderator)
       board_ids = Enum.map(boards, & &1.id)
       boards_by_id = Map.new(boards, &{&1.id, &1})
+      filters = ban_list_filters(params, moderator)
+      page = positive_integer_param(params["page"], 1)
+      page_size = ban_list_page_size(Settings.current_instance_config())
 
-      json(
-        conn,
+      rows =
         Bans.list_bans()
-        |> Enum.filter(& &1.active)
         |> Enum.filter(&accessible_ban?(board_ids, &1))
+        |> maybe_filter_bans_to_moderated_boards(filters, board_ids)
+        |> maybe_filter_active_bans(filters)
         |> Enum.map(&ban_list_row(&1, boards_by_id))
-      )
+        |> filter_ban_rows(filters["search"])
+        |> sort_ban_rows(params["sort_by"], params["sort_dir"])
+
+      case Pagination.paginate(rows, page, page_size) do
+        {:ok, pagination} ->
+          json(conn, %{
+            rows: pagination.entries,
+            pagination: ban_pagination_metadata(pagination)
+          })
+
+        {:error, :not_found} ->
+          conn
+          |> put_status(:not_found)
+          |> json(%{error: "not_found"})
+      end
     else
       {:error, :unauthorized} ->
         conn |> put_status(:unauthorized) |> json(%{error: "unauthorized"})
@@ -3033,7 +3054,92 @@ defmodule EirinchanWeb.ManagePageController do
         ),
       "only_not_expired" =>
         if(Map.get(params, "only_not_expired") in ["1", "true", "on"], do: "1", else: "0"),
-      "search" => Map.get(params, "search", "") |> to_string() |> String.trim()
+      "search" =>
+        params
+        |> Map.get("search", "")
+        |> to_string()
+        |> String.trim()
+        |> String.slice(0, 200)
+    }
+  end
+
+  defp ban_list_page_size(config) do
+    config
+    |> Map.get(:ban_list_page_size, @ban_list_page_size_default)
+    |> Pagination.page_size(@ban_list_page_size_default, max: @ban_list_page_size_max)
+  end
+
+  defp maybe_filter_bans_to_moderated_boards(bans, %{"only_mine" => "1"}, board_ids),
+    do: Enum.filter(bans, &(&1.board_id in board_ids))
+
+  defp maybe_filter_bans_to_moderated_boards(bans, _filters, _board_ids), do: bans
+
+  defp maybe_filter_active_bans(bans, %{"only_not_expired" => "1"}),
+    do: Enum.filter(bans, &Bans.active?/1)
+
+  defp maybe_filter_active_bans(bans, _filters), do: bans
+
+  defp filter_ban_rows(rows, ""), do: rows
+
+  defp filter_ban_rows(rows, search) do
+    terms = String.split(String.downcase(search), ~r/\s+/, trim: true)
+
+    Enum.filter(rows, fn row ->
+      Enum.all?(terms, &ban_row_matches_term?(row, &1))
+    end)
+  end
+
+  defp ban_row_matches_term?(row, term) do
+    {fields, needle} =
+      case Regex.run(~r/^(mask|reason|board|staff|message):(.*)$/, term) do
+        [_, field, value] -> {[field], value}
+        _ -> {["mask", "reason", "board", "staff", "message"], term}
+      end
+
+    Enum.any?(fields, fn field ->
+      row
+      |> ban_row_search_value(field)
+      |> String.downcase()
+      |> String.contains?(needle)
+    end)
+  end
+
+  defp ban_row_search_value(row, "mask"), do: to_string(row.mask || "")
+  defp ban_row_search_value(row, "reason"), do: to_string(row.reason || "")
+  defp ban_row_search_value(row, "board"), do: to_string(row.board || "")
+  defp ban_row_search_value(row, "staff"), do: to_string(row.staff || "")
+  defp ban_row_search_value(row, "message"), do: to_string(row.message || "")
+
+  defp sort_ban_rows(rows, sort_by, sort_dir)
+       when sort_by in ["mask", "reason", "board", "created"] do
+    direction = if sort_dir == "desc", do: :desc, else: :asc
+
+    Enum.sort_by(rows, &ban_row_sort_value(&1, sort_by), direction)
+  end
+
+  defp sort_ban_rows(rows, _sort_by, _sort_dir), do: rows
+
+  defp ban_row_sort_value(row, "mask"), do: String.downcase(to_string(row.mask || ""))
+  defp ban_row_sort_value(row, "reason"), do: String.downcase(to_string(row.reason || ""))
+  defp ban_row_sort_value(row, "board"), do: String.downcase(to_string(row.board || ""))
+  defp ban_row_sort_value(row, "created"), do: row.created || 0
+
+  defp ban_pagination_metadata(pagination) do
+    page_items =
+      1..pagination.total_pages
+      |> Enum.map(&%{num: &1})
+      |> Pagination.window(pagination.page)
+      |> Enum.map(fn
+        :ellipsis -> nil
+        page -> page.num
+      end)
+
+    %{
+      page: pagination.page,
+      page_size: pagination.page_size,
+      total_entries: pagination.total_entries,
+      total_pages: pagination.total_pages,
+      page_items: page_items
     }
   end
 

@@ -346,6 +346,20 @@ defmodule Eirinchan.Runtime.ConfigTest do
     assert config.file_catalog_page == "catalog/%d.html"
   end
 
+  test "provides the moderation ban-list page-size default" do
+    config =
+      Config.compose(
+        %{
+          root: "/",
+          dir: %{img: "img/", thumb: "thumb/", res: "res/"}
+        },
+        %{},
+        %{}
+      )
+
+    assert config.ban_list_page_size == 50
+  end
+
   test "matches vichan dnsbl defaults" do
     config =
       Config.compose(
