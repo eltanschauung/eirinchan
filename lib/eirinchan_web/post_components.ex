@@ -230,13 +230,19 @@ defmodule EirinchanWeb.PostComponents do
 
   def file_selector_shell(assigns) do
     ~H"""
-    <div data-native-upload>
-      <input type="file" name={@input_name} id={@input_id} data-upload-file multiple={@multiple} />
-    </div>
-
-    <div class="dropzone-wrap" data-file-selector-shell hidden>
+    <div class="dropzone-wrap" data-file-selector-shell>
       <div class="dropzone" tabindex="0">
-        <div class="file-hint">Select/drop/paste files here</div>
+        <label class="file-hint">
+          <span>Select/drop/paste files here</span>
+          <input
+            type="file"
+            name={@input_name}
+            id={@input_id}
+            class="file-selector-input"
+            data-upload-file
+            multiple={@multiple}
+          />
+        </label>
 
         <div class="file-thumbs"></div>
       </div>

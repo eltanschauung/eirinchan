@@ -1,26 +1,9 @@
 $(function () {
   var embedEnabled = $("#upload_embed").length > 0;
   var hasOekaki = window.oekaki !== undefined;
-  var nativeSelector = "[data-native-upload]";
-  var enhancedFormSelector = 'form[data-file-selector-enhanced="true"]';
-
-  function syncFileSelectorVisibility(scope) {
-    var $scope = scope ? $(scope) : $(document);
-
-    $scope.find(".dropzone-wrap").each(function () {
-      var $shell = $(this);
-      var $nativeUpload = $shell.closest("[data-upload-row], #upload").find(nativeSelector).first();
-      var enhanced = $shell.closest(enhancedFormSelector).length > 0;
-
-      $nativeUpload.toggle(!enhanced);
-      $shell.toggle(enhanced);
-      $shell.attr("hidden", !enhanced);
-    });
-  }
 
   function hideAllUploadModes() {
     $("#upload").hide();
-    $(nativeSelector).hide();
     $(".file_separator").hide();
     $("#upload_url").hide();
     $("#upload_embed").hide();
@@ -32,14 +15,12 @@ $(function () {
     }
   }
 
-  window.syncFileSelectorVisibility = syncFileSelectorVisibility;
-
   window.enable_file = function () {
     hideAllUploadModes();
     $("#upload").show();
     $(".file_separator").show();
     $(".add_image").show();
-    syncFileSelectorVisibility(document);
+    $(".dropzone-wrap").show();
 
     if (embedEnabled) {
       $("#upload_embed").show();
