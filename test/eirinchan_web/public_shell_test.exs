@@ -1,7 +1,7 @@
 defmodule EirinchanWeb.PublicShellTest do
   use ExUnit.Case, async: true
 
-  alias EirinchanWeb.{PostComponents, PublicShell}
+  alias EirinchanWeb.{JsBundles, PostComponents, PublicShell}
 
   test "uses vichan default additional javascript by default" do
     config = %{
@@ -77,8 +77,11 @@ defmodule EirinchanWeb.PublicShellTest do
              "/js/runtime-config.js",
              "/main.js",
              "/js/bundle-public-core.js",
-             "/js/bundle-public-thread.js"
+             "/js/bundle-public-thread.js",
+             "/js/auto-reload.js"
            ]
+
+    refute MapSet.member?(JsBundles.bundled_sources_for(:thread), "js/auto-reload.js")
   end
 
   test "compile mode drops remote scripts" do
@@ -95,7 +98,8 @@ defmodule EirinchanWeb.PublicShellTest do
              "/js/runtime-config.js",
              "/main.js",
              "/js/bundle-public-core.js",
-             "/js/bundle-public-thread.js"
+             "/js/bundle-public-thread.js",
+             "/js/auto-reload.js"
            ]
   end
 
@@ -114,7 +118,8 @@ defmodule EirinchanWeb.PublicShellTest do
              "/js/bundle-public-core.js",
              "/js/bundle-public-thread.js",
              "/js/ruffle.js",
-             "/js/expand-swf.js"
+             "/js/expand-swf.js",
+             "/js/auto-reload.js"
            ]
   end
 
@@ -131,7 +136,8 @@ defmodule EirinchanWeb.PublicShellTest do
              "/js/runtime-config.js",
              "/main.js",
              "/js/bundle-public-core.js",
-             "/js/bundle-public-catalog.js"
+             "/js/bundle-public-catalog.js",
+             "/js/auto-reload.js"
            ]
   end
 
