@@ -6,18 +6,18 @@ defmodule Eirinchan.FormattingPageTest do
   test "upgrades stored sticker markup without altering unrelated images" do
     html = """
     <div>
-      <img src="/whalestickers/gojo.png" title="gojo">
+      <img src="/stickers/example.png" title="example">
       <img src="https://example.com/unrelated.png" title="unrelated">
     </div>
     """
 
     normalized =
       FormattingPage.normalize_body(html, [
-        %{token: "gojo", path: "/whalestickers/gojo.png", width: 128, height: 130}
+        %{token: "example", path: "/stickers/example.png", width: 128, height: 130}
       ])
 
     {:ok, document} = Floki.parse_fragment(normalized)
-    [sticker] = Floki.find(document, ~s(img[src="/whalestickers/gojo.png"]))
+    [sticker] = Floki.find(document, ~s(img[src="/stickers/example.png"]))
     [external] = Floki.find(document, ~s(img[src="https://example.com/unrelated.png"]))
 
     assert Floki.attribute(sticker, "width") == ["128"]
