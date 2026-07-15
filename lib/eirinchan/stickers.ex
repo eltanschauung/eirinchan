@@ -4,6 +4,7 @@ defmodule Eirinchan.Stickers do
   """
 
   alias Eirinchan.Settings
+  alias Eirinchan.StaticImageDimensions
   def default_entries, do: []
 
   def entries(config_or_settings \\ %{})
@@ -124,8 +125,16 @@ defmodule Eirinchan.Stickers do
 
   defp sticker_html(entry, rest) do
     suffix = if entry.append_break, do: "<br>", else: ""
+    path = "/stickers/#{entry.file}"
+    title = ":#{html_escape(entry.title)}:"
 
-    ~s(<img src="/stickers/#{html_escape(entry.file)}" title=":#{html_escape(entry.title)}:">#{rest}#{suffix})
+    dimensions =
+      case StaticImageDimensions.for_static_path(path) do
+        {width, height} -> ~s( width="#{width}" height="#{height}")
+        nil -> ""
+      end
+
+    ~s(<img src="#{html_escape(path)}" alt="#{title}" title="#{title}"#{dimensions} loading="eager" decoding="async">#{rest}#{suffix})
   end
 
   defp html_escape(value), do: Phoenix.HTML.html_escape(value) |> Phoenix.HTML.safe_to_string()
