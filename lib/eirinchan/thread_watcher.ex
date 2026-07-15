@@ -3,91 +3,37 @@ defmodule Eirinchan.ThreadWatcher do
 
   alias Eirinchan.BrowserIdentity
   alias Eirinchan.Boards.BoardRecord
-  alias Eirinchan.PostOwnership.Ownership
-  alias Eirinchan.Posts.Cite
   alias Eirinchan.Posts.Post
-  alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Repo
+  alias Eirinchan.ThreadWatcher.Snapshot
   alias Eirinchan.ThreadWatcher.Watch
+
+  def snapshot(browser_token, opts \\ []) when is_binary(browser_token) do
+    Snapshot.build(browser_token, opts)
+  end
+
+  def empty_snapshot, do: Snapshot.empty()
 
   def list_watches(browser_token) when is_binary(browser_token) do
     browser_token = BrowserIdentity.reference(browser_token)
-    reconcile_moved_watches(browser_token)
 
-    Watch
-    |> where([watch], watch.browser_token == ^browser_token)
-    |> order_by([watch], asc: watch.board_uri, desc: watch.updated_at)
+    from(watch in Watch,
+      join: thread in Post,
+      on: thread.id == watch.thread_id and is_nil(thread.thread_id),
+      join: board in BoardRecord,
+      on: board.id == thread.board_id,
+      where: watch.browser_token == ^browser_token,
+      order_by: [asc: board.uri, desc: watch.updated_at],
+      select: {watch, board.uri}
+    )
     |> Repo.all()
+    |> Enum.map(fn {watch, board_uri} -> %{watch | board_uri: board_uri} end)
   end
 
   def list_watch_summaries(browser_token) when is_binary(browser_token) do
-    browser_token = BrowserIdentity.reference(browser_token)
-    purge_missing_watches(browser_token)
-    watches = list_watches(browser_token)
-
-    if watches == [] do
-      []
-    else
-      thread_ids = Enum.map(watches, & &1.thread_id)
-
-      threads =
-        from(thread in Post,
-          join: board in BoardRecord,
-          on: board.id == thread.board_id,
-          where: is_nil(thread.thread_id) and thread.id in ^thread_ids,
-          select: %{
-            thread_id: thread.id,
-            thread_public_id: thread.public_id,
-            board_uri: board.uri,
-            board_title: board.title,
-            subject: thread.subject,
-            body: thread.body,
-            slug: thread.slug,
-            inserted_at: thread.inserted_at
-          }
-        )
-        |> Repo.all()
-        |> Map.new(&{&1.thread_id, &1})
-
-      stats = thread_stats(thread_ids)
-      unread = unread_counts(watches, thread_ids)
-      you_unread = unread_you_counts(watches, thread_ids, browser_token)
-      you_unread_target = unread_you_targets(watches, thread_ids, browser_token)
-
-      watches
-      |> Enum.map(fn watch ->
-        case threads[watch.thread_id] do
-          nil ->
-            nil
-
-          thread ->
-            stat =
-              Map.get(stats, watch.thread_id, %{last_post_id: watch.thread_id, post_count: 1})
-
-            %{
-              board_uri: watch.board_uri,
-              board_title: thread.board_title,
-              thread_id: thread.thread_public_id,
-              subject: thread.subject,
-              excerpt: excerpt(thread.body),
-              slug: thread.slug,
-              inserted_at: thread.inserted_at,
-              updated_at: watch.updated_at,
-              post_count: stat.post_count,
-              last_post_id: stat.last_post_public_id,
-              last_seen_post_id: public_post_id(watch.last_seen_post_id || watch.thread_id),
-              unread_count: Map.get(unread, {watch.board_uri, watch.thread_id}, 0),
-              you_unread_count: Map.get(you_unread, {watch.board_uri, watch.thread_id}, 0),
-              you_unread_post_id: Map.get(you_unread_target, {watch.board_uri, watch.thread_id})
-            }
-        end
-      end)
-      |> Enum.reject(&is_nil/1)
-      |> Enum.sort_by(
-        fn summary -> {summary.unread_count > 0, summary.updated_at, summary.last_post_id} end,
-        :desc
-      )
-    end
+    browser_token
+    |> snapshot(summaries: true)
+    |> Map.fetch!(:summaries)
   end
 
   def current_last_post_id(board_uri, thread_id)
@@ -107,91 +53,44 @@ defmodule Eirinchan.ThreadWatcher do
   def watched_thread_ids(browser_token, board_uri)
       when is_binary(browser_token) and is_binary(board_uri) do
     browser_token = BrowserIdentity.reference(browser_token)
-    reconcile_moved_watches(browser_token, board_uri)
 
-    Watch
-    |> where([watch], watch.browser_token == ^browser_token and watch.board_uri == ^board_uri)
-    |> select([watch], watch.thread_id)
+    from(watch in Watch,
+      join: thread in Post,
+      on: thread.id == watch.thread_id and is_nil(thread.thread_id),
+      join: board in BoardRecord,
+      on: board.id == thread.board_id,
+      where: watch.browser_token == ^browser_token and board.uri == ^board_uri,
+      select: watch.thread_id
+    )
     |> Repo.all()
     |> MapSet.new()
   end
 
   def watch_state_for_board(browser_token, board_uri)
       when is_binary(browser_token) and is_binary(board_uri) do
-    browser_token = BrowserIdentity.reference(browser_token)
-    reconcile_moved_watches(browser_token, board_uri)
-    purge_missing_watches(browser_token, board_uri)
-
-    watches =
-      Watch
-      |> where([watch], watch.browser_token == ^browser_token and watch.board_uri == ^board_uri)
-      |> Repo.all()
-
-    if watches == [] do
-      %{}
-    else
-      thread_ids = Enum.map(watches, & &1.thread_id)
-      unread = unread_counts(watches, thread_ids)
-      you_unread = unread_you_counts(watches, thread_ids, browser_token)
-
-      watches
-      |> Enum.map(fn watch ->
-        unread_count = Map.get(unread, {watch.board_uri, watch.thread_id}, 0)
-        you_unread_count = Map.get(you_unread, {watch.board_uri, watch.thread_id}, 0)
-        public_thread_id = public_post_id(watch.thread_id)
-        public_last_seen_post_id = public_post_id(watch.last_seen_post_id || watch.thread_id)
-
-        {public_thread_id,
-         %{
-           watched: true,
-           unread_count: unread_count,
-           you_unread_count: you_unread_count,
-           last_seen_post_id: public_last_seen_post_id
-         }}
-      end)
-      |> Map.new()
-    end
+    browser_token
+    |> snapshot()
+    |> Map.fetch!(:watch_state_by_board)
+    |> Map.get(board_uri, %{})
   end
 
   def watch_count(browser_token) when is_binary(browser_token) do
     browser_token = BrowserIdentity.reference(browser_token)
-    reconcile_moved_watches(browser_token)
-    purge_missing_watches(browser_token)
 
-    Watch
-    |> where([watch], watch.browser_token == ^browser_token)
-    |> select([watch], count(watch.id))
+    from(watch in Watch,
+      join: thread in Post,
+      on: thread.id == watch.thread_id and is_nil(thread.thread_id),
+      where: watch.browser_token == ^browser_token,
+      select: count(watch.id)
+    )
     |> Repo.one()
     |> Kernel.||(0)
   end
 
   def watch_metrics(browser_token) when is_binary(browser_token) do
-    browser_token = BrowserIdentity.reference(browser_token)
-    reconcile_moved_watches(browser_token)
-    purge_missing_watches(browser_token)
-    watches = list_watches(browser_token)
-
-    if watches == [] do
-      %{watcher_count: 0, watcher_unread_count: 0, watcher_you_count: 0}
-    else
-      thread_ids = Enum.map(watches, & &1.thread_id)
-
-      watcher_unread_count =
-        unread_counts(watches, thread_ids)
-        |> Map.values()
-        |> Enum.sum()
-
-      watcher_you_count =
-        unread_you_counts(watches, thread_ids, browser_token)
-        |> Map.values()
-        |> Enum.sum()
-
-      %{
-        watcher_count: length(watches),
-        watcher_unread_count: watcher_unread_count,
-        watcher_you_count: watcher_you_count
-      }
-    end
+    browser_token
+    |> snapshot()
+    |> Map.fetch!(:metrics)
   end
 
   def watched?(browser_token, board_uri, thread_id)
@@ -200,8 +99,12 @@ defmodule Eirinchan.ThreadWatcher do
 
     Repo.exists?(
       from watch in Watch,
+        join: thread in Post,
+        on: thread.id == watch.thread_id and is_nil(thread.thread_id),
+        join: board in BoardRecord,
+        on: board.id == thread.board_id,
         where:
-          watch.browser_token == ^browser_token and watch.board_uri == ^board_uri and
+          watch.browser_token == ^browser_token and board.uri == ^board_uri and
             watch.thread_id == ^thread_id
     )
   end
@@ -209,35 +112,64 @@ defmodule Eirinchan.ThreadWatcher do
   def watch_thread(browser_token, board_uri, thread_id, attrs \\ %{})
       when is_binary(browser_token) and is_binary(board_uri) and is_integer(thread_id) do
     browser_token = BrowserIdentity.reference(browser_token)
+    attrs = Map.new(attrs)
 
-    attrs =
+    last_seen_post_id =
+      Map.get(attrs, :last_seen_post_id, Map.get(attrs, "last_seen_post_id"))
+
+    insert_attrs =
       attrs
-      |> Map.new()
+      |> Map.drop([:last_seen_post_id, "last_seen_post_id"])
       |> Map.put(:browser_token, browser_token)
       |> Map.put(:board_uri, board_uri)
       |> Map.put(:thread_id, thread_id)
 
-    %Watch{}
-    |> Watch.changeset(attrs)
-    |> Repo.insert(
-      on_conflict: [
-        set: [updated_at: DateTime.utc_now(), last_seen_post_id: attrs[:last_seen_post_id]]
-      ],
-      conflict_target: [:browser_token, :board_uri, :thread_id]
-    )
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    Repo.transaction(fn ->
+      case %Watch{}
+           |> Watch.changeset(insert_attrs)
+           |> Repo.insert(
+             on_conflict: [set: [board_uri: board_uri, updated_at: now]],
+             conflict_target: [:browser_token, :thread_id]
+           ) do
+        {:ok, _watch} ->
+          case last_seen_post_id do
+            value when is_integer(value) ->
+              case mark_seen(browser_token, board_uri, thread_id, value) do
+                {:ok, %Watch{} = watch} -> watch
+                {:ok, nil} -> Repo.rollback(:invalid_last_seen_post)
+              end
+
+            _ ->
+              Repo.get_by!(Watch, browser_token: browser_token, thread_id: thread_id)
+          end
+
+        {:error, changeset} ->
+          Repo.rollback(changeset)
+      end
+    end)
   end
 
   def unwatch_thread(browser_token, board_uri, thread_id)
       when is_binary(browser_token) and is_binary(board_uri) and is_integer(thread_id) do
     browser_token = BrowserIdentity.reference(browser_token)
 
-    {count, _} =
-      Repo.delete_all(
-        from watch in Watch,
-          where:
-            watch.browser_token == ^browser_token and watch.board_uri == ^board_uri and
-              watch.thread_id == ^thread_id
+    valid_thread_ids =
+      from(thread in Post,
+        join: board in BoardRecord,
+        on: board.id == thread.board_id,
+        where: thread.id == ^thread_id and is_nil(thread.thread_id) and board.uri == ^board_uri,
+        select: thread.id
       )
+
+    {count, _} =
+      from(watch in Watch,
+        where:
+          watch.browser_token == ^browser_token and
+            watch.thread_id in subquery(valid_thread_ids)
+      )
+      |> Repo.delete_all()
 
     {:ok, count}
   end
@@ -257,10 +189,28 @@ defmodule Eirinchan.ThreadWatcher do
   def reconcile_moved_watches(browser_token, board_uri \\ nil)
       when is_binary(browser_token) and (is_binary(board_uri) or is_nil(board_uri)) do
     browser_token = BrowserIdentity.reference(browser_token)
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
 
-    moved_watch_rows(browser_token, board_uri)
-    |> Enum.each(&reconcile_moved_watch/1)
+    query =
+      from(watch in Watch,
+        join: thread in Post,
+        on: thread.id == watch.thread_id and is_nil(thread.thread_id),
+        join: board in BoardRecord,
+        on: board.id == thread.board_id,
+        where: watch.browser_token == ^browser_token and watch.board_uri != board.uri,
+        update: [set: [board_uri: board.uri, updated_at: ^now]]
+      )
 
+    query =
+      if is_binary(board_uri) do
+        from([watch, _thread, board] in query,
+          where: watch.board_uri == ^board_uri or board.uri == ^board_uri
+        )
+      else
+        query
+      end
+
+    _ = Repo.update_all(query, [])
     :ok
   end
 
@@ -285,7 +235,6 @@ defmodule Eirinchan.ThreadWatcher do
   def unwatch_stale_threads(browser_token, board_uri)
       when is_binary(browser_token) and is_binary(board_uri) do
     browser_token = BrowserIdentity.reference(browser_token)
-
     thread_ids = from(post in Post, where: is_nil(post.thread_id), select: post.id)
 
     {count, _} =
@@ -303,191 +252,33 @@ defmodule Eirinchan.ThreadWatcher do
       when is_binary(browser_token) and is_binary(board_uri) and is_integer(thread_id) and
              is_integer(last_seen_post_id) do
     browser_token = BrowserIdentity.reference(browser_token)
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
 
-    case Repo.get_by(Watch,
-           browser_token: browser_token,
-           board_uri: board_uri,
-           thread_id: thread_id
-         ) do
-      nil ->
-        {:ok, nil}
-
-      watch ->
-        watch
-        |> Watch.changeset(%{last_seen_post_id: last_seen_post_id})
-        |> Repo.update()
-    end
-  end
-
-  defp thread_stats(thread_ids) do
-    from(post in Post,
-      where: post.id in ^thread_ids or post.thread_id in ^thread_ids,
-      group_by: fragment("COALESCE(?, ?)", post.thread_id, post.id),
-      select: {
-        fragment("COALESCE(?, ?)", post.thread_id, post.id),
-        %{
-          last_post_id: max(post.id),
-          last_post_public_id: max(post.public_id),
-          post_count: count(post.id)
-        }
-      }
-    )
-    |> Repo.all()
-    |> Map.new()
-  end
-
-  defp public_post_id(id) when is_integer(id) do
-    case Repo.get(Post, id) do
-      %Post{} = post -> PublicIds.public_id(post)
-      _ -> id
-    end
-  end
-
-  defp unread_counts(watches, thread_ids) do
-    min_seen =
-      watches
-      |> Enum.map(fn watch -> watch.last_seen_post_id || watch.thread_id end)
-      |> Enum.min()
-
-    posts =
-      from(post in Post,
-        where: post.id in ^thread_ids or post.thread_id in ^thread_ids,
-        where: post.id > ^min_seen,
-        select: {fragment("COALESCE(?, ?)", post.thread_id, post.id), post.id}
-      )
-      |> Repo.all()
-      |> Enum.group_by(fn {thread_id, _post_id} -> thread_id end, fn {_thread_id, post_id} ->
-        post_id
-      end)
-
-    watches
-    |> Enum.map(fn watch ->
-      seen = watch.last_seen_post_id || watch.thread_id
-      count = posts |> Map.get(watch.thread_id, []) |> Enum.count(&(&1 > seen))
-      {{watch.board_uri, watch.thread_id}, count}
-    end)
-    |> Map.new()
-  end
-
-  defp unread_you_counts(watches, thread_ids, browser_token) do
-    unread_you_posts(watches, thread_ids, browser_token)
-    |> Map.new(fn {key, post_ids} ->
-      {key, length(post_ids)}
-    end)
-  end
-
-  defp unread_you_targets(watches, thread_ids, browser_token) do
-    unread_you_posts(watches, thread_ids, browser_token)
-    |> Map.new(fn {key, post_ids} ->
-      {key, List.last(post_ids)}
-    end)
-  end
-
-  defp unread_you_posts(watches, thread_ids, browser_token) do
-    min_seen =
-      watches
-      |> Enum.map(fn watch -> watch.last_seen_post_id || watch.thread_id end)
-      |> Enum.min()
-
-    posts =
-      from(post in Post,
-        join: cite in Cite,
-        on: cite.post_id == post.id,
-        join: ownership in Ownership,
-        on:
-          ownership.post_id == cite.target_post_id and ownership.browser_token == ^browser_token,
-        where: post.id in ^thread_ids or post.thread_id in ^thread_ids,
-        where: post.id > ^min_seen,
-        distinct: post.id,
-        order_by: [asc: post.id],
-        select: {fragment("COALESCE(?, ?)", post.thread_id, post.id), post.id, post.public_id}
-      )
-      |> Repo.all()
-      |> Enum.group_by(fn {thread_id, _post_id, _public_id} -> thread_id end, fn {_thread_id,
-                                                                                  post_id,
-                                                                                  public_id} ->
-        {post_id, public_id}
-      end)
-
-    watches
-    |> Enum.map(fn watch ->
-      seen = watch.last_seen_post_id || watch.thread_id
-
-      public_ids =
-        posts
-        |> Map.get(watch.thread_id, [])
-        |> Enum.filter(fn {post_id, _public_id} -> post_id > seen end)
-        |> Enum.map(fn {_post_id, public_id} -> public_id end)
-
-      {{watch.board_uri, watch.thread_id}, public_ids}
-    end)
-    |> Map.new()
-  end
-
-  defp moved_watch_rows(browser_token, board_uri) do
-    query =
-      from watch in Watch,
+    valid_watch_query =
+      from(watch in Watch,
         join: thread in Post,
         on: thread.id == watch.thread_id and is_nil(thread.thread_id),
         join: board in BoardRecord,
         on: board.id == thread.board_id,
-        where: watch.browser_token == ^browser_token and watch.board_uri != board.uri,
-        select: %{
-          id: watch.id,
-          browser_token: watch.browser_token,
-          stored_board_uri: watch.board_uri,
-          actual_board_uri: board.uri,
-          thread_id: watch.thread_id
-        }
+        join: seen_post in Post,
+        on:
+          seen_post.board_id == thread.board_id and seen_post.id == ^last_seen_post_id and
+            (seen_post.id == thread.id or seen_post.thread_id == thread.id),
+        where:
+          watch.browser_token == ^browser_token and watch.thread_id == ^thread_id and
+            board.uri == ^board_uri
+      )
 
-    query =
-      if is_binary(board_uri) do
-        from row in subquery(query),
-          where: row.stored_board_uri == ^board_uri or row.actual_board_uri == ^board_uri
-      else
-        query
-      end
+    {count, _} =
+      from([watch, _thread, _board, _seen_post] in valid_watch_query,
+        where: fragment("COALESCE(?, 0) < ?", watch.last_seen_post_id, ^last_seen_post_id),
+        update: [set: [last_seen_post_id: ^last_seen_post_id, updated_at: ^now]]
+      )
+      |> Repo.update_all([])
 
-    Repo.all(query)
-  end
-
-  defp reconcile_moved_watch(%{
-         id: watch_id,
-         browser_token: browser_token,
-         stored_board_uri: stored_board_uri,
-         actual_board_uri: actual_board_uri,
-         thread_id: thread_id
-       }) do
-    case Repo.get_by(Watch,
-           browser_token: browser_token,
-           board_uri: actual_board_uri,
-           thread_id: thread_id
-         ) do
-      %Watch{} ->
-        Repo.delete_all(
-          from watch in Watch,
-            where:
-              watch.id == ^watch_id and watch.browser_token == ^browser_token and
-                watch.board_uri == ^stored_board_uri and watch.thread_id == ^thread_id
-        )
-
-      nil ->
-        Repo.update_all(
-          from(watch in Watch, where: watch.id == ^watch_id),
-          set: [board_uri: actual_board_uri, updated_at: DateTime.utc_now()]
-        )
+    case count do
+      0 -> {:ok, Repo.one(from(watch in valid_watch_query, select: watch))}
+      _ -> {:ok, Repo.get_by!(Watch, browser_token: browser_token, thread_id: thread_id)}
     end
   end
-
-  defp excerpt(body) when is_binary(body) do
-    body
-    |> String.replace(~r/\s+/, " ")
-    |> String.trim()
-    |> case do
-      "" -> nil
-      value -> if String.length(value) > 80, do: String.slice(value, 0, 77) <> "...", else: value
-    end
-  end
-
-  defp excerpt(_), do: nil
 end

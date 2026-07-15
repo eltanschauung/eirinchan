@@ -23,8 +23,9 @@ defmodule Eirinchan.ThreadWatcher.Watch do
     end)
     |> validate_length(:board_uri, min: 1, max: 32)
     |> validate_number(:thread_id, greater_than: 0)
-    |> unique_constraint([:browser_token, :board_uri, :thread_id],
-      name: :thread_watches_browser_token_board_uri_thread_id_index
+    |> unique_constraint([:browser_token, :thread_id],
+      name: :thread_watches_browser_token_thread_id_index
     )
+    |> foreign_key_constraint(:thread_id)
   end
 end
