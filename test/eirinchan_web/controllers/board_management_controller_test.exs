@@ -693,11 +693,13 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
       |> html_response(200)
 
     assert first_page =~ ~s(href="/#{board.uri}/catalog/2.html")
+    assert first_page =~ ~s(rel="next" href="/#{board.uri}/catalog/2.html")
     assert first_page =~ "Third thread"
     assert first_page =~ "Second thread"
     refute first_page =~ "First thread"
     assert second_page =~ "First thread"
     refute second_page =~ "Second thread"
+    assert second_page =~ ~s(rel="prev" href="/#{board.uri}/catalog.html")
   end
 
   test "catalog page preserves sort and search across pagination", %{conn: conn} do

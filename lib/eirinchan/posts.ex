@@ -23,8 +23,10 @@ defmodule Eirinchan.Posts do
   alias Eirinchan.Posts.Persistence, as: PostsPersistence
   alias Eirinchan.Posts.Pruning, as: PostsPruning
   alias Eirinchan.Posts.UploadPreparation, as: PostsUploadPreparation
+  alias Eirinchan.Pagination
   alias Eirinchan.Repo
   alias Eirinchan.Runtime.Config
+  alias Eirinchan.ThreadPaths
   alias Eirinchan.Uploads
   alias Eirinchan.LogSystem
   alias Eirinchan.ModerationLog
@@ -74,6 +76,7 @@ defmodule Eirinchan.Posts do
     request = Keyword.get(opts, :request, %{})
     upload_preparer = Keyword.get(opts, :upload_preparer, PostsUploadPreparation)
     attrs = normalize_attrs(attrs)
+
     upload_attempt? =
       PostsUploadPreparation.has_upload?(attrs) or
         PostsUploadPreparation.remote_upload_requested?(attrs)
@@ -1125,17 +1128,12 @@ defmodule Eirinchan.Posts do
 
     page_size =
       if config.catalog_pagination do
-        max(config.catalog_threads_per_page, 1)
+        Pagination.page_size(config.catalog_threads_per_page, 100)
       else
         max(total_threads, 1)
       end
 
-    total_pages =
-      total_threads
-      |> Kernel./(page_size)
-      |> Float.ceil()
-      |> trunc()
-      |> max(1)
+    total_pages = Pagination.page_count(total_threads, page_size)
 
     if page < 1 or page > total_pages do
       {:error, :not_found}
@@ -1203,8 +1201,8 @@ defmodule Eirinchan.Posts do
   def list_threads_page(%BoardRecord{} = board, page, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
     config = Keyword.get(opts, :config, Config.compose())
-    threads_per_page = config.threads_per_page
-    max_pages = config.max_pages
+    threads_per_page = Pagination.page_size(config.threads_per_page, 10)
+    max_pages = Pagination.page_size(config.max_pages, 10)
 
     total_threads =
       repo.aggregate(
@@ -1214,12 +1212,7 @@ defmodule Eirinchan.Posts do
       )
 
     total_pages =
-      total_threads
-      |> Kernel./(threads_per_page)
-      |> Float.ceil()
-      |> trunc()
-      |> max(1)
-      |> min(max_pages)
+      Pagination.page_count(total_threads, threads_per_page, max_pages: max_pages)
 
     if page < 1 or page > total_pages do
       {:error, :not_found}
@@ -1814,12 +1807,7 @@ defmodule Eirinchan.Posts do
     for num <- 1..total_pages do
       %{
         num: num,
-        link:
-          if num == 1 do
-            "/#{board.uri}"
-          else
-            "/#{board.uri}/#{String.replace(config.file_page, "%d", Integer.to_string(num))}"
-          end
+        link: ThreadPaths.board_page_path(board, num, config)
       }
     end
   end
@@ -1828,7 +1816,7 @@ defmodule Eirinchan.Posts do
     for num <- 1..total_pages do
       %{
         num: num,
-        link: Eirinchan.ThreadPaths.catalog_page_path(board, num, config)
+        link: ThreadPaths.catalog_page_path(board, num, config)
       }
     end
   end
