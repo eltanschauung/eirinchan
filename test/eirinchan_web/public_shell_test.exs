@@ -20,6 +20,50 @@ defmodule EirinchanWeb.PublicShellTest do
            ]
   end
 
+  test "normalizes the legacy server watcher script to the maintained client" do
+    config = %{
+      root: "/",
+      url_javascript: "/main.js",
+      additional_javascript: [
+        "js/jquery.min.js",
+        "js/server-thread-watcher.js",
+        "/js/server-thread-watcher.js"
+      ],
+      additional_javascript_url: "/",
+      additional_javascript_compile: false
+    }
+
+    assert PublicShell.javascript_urls(:thread, config) == [
+             "/js/runtime-config.js",
+             "/main.js",
+             "/js/jquery.min.js",
+             "/js/thread-watcher.js"
+           ]
+  end
+
+  test "search pages continue to exclude the watcher client" do
+    config = %{
+      root: "/",
+      url_javascript: "/main.js",
+      additional_javascript: ["js/jquery.min.js", "js/server-thread-watcher.js"],
+      additional_javascript_url: "/",
+      additional_javascript_compile: false
+    }
+
+    assert PublicShell.javascript_urls(:search, config) == [
+             "/js/runtime-config.js",
+             "/main.js",
+             "/js/jquery.min.js"
+           ]
+  end
+
+  test "compiled bundles contain only the maintained watcher source" do
+    sources = EirinchanWeb.JsBundles.bundled_sources_for(:thread)
+
+    assert MapSet.member?(sources, "js/thread-watcher.js")
+    refute MapSet.member?(sources, "js/server-thread-watcher.js")
+  end
+
   test "catalog appends required theme scripts" do
     config = %{
       root: "/",
