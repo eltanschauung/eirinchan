@@ -19,6 +19,7 @@ defmodule EirinchanWeb.PostView do
 
   @deleted_file_sentinel "deleted"
   @filename_title_limit 256
+  @spoiler_thumbnail_width 144
 
   def template_assigns(board, post, config) do
     %{
@@ -628,12 +629,19 @@ defmodule EirinchanWeb.PostView do
     if deleted_file?(file) do
       nil
     else
-      fit_dimensions(
-        Map.get(file, :image_width),
-        Map.get(file, :image_height),
-        max_width,
-        max_height
-      )
+      dimensions =
+        fit_dimensions(
+          Map.get(file, :image_width),
+          Map.get(file, :image_height),
+          max_width,
+          max_height
+        )
+
+      if Map.get(file, :spoiler, false) do
+        scale_dimensions_to_width(dimensions, @spoiler_thumbnail_width)
+      else
+        dimensions
+      end
     end
   end
 
@@ -1595,6 +1603,13 @@ defmodule EirinchanWeb.PostView do
   end
 
   defp fit_dimensions(_width, _height, _max_width, _max_height), do: nil
+
+  defp scale_dimensions_to_width({width, height}, target_width)
+       when is_integer(width) and width > 0 and is_integer(height) and height > 0 do
+    {target_width, max(round(height * target_width / width), 1)}
+  end
+
+  defp scale_dimensions_to_width(nil, _target_width), do: nil
 
   defp normalize_string(nil), do: nil
   defp normalize_string(value) when is_binary(value), do: String.trim(value)

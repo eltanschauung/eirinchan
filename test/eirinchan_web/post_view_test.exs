@@ -395,6 +395,17 @@ defmodule EirinchanWeb.PostViewTest do
 
     assert html =~ ~s(class="post-image spoiler-image")
     assert html =~ ~s(src="/bant/thumb/example.jpg")
+    assert PostView.thumb_dimensions(file, config) == {144, 108}
+    assert html =~ ~s(width="144")
+    assert html =~ ~s(height="108")
+    assert html =~ ~s(style="width:144px;height:108px")
+
+    stylesheet =
+      :eirinchan
+      |> Application.app_dir("priv/static/stylesheets/style.css")
+      |> File.read!()
+
+    assert stylesheet =~ ".spoiler-image{filter:blur(3px)}"
   end
 
   test "file_image_html pre-renders the full image shell for expandable images" do
