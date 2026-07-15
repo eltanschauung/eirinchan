@@ -620,7 +620,7 @@ defmodule EirinchanWeb.PostView do
     |> Enum.join(" , ")
   end
 
-  def thumb_style(file, config, opts \\ []) do
+  def thumb_dimensions(file, config, opts \\ []) do
     op? = Keyword.get(opts, :op?, false)
     max_width = if op?, do: config.thumb_op_width, else: config.thumb_width
     max_height = if op?, do: config.thumb_op_height, else: config.thumb_height
@@ -628,15 +628,19 @@ defmodule EirinchanWeb.PostView do
     if deleted_file?(file) do
       nil
     else
-      case fit_dimensions(
-             Map.get(file, :image_width),
-             Map.get(file, :image_height),
-             max_width,
-             max_height
-           ) do
-        {width, height} -> "width:#{width}px;height:#{height}px"
-        nil -> nil
-      end
+      fit_dimensions(
+        Map.get(file, :image_width),
+        Map.get(file, :image_height),
+        max_width,
+        max_height
+      )
+    end
+  end
+
+  def thumb_style(file, config, opts \\ []) do
+    case thumb_dimensions(file, config, opts) do
+      {width, height} -> "width:#{width}px;height:#{height}px"
+      nil -> nil
     end
   end
 
