@@ -9,13 +9,23 @@ DROP_IN=/etc/systemd/system/bantculture-phoenix.service.d/hardening.conf
 
 REPOSITORY="$(realpath -- "$REPOSITORY")"
 COMMIT="$(git -C "$REPOSITORY" rev-parse HEAD)"
+TOOLCHAIN_ID=elixir-1.20.2-otp-27
+CACHE_ROOT="${EIRINCHAN_DEPLOY_CACHE_ROOT:-${HOME}/.cache/eirinchan/deploy/${TOOLCHAIN_ID}}"
+RUN_ROOT="$CACHE_ROOT/runs"
 
 if [[ ! "$COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
   echo "Refusing invalid release identifier: $COMMIT" >&2
   exit 1
 fi
 
-BUILD_ROOT="$(mktemp -d /home/telemazer/eirinchan-v1/tmp/release-build.XXXXXX)"
+install -d -m 0700 "$CACHE_ROOT" "$RUN_ROOT" "$CACHE_ROOT/deps" "$CACHE_ROOT/build"
+[[ -O "$CACHE_ROOT" ]] || { echo "Deploy cache is not owned by the current user." >&2; exit 1; }
+chmod 0700 "$CACHE_ROOT" "$RUN_ROOT" "$CACHE_ROOT/deps" "$CACHE_ROOT/build"
+
+exec 9>"$CACHE_ROOT/deploy.lock"
+flock 9
+
+BUILD_ROOT="$(mktemp -d "$RUN_ROOT/release.XXXXXX")"
 SOURCE_ROOT="$BUILD_ROOT/source"
 OUTPUT_ROOT="$BUILD_ROOT/output"
 TARGET="$RELEASE_ROOT/$COMMIT"
@@ -50,9 +60,11 @@ export PATH="/home/telemazer/.local/elixir-1.20.2-otp-27/bin:/home/telemazer/.lo
 export MIX_HOME=/home/telemazer/.mix-1.20
 export HEX_HOME=/home/telemazer/.hex-1.20
 export MIX_ENV=prod
+export MIX_DEPS_PATH="$CACHE_ROOT/deps"
+export MIX_BUILD_PATH="$CACHE_ROOT/build"
 
 cd "$SOURCE_ROOT"
-mix deps.get --only prod
+mix deps.get --only prod --check-locked
 mix compile
 mix release --path "$OUTPUT_ROOT" --overwrite
 
@@ -61,7 +73,7 @@ if [[ -z "$APP_STATIC" ]]; then
   echo "Release static directory was not generated." >&2
   exit 1
 fi
-rsync -a -- "$REPOSITORY/priv/static/" "$APP_STATIC/"
+rsync -a -- "$SOURCE_ROOT/priv/static/" "$APP_STATIC/"
 
 sudo install -d -m 0755 -o root -g root /opt/eirinchan "$RELEASE_ROOT"
 if [[ ! -e "$TARGET" ]]; then
@@ -77,10 +89,10 @@ fi
 sudo -u telemazer "$TARGET/bin/migrate"
 
 sudo install -m 0644 -o root -g root \
-  "$REPOSITORY/ops/systemd/bantculture-phoenix.service.d/hardening.conf" \
+  "$SOURCE_ROOT/ops/systemd/bantculture-phoenix.service.d/hardening.conf" \
   "$DROP_IN"
 sudo install -m 0644 -o root -g root \
-  "$REPOSITORY/ops/logrotate/bantculture-phoenix" \
+  "$SOURCE_ROOT/ops/logrotate/bantculture-phoenix" \
   /etc/logrotate.d/bantculture-phoenix
 
 if ! command -v goaccess >/dev/null 2>&1; then
@@ -94,10 +106,10 @@ sudo sed -i 's/^#log-format COMBINED$/log-format COMBINED/' /etc/goaccess/goacce
 sudo grep -qxF 'log-format COMBINED' /etc/goaccess/goaccess.conf
 
 sudo install -m 0644 -o root -g root \
-  "$REPOSITORY/ops/systemd/eirinchan-log-retention.service" \
+  "$SOURCE_ROOT/ops/systemd/eirinchan-log-retention.service" \
   /etc/systemd/system/eirinchan-log-retention.service
 sudo install -m 0644 -o root -g root \
-  "$REPOSITORY/ops/systemd/eirinchan-log-retention.timer" \
+  "$SOURCE_ROOT/ops/systemd/eirinchan-log-retention.timer" \
   /etc/systemd/system/eirinchan-log-retention.timer
 sudo rm -f -- /etc/tmpfiles.d/eirinchan-logs.conf
 sudo install -d -m 0700 -o root -g root /home/telemazer/logs
