@@ -217,16 +217,9 @@ defmodule EirinchanWeb.ManagePageController do
       |> assign(
         :extra_stylesheets,
         (conn.assigns[:extra_stylesheets] || []) ++
-          [
-            "/stylesheets/longtable/longtable.css",
-            "/stylesheets/mod/ban-list.css"
-          ]
+          ["/stylesheets/mod/ban-list.css"]
       )
-      |> assign(:custom_javascript_urls, [
-        "/js/strftime.min.js",
-        "/js/longtable/longtable.js",
-        "/js/mod/ban-list.js"
-      ])
+      |> assign(:custom_javascript_urls, ["/js/mod/ban-list.js"])
       |> render(:bans,
         moderator: moderator,
         boards: boards,

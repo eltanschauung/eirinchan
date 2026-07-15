@@ -203,6 +203,11 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert page =~ "Unban selected"
     assert page =~ ~s(data-banlist-url="/manage/bans/browser.json")
     assert page =~ "/js/mod/ban-list.js"
+    assert page =~ ~s(class="mod banlist-table" id="banlist")
+    assert page =~ ~s(data-ban-sort="mask")
+    assert page =~ ~s(data-ban-sort="created")
+    refute page =~ "/js/longtable/longtable.js"
+    refute page =~ "/stylesheets/longtable/longtable.css"
 
     response =
       conn

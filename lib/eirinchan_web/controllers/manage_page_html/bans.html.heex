@@ -9,7 +9,7 @@
 >
   <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
 
-  <div class="banlist-opts">
+  <div class="banlist-opts" aria-label="Ban list controls">
     <div class="checkboxes">
       <label :if={@only_mine_available?}>
         <input
@@ -31,8 +31,20 @@
       </label>
     </div>
     <div class="buttons">
-      <input type="text" id="search" name="search" placeholder="Search" value={@filters["search"]} />
-      <button type="submit" id="unban" name="action" value="unban">Unban selected</button>
+      <label class="banlist-search" for="search">
+        <span>Search bans</span>
+        <input
+          type="search"
+          id="search"
+          name="search"
+          placeholder="Target, reason, board, or staff"
+          value={@filters["search"]}
+          autocomplete="off"
+        />
+      </label>
+      <button type="submit" id="unban" name="action" value="unban" disabled>
+        Unban selected
+      </button>
       <button
         type="submit"
         name="action"
@@ -43,10 +55,41 @@
       >
       </button>
     </div>
-
-    <br class="clear" />
   </div>
 
-  <table class="mod" style="width:100%" id="banlist">
-  </table>
+  <p id="banlist-status" class="banlist-status" role="status" aria-live="polite">
+    Loading bans...
+  </p>
+
+  <div class="banlist-table-wrap" hidden>
+    <table class="mod banlist-table" id="banlist">
+      <caption class="banlist-visually-hidden">Active bans</caption>
+      <colgroup>
+        <col class="banlist-col-target" />
+        <col class="banlist-col-reason" />
+        <col class="banlist-col-context" />
+        <col class="banlist-col-timing" />
+        <col class="banlist-col-action" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th scope="col" class="banlist-target-heading">
+            <input type="checkbox" id="select-all" aria-label="Select all visible bans" />
+            <button type="button" class="banlist-sort" data-ban-sort="mask">Target</button>
+          </th>
+          <th scope="col">
+            <button type="button" class="banlist-sort" data-ban-sort="reason">Reason</button>
+          </th>
+          <th scope="col">
+            <button type="button" class="banlist-sort" data-ban-sort="board">Scope</button>
+          </th>
+          <th scope="col">
+            <button type="button" class="banlist-sort" data-ban-sort="created">Timing</button>
+          </th>
+          <th scope="col">Edit</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
 </form>
