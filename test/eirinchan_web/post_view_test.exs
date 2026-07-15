@@ -8,6 +8,45 @@ defmodule EirinchanWeb.PostViewTest do
   alias EirinchanWeb.PostComponents
   alias EirinchanWeb.PostView
 
+  test "index and catalog pagination share accessible previous, page, and next controls" do
+    pages = Enum.map(1..3, &%{num: &1, link: "/page/#{&1}"})
+    page_data = %{page: 2, total_pages: 3, pages: pages}
+
+    index_html =
+      PostComponents.board_pages_html(%{
+        page_data: page_data,
+        board_uri: "bant",
+        config: Config.compose()
+      })
+
+    catalog_html = PostComponents.catalog_pages_html(%{page_data: page_data})
+
+    for html <- [index_html, catalog_html] do
+      assert html =~ ~s(rel="prev" href="/page/1")
+      assert html =~ ~s(aria-current="page">2</a>)
+      assert html =~ ~s(rel="next" href="/page/3")
+      refute html =~ "<form"
+    end
+
+    assert index_html =~ ~s(href="/bant/catalog.html")
+    refute catalog_html =~ ~s(href="/bant/catalog.html")
+  end
+
+  test "pagination compacts large ranges without hiding the current or boundary pages" do
+    pages = Enum.map(1..20, &%{num: &1, link: "/page/#{&1}"})
+
+    html =
+      PostComponents.catalog_pages_html(%{
+        page_data: %{page: 10, total_pages: 20, pages: pages}
+      })
+
+    assert html =~ ~s(href="/page/1")
+    assert html =~ ~s(aria-current="page">10</a>)
+    assert html =~ ~s(href="/page/20")
+    assert length(Regex.scan(~r/class="pagination-ellipsis"/, html)) == 2
+    refute html =~ ~s(href="/page/5")
+  end
+
   test "template_assigns exposes the compatibility contract" do
     board = %BoardRecord{uri: "files", title: "Files"}
     post = %Post{id: 10, subject: "Upload thread"}

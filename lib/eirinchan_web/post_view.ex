@@ -217,62 +217,6 @@ defmodule EirinchanWeb.PostView do
     |> Enum.reject(&(&1 == []))
   end
 
-  def pages_html(page_data, board_uri, config) do
-    previous_html =
-      if page_data.page > 1 do
-        previous = Enum.at(page_data.pages, page_data.page - 2)
-        ~s(<a href="#{html_escape_to_string(previous.link)}">Previous</a>)
-      else
-        "Previous"
-      end
-
-    page_links =
-      Enum.map_join(page_data.pages, " ", fn page ->
-        if page.num == page_data.page do
-          ~s([<a class="selected">#{page.num}</a>])
-        else
-          ~s([<a href="#{html_escape_to_string(page.link)}">#{page.num}</a>])
-        end
-      end)
-
-    next_html =
-      if page_data.page < page_data.total_pages do
-        next = Enum.at(page_data.pages, page_data.page)
-
-        ~s(<form action="#{html_escape_to_string(next.link)}" method="get"><input type="submit" value="Next" /></form>)
-      else
-        ""
-      end
-
-    catalog_label =
-      config
-      |> Map.get(:catalog_name, "Catalog")
-      |> to_string()
-      |> String.trim()
-      |> case do
-        "" -> "Catalog"
-        value -> value
-      end
-
-    catalog_link =
-      ~s( | <a href="/#{board_uri}/catalog.html">#{html_escape_to_string(catalog_label)}</a>)
-
-    ~s(<div class="pages">#{previous_html}  #{page_links}#{if next_html != "", do: "  " <> next_html, else: ""}#{catalog_link}</div>)
-  end
-
-  def catalog_pages_html(page_data) do
-    page_links =
-      Enum.map_join(page_data.pages, " ", fn page ->
-        if page.num == page_data.page do
-          ~s([<a class="selected">#{page.num}</a>])
-        else
-          ~s([<a href="#{html_escape_to_string(page.link)}">#{page.num}</a>])
-        end
-      end)
-
-    ~s(<div class="pages">#{page_links}</div>)
-  end
-
   def post_flags(post, config) do
     if Map.get(config, :display_flags, true) do
       do_post_flags(post, config)

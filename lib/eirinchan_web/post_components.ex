@@ -112,12 +112,7 @@ defmodule EirinchanWeb.PostComponents do
       data-live-updater="true"
       data-page-kind={to_string(@page_kind)}
     >
-      <a
-        href="#"
-        id="update_thread"
-        title={@title}
-        aria-pressed="true"
-      >
+      <a href="#" id="update_thread" title={@title} aria-pressed="true">
         [Live&nbsp;<span class="live-page-indicator" aria-hidden="true">⬤</span>]
       </a>
       <input type="checkbox" id="auto_update_status" checked hidden />
@@ -835,35 +830,15 @@ defmodule EirinchanWeb.PostComponents do
   def board_pages(assigns) do
     assigns =
       assigns
-      |> assign(:previous_page, previous_page(assigns.page_data))
-      |> assign(:next_page, next_page(assigns.page_data))
       |> assign(:catalog_label, catalog_label(assigns.config))
-      |> assign(:show_catalog, true)
 
     ~H"""
-    <div class="pages">
-      <%= if @previous_page do %>
-        <a href={@previous_page.link}>Previous</a>
-      <% else %>
-        Previous
-      <% end %>
-
-      <%= for page <- @page_data.pages do %>
-        <%= if page.num == @page_data.page do %>
-          [<a class="selected"><%= page.num %></a>]
-        <% else %>
-          [<a href={page.link}><%= page.num %></a>]
-        <% end %>
-      <% end %>
-
-      <%= if @next_page do %>
-        <form action={@next_page.link} method="get"><input type="submit" value="Next" /></form>
-      <% end %>
-
-      <%= if @show_catalog do %>
-        | <a href={"/#{@board_uri}/catalog.html"}><%= @catalog_label %></a>
-      <% end %>
-    </div>
+    <.page_navigation
+      page_data={@page_data}
+      label="Board pages"
+      trailing_href={"/#{@board_uri}/catalog.html"}
+      trailing_label={@catalog_label}
+    />
     """
   end
 
@@ -916,13 +891,55 @@ defmodule EirinchanWeb.PostComponents do
 
   def catalog_pages(assigns) do
     ~H"""
-    <div class="pages">
-      <%= for page <- @page_data.pages do %>
-        <%= if page.num == @page_data.page do %>
-          [<a class="selected"><%= page.num %></a>]
-        <% else %>
-          [<a href={page.link}><%= page.num %></a>]
+    <.page_navigation page_data={@page_data} label="Catalog pages" />
+    """
+  end
+
+  attr :page_data, :map, required: true
+  attr :label, :string, required: true
+  attr :trailing_href, :string, default: nil
+  attr :trailing_label, :string, default: nil
+
+  def page_navigation(assigns) do
+    assigns =
+      assigns
+      |> assign(:previous_page, previous_page(assigns.page_data))
+      |> assign(:next_page, next_page(assigns.page_data))
+      |> assign(
+        :page_items,
+        Eirinchan.Pagination.window(assigns.page_data.pages, assigns.page_data.page)
+      )
+
+    ~H"""
+    <div class="pages pagination" role="navigation" aria-label={@label}>
+      <%= if @previous_page do %>
+        <a class="pagination-previous" rel="prev" href={@previous_page.link}>Previous</a>
+      <% else %>
+        <span class="pagination-previous pagination-disabled" aria-disabled="true">Previous</span>
+      <% end %>
+
+      <span class="pagination-pages">
+        <%= for item <- @page_items do %>
+          <%= if item == :ellipsis do %>
+            <span class="pagination-ellipsis" aria-hidden="true">…</span>
+          <% else %>
+            <%= if item.num == @page_data.page do %>
+              [<a class="selected" aria-current="page"><%= item.num %></a>]
+            <% else %>
+              [<a href={item.link}><%= item.num %></a>]
+            <% end %>
+          <% end %>
         <% end %>
+      </span>
+
+      <%= if @next_page do %>
+        <a class="pagination-next" rel="next" href={@next_page.link}>Next</a>
+      <% else %>
+        <span class="pagination-next pagination-disabled" aria-disabled="true">Next</span>
+      <% end %>
+
+      <%= if @trailing_href && @trailing_label do %>
+        <span class="pagination-trailing">| <a href={@trailing_href}><%= @trailing_label %></a></span>
       <% end %>
     </div>
     """
