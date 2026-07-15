@@ -119,10 +119,9 @@
 
     this.bindControls();
 
-    fetch(this.url, {
-      credentials: "same-origin",
-      headers: {Accept: "application/json"}
-    })
+    // Keep fetch's default */* Accept header: this JSON action shares the
+    // authenticated browser pipeline, whose content negotiation accepts HTML.
+    fetch(this.url, {credentials: "same-origin"})
       .then(function (response) {
         if (!response.ok) {
           throw new Error("Ban list request failed with status " + response.status);
