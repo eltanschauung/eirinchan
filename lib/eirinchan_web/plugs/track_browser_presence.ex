@@ -22,7 +22,7 @@ defmodule EirinchanWeb.Plugs.TrackBrowserPresence do
   defp trackable_request?(_conn), do: false
 
   defp request_trackable_path?(%Plug.Conn{method: "GET", request_path: path}) do
-    not String.starts_with?(path, "/manage") and path not in ["/auth", "/setup"]
+    not String.starts_with?(path, "/manage") and path != "/auth"
   end
 
   defp request_trackable_path?(_conn), do: false

@@ -10,7 +10,6 @@ defmodule EirinchanWeb.ManagePageController do
   alias Eirinchan.Feedback
   alias Eirinchan.IpCrypt
   alias Eirinchan.FlagsConfig
-  alias Eirinchan.Installation
   alias Eirinchan.ManageLoginThrottle
   alias Eirinchan.Moderation
   alias Eirinchan.ModerationLog
@@ -35,9 +34,6 @@ defmodule EirinchanWeb.ManagePageController do
 
   def login(conn, _params) do
     cond do
-      Installation.setup_required?() ->
-        redirect(conn, to: ~p"/setup")
-
       conn.assigns[:current_moderator] ->
         redirect(conn, to: ~p"/manage")
 

@@ -1,21 +1,15 @@
 defmodule Eirinchan.Installation do
   @moduledoc """
-  Reports whether the database still needs its initial administrator.
+  Reports whether the server-side installer has created an administrator.
 
-  Database configuration is supplied by the runtime environment. The web application never
-  persists or changes repository credentials.
+  Database configuration and initial credentials are accepted only by trusted
+  CLI commands; the web application has no installation endpoint.
   """
 
   import Ecto.Query, only: [from: 2]
 
   alias Eirinchan.Moderation.ModUser
   alias Eirinchan.Repo
-
-  def setup_required? do
-    not admin_exists?()
-  rescue
-    _ -> true
-  end
 
   def admin_exists? do
     case table_exists?("mod_users") do

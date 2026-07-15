@@ -175,9 +175,10 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     end)
   end
 
-  test "browser dashboard redirects to setup when no admin exists", %{conn: conn} do
-    conn = get(conn, "/manage/login")
-    assert redirected_to(conn) == "/setup"
+  test "browser login remains available before the first admin is created", %{conn: conn} do
+    page = conn |> get("/manage/login") |> html_response(200)
+    assert page =~ ~s(action="/manage/login/browser")
+    assert page =~ ~s(name="username")
   end
 
   test "ban list browser page renders and unbans selected bans", %{conn: conn} do

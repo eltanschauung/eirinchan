@@ -133,9 +133,14 @@ defmodule EirinchanWeb.PageControllerTest do
     refute page =~ "What is bnat?"
   end
 
-  test "GET / redirects to setup when no admin exists", %{conn: conn} do
-    conn = get(conn, ~p"/")
-    assert redirected_to(conn) == "/setup"
+  test "GET / renders without a browser installer when no admin exists", %{conn: conn} do
+    page = conn |> get(~p"/") |> html_response(200)
+    refute page =~ "/setup"
+  end
+
+  test "browser installation endpoints do not exist", %{conn: conn} do
+    assert conn |> get("/setup") |> response(404)
+    assert conn |> recycle() |> post("/setup", %{}) |> response(404)
   end
 
   test "GET /news renders public blotter entries", %{conn: conn} do

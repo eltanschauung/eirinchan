@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+set -eu
+
+unset PHX_SERVER
+
+exec "$(dirname -- "$0")/eirinchan" eval \
+  'System.halt(if(Eirinchan.Release.initial_admin_exists?(), do: 0, else: 1))'

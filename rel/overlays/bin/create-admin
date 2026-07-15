@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+set -eu
+
+if [ "$#" -ne 1 ]; then
+  echo "usage: create-admin USERNAME" >&2
+  exit 64
+fi
+
+export EIRINCHAN_ADMIN_USERNAME="$1"
+unset PHX_SERVER
+
+exec "$(dirname -- "$0")/eirinchan" eval \
+  'Eirinchan.Release.create_initial_admin_from_stdin()'

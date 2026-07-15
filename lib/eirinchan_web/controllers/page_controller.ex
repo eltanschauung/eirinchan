@@ -7,7 +7,6 @@ defmodule EirinchanWeb.PageController do
   alias Eirinchan.CustomPages
   alias Eirinchan.FlagsPage
   alias Eirinchan.PublicPages
-  alias Eirinchan.Installation
   alias Eirinchan.LandingPages
   alias Eirinchan.NewsBlotter
   alias Eirinchan.Posts
@@ -26,283 +25,214 @@ defmodule EirinchanWeb.PageController do
   @recent_theme_cache_bucket_seconds 30
 
   def home(conn, _params) do
-    if Installation.setup_required?() do
-      redirect(conn, to: ~p"/setup")
+    if Themes.page_theme_enabled?("recent") do
+      render_recent_theme(conn, "index")
     else
-      if Themes.page_theme_enabled?("recent") do
-        render_recent_theme(conn, "index")
-      else
-        config = Settings.current_instance_config()
-        started_at = System.monotonic_time(:microsecond)
-        boards = Boards.list_boards()
-        news_entries = NewsBlotter.entries(config, limit: 5)
+      config = Settings.current_instance_config()
+      started_at = System.monotonic_time(:microsecond)
+      boards = Boards.list_boards()
+      news_entries = NewsBlotter.entries(config, limit: 5)
 
-        conn =
-          conn
-          |> put_public_document_etag({:home_default, home_board_etag_data(boards), news_entries})
-          |> render(
-            :home,
-            Keyword.merge(
-              PublicControllerHelpers.public_page_assigns(conn, "active-page", "index",
-                include_global_message: false,
-                boards: boards
-              ),
-              layout: false,
-              news_entries: news_entries
-            )
+      conn =
+        conn
+        |> put_public_document_etag({:home_default, home_board_etag_data(boards), news_entries})
+        |> render(
+          :home,
+          Keyword.merge(
+            PublicControllerHelpers.public_page_assigns(conn, "active-page", "index",
+              include_global_message: false,
+              boards: boards
+            ),
+            layout: false,
+            news_entries: news_entries
           )
-
-        PublicControllerHelpers.maybe_log_page_performance(
-          "home",
-          started_at,
-          %{
-            board_count: length(boards),
-            news_entry_count: length(news_entries),
-            theme: "default"
-          },
-          config
         )
 
-        conn
-      end
+      PublicControllerHelpers.maybe_log_page_performance(
+        "home",
+        started_at,
+        %{
+          board_count: length(boards),
+          news_entry_count: length(news_entries),
+          theme: "default"
+        },
+        config
+      )
+
+      conn
     end
   end
 
   def news(conn, _params) do
-    if Installation.setup_required?() do
-      redirect(conn, to: ~p"/setup")
-    else
-      config = Settings.current_instance_config()
-      news_entries = NewsBlotter.entries(config, limit: 100)
+    config = Settings.current_instance_config()
+    news_entries = NewsBlotter.entries(config, limit: 100)
 
-      conn
-      |> put_public_document_etag({:news, news_entries})
-      |> render(
-        :news,
-        Keyword.merge(
-          PublicControllerHelpers.public_page_assigns(conn, "active-page", "news",
-            include_global_message: false
-          ),
-          layout: false,
-          news_entries: news_entries
-        )
+    conn
+    |> put_public_document_etag({:news, news_entries})
+    |> render(
+      :news,
+      Keyword.merge(
+        PublicControllerHelpers.public_page_assigns(conn, "active-page", "news",
+          include_global_message: false
+        ),
+        layout: false,
+        news_entries: news_entries
       )
-    end
+    )
   end
 
   def catalog(conn, _params) do
-    if Installation.setup_required?() do
-      redirect(conn, to: ~p"/setup")
-    else
-      render(
-        conn,
-        :catalog,
-        Keyword.merge(
-          PublicControllerHelpers.public_page_assigns(conn, "active-catalog", "catalog"),
-          layout: false,
-          threads: global_catalog_threads()
-        )
+    render(
+      conn,
+      :catalog,
+      Keyword.merge(
+        PublicControllerHelpers.public_page_assigns(conn, "active-catalog", "catalog"),
+        layout: false,
+        threads: global_catalog_threads()
       )
-    end
+    )
   end
 
   def ukko(conn, _params) do
-    if Installation.setup_required?() do
-      redirect(conn, to: ~p"/setup")
-    else
-      if Themes.page_theme_enabled?("ukko") do
-        if Themes.overboard_path() == "/ukko" do
-          render_overboard(conn)
-        else
-          redirect(conn, to: Themes.overboard_path())
-        end
+    if Themes.page_theme_enabled?("ukko") do
+      if Themes.overboard_path() == "/ukko" do
+        render_overboard(conn)
       else
-        ErrorPages.not_found(conn)
+        redirect(conn, to: Themes.overboard_path())
       end
+    else
+      ErrorPages.not_found(conn)
     end
   end
 
   def recent(conn, _params) do
-    if Installation.setup_required?() do
-      redirect(conn, to: ~p"/setup")
+    if Themes.page_theme_enabled?("recent") do
+      render_recent_theme(conn, "recent")
     else
-      if Themes.page_theme_enabled?("recent") do
-        render_recent_theme(conn, "recent")
-      else
-        ErrorPages.not_found(conn)
-      end
+      ErrorPages.not_found(conn)
     end
   end
 
   def rss(conn, _params) do
-    if Installation.setup_required?() do
-      redirect(conn, to: ~p"/setup")
-    else
-      if Themes.page_theme_enabled?("rss") do
-        settings = Themes.theme_settings("rss")
-        boards = Boards.list_boards()
-        board_ids = LandingPages.board_ids(settings, boards)
-        posts = LandingPages.recent_posts(settings, board_ids)
-        xml = render_rss(settings, posts)
+    if Themes.page_theme_enabled?("rss") do
+      settings = Themes.theme_settings("rss")
+      boards = Boards.list_boards()
+      board_ids = LandingPages.board_ids(settings, boards)
+      posts = LandingPages.recent_posts(settings, board_ids)
+      xml = render_rss(settings, posts)
 
-        conn
-        |> put_public_document_etag({:rss, settings, Enum.map(posts, &{&1.link, &1.inserted_at})})
-        |> put_resp_content_type("application/rss+xml")
-        |> send_resp(200, xml)
-      else
-        ErrorPages.not_found(conn)
-      end
+      conn
+      |> put_public_document_etag({:rss, settings, Enum.map(posts, &{&1.link, &1.inserted_at})})
+      |> put_resp_content_type("application/rss+xml")
+      |> send_resp(200, xml)
+    else
+      ErrorPages.not_found(conn)
     end
   end
 
   def banners(conn, _params) do
-    if Installation.setup_required?() do
-      redirect(conn, to: ~p"/setup")
-    else
-      render(
-        conn,
-        :banners,
-        Keyword.merge(
-          PublicControllerHelpers.public_page_assigns(conn, "active-page", "banners"),
-          layout: false,
-          banner_assets: banner_assets()
-        )
+    render(
+      conn,
+      :banners,
+      Keyword.merge(
+        PublicControllerHelpers.public_page_assigns(conn, "active-page", "banners"),
+        layout: false,
+        banner_assets: banner_assets()
       )
-    end
+    )
   end
 
   def sitemap(conn, _params) do
-    if Installation.setup_required?() do
-      redirect(conn, to: ~p"/setup")
+    if Themes.page_theme_enabled?("sitemap") do
+      settings = Themes.theme_settings("sitemap")
+      boards = LandingPages.sitemap_boards(settings, Boards.list_boards())
+      changefreq = Map.get(settings, "changefreq", "hourly")
+
+      entries =
+        global_sitemap_entries() ++
+          board_sitemap_entries(boards) ++ LandingPages.sitemap_thread_entries(boards)
+
+      xml = render_sitemap(entries, changefreq)
+
+      conn
+      |> put_public_document_etag({:sitemap, settings, entries})
+      |> put_resp_content_type("application/xml")
+      |> send_resp(200, xml)
     else
-      if Themes.page_theme_enabled?("sitemap") do
-        settings = Themes.theme_settings("sitemap")
-        boards = LandingPages.sitemap_boards(settings, Boards.list_boards())
-        changefreq = Map.get(settings, "changefreq", "hourly")
-
-        entries =
-          global_sitemap_entries() ++
-            board_sitemap_entries(boards) ++ LandingPages.sitemap_thread_entries(boards)
-
-        xml = render_sitemap(entries, changefreq)
-
-        conn
-        |> put_public_document_etag({:sitemap, settings, entries})
-        |> put_resp_content_type("application/xml")
-        |> send_resp(200, xml)
-      else
-        ErrorPages.not_found(conn)
-      end
+      ErrorPages.not_found(conn)
     end
   end
 
   def page(conn, %{"slug" => slug}) do
-    if Installation.setup_required?() do
-      redirect(conn, to: ~p"/setup")
-    else
-      case CustomPages.get_page_by_slug(slug) do
-        nil ->
-          ErrorPages.not_found(conn)
+    case CustomPages.get_page_by_slug(slug) do
+      nil ->
+        ErrorPages.not_found(conn)
 
-        page ->
-          render_custom_page(conn, page)
-      end
+      page ->
+        render_custom_page(conn, page)
     end
   end
 
   def watcher(conn, _params) do
-    if Installation.setup_required?() do
-      redirect(conn, to: ~p"/setup")
-    else
-      render(
-        conn,
-        :watcher,
-        Keyword.merge(
-          PublicControllerHelpers.public_page_assigns(conn, "active-page", "watcher"),
-          layout: false,
-          hide_theme_switcher: true,
-          watch_summaries: watcher_summaries(conn)
-        )
+    render(
+      conn,
+      :watcher,
+      Keyword.merge(
+        PublicControllerHelpers.public_page_assigns(conn, "active-page", "watcher"),
+        layout: false,
+        hide_theme_switcher: true,
+        watch_summaries: watcher_summaries(conn)
       )
-    end
+    )
   end
 
   def watcher_fragment(conn, _params) do
-    if Installation.setup_required?() do
-      redirect(conn, to: ~p"/setup")
-    else
-      watcher_metrics = PublicControllerHelpers.watcher_metrics(conn)
+    watcher_metrics = PublicControllerHelpers.watcher_metrics(conn)
 
-      conn =
-        conn
-        |> put_resp_header("cache-control", "no-store, max-age=0")
-        |> put_resp_header("pragma", "no-cache")
-        |> put_resp_header("x-watcher-count", Integer.to_string(watcher_metrics.watcher_count))
-        |> put_resp_header(
-          "x-watcher-unread-count",
-          Integer.to_string(watcher_metrics.watcher_unread_count)
-        )
-        |> put_resp_header(
-          "x-watcher-you-count",
-          Integer.to_string(watcher_metrics.watcher_you_count)
-        )
-
-      html(
-        conn,
-        render_to_string(EirinchanWeb.PageHTML, "watcher_fragment", "html",
-          watch_summaries: watcher_summaries(conn)
-        )
+    conn =
+      conn
+      |> put_resp_header("cache-control", "no-store, max-age=0")
+      |> put_resp_header("pragma", "no-cache")
+      |> put_resp_header("x-watcher-count", Integer.to_string(watcher_metrics.watcher_count))
+      |> put_resp_header(
+        "x-watcher-unread-count",
+        Integer.to_string(watcher_metrics.watcher_unread_count)
       )
-    end
+      |> put_resp_header(
+        "x-watcher-you-count",
+        Integer.to_string(watcher_metrics.watcher_you_count)
+      )
+
+    html(
+      conn,
+      render_to_string(EirinchanWeb.PageHTML, "watcher_fragment", "html",
+        watch_summaries: watcher_summaries(conn)
+      )
+    )
   end
 
-  def faq(conn, _params) do
-    if Installation.setup_required?() do
-      redirect(conn, to: ~p"/setup")
-    else
-      render_custom_page(conn, PublicPages.fetch_named_page("faq"))
-    end
-  end
+  def faq(conn, _params), do: render_custom_page(conn, PublicPages.fetch_named_page("faq"))
 
-  def flags(conn, _params) do
-    if Installation.setup_required?() do
-      redirect(conn, to: ~p"/setup")
-    else
-      render_custom_page(conn, PublicPages.fetch_named_page("flags"))
-    end
-  end
+  def flags(conn, _params), do: render_custom_page(conn, PublicPages.fetch_named_page("flags"))
 
   def formatting(conn, _params) do
-    if Installation.setup_required?() do
-      redirect(conn, to: ~p"/setup")
-    else
-      render_custom_page(
-        conn,
-        PublicPages.fetch_named_page("formatting",
-          stickers: sticker_entries(current_sticker_config())
-        )
+    render_custom_page(
+      conn,
+      PublicPages.fetch_named_page("formatting",
+        stickers: sticker_entries(current_sticker_config())
       )
-    end
+    )
   end
 
   def rules(conn, _params) do
-    if Installation.setup_required?() do
-      redirect(conn, to: ~p"/setup")
-    else
-      render_custom_page(
-        conn,
-        PublicPages.fetch_named_page("rules", contact_email: SiteContact.email())
-      )
-    end
+    render_custom_page(
+      conn,
+      PublicPages.fetch_named_page("rules", contact_email: SiteContact.email())
+    )
   end
 
-  def feedback(conn, _params) do
-    if Installation.setup_required?() do
-      redirect(conn, to: ~p"/setup")
-    else
-      render_custom_page(conn, PublicPages.fetch_named_page("feedback"))
-    end
-  end
+  def feedback(conn, _params),
+    do: render_custom_page(conn, PublicPages.fetch_named_page("feedback"))
 
   def legacy_flags(conn, _params), do: redirect(conn, to: ~p"/flags")
 
@@ -355,16 +285,12 @@ defmodule EirinchanWeb.PageController do
   end
 
   def board_flag(conn, %{"board" => uri}) do
-    if Installation.setup_required?() do
-      redirect(conn, to: ~p"/setup")
-    else
-      case Boards.get_board_by_uri(uri) do
-        nil ->
-          ErrorPages.not_found(conn)
+    case Boards.get_board_by_uri(uri) do
+      nil ->
+        ErrorPages.not_found(conn)
 
-        _board ->
-          redirect(conn, to: ~p"/flags")
-      end
+      _board ->
+        redirect(conn, to: ~p"/flags")
     end
   end
 

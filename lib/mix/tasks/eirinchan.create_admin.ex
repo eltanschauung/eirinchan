@@ -15,23 +15,17 @@ defmodule Mix.Tasks.Eirinchan.CreateAdmin do
     username = opts |> Keyword.get(:username, "admin") |> String.trim()
     password = read_password()
 
-    if username == "", do: Mix.raise("username cannot be blank")
-    if String.length(password) < 12, do: Mix.raise("password must be at least 12 characters")
-
     Mix.Task.run("app.start")
 
-    if Eirinchan.Installation.admin_exists?() do
-      Mix.raise("an administrator already exists; use the management interface to add users")
-    end
+    case Eirinchan.InitialAdmin.create(username, password) do
+      {:ok, _admin} ->
+        Mix.shell().info("Created initial administrator #{username}.")
 
-    case Eirinchan.Moderation.create_user(%{
-           "username" => username,
-           "password" => password,
-           "role" => "admin",
-           "all_boards" => true
-         }) do
-      {:ok, _admin} -> Mix.shell().info("Created initial administrator #{username}.")
-      {:error, changeset} -> Mix.raise("could not create administrator: #{inspect(changeset.errors)}")
+      {:error, :administrator_exists} ->
+        Mix.raise("an administrator already exists; use the management interface to add users")
+
+      {:error, changeset} ->
+        Mix.raise("could not create administrator: #{inspect(changeset.errors)}")
     end
   end
 

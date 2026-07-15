@@ -196,7 +196,6 @@ defmodule EirinchanWeb.Router do
     post "/theme", ThemeController, :update
     get "/auth", IpAccessAuthController, :show
     post "/auth", IpAccessAuthController, :create
-    get "/setup", SetupController, :show
   end
 
   scope "/manage", EirinchanWeb do

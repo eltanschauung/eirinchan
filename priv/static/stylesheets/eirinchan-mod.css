@@ -1,49 +1,39 @@
-body.mod-page,
-body.setup-page {
+body.mod-page {
   background: #ffe url('/stylesheets/assets/fade-yotsuba.png') repeat-x 50% 0% !important;
   color: #800000;
 }
 
 body.mod-page,
-body.setup-page,
 body.mod-page input,
 body.mod-page textarea,
-body.mod-page select,
-body.setup-page input,
-body.setup-page textarea,
-body.setup-page select {
+body.mod-page select {
   font-family: arial, helvetica, sans-serif;
   font-size: 10pt;
 }
 
-body.mod-page main,
-body.setup-page main {
+body.mod-page main {
   max-width: 1100px;
   margin: 0 auto;
 }
 
-body.mod-page header,
-body.setup-page header {
+body.mod-page header {
   margin: 1em auto 0.8em auto;
 }
 
-body.mod-page h1,
-body.setup-page h1 {
+body.mod-page h1 {
   color: #800;
   text-align: center;
   font-family: tahoma, arial, helvetica, sans-serif;
   letter-spacing: -2px;
 }
 
-body.mod-page .subtitle,
-body.setup-page .subtitle {
+body.mod-page .subtitle {
   color: #b86;
   text-align: center;
   font-size: 8pt;
 }
 
-body.mod-page fieldset,
-body.setup-page fieldset {
+body.mod-page fieldset {
   max-width: 980px;
   margin: 0.9em auto;
   border: 1px solid #d9bfb7;
@@ -51,8 +41,7 @@ body.setup-page fieldset {
   padding: 0.85em 1em;
 }
 
-body.mod-page legend,
-body.setup-page legend {
+body.mod-page legend {
   color: #800;
   font-weight: bold;
 }
@@ -66,8 +55,7 @@ body.mod-page li {
   margin: 0.35em 0;
 }
 
-body.mod-page .inline-form,
-body.setup-page .inline-form {
+body.mod-page .inline-form {
   display: inline;
   margin: 0;
 }
@@ -77,9 +65,7 @@ body.mod-page .mod-board-editor {
   margin-top: 0.45em;
 }
 
-body.mod-page .mod-form-table,
-body.setup-page .mod-form-table,
-body.setup-page .installer-form table {
+body.mod-page .mod-form-table {
   width: 100%;
   max-width: 860px;
   margin: 0 auto;
@@ -94,8 +80,6 @@ body.mod-page .mod-form-table.compact {
 }
 
 body.mod-page .mod-form-table th,
-body.setup-page .mod-form-table th,
-body.setup-page .installer-form th,
 body.mod-page .mod-login-form th {
   background-color: #ea8;
   color: #800;
@@ -106,15 +90,11 @@ body.mod-page .mod-login-form th {
 
 body.mod-page .mod-form-table td input[type="text"],
 body.mod-page .mod-form-table td input[type="password"],
-body.mod-page .mod-form-table td textarea,
-body.setup-page .mod-form-table td input[type="text"],
-body.setup-page .installer-form td input[type="text"],
-body.setup-page .installer-form td textarea {
+body.mod-page .mod-form-table td textarea {
   width: min(100%, 32rem);
 }
 
 .mod-login-error,
-.installer-error,
 .error {
   color: #d00;
   font-weight: bold;
@@ -122,14 +102,12 @@ body.setup-page .installer-form td textarea {
 }
 
 
-body.mod-page .board_image,
-body.setup-page .board_image {
+body.mod-page .board_image {
   display: block;
   margin: 1em auto 0 auto;
 }
 
-body.mod-page h2,
-body.setup-page h2 {
+body.mod-page h2 {
   color: #d00;
   text-align: center;
   font-size: 1.2em;
