@@ -6,13 +6,13 @@ defmodule EirinchanWeb.PostView do
   @local_quote_regex ~r/(^|[\s(])&gt;&gt;(\d+?)((?=[\s,.)?!])|$)/m
   @raw_local_quote_regex ~r/(^|[\s(])>>(\d+?)((?=[\s,.)?!])|$)/m
 
-  alias Eirinchan.{Boardlist, Boards, PosterIds, Posts}
+  alias Eirinchan.{Boardlist, Boards, CredentialHash, PosterIds, Posts}
   alias Eirinchan.Moderation
   alias Eirinchan.Posts.Email, as: PostsEmail
   alias Eirinchan.Posts.Post
   alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Posts.PostFile
-  alias EirinchanWeb.{BoardlistPresenter, HtmlSanitizer}
+  alias EirinchanWeb.{BoardlistPresenter, FragmentHash, HtmlSanitizer}
   alias Eirinchan.ThreadPaths
   alias Eirinchan.Stickers
   alias EirinchanWeb.{IpPresentation, ManageSecurity, ModeratorPermissions}
@@ -109,6 +109,51 @@ defmodule EirinchanWeb.PostView do
   end
 
   def public_post_id(post), do: PublicIds.public_id(post)
+
+  def post_fragment_context(board, %Post{} = thread, config, moderator, secure_token, mobile?) do
+    %{
+      stamp:
+        FragmentHash.term_digest({
+          Map.take(board, [:id, :uri]),
+          %{id: thread.id, public_id: public_post_id(thread), slug: thread.slug},
+          config,
+          moderator,
+          secure_token,
+          mobile?
+        }),
+      visible_ip?: can_view_ip?(moderator, board)
+    }
+  end
+
+  def post_fragment_version(post, backlinks_map, %{stamp: context_stamp} = context) do
+    payload =
+      :erlang.term_to_binary(
+        {
+          context_stamp,
+          post_fragment_fields(post, Map.get(context, :visible_ip?, false)),
+          post_fragment_files(post),
+          Map.get(backlinks_map, public_post_id(post), [])
+        },
+        [:deterministic]
+      )
+
+    CredentialHash.fingerprint(payload, :post_fragment_version, 43)
+  end
+
+  defp post_fragment_fields(%Post{} = post, visible_ip?) do
+    fields =
+      post
+      |> Map.take(Post.__schema__(:fields))
+      |> Map.drop([:password, :ip_subnet, :proxy, :legacy_import_id])
+
+    if visible_ip?, do: Map.put(fields, :ip_subnet, post.ip_subnet), else: fields
+  end
+
+  defp post_fragment_files(%Post{extra_files: files}) when is_list(files) do
+    Enum.map(files, &Map.take(&1, PostFile.__schema__(:fields)))
+  end
+
+  defp post_fragment_files(_post), do: []
 
   def reply_path(board, thread, post, config, mode \\ :post) do
     public_post_id = PublicIds.public_id(post)

@@ -189,6 +189,8 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
       |> html_response(200)
 
     assert response =~ ~s(id="updater")
+    assert response =~ ~s(data-live-updater="true")
+    assert response =~ ~s(data-page-kind="index")
     assert response =~ ~s(id="update_thread")
     assert response =~ ~s(class="live-page-indicator")
     assert response =~ ~s(id="auto_update_status")
@@ -249,6 +251,7 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
   test "catalog fragment renders grid only", %{conn: conn} do
     :ok = Eirinchan.Themes.enable_page_theme("catalog")
     board = board_fixture(%{uri: "catfrag", title: "Catalog Fragment"})
+    thread = thread_fixture(board, %{body: "Catalog thread"})
 
     response =
       conn
@@ -256,6 +259,9 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
       |> html_response(200)
 
     assert response =~ ~s(id="Grid")
+    assert response =~ ~s(data-board="#{board.uri}")
+    assert response =~ ~s(data-thread-id="#{PublicIds.public_id(thread)}")
+    assert response =~ ~s(data-watched="false")
     refute response =~ ~s(<html)
     refute response =~ ~s(Return to Index)
   end
