@@ -20,6 +20,7 @@ defmodule Eirinchan.Application do
         Eirinchan.BrowserPresence,
         Eirinchan.ManageLoginThrottle,
         Eirinchan.IpAccessAuthThrottle,
+        Eirinchan.StaticImageDimensions,
         EirinchanWeb.FragmentCache,
         global_message_refresh_worker(),
         maintenance_worker(),
