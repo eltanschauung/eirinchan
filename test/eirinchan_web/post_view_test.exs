@@ -82,6 +82,36 @@ defmodule EirinchanWeb.PostViewTest do
     assert html =~ ~s(<img src="/whalestickers/gojo.png" title=":gojo:">waow)
   end
 
+  test "flags and navigation images reserve their layout before loading" do
+    config = Config.compose(%{display_flags: true})
+    board = %BoardRecord{uri: "bant", title: "Bant"}
+
+    post = %Post{
+      flag_codes: ["country"],
+      flag_alts: ["Country"],
+      inserted_at: ~N[2026-03-31 12:00:00]
+    }
+
+    identity_html =
+      PostComponents.post_identity_html(%{post: post, config: config, board: board})
+
+    assert identity_html =~ ~s(width="16")
+    assert identity_html =~ ~s(height="11")
+    assert identity_html =~ ~s(loading="eager")
+    assert identity_html =~ ~s(decoding="async")
+
+    navigation_html =
+      Phoenix.LiveViewTest.render_component(&PostComponents.nav_arrows/1, %{})
+
+    assert navigation_html =~ ~s(src="/reisen_up.png")
+    assert navigation_html =~ ~s(src="/tewi_down.png")
+    assert length(Regex.scan(~r/width="30"/, navigation_html)) == 2
+    assert length(Regex.scan(~r/height="80"/, navigation_html)) == 2
+    assert length(Regex.scan(~r/loading="eager"/, navigation_html)) == 2
+    assert length(Regex.scan(~r/decoding="async"/, navigation_html)) == 2
+    assert length(Regex.scan(~r/fetchpriority="high"/, navigation_html)) == 2
+  end
+
   test "body_html renders inactive OP gap warnings with the public ban styling" do
     config = Config.compose(%{early_404_gap: true})
     post = %Post{body: "waow", inactive: true, thread_id: nil}
@@ -462,11 +492,15 @@ defmodule EirinchanWeb.PostViewTest do
     refute html =~ "<script"
   end
 
-
   test "embed_html sanitizes static script markup in configured templates" do
     config = %{
       Config.compose()
-      | embedding: [[~r/^x:(.+)$/i, "<div class=\"video-container\"><script>alert(1)</script><b>$1</b></div>"]]
+      | embedding: [
+          [
+            ~r/^x:(.+)$/i,
+            "<div class=\"video-container\"><script>alert(1)</script><b>$1</b></div>"
+          ]
+        ]
     }
 
     html = PostView.embed_html("x:safe", config)

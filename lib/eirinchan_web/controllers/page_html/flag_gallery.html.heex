@@ -1,7 +1,15 @@
 <div class="center-container">
   <div class="image-canvas">
     <%= for asset <- @flag_assets do %>
-      <img src={asset.url} alt={asset.name} title={asset.name} />
+      <img
+        src={asset.url}
+        alt={asset.name}
+        title={asset.name}
+        width={asset.width}
+        height={asset.height}
+        loading="eager"
+        decoding="async"
+      />
     <% end %>
   </div>
 </div>

@@ -952,6 +952,18 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ "To rizz your posts"
     assert page =~ "/flags/compiled/"
     assert page =~ ~s(id="user_flag")
+
+    {:ok, document} = Floki.parse_document(page)
+    flag_images = Floki.find(document, ~s(img[src^="/flags/compiled/"]))
+
+    assert flag_images != []
+
+    assert Enum.all?(flag_images, fn image ->
+             Floki.attribute(image, "width") != [] and
+               Floki.attribute(image, "height") != [] and
+               Floki.attribute(image, "loading") == ["eager"] and
+               Floki.attribute(image, "decoding") == ["async"]
+           end)
   end
 
   test "GET /pages/feedback uses the feedback page constructor and form", %{conn: conn} do

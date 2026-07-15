@@ -13,6 +13,7 @@ defmodule EirinchanWeb.PageController do
   alias Eirinchan.ThreadWatcher
   alias Eirinchan.Settings
   alias Eirinchan.SiteContact
+  alias Eirinchan.StaticImageDimensions
   alias Eirinchan.Themes
   alias EirinchanWeb.ErrorPages
   alias EirinchanWeb.BoardRuntime
@@ -415,9 +416,14 @@ defmodule EirinchanWeb.PageController do
     |> Enum.filter(&String.match?(&1, ~r/\.(png|gif|jpe?g)$/i))
     |> Enum.sort()
     |> Enum.map(fn file ->
+      url = "/flags/compiled/#{URI.encode(file)}"
+      {width, height} = StaticImageDimensions.for_static_path(url) || {16, 11}
+
       %{
         name: Path.rootname(file),
-        url: "/flags/compiled/#{URI.encode(file)}"
+        url: url,
+        width: width,
+        height: height
       }
     end)
   end

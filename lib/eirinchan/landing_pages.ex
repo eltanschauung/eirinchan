@@ -7,6 +7,7 @@ defmodule Eirinchan.LandingPages do
   alias Eirinchan.Posts
   alias Eirinchan.Posts.{Post, PostFile, PublicIds}
   alias Eirinchan.Repo
+  alias Eirinchan.StaticImageDimensions
   alias Eirinchan.ThreadPaths
   alias EirinchanWeb.BoardRuntime
   alias EirinchanWeb.PostView
@@ -309,67 +310,12 @@ defmodule Eirinchan.LandingPages do
       |> then(&Path.join(Application.fetch_env!(:eirinchan, :build_output_root), &1))
 
     case File.read(path) do
-      {:ok, binary} -> image_dimensions(binary)
+      {:ok, binary} -> StaticImageDimensions.from_binary(binary)
       _ -> nil
     end
   end
 
   defp thumb_dimensions(_), do: nil
-
-  defp image_dimensions(<<
-         0x89,
-         0x50,
-         0x4E,
-         0x47,
-         0x0D,
-         0x0A,
-         0x1A,
-         0x0A,
-         _len::32,
-         "IHDR",
-         width::32,
-         height::32,
-         _rest::binary
-       >>),
-       do: {width, height}
-
-  defp image_dimensions(<<0xFF, 0xD8, rest::binary>>), do: jpeg_dimensions(rest)
-  defp image_dimensions(_binary), do: nil
-
-  defp jpeg_dimensions(<<0xFF, marker, _len::16, rest::binary>>)
-       when marker in [
-              0xC0,
-              0xC1,
-              0xC2,
-              0xC3,
-              0xC5,
-              0xC6,
-              0xC7,
-              0xC9,
-              0xCA,
-              0xCB,
-              0xCD,
-              0xCE,
-              0xCF
-            ] do
-    case rest do
-      <<_precision, height::16, width::16, _rest::binary>> -> {width, height}
-      _ -> nil
-    end
-  end
-
-  defp jpeg_dimensions(<<0xFF, marker, len::16, rest::binary>>)
-       when marker not in [0xD8, 0xD9, 0x01] and marker not in 0xD0..0xD7 do
-    skip = max(len - 2, 0)
-
-    if byte_size(rest) >= skip do
-      <<_segment::binary-size(^skip), tail::binary>> = rest
-      jpeg_dimensions(tail)
-    end
-  end
-
-  defp jpeg_dimensions(<<_byte, rest::binary>>), do: jpeg_dimensions(rest)
-  defp jpeg_dimensions(_binary), do: nil
 
   defp board_uri_set(value) do
     value
