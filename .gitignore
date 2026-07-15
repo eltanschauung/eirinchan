@@ -20,8 +20,6 @@ erl_crash.dump
 retrospective_design_audit.md
 skeleton.txt
 spec.md
-features.txt
-.gitignore
 
 # Also ignore archive artifacts (built via "mix archive.build").
 *.ez
@@ -33,34 +31,24 @@ features.txt
 eirinchan-*.tar
 
 AGENTS.md
-/faq
 security_skeleton.txt
 /priv/static/whalestickers/
 
 js_migration_plan.txt
 thread_watcher_spec.md
-/priv/static/favicon.ico
 /priv/static/site_logo.png
-/priv/static/site_logo2.png
 /priv/static/site_logo2_recent.png
 /priv/static/whales.jpg
 /priv/static/error_pages/*.png
-/priv/static/stylesheets/keyedfrog.css
 /static/stylesheets/keyedfrog.css
-
-thread_watcher_spec.md
 
 # Local runtime state
 /access.log
-/access.conf
 /var/settings.json
-/var/install.json
-/var/access.conf
 /var/*.tmp
 /var/.*.tmp
 /var/invalid_uploads/
 /var/log/
-/priv/static/secret_bfc.png
 
 posting_pipeline_examination.txt
 posting_pipeline_speedup_plan.txt
@@ -68,43 +56,3 @@ html_size_findings.txt
 html_size_reduction_plan.txt
 scrubs.txt
 /priv/examples/nftables-bantculture-ddos-example.nft
-
-# Unused legacy Vichan JS not loaded by the current app
-/priv/static/js/ajax-post-controls.js
-/priv/static/js/auto-scroll.js
-/priv/static/js/comment-toolbar.js
-/priv/static/js/compact-boardlist.js
-/priv/static/js/expand-all-images.js
-/priv/static/js/expand-filename.js
-/priv/static/js/favorites.js
-/priv/static/js/forced-anon.js
-/priv/static/js/gallery-view.js
-/priv/static/js/hide-form.js
-/priv/static/js/hide-images.js
-/priv/static/js/id_colors.js
-/priv/static/js/id_highlighter.js
-/priv/static/js/infinite-scroll.js
-/priv/static/js/inline-expanding-filename.js
-/priv/static/js/inline.js
-/priv/static/js/live-index.js
-/priv/static/js/mod/mod_snippets.js
-/priv/static/js/multi-image.js
-/priv/static/js/no-animated-gif.js
-/priv/static/js/options/fav.js
-/priv/static/js/own-board.js
-/priv/static/js/quote-selection.js
-/priv/static/js/settings.js
-/priv/static/js/smartphone-spoiler.js
-/priv/static/js/thread-watcher.js
-/priv/static/js/threadscroll.js
-/priv/static/js/toggle-images.js
-/priv/static/js/toggle-locked-threads.js
-/priv/static/js/treeview.js
-/priv/static/js/watch.js
-/priv/static/js/webm/playersettings.js
-
-# dead legacy js
-/priv/static/js/captcha.js
-/priv/static/js/instance.settings.js
-/priv/static/js/show-op.js
-/priv/static/js/style-select.js
