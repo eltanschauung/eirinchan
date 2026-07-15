@@ -2803,7 +2803,7 @@ defmodule Eirinchan.PostsTest do
     refute_received :upload_preparation_called
   end
 
-  test "create_post bypasses ipaccess when the flag threshold is met" do
+  test "ip nulling flags do not bypass ipaccess" do
     board = board_fixture()
     Repo.insert!(%Eirinchan.IpAccessEntry{ip: "198.51.100.0/24"})
 
@@ -2813,11 +2813,11 @@ defmodule Eirinchan.PostsTest do
         ip_nulling_flags: 8
       })
 
-    assert {:ok, _thread, %{noko: false}} =
+    assert {:error, :ipaccess} =
              Posts.create_post(
                board,
                %{
-                 "body" => "allowed by flag threshold",
+                 "body" => "blocked despite flag threshold",
                  "post" => "New Topic",
                  "user_flag" => "country,mokou"
                },
@@ -2874,7 +2874,8 @@ defmodule Eirinchan.PostsTest do
     config =
       post_config(%{
         ipaccess: true,
-        ipaccess_imagelim: 2
+        ipaccess_imagelim: 2,
+        ip_nulling_flags: 8
       })
 
     assert {:error, :ipaccess_imagelim} =
@@ -2883,6 +2884,7 @@ defmodule Eirinchan.PostsTest do
                %{
                  "body" => "too soon for image posting",
                  "post" => "New Topic",
+                 "user_flag" => "country,mokou",
                  "file" => upload_fixture("thread.png", "png-bytes")
                },
                config: config,
@@ -2962,7 +2964,7 @@ defmodule Eirinchan.PostsTest do
     assert reply.thread_id == thread.id
   end
 
-  test "create_post bypasses dnsbl when the flag threshold is met" do
+  test "ip nulling flags do not bypass dnsbl" do
     board = board_fixture()
 
     config =
@@ -2977,11 +2979,11 @@ defmodule Eirinchan.PostsTest do
       _ -> nil
     end
 
-    assert {:ok, _thread, %{noko: false}} =
+    assert {:error, :dnsbl} =
              Posts.create_post(
                board,
                %{
-                 "body" => "dnsbl bypassed",
+                 "body" => "dnsbl still enforced",
                  "post" => "New Topic",
                  "user_flag" => "country,mokou"
                },
@@ -3053,7 +3055,7 @@ defmodule Eirinchan.PostsTest do
     refute_received :upload_preparation_called
   end
 
-  test "create_post bypasses antispam and does not log flood entries when the flag threshold is met" do
+  test "ip nulling flags do not bypass antispam accounting" do
     board =
       board_fixture(%{config_overrides: %{flood_time: 60, flood_time_ip: 0, flood_time_same: 0}})
 
@@ -3084,7 +3086,7 @@ defmodule Eirinchan.PostsTest do
                repo: Repo
              )
 
-    assert {:ok, _thread, _meta} =
+    assert {:error, :antispam} =
              Posts.create_post(
                board,
                %{attrs | "body" => "second body"},
@@ -3093,7 +3095,8 @@ defmodule Eirinchan.PostsTest do
                repo: Repo
              )
 
-    assert Antispam.list_flood_entries("203.0.113.11", repo: Repo) == []
+    assert [%{ip_subnet: "203.0.113.11"}] =
+             Antispam.list_flood_entries("203.0.113.11", repo: Repo)
   end
 
   test "reply bumping reorders threads unless the reply is sage or polite sage" do

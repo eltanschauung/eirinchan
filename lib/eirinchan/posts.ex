@@ -84,7 +84,6 @@ defmodule Eirinchan.Posts do
 
     with {:ok, attrs} <- PostsUploadPreparation.normalize_embed(attrs, config) do
       now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
-      ip_nulling_bypass? = PostsRequestGuards.ip_nulling_bypass?(attrs, config)
 
       {request_guards_us, request_guards_result} =
         timed(fn ->
@@ -164,13 +163,9 @@ defmodule Eirinchan.Posts do
 
       {antispam_us, antispam_result} =
         timed_continue(metadata_result, fn %{attrs: attrs} = context ->
-          if ip_nulling_bypass? do
-            {:ok, context}
-          else
-            case Antispam.check_post(board, attrs, request, config, repo: repo) do
-              :ok -> {:ok, context}
-              error -> error
-            end
+          case Antispam.check_post(board, attrs, request, config, repo: repo) do
+            :ok -> {:ok, context}
+            error -> error
           end
         end)
 
@@ -288,7 +283,7 @@ defmodule Eirinchan.Posts do
               {:ok, post} ->
                 {pruning_us, _} = timed(fn -> maybe_prune_threads(board, post, config, repo) end)
 
-                unless ip_nulling_bypass? or upload_attempt? do
+                unless upload_attempt? do
                   Antispam.log_post(board, attrs, request, repo: repo)
                 end
 
