@@ -2803,7 +2803,7 @@ defmodule Eirinchan.PostsTest do
     refute_received :upload_preparation_called
   end
 
-  test "ip nulling flags do not bypass ipaccess" do
+  test "ip nulling flag threshold alone does not bypass ipaccess" do
     board = board_fixture()
     Repo.insert!(%Eirinchan.IpAccessEntry{ip: "198.51.100.0/24"})
 
@@ -2827,6 +2827,43 @@ defmodule Eirinchan.PostsTest do
                  remote_ip: {203, 0, 113, 9}
                }
              )
+  end
+
+  test "enabled IP nulling flags allow an unverified image reply through ipaccess" do
+    board = board_fixture()
+    thread = thread_fixture(board)
+    Repo.insert!(%Eirinchan.IpAccessEntry{ip: "198.51.100.0/24"})
+
+    config =
+      post_config(%{
+        ipaccess: true,
+        ip_nulling: true,
+        ip_nulling_flags: 8,
+        user_flag: true,
+        multiple_flags: true,
+        user_flags: %{"mokou" => "Mokou"}
+      })
+
+    assert {:ok, reply, _meta} =
+             Posts.create_post(
+               board,
+               %{
+                 "thread" => Integer.to_string(PublicIds.public_id(thread)),
+                 "body" => "image reply allowed by configured flags",
+                 "post" => "Reply",
+                 "user_flag" => "country,mokou",
+                 "file" => upload_fixture("reply.png", geometry: "32x32")
+               },
+               config: config,
+               request: %{
+                 referer: "http://example.test/#{board.uri}/index.html",
+                 remote_ip: {203, 0, 113, 9}
+               }
+             )
+
+    assert reply.thread_id == thread.id
+    assert reply.ip_subnet == nil
+    assert is_binary(reply.file_path)
   end
 
   test "create_post bypasses ipaccess for fileless replies when ipaccess_replies is enabled" do

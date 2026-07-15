@@ -55,6 +55,9 @@ defmodule Eirinchan.Posts.RequestGuards do
       ipaccess_reply_bypass?(attrs, config) ->
         :ok
 
+      ipaccess_flag_bypass?(attrs, config) ->
+        :ok
+
       AccessList.allowed_for_posting?(request[:remote_ip] || request["remote_ip"]) ->
         :ok
 
@@ -70,6 +73,7 @@ defmodule Eirinchan.Posts.RequestGuards do
       moderator_board_access?(request, board) -> :ok
       not Map.get(config, :ipaccess, false) -> :ok
       ipaccess_reply_bypass?(attrs, config) -> :ok
+      ipaccess_flag_bypass?(attrs, config) -> :ok
       true -> validate_ipaccess_imagelim(attrs, request, config)
     end
   end
@@ -210,6 +214,15 @@ defmodule Eirinchan.Posts.RequestGuards do
 
   defp request_moderator(request), do: request[:moderator] || request["moderator"]
 
+  defp ipaccess_flag_bypass?(attrs, config) do
+    threshold = Map.get(config, :ip_nulling_flags, 0)
+
+    Map.get(config, :ip_nulling, false) and
+      Map.get(config, :user_flag, false) and
+      is_integer(threshold) and threshold > 0 and
+      submitted_flag_length(attrs) >= threshold
+  end
+
   defp ipaccess_reply_bypass?(attrs, config) do
     Map.get(config, :ipaccess_replies, false) and reply?(attrs) and not uploaded_file?(attrs)
   end
@@ -266,6 +279,16 @@ defmodule Eirinchan.Posts.RequestGuards do
   defp present?(value) when is_binary(value), do: String.trim(value) != ""
   defp present?(nil), do: false
   defp present?(_value), do: true
+
+  defp submitted_flag_length(attrs) when is_map(attrs) do
+    attrs
+    |> Map.get("user_flag", Map.get(attrs, "flags", ""))
+    |> to_string()
+    |> String.trim()
+    |> String.length()
+  end
+
+  defp submitted_flag_length(_attrs), do: 0
 
   defp moderator_board_access?(request, board) do
     case request_moderator(request) do
