@@ -106,9 +106,9 @@
     this.paginationData = null;
     this.searchTimer = null;
     this.requestController = null;
-    this.tableWrap = form.querySelector(".banlist-table-wrap");
+    this.table = form.querySelector("#banlist");
     this.tableBody = form.querySelector("#banlist tbody");
-    this.pagination = form.querySelector("#banlist-pagination");
+    this.paginationControls = Array.from(form.querySelectorAll("[data-ban-pagination]"));
     this.status = form.querySelector("#banlist-status");
     this.selectAll = form.querySelector("#select-all");
     this.onlyMine = form.querySelector("#only_mine");
@@ -194,7 +194,6 @@
         list.rows = payload.rows;
         list.paginationData = payload.pagination;
         list.currentPage = payload.pagination.page;
-        list.tableWrap.hidden = false;
         list.render();
 
         if (historyMode) {
@@ -257,11 +256,13 @@
       });
     }
 
-    this.pagination.addEventListener("click", function (event) {
-      var link = event.target.closest("a[data-ban-page]");
-      if (!link) return;
-      event.preventDefault();
-      list.loadPage(positivePage(link.getAttribute("data-ban-page")), "push");
+    this.paginationControls.forEach(function (pagination) {
+      pagination.addEventListener("click", function (event) {
+        var link = event.target.closest("a[data-ban-page]");
+        if (!link) return;
+        event.preventDefault();
+        list.loadPage(positivePage(link.getAttribute("data-ban-page")), "push");
+      });
     });
 
     window.addEventListener("popstate", function () {
@@ -322,6 +323,7 @@
     this.renderRows();
     this.renderPagination();
     this.updateSortState();
+    this.table.removeAttribute("aria-busy");
     this.status.classList.remove("is-error");
     this.status.hidden = false;
 
@@ -348,12 +350,20 @@
 
   BanList.prototype.renderPagination = function () {
     var list = this;
+    this.paginationControls.forEach(function (pagination) {
+      list.renderPaginationInto(pagination);
+    });
+  };
+
+  BanList.prototype.renderPaginationInto = function (pagination) {
+    var list = this;
     var data = this.paginationData;
     var fragment = document.createDocumentFragment();
 
-    this.pagination.replaceChildren();
-    this.pagination.hidden = data.total_pages <= 1;
-    if (this.pagination.hidden) return;
+    pagination.replaceChildren();
+    pagination.removeAttribute("aria-busy");
+    pagination.hidden = data.total_pages <= 1;
+    if (pagination.hidden) return;
 
     fragment.appendChild(this.paginationControl("Previous", data.page - 1, data.page > 1, "prev"));
 
@@ -387,7 +397,7 @@
 
     fragment.appendChild(pages);
     fragment.appendChild(this.paginationControl("Next", data.page + 1, data.page < data.total_pages, "next"));
-    this.pagination.appendChild(fragment);
+    pagination.appendChild(fragment);
   };
 
   BanList.prototype.paginationControl = function (label, page, enabled, relation) {

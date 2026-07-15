@@ -74,11 +74,16 @@
 
 .banlist-pagination {
   display: flex;
+  min-height: 1.5rem;
   justify-content: center;
   align-items: center;
   flex-wrap: wrap;
   gap: 0.35rem 0.65rem;
   margin: 0.9rem 0;
+}
+
+.banlist-pagination-placeholder {
+  opacity: 0.48;
 }
 
 .banlist-pagination[hidden] {
@@ -148,6 +153,36 @@
 
 #banlist tbody tr:nth-child(even) td {
   background: rgba(232, 213, 201, 0.58);
+}
+
+#banlist .banlist-skeleton-row td {
+  height: 2.7rem;
+  box-sizing: border-box;
+}
+
+.banlist-skeleton-line {
+  display: block;
+  width: 72%;
+  height: 0.7rem;
+  margin-top: 0.15rem;
+  border-radius: 0.15rem;
+  background: rgba(128, 0, 0, 0.12);
+}
+
+.banlist-skeleton-row td:nth-child(2) .banlist-skeleton-line {
+  width: 88%;
+}
+
+.banlist-skeleton-row td:nth-child(3) .banlist-skeleton-line {
+  width: 64%;
+}
+
+.banlist-skeleton-row td:nth-child(4) .banlist-skeleton-line {
+  width: 78%;
+}
+
+.banlist-skeleton-row td:last-child .banlist-skeleton-line {
+  width: 2rem;
 }
 
 #banlist .banlist-target-heading {
@@ -275,6 +310,10 @@ a.banlist-key:focus-visible {
     padding: 0.25rem 0.55rem;
     border: 1px solid #d9bfb7;
     background: rgba(240, 224, 214, 0.48);
+  }
+
+  #banlist tbody tr.banlist-skeleton-row {
+    min-height: 11rem;
   }
 
   #banlist td,
