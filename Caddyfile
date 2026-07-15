@@ -1,0 +1,15 @@
+{
+	admin off
+}
+
+{$EIRINCHAN_HOST} {
+	encode zstd gzip
+
+	request_body {
+		max_size 50MB
+	}
+
+	# Caddy replaces X-Forwarded-* by default. Do not enable trusted_proxies
+	# here unless the corresponding upstream proxy boundary is also configured.
+	reverse_proxy app:4000
+}

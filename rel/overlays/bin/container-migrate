@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+set -eu
+
+export EIRINCHAN_STATE_ROOT="${EIRINCHAN_STATE_ROOT:-/var/lib/eirinchan}"
+export RELEASE_TMP="${RELEASE_TMP:-/tmp/eirinchan-release}"
+unset PHX_SERVER
+
+mkdir -p "$RELEASE_TMP"
+
+"$(dirname -- "$0")/eirinchan" eval 'Eirinchan.Release.migrate()'

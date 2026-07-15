@@ -1,0 +1,353 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+STATE_DIR="$ROOT/.eirinchan"
+ENV_FILE="$STATE_DIR/install.env"
+COMPOSE_FILE="$ROOT/compose.yaml"
+
+usage() {
+  cat <<'EOF'
+Usage: ./eirinchan COMMAND
+
+Commands:
+  install   Build and install Eirinchan, then create the first administrator
+  start     Start the existing Eirinchan installation
+  stop      Stop containers without deleting persistent data
+  restart   Restart the existing installation
+  status    Show container state
+  logs      Follow application and proxy logs
+  doctor    Validate local files, Docker, Compose, and container health
+  help      Show this help
+
+The installer requires a public hostname whose DNS already points to this
+server. Caddy obtains and renews HTTPS certificates automatically.
+EOF
+}
+
+die() {
+  echo "Error: $*" >&2
+  exit 1
+}
+
+require_command() {
+  command -v "$1" >/dev/null 2>&1 || die "required command not found: $1"
+}
+
+require_docker() {
+  require_command docker
+  docker compose version >/dev/null 2>&1 || die "Docker Compose v2 is required"
+  docker info >/dev/null 2>&1 || die "Docker is not running or is not accessible to this user"
+}
+
+require_installation() {
+  [ -f "$ENV_FILE" ] || die "Eirinchan is not installed; run ./eirinchan install"
+  [ -s "$STATE_DIR/secrets/postgres_password" ] || die "the PostgreSQL secret is missing"
+  [ -s "$STATE_DIR/secrets/secret_key_base" ] || die "the Eirinchan secret is missing"
+}
+
+compose() {
+  docker compose \
+    --project-directory "$ROOT" \
+    --env-file "$ENV_FILE" \
+    --file "$COMPOSE_FILE" \
+    "$@"
+}
+
+env_value() {
+  key="$1"
+  awk -F= -v key="$key" '$1 == key {sub(/^[^=]*=/, ""); print; exit}' "$ENV_FILE"
+}
+
+valid_hostname() {
+  host="$1"
+
+  [ "${#host}" -le 253 ] || return 1
+  [[ "$host" == *.* ]] || return 1
+  [[ "$host" =~ ^[a-z0-9][a-z0-9.-]*[a-z0-9]$ ]] || return 1
+  [[ "$host" != *..* && "$host" != *.-* && "$host" != *-. ]] || return 1
+
+  local label
+  local labels=()
+  IFS='.' read -r -a labels <<<"$host"
+
+  for label in "${labels[@]}"; do
+    [ "${#label}" -le 63 ] || return 1
+    [[ "$label" != -* && "$label" != *- ]] || return 1
+  done
+}
+
+prompt_hostname() {
+  local host
+
+  while true; do
+    read -r -p "Public hostname (for example, chan.example.com): " host
+    host="$(printf '%s' "$host" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+
+    if valid_hostname "$host"; then
+      printf '%s' "$host"
+      return
+    fi
+
+    echo "Enter a valid fully qualified hostname without a scheme, port, or path." >&2
+  done
+}
+
+create_installation_files() {
+  if [ -e "$STATE_DIR" ]; then
+    die "$STATE_DIR is incomplete; preserve it and repair or remove it explicitly before retrying"
+  fi
+
+  require_command openssl
+
+  local host
+  local temporary
+  host="$(prompt_hostname)"
+  temporary="$(mktemp -d "$ROOT/.eirinchan.new.XXXXXX")"
+
+  cleanup_temporary() {
+    if [ -n "${temporary:-}" ] && [ -d "$temporary" ]; then
+      rm -rf -- "$temporary"
+    fi
+  }
+
+  trap cleanup_temporary EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  umask 077
+  mkdir -p "$temporary/secrets"
+
+  openssl rand -hex 64 >"$temporary/secrets/secret_key_base"
+  openssl rand -hex 32 >"$temporary/secrets/postgres_password"
+
+  cat >"$temporary/install.env" <<EOF
+COMPOSE_PROJECT_NAME=eirinchan
+EIRINCHAN_HOST=$host
+POSTGRES_DB=eirinchan
+POSTGRES_USER=eirinchan
+POOL_SIZE=10
+PROXY_SUBNET=172.30.240.0/24
+CADDY_PROXY_IP=172.30.240.2
+APP_PROXY_IP=172.30.240.3
+EOF
+
+  chmod 0700 "$temporary" "$temporary/secrets"
+  chmod 0600 "$temporary/install.env" "$temporary/secrets/secret_key_base" \
+    "$temporary/secrets/postgres_password"
+
+  mv -- "$temporary" "$STATE_DIR"
+  temporary=""
+  trap - EXIT INT TERM
+}
+
+wait_for_service() {
+  local service="$1"
+  local attempts="${2:-60}"
+  local container_id
+  local status
+  local attempt
+
+  for ((attempt = 1; attempt <= attempts; attempt++)); do
+    container_id="$(compose ps -q "$service")"
+
+    if [ -n "$container_id" ]; then
+      status="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container_id" 2>/dev/null || true)"
+
+      case "$status" in
+        healthy | running)
+          return
+          ;;
+        unhealthy | exited | dead)
+          compose logs --tail 30 "$service" >&2 || true
+          die "$service failed while starting"
+          ;;
+      esac
+    fi
+
+    sleep 2
+  done
+
+  compose logs --tail 30 "$service" >&2 || true
+  die "timed out waiting for $service"
+}
+
+prompt_initial_admin() {
+  local username
+  local password
+  local confirmation
+
+  if compose run --rm --no-deps -T app /app/bin/admin-exists >/dev/null 2>&1; then
+    echo "An administrator already exists; preserving it."
+    return
+  fi
+
+  echo
+  echo "Create the first administrator."
+
+  while true; do
+    read -r -p "Administrator username: " username
+
+    if [ -z "${username//[[:space:]]/}" ] || [ "${#username}" -gt 64 ]; then
+      echo "The username must contain 1 to 64 characters." >&2
+      continue
+    fi
+
+    read -r -s -p "Administrator password (12 to 255 characters): " password
+    echo
+    read -r -s -p "Confirm administrator password: " confirmation
+    echo
+
+    if [ "$password" != "$confirmation" ]; then
+      echo "Passwords do not match." >&2
+      unset password confirmation
+      continue
+    fi
+
+    if [ "${#password}" -lt 12 ] || [ "${#password}" -gt 255 ]; then
+      echo "The password must contain 12 to 255 characters." >&2
+      unset password confirmation
+      continue
+    fi
+
+    if printf '%s' "$password" | \
+      compose run --rm --no-deps -T app /app/bin/create-admin "$username"; then
+      unset password confirmation
+      return
+    fi
+
+    unset password confirmation
+    echo "Administrator creation failed; correct the values and try again." >&2
+  done
+}
+
+install_stack() {
+  require_docker
+
+  if [ ! -f "$ENV_FILE" ]; then
+    create_installation_files
+  fi
+
+  require_installation
+  compose config --quiet
+
+  echo "Pulling PostgreSQL and Caddy..."
+  compose pull database caddy
+
+  echo "Building the immutable Eirinchan release..."
+  compose build --pull app
+
+  echo "Starting PostgreSQL..."
+  compose up --detach database
+  wait_for_service database 60
+
+  echo "Running database migrations..."
+  compose run --rm --no-deps -T app /app/bin/container-migrate
+
+  prompt_initial_admin
+
+  echo "Starting Eirinchan..."
+  compose up --detach app
+  wait_for_service app 60
+
+  echo "Starting Caddy..."
+  compose up --detach caddy
+
+  local host
+  host="$(env_value EIRINCHAN_HOST)"
+
+  echo
+  echo "Eirinchan is installed."
+  echo "Site:  https://$host/"
+  echo "Admin: https://$host/manage/login"
+}
+
+start_stack() {
+  require_docker
+  require_installation
+  compose config --quiet
+  compose up --detach
+  wait_for_service database 60
+  wait_for_service app 60
+}
+
+doctor() {
+  require_docker
+  require_installation
+
+  local failed=0
+  local mode
+  local path
+
+  for path in "$STATE_DIR" "$STATE_DIR/secrets"; do
+    mode="$(stat -c '%a' "$path")"
+    if [ "$mode" != "700" ]; then
+      echo "FAIL $path has mode $mode; expected 700" >&2
+      failed=1
+    fi
+  done
+
+  for path in "$ENV_FILE" "$STATE_DIR/secrets/postgres_password" \
+    "$STATE_DIR/secrets/secret_key_base"; do
+    mode="$(stat -c '%a' "$path")"
+    if [ "$mode" != "600" ]; then
+      echo "FAIL $path has mode $mode; expected 600" >&2
+      failed=1
+    fi
+  done
+
+  if ! compose config --quiet; then
+    echo "FAIL Compose configuration is invalid" >&2
+    failed=1
+  fi
+
+  if [ "$failed" -ne 0 ]; then
+    return 1
+  fi
+
+  echo "Installation files and Compose configuration are valid."
+  compose ps
+}
+
+command="${1:-help}"
+
+case "$command" in
+  install)
+    [ "$#" -eq 1 ] || die "install does not accept positional arguments"
+    install_stack
+    ;;
+  start)
+    [ "$#" -eq 1 ] || die "start does not accept positional arguments"
+    start_stack
+    ;;
+  stop)
+    require_docker
+    require_installation
+    compose down
+    ;;
+  restart)
+    require_docker
+    require_installation
+    compose down
+    start_stack
+    ;;
+  status)
+    require_docker
+    require_installation
+    compose ps
+    ;;
+  logs)
+    require_docker
+    require_installation
+    compose logs --follow --tail 200 app caddy
+    ;;
+  doctor)
+    doctor
+    ;;
+  help | --help | -h)
+    usage
+    ;;
+  *)
+    usage >&2
+    die "unknown command: $command"
+    ;;
+esac

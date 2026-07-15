@@ -1,0 +1,126 @@
+x-log-policy: &log-policy
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  database:
+    image: postgres:17.10-alpine3.23
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-eirinchan}
+      POSTGRES_USER: ${POSTGRES_USER:-eirinchan}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+    volumes:
+      - database-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    shm_size: 128mb
+    networks:
+      - database
+    logging: *log-policy
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: eirinchan:local
+    restart: unless-stopped
+    environment:
+      ALLOWED_HOSTS: ${EIRINCHAN_HOST}
+      EIRINCHAN_BIND_IP: 0.0.0.0
+      EIRINCHAN_STATE_ROOT: /var/lib/eirinchan
+      EIRINCHAN_TRUSTED_PROXY_IPS: ${CADDY_PROXY_IP:-172.30.240.2}
+      PHX_HOST: ${EIRINCHAN_HOST}
+      POOL_SIZE: ${POOL_SIZE:-10}
+      PORT: 4000
+      POSTGRES_DB: ${POSTGRES_DB:-eirinchan}
+      POSTGRES_HOST: database
+      POSTGRES_USER: ${POSTGRES_USER:-eirinchan}
+    secrets:
+      - postgres_password
+      - secret_key_base
+    volumes:
+      - application-state:/var/lib/eirinchan
+    tmpfs:
+      - /tmp:mode=1777,size=256m
+    read_only: true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 512
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl --fail --silent --show-error --max-time 5 --header 'Host: '$${PHX_HOST} http://127.0.0.1:4000/auth >/dev/null",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks:
+      database: {}
+      proxy:
+        ipv4_address: ${APP_PROXY_IP:-172.30.240.3}
+    logging: *log-policy
+
+  caddy:
+    image: caddy:2.11.4-alpine
+    restart: unless-stopped
+    environment:
+      EIRINCHAN_HOST: ${EIRINCHAN_HOST}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      proxy:
+        ipv4_address: ${CADDY_PROXY_IP:-172.30.240.2}
+    logging: *log-policy
+
+networks:
+  database:
+    internal: true
+  proxy:
+    ipam:
+      config:
+        - subnet: ${PROXY_SUBNET:-172.30.240.0/24}
+
+volumes:
+  application-state:
+  caddy-config:
+  caddy-data:
+  database-data:
+
+secrets:
+  postgres_password:
+    file: ./.eirinchan/secrets/postgres_password
+  secret_key_base:
+    file: ./.eirinchan/secrets/secret_key_base

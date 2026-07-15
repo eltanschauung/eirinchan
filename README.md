@@ -19,13 +19,57 @@ high-speed app. Uses PostgreSQL. Credit to Tinyboard, Vichan Devel and Fredrick 
 
 # Installation
 
-Configure PostgreSQL through `DATABASE_URL`; the web application never writes database
-credentials. Run migrations and create the initial administrator from the server console:
+The supported production installation uses Docker Compose. Before starting:
+
+- install Docker Engine with the Compose v2 plugin;
+- point a public hostname at the server; and
+- allow inbound TCP ports 80 and 443 and UDP port 443.
+
+Then run:
 
 ```sh
-MIX_ENV=prod mix ecto.migrate
-MIX_ENV=prod mix eirinchan.create_admin --username admin
+git clone https://github.com/eltanschauung/eirinchan-v1.git
+cd eirinchan-v1
+./eirinchan install
 ```
 
-The admin task prompts for a password without echoing it. For non-interactive provisioning,
-provide the password in `EIRINCHAN_ADMIN_PASSWORD` through the process environment.
+The installer asks for the public hostname, generates private database and application
+secrets, builds an immutable release, starts PostgreSQL, and runs all migrations. Its final
+prompt creates the first administrator. The password is confirmed without being displayed
+or placed in command arguments or configuration files.
+
+Caddy is included and obtains and renews HTTPS certificates automatically. Phoenix and
+PostgreSQL are not published directly to the host. Persistent database, certificate, upload,
+generated-page, settings, and log data live in Docker volumes. Generated installation secrets
+are stored under the ignored `.eirinchan` directory with restrictive permissions.
+
+After installation:
+
+```sh
+./eirinchan status
+./eirinchan logs
+./eirinchan restart
+./eirinchan doctor
+```
+
+Stopping the stack with `./eirinchan stop` preserves all volumes. Do not use
+`docker compose down --volumes` unless permanent deletion of the instance is intended.
+
+There is intentionally no browser installation endpoint and there are no default
+administrator credentials.
+
+## Native development
+
+Native development remains available for contributors with Elixir 1.20.2, Erlang/OTP 27,
+and PostgreSQL installed:
+
+```sh
+export DATABASE_URL='ecto://localhost/eirinchan_dev'
+mix setup
+mix eirinchan.create_admin --username admin
+mix phx.server
+```
+
+The native administrator command prompts for a password without echoing it. Database and
+application secrets must be supplied through the server environment in production; the web
+application never persists database credentials.

@@ -43,6 +43,8 @@ thread_watcher_spec.md
 /static/stylesheets/keyedfrog.css
 
 # Local runtime state
+/.eirinchan/
+/.eirinchan.new.*/
 /access.log
 /var/settings.json
 /var/*.tmp

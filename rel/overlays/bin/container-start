@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+set -eu
+
+script_dir="$(dirname -- "$0")"
+
+"$script_dir/container-migrate"
+export PHX_SERVER=true
+
+exec "$script_dir/eirinchan" start

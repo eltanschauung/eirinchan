@@ -1,0 +1,14 @@
+.git
+.github
+.eirinchan
+_build
+cover
+deps
+doc
+tmp
+var
+access.log
+erl_crash.dump
+*.bundle
+*.ez
+eirinchan-*.tar

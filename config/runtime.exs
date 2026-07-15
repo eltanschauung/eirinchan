@@ -61,6 +61,13 @@ if config_env() == :prod do
   host = System.get_env("PHX_HOST") || "example.com"
   port = String.to_integer(System.get_env("PORT") || "4000")
 
+  bind_ip =
+    case System.get_env("EIRINCHAN_BIND_IP", "127.0.0.1") do
+      "127.0.0.1" -> {127, 0, 0, 1}
+      "0.0.0.0" -> {0, 0, 0, 0}
+      value -> raise "unsupported EIRINCHAN_BIND_IP: #{inspect(value)}"
+    end
+
   allowed_hosts =
     System.get_env("ALLOWED_HOSTS", host)
     |> String.split(",", trim: true)
@@ -68,14 +75,38 @@ if config_env() == :prod do
 
   config :eirinchan, :allowed_hosts, allowed_hosts
 
+  case System.get_env("EIRINCHAN_TRUSTED_PROXY_IPS") do
+    nil ->
+      :ok
+
+    value ->
+      trusted_ips =
+        value
+        |> String.split(",", trim: true)
+        |> Enum.map(&String.trim/1)
+        |> Enum.reject(&(&1 == ""))
+
+      if trusted_ips == [] do
+        raise "EIRINCHAN_TRUSTED_PROXY_IPS must contain at least one proxy address"
+      end
+
+      config :eirinchan, :proxy_request, %{
+        trust_headers: true,
+        trusted_ips: trusted_ips,
+        trusted_cidrs: [],
+        client_ip_headers: ["x-forwarded-for", "x-real-ip"]
+      }
+  end
+
   config :eirinchan, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
   config :eirinchan, EirinchanWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
     http: [
-      # The public TLS gateway is the only supported ingress path. Keeping Bandit
-      # on IPv4 loopback prevents direct access to its trusted proxy boundary.
-      ip: {127, 0, 0, 1},
+      # The public TLS gateway is the only supported ingress path. Native
+      # deployments stay on loopback; the container override is reachable only
+      # on its private Compose networks.
+      ip: bind_ip,
       port: port
     ],
     secret_key_base: secret_key_base
