@@ -74,13 +74,14 @@ defmodule EirinchanWeb.PostControllerTest do
              "thread_id" => ^thread_id,
              "redirect" => redirect,
              "noko" => false,
-             "watcher_count" => 1,
+             "watcher_count" => 0,
              "watcher_unread_count" => 0,
              "watcher_you_count" => 0
            } = json_response(conn, 200)
 
     assert redirect == "/#{board.uri}/res/#{thread_id}.html#p#{id}"
     assert ThreadWatcher.watched?(token, board.uri, thread.id)
+    assert ThreadWatcher.watch_metrics(token).watcher_count == 0
 
     encoded_cookie =
       referer
@@ -123,13 +124,56 @@ defmodule EirinchanWeb.PostControllerTest do
              "thread_id" => ^thread_id,
              "redirect" => redirect,
              "noko" => false,
-             "watcher_count" => 1,
+             "watcher_count" => 0,
              "watcher_unread_count" => 0,
              "watcher_you_count" => 0
            } = json_response(conn, 200)
 
     assert redirect == "/#{board.uri}/res/#{thread_id}.html#p#{id}"
     assert ThreadWatcher.watched?(token, board.uri, thread.id)
+    assert ThreadWatcher.watch_metrics(token).watcher_count == 0
+  end
+
+  test "a reply-created watch appears only after a later reply from another browser", %{
+    conn: conn
+  } do
+    board = board_fixture(%{title: "Latent Watchers"})
+    thread = thread_fixture(board, %{body: "thread body"})
+    first_token = browser_token("latent-first")
+    second_token = browser_token("latent-second")
+
+    first_response =
+      conn
+      |> put_req_cookie("__Host-eirinchan_browser", Eirinchan.BrowserIdentity.issue(first_token))
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post(~p"/#{board.uri}/post", %{
+        "thread" => Integer.to_string(PublicIds.public_id(thread)),
+        "body" => "first reply",
+        "json_response" => "1",
+        "post" => "New Reply"
+      })
+
+    assert %{"watcher_count" => 0} = json_response(first_response, 200)
+    assert ThreadWatcher.watch_metrics(first_token).watcher_count == 0
+
+    second_response =
+      conn
+      |> recycle()
+      |> put_req_cookie("__Host-eirinchan_browser", Eirinchan.BrowserIdentity.issue(second_token))
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post(~p"/#{board.uri}/post", %{
+        "thread" => Integer.to_string(PublicIds.public_id(thread)),
+        "body" => "later reply",
+        "json_response" => "1",
+        "post" => "New Reply"
+      })
+
+    assert %{"watcher_count" => 0} = json_response(second_response, 200)
+
+    assert %{watcher_count: 1, watcher_unread_count: 1} =
+             ThreadWatcher.watch_metrics(first_token)
+
+    assert ThreadWatcher.watch_metrics(second_token).watcher_count == 0
   end
 
   test "api posting rejects requests without csrf with json error payload", %{conn: conn} do

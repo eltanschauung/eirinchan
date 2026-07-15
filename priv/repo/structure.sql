@@ -941,6 +941,7 @@ CREATE TABLE public.thread_watches (
     board_uri character varying(255) NOT NULL,
     thread_id bigint NOT NULL,
     last_seen_post_id bigint,
+    activated boolean DEFAULT true NOT NULL,
     inserted_at timestamp(0) without time zone NOT NULL,
     updated_at timestamp(0) without time zone NOT NULL
 );
@@ -2139,3 +2140,4 @@ INSERT INTO public."schema_migrations" (version) VALUES (20260714213000);
 INSERT INTO public."schema_migrations" (version) VALUES (20260714220000);
 INSERT INTO public."schema_migrations" (version) VALUES (20260715033000);
 INSERT INTO public."schema_migrations" (version) VALUES (20260715190000);
+INSERT INTO public."schema_migrations" (version) VALUES (20260715193000);

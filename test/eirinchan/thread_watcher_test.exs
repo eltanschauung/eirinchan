@@ -191,6 +191,69 @@ defmodule Eirinchan.ThreadWatcherTest do
     assert ThreadWatcher.list_watch_summaries(token) == []
   end
 
+  test "latent watches stay out of every visible watcher projection" do
+    board = board_fixture(%{uri: "watchlatent", title: "Latent Watch"})
+    thread = thread_fixture(board, %{body: "OP"})
+    reply = reply_fixture(board, thread, %{body: "Owned reply"})
+    token = "token-latent-123456789"
+
+    assert {:ok, %Watch{activated: false}} =
+             ThreadWatcher.watch_thread(token, board.uri, thread.id, %{
+               last_seen_post_id: reply.id,
+               activated: false
+             })
+
+    assert ThreadWatcher.watched?(token, board.uri, thread.id)
+    assert ThreadWatcher.watch_count(token) == 0
+
+    assert ThreadWatcher.watch_metrics(token) == %{
+             watcher_count: 0,
+             watcher_unread_count: 0,
+             watcher_you_count: 0
+           }
+
+    assert ThreadWatcher.watch_state_for_board(token, board.uri) == %{}
+    assert ThreadWatcher.list_watch_summaries(token) == []
+  end
+
+  test "a later reply activates other browsers' latent watches only" do
+    board = board_fixture(%{uri: "watchactivate", title: "Activate Watch"})
+    thread = thread_fixture(board, %{body: "OP"})
+    first_reply = reply_fixture(board, thread, %{body: "First reply"})
+    posting_token = "token-posting-12345678"
+    waiting_token = "token-waiting-12345678"
+
+    for token <- [posting_token, waiting_token] do
+      assert {:ok, %Watch{activated: false}} =
+               ThreadWatcher.watch_thread(token, board.uri, thread.id, %{
+                 last_seen_post_id: first_reply.id,
+                 activated: false
+               })
+    end
+
+    _later_reply = reply_fixture(board, thread, %{body: "Later reply"})
+
+    assert {:ok, 1} = ThreadWatcher.activate_for_reply(thread.id, posting_token)
+    assert ThreadWatcher.watch_count(posting_token) == 0
+
+    assert %{watcher_count: 1, watcher_unread_count: 1} =
+             ThreadWatcher.watch_metrics(waiting_token)
+  end
+
+  test "explicitly watching upgrades an existing latent watch" do
+    board = board_fixture(%{uri: "watchupgrade", title: "Upgrade Watch"})
+    thread = thread_fixture(board, %{body: "OP"})
+    token = "token-upgrade-1234567"
+
+    assert {:ok, %Watch{activated: false}} =
+             ThreadWatcher.watch_thread(token, board.uri, thread.id, %{activated: false})
+
+    assert {:ok, %Watch{activated: true}} =
+             ThreadWatcher.watch_thread(token, board.uri, thread.id)
+
+    assert ThreadWatcher.watch_count(token) == 1
+  end
+
   defp from_post(thread_id) do
     from(post in Post,
       where: post.id == ^thread_id or post.thread_id == ^thread_id,
