@@ -625,7 +625,7 @@ defmodule EirinchanWeb.PostComponents do
       :if={@deleted_file?}
       class={@image_classes}
       src={PostView.file_thumb_src(@file, @config)}
-      loading="lazy"
+      loading={if @op?, do: "eager", else: "lazy"}
       decoding="async"
       alt=""
     />
@@ -645,7 +645,7 @@ defmodule EirinchanWeb.PostComponents do
         src={PostView.file_thumb_src(@file, @config)}
         width={@thumb_width}
         height={@thumb_height}
-        loading="lazy"
+        loading={if @op?, do: "eager", else: "lazy"}
         decoding="async"
         style={@thumb_style}
         alt=""

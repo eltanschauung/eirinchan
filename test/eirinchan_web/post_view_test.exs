@@ -331,6 +331,35 @@ defmodule EirinchanWeb.PostViewTest do
     assert html =~ ~s(style="width:208px;height:156px")
   end
 
+  test "opening-post thumbnails load eagerly while reply thumbnails stay lazy" do
+    config = Config.compose()
+
+    file = %{
+      file_name: "example.jpg",
+      file_path: "/bant/src/example.jpg",
+      thumb_path: "/bant/thumb/example.jpg",
+      image_width: 640,
+      image_height: 480
+    }
+
+    op_html =
+      PostComponents.file_image_html(%{
+        file: file,
+        config: config,
+        op?: true
+      })
+
+    reply_html =
+      PostComponents.file_image_html(%{
+        file: file,
+        config: config,
+        op?: false
+      })
+
+    assert op_html =~ ~s(loading="eager")
+    assert reply_html =~ ~s(loading="lazy")
+  end
+
   test "file_image_html uses blurred spoiler class on the normal thumbnail" do
     config = Config.compose()
 
