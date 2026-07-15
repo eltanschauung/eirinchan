@@ -26,6 +26,7 @@ erl_crash.dump
 eirinchan-*.tar
 
 AGENTS.md
+/priv/static/stylesheets/assets/secret_bfc.png
 /static/stylesheets/keyedfrog.css
 
 # Local runtime state
