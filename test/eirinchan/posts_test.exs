@@ -60,6 +60,15 @@ defmodule Eirinchan.TestUploadPreparer do
   end
 end
 
+defmodule Eirinchan.TestFailingUploadPreparer do
+  def prepare_uploads(_attrs, _config, _opts) do
+    send(self(), :failing_upload_preparation_called)
+    {:error, :upload_failed}
+  end
+
+  def cleanup_uploads(_attrs), do: :ok
+end
+
 defmodule Eirinchan.PostsTest do
   use Eirinchan.DataCase, async: true
 
@@ -3842,6 +3851,47 @@ defmodule Eirinchan.PostsTest do
              )
 
     refute_received :upload_preparation_called
+  end
+
+  test "failed upload processing is counted before another processor invocation" do
+    board =
+      board_fixture(%{config_overrides: %{flood_time: 60, flood_time_ip: 0, flood_time_same: 0}})
+
+    config = post_config(board.config_overrides)
+
+    request = %{
+      referer: "http://example.test/#{board.uri}/index.html",
+      remote_ip: {203, 0, 113, 45}
+    }
+
+    attrs = %{
+      "body" => "expensive upload attempt",
+      "file" => upload_fixture("attempt.png", "upload-attempt"),
+      "post" => "New Topic"
+    }
+
+    assert {:error, :upload_failed} =
+             Posts.create_post(board, attrs,
+               config: config,
+               request: request,
+               repo: Repo,
+               upload_preparer: Eirinchan.TestFailingUploadPreparer
+             )
+
+    assert_received :failing_upload_preparation_called
+
+    assert [%{ip_subnet: "203.0.113.45"}] =
+             Antispam.list_flood_entries("203.0.113.45", repo: Repo)
+
+    assert {:error, :antispam} =
+             Posts.create_post(board, attrs,
+               config: config,
+               request: request,
+               repo: Repo,
+               upload_preparer: Eirinchan.TestFailingUploadPreparer
+             )
+
+    refute_received :failing_upload_preparation_called
   end
 
   test "create_post rejects repeated bodies within the same-ip repeat window" do

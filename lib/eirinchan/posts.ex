@@ -74,6 +74,10 @@ defmodule Eirinchan.Posts do
     request = Keyword.get(opts, :request, %{})
     upload_preparer = Keyword.get(opts, :upload_preparer, PostsUploadPreparation)
     attrs = normalize_attrs(attrs)
+    upload_attempt? =
+      PostsUploadPreparation.has_upload?(attrs) or
+        PostsUploadPreparation.remote_upload_requested?(attrs)
+
     thread_param = blank_to_nil(Map.get(attrs, "thread"))
     op? = is_nil(thread_param)
     total_started_at = System.monotonic_time(:microsecond)
@@ -178,8 +182,20 @@ defmodule Eirinchan.Posts do
           end
         end)
 
+      {attempt_accounting_us, attempt_accounting_result} =
+        timed_continue(reply_limit_result, fn context ->
+          if upload_attempt? do
+            case Antispam.log_upload_attempt(board, context.attrs, request, repo: repo) do
+              {:ok, _entry} -> {:ok, context}
+              {:error, _reason} -> {:error, :antispam}
+            end
+          else
+            {:ok, context}
+          end
+        end)
+
       {prepare_us, prepare_result} =
-        timed_continue(reply_limit_result, fn %{attrs: attrs, thread: thread} ->
+        timed_continue(attempt_accounting_result, fn %{attrs: attrs, thread: thread} ->
           case upload_preparer.prepare_uploads(attrs, config, op?: op?) do
             {:ok, prepared_attrs} -> {:ok, %{attrs: prepared_attrs, thread: thread}}
             error -> error
@@ -223,6 +239,7 @@ defmodule Eirinchan.Posts do
         {"metadata", metadata_result},
         {"antispam", antispam_result},
         {"reply_limit", reply_limit_result},
+        {"attempt_accounting", attempt_accounting_result},
         {"upload_prepare", prepare_result},
         {"media_validation", media_validation_result},
         {"image_limit", image_limit_result},
@@ -233,7 +250,7 @@ defmodule Eirinchan.Posts do
         prepare_us: prepare_us,
         request_guards_us: request_guards_us + thread_guard_us + abuse_guards_us,
         metadata_us: metadata_us,
-        antispam_us: antispam_us,
+        antispam_us: antispam_us + attempt_accounting_us,
         validation_base_us: validation_base_us + upload_preflight_us + media_validation_us,
         validation_queries_us:
           dnsbl_us + thread_lookup_us + reply_limit_us + image_limit_us + duplicate_upload_us,
@@ -271,7 +288,7 @@ defmodule Eirinchan.Posts do
               {:ok, post} ->
                 {pruning_us, _} = timed(fn -> maybe_prune_threads(board, post, config, repo) end)
 
-                unless ip_nulling_bypass? do
+                unless ip_nulling_bypass? or upload_attempt? do
                   Antispam.log_post(board, attrs, request, repo: repo)
                 end
 

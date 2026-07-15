@@ -61,6 +61,17 @@ defmodule Eirinchan.Antispam do
     |> repo.insert()
   end
 
+  def log_upload_attempt(%BoardRecord{} = board, attrs, request, opts \\ []) do
+    request =
+      if is_nil(request_ip(request)) do
+        Map.put(request, :remote_ip, "0.0.0.0")
+      else
+        request
+      end
+
+    log_post(board, attrs, request, opts)
+  end
+
   def check_public_action(%BoardRecord{} = board, action, attrs, request, config, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
     now = DateTime.utc_now()
