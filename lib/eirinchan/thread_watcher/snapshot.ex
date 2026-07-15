@@ -55,7 +55,7 @@ defmodule Eirinchan.ThreadWatcher.Snapshot do
       on:
         unread_post.board_id == thread.board_id and unread_post.thread_id == thread.id and
           unread_post.id > fragment("COALESCE(?, ?)", watch.last_seen_post_id, thread.id),
-      where: watch.browser_token == ^browser_ref,
+      where: watch.browser_token == ^browser_ref and watch.activated,
       group_by: [
         watch.id,
         watch.last_seen_post_id,

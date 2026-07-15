@@ -75,16 +75,9 @@ defmodule Eirinchan.ThreadWatcher do
   end
 
   def watch_count(browser_token) when is_binary(browser_token) do
-    browser_token = BrowserIdentity.reference(browser_token)
-
-    from(watch in Watch,
-      join: thread in Post,
-      on: thread.id == watch.thread_id and is_nil(thread.thread_id),
-      where: watch.browser_token == ^browser_token,
-      select: count(watch.id)
-    )
-    |> Repo.one()
-    |> Kernel.||(0)
+    browser_token
+    |> watch_metrics()
+    |> Map.fetch!(:watcher_count)
   end
 
   def watch_metrics(browser_token) when is_binary(browser_token) do
@@ -133,7 +126,14 @@ defmodule Eirinchan.ThreadWatcher do
              on_conflict: [set: [board_uri: board_uri, updated_at: now]],
              conflict_target: [:browser_token, :thread_id]
            ) do
-        {:ok, _watch} ->
+        {:ok, proposed_watch} ->
+          if proposed_watch.activated do
+            from(watch in Watch,
+              where: watch.browser_token == ^browser_token and watch.thread_id == ^thread_id
+            )
+            |> Repo.update_all(set: [activated: true, updated_at: now])
+          end
+
           case last_seen_post_id do
             value when is_integer(value) ->
               case mark_seen(browser_token, board_uri, thread_id, value) do
@@ -149,6 +149,28 @@ defmodule Eirinchan.ThreadWatcher do
           Repo.rollback(changeset)
       end
     end)
+  end
+
+  def activate_for_reply(thread_id, excluded_browser_token \\ nil)
+      when is_integer(thread_id) and
+             (is_binary(excluded_browser_token) or is_nil(excluded_browser_token)) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    query =
+      from(watch in Watch,
+        where: watch.thread_id == ^thread_id and not watch.activated
+      )
+
+    query =
+      if is_binary(excluded_browser_token) do
+        excluded_browser_ref = BrowserIdentity.reference(excluded_browser_token)
+        from(watch in query, where: watch.browser_token != ^excluded_browser_ref)
+      else
+        query
+      end
+
+    {count, _} = Repo.update_all(query, set: [activated: true, updated_at: now])
+    {:ok, count}
   end
 
   def unwatch_thread(browser_token, board_uri, thread_id)

@@ -317,12 +317,19 @@ defmodule EirinchanWeb.PostController do
   defp maybe_watch_thread_on_reply(conn, board, post) do
     case {conn.assigns[:browser_token], post.thread_id} do
       {token, thread_id} when is_binary(token) and is_integer(thread_id) ->
+        _ = ThreadWatcher.activate_for_reply(thread_id, token)
+
         _ =
           ThreadWatcher.watch_thread(token, board.uri, thread_id, %{
-            last_seen_post_id: post.id
+            last_seen_post_id: post.id,
+            activated: false
           })
 
         ThreadWatcher.watch_metrics(token)
+
+      {_token, thread_id} when is_integer(thread_id) ->
+        _ = ThreadWatcher.activate_for_reply(thread_id)
+        %{watcher_count: 0, watcher_unread_count: 0, watcher_you_count: 0}
 
       {token, _} when is_binary(token) ->
         ThreadWatcher.watch_metrics(token)
