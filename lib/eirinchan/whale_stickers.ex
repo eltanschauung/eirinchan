@@ -4,6 +4,7 @@ defmodule Eirinchan.WhaleStickers do
   """
 
   alias Eirinchan.Settings
+  alias Eirinchan.StaticImageDimensions
   alias Eirinchan.WhaleStickers.Defaults
 
   def default_entries, do: Defaults.entries()
@@ -115,8 +116,16 @@ defmodule Eirinchan.WhaleStickers do
 
   defp sticker_html(entry, rest) do
     suffix = if entry.append_break, do: "<br>", else: ""
+    path = "/whalestickers/#{entry.file}"
+    title = ":#{html_escape(entry.title)}:"
 
-    ~s(<img src="/whalestickers/#{html_escape(entry.file)}" title=":#{html_escape(entry.title)}:">#{rest}#{suffix})
+    dimensions =
+      case StaticImageDimensions.for_static_path(path) do
+        {width, height} -> ~s( width="#{width}" height="#{height}")
+        nil -> ""
+      end
+
+    ~s(<img src="#{html_escape(path)}" alt="#{title}" title="#{title}"#{dimensions} loading="eager" decoding="async">#{rest}#{suffix})
   end
 
   defp html_escape(value), do: Phoenix.HTML.html_escape(value) |> Phoenix.HTML.safe_to_string()

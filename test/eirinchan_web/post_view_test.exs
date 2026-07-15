@@ -79,7 +79,8 @@ defmodule EirinchanWeb.PostViewTest do
 
     html = PostView.body_html(post, %BoardRecord{uri: "bant"}, post, config)
 
-    assert html =~ ~s(<img src="/whalestickers/gojo.png" title=":gojo:">waow)
+    assert html =~
+             ~s(<img src="/whalestickers/gojo.png" alt=":gojo:" title=":gojo:" width="128" height="130" loading="eager" decoding="async">waow)
   end
 
   test "flags and navigation images reserve their layout before loading" do

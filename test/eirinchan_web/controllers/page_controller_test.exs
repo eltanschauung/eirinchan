@@ -374,6 +374,18 @@ defmodule EirinchanWeb.PageControllerTest do
 
     refute formatting_page =~ "Visitors in the last 10 minutes:"
 
+    {:ok, formatting_document} = Floki.parse_document(formatting_page)
+    sticker_images = Floki.find(formatting_document, ~s(img[src^="/whalestickers/"]))
+
+    assert sticker_images != []
+
+    assert Enum.all?(sticker_images, fn image ->
+             Floki.attribute(image, "width") != [] and
+               Floki.attribute(image, "height") != [] and
+               Floki.attribute(image, "loading") == ["eager"] and
+               Floki.attribute(image, "decoding") == ["async"]
+           end)
+
     flags_page =
       conn
       |> recycle()

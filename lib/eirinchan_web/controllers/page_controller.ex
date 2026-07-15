@@ -312,9 +312,17 @@ defmodule EirinchanWeb.PageController do
       _ -> nil
     end)
     |> Enum.reject(&is_nil/1)
+    |> Enum.map(&with_static_image_dimensions/1)
   end
 
   defp sticker_entries(_), do: []
+
+  defp with_static_image_dimensions(%{path: path} = entry) do
+    case StaticImageDimensions.for_static_path(path) do
+      {width, height} -> Map.merge(entry, %{width: width, height: height})
+      nil -> Map.merge(entry, %{width: nil, height: nil})
+    end
+  end
 
   defp render_custom_page(conn, page, opts \\ []) do
     board = Keyword.get(opts, :board)
