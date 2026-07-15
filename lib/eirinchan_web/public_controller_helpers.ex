@@ -9,9 +9,12 @@ defmodule EirinchanWeb.PublicControllerHelpers do
   alias EirinchanWeb.PublicShell
   alias EirinchanWeb.RequestMeta
 
+  import Plug.Conn, only: [get_req_header: 2, put_resp_header: 3, send_resp: 3]
+
   @empty_watcher_metrics %{watcher_count: 0, watcher_unread_count: 0, watcher_you_count: 0}
   @public_extra_stylesheets ["/stylesheets/eirinchan-public.css"]
   @default_slow_page_log_ms 2_000
+  @fragment_cache_control "private, no-cache"
 
   def fragment_options(params) do
     [fragment?: fragment_request?(params), fragment_md5?: fragment_md5_request?(params)]
@@ -26,6 +29,38 @@ defmodule EirinchanWeb.PublicControllerHelpers do
   def render_fragment_md5(view, template, assigns, cache_key) do
     FragmentHash.md5(view, template, assigns, cache_key: cache_key)
   end
+
+  def fragment_render_stamp(assigns, keys) when is_list(assigns) and is_list(keys) do
+    keys
+    |> Enum.map(&{&1, Keyword.get(assigns, &1)})
+    |> FragmentHash.term_digest()
+  end
+
+  def fragment_not_modified?(conn, fragment_md5) when is_binary(fragment_md5) do
+    expected = fragment_md5 |> fragment_etag() |> normalize_fragment_etag()
+
+    conn
+    |> get_req_header("if-none-match")
+    |> Enum.flat_map(&String.split(&1, ","))
+    |> Enum.map(&String.trim/1)
+    |> Enum.any?(fn candidate ->
+      candidate == "*" or normalize_fragment_etag(candidate) == expected
+    end)
+  end
+
+  def fragment_not_modified?(_conn, _fragment_md5), do: false
+
+  def send_fragment_not_modified(conn, fragment_md5) do
+    conn
+    |> put_resp_header("etag", fragment_etag(fragment_md5))
+    |> put_resp_header("cache-control", @fragment_cache_control)
+    |> send_resp(304, "")
+  end
+
+  def fragment_etag(fragment_md5), do: ~s("#{fragment_md5}")
+
+  defp normalize_fragment_etag("W/" <> rest), do: String.trim(rest)
+  defp normalize_fragment_etag(value), do: String.trim(value)
 
   def dynamic_fragment_stamp(assigns, watch_key) do
     {

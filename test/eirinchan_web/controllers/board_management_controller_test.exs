@@ -280,6 +280,56 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     assert md5_a == md5_b
   end
 
+  test "board fragments honor if-none-match without returning a body", %{conn: conn} do
+    board = board_fixture(%{uri: "fragmentetag", title: "Fragment ETag"})
+    _thread = thread_fixture(board, %{body: "Thread body"})
+
+    md5 =
+      conn
+      |> get(~p"/#{board.uri}?fragment=md5")
+      |> response(200)
+      |> String.trim()
+
+    etag = ~s("#{md5}")
+
+    not_modified =
+      conn
+      |> recycle()
+      |> put_req_header("if-none-match", etag)
+      |> get(~p"/#{board.uri}?fragment=1")
+
+    assert response(not_modified, 304) == ""
+    assert get_resp_header(not_modified, "etag") == [etag]
+    assert get_resp_header(not_modified, "cache-control") == ["private, no-cache"]
+  end
+
+  test "board fragment md5 changes after an existing thread is edited", %{conn: conn} do
+    board = board_fixture(%{uri: "editedmd5", title: "Edited Md5"})
+    thread = thread_fixture(board, %{body: "Before edit"})
+
+    md5_before =
+      conn
+      |> get(~p"/#{board.uri}?fragment=md5")
+      |> response(200)
+      |> String.trim()
+
+    assert {:ok, _updated} =
+             Eirinchan.Posts.update_post(
+               board,
+               PublicIds.public_id(thread),
+               %{"body" => "After edit"}
+             )
+
+    md5_after =
+      conn
+      |> recycle()
+      |> get(~p"/#{board.uri}?fragment=md5")
+      |> response(200)
+      |> String.trim()
+
+    refute md5_before == md5_after
+  end
+
   test "catalog fragment md5 is stable across requests", %{conn: conn} do
     :ok = Eirinchan.Themes.enable_page_theme("catalog")
     board = board_fixture(%{uri: "catmd5", title: "Catalog Md5"})

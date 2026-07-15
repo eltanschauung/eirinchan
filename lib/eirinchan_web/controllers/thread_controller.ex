@@ -111,34 +111,39 @@ defmodule EirinchanWeb.ThreadController do
               fragment_cache_key(board, summary, render_assigns)
             )
 
-          if fragment_md5? do
-            text(conn, fragment_md5)
-          else
-            conn = if fragment?, do: put_root_layout(conn, false), else: conn
-            conn = Plug.Conn.put_private(conn, :public_document_etag, fragment_md5)
+          cond do
+            fragment_md5? ->
+              text(conn, fragment_md5)
 
-            conn =
-              render(
-                conn,
-                if(fragment?, do: :thread_fragment, else: :show),
-                Keyword.put(render_assigns, :fragment_md5, fragment_md5)
+            fragment? and PublicControllerHelpers.fragment_not_modified?(conn, fragment_md5) ->
+              PublicControllerHelpers.send_fragment_not_modified(conn, fragment_md5)
+
+            true ->
+              conn = if fragment?, do: put_root_layout(conn, false), else: conn
+              conn = Plug.Conn.put_private(conn, :public_document_etag, fragment_md5)
+
+              conn =
+                render(
+                  conn,
+                  if(fragment?, do: :thread_fragment, else: :show),
+                  Keyword.put(render_assigns, :fragment_md5, fragment_md5)
+                )
+
+              PublicControllerHelpers.maybe_log_page_performance(
+                "thread.show",
+                started_at,
+                %{
+                  board: board.uri,
+                  thread_id: PublicIds.public_id(summary.thread),
+                  fragment: fragment?,
+                  noko50: noko50?,
+                  reply_count: length(summary.replies),
+                  has_noko50: summary.has_noko50
+                },
+                config
               )
 
-            PublicControllerHelpers.maybe_log_page_performance(
-              "thread.show",
-              started_at,
-              %{
-                board: board.uri,
-                thread_id: PublicIds.public_id(summary.thread),
-                fragment: fragment?,
-                noko50: noko50?,
-                reply_count: length(summary.replies),
-                has_noko50: summary.has_noko50
-              },
-              config
-            )
-
-            conn
+              conn
           end
         end
 
@@ -178,9 +183,18 @@ defmodule EirinchanWeb.ThreadController do
       :thread_fragment_md5,
       board.id,
       summary.thread.id,
-      summary.last_modified,
-      length(summary.replies),
-      PublicControllerHelpers.dynamic_fragment_stamp(assigns, :thread_watch)
+      PublicControllerHelpers.fragment_render_stamp(assigns, [
+        :board,
+        :summary,
+        :backlinks_map,
+        :thread_watch,
+        :config,
+        :global_message_html,
+        :page_num,
+        :current_moderator,
+        :secure_manage_token,
+        :mobile_client?
+      ])
     }
   end
 

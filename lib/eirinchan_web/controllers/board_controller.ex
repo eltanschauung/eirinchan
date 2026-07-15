@@ -157,33 +157,38 @@ defmodule EirinchanWeb.BoardController do
             fragment_cache_key(:catalog, board, page_data, render_assigns)
           )
 
-        if fragment_md5? do
-          text(conn, fragment_md5)
-        else
-          conn = if fragment?, do: put_root_layout(conn, false), else: conn
-          conn = Plug.Conn.put_private(conn, :public_document_etag, fragment_md5)
+        cond do
+          fragment_md5? ->
+            text(conn, fragment_md5)
 
-          conn =
-            render(
-              conn,
-              if(fragment?, do: :catalog_fragment, else: :catalog),
-              Keyword.put(render_assigns, :fragment_md5, fragment_md5)
+          fragment? and PublicControllerHelpers.fragment_not_modified?(conn, fragment_md5) ->
+            PublicControllerHelpers.send_fragment_not_modified(conn, fragment_md5)
+
+          true ->
+            conn = if fragment?, do: put_root_layout(conn, false), else: conn
+            conn = Plug.Conn.put_private(conn, :public_document_etag, fragment_md5)
+
+            conn =
+              render(
+                conn,
+                if(fragment?, do: :catalog_fragment, else: :catalog),
+                Keyword.put(render_assigns, :fragment_md5, fragment_md5)
+              )
+
+            PublicControllerHelpers.maybe_log_page_performance(
+              "board.catalog",
+              started_at,
+              %{
+                board: board.uri,
+                page_num: page_num,
+                fragment: fragment?,
+                thread_count: length(page_data.threads),
+                total_pages: page_data.total_pages
+              },
+              config
             )
 
-          PublicControllerHelpers.maybe_log_page_performance(
-            "board.catalog",
-            started_at,
-            %{
-              board: board.uri,
-              page_num: page_num,
-              fragment: fragment?,
-              thread_count: length(page_data.threads),
-              total_pages: page_data.total_pages
-            },
-            config
-          )
-
-          conn
+            conn
         end
 
       {:error, :not_found} ->
@@ -284,36 +289,41 @@ defmodule EirinchanWeb.BoardController do
             fragment_cache_key(:index, board, page_data, render_assigns)
           )
 
-        if fragment_md5? do
-          text(conn, fragment_md5)
-        else
-          conn = if fragment?, do: put_root_layout(conn, false), else: conn
-          conn = Plug.Conn.put_private(conn, :public_document_etag, fragment_md5)
+        cond do
+          fragment_md5? ->
+            text(conn, fragment_md5)
 
-          conn =
-            render(
-              conn,
-              if(fragment?, do: :index_fragment, else: :show),
-              Keyword.put(render_assigns, :fragment_md5, fragment_md5)
+          fragment? and PublicControllerHelpers.fragment_not_modified?(conn, fragment_md5) ->
+            PublicControllerHelpers.send_fragment_not_modified(conn, fragment_md5)
+
+          true ->
+            conn = if fragment?, do: put_root_layout(conn, false), else: conn
+            conn = Plug.Conn.put_private(conn, :public_document_etag, fragment_md5)
+
+            conn =
+              render(
+                conn,
+                if(fragment?, do: :index_fragment, else: :show),
+                Keyword.put(render_assigns, :fragment_md5, fragment_md5)
+              )
+
+            PublicControllerHelpers.maybe_log_page_performance(
+              "board.index",
+              started_at,
+              %{
+                board: board.uri,
+                page_num: page,
+                fragment: fragment?,
+                thread_count: length(page_data.threads),
+                post_count:
+                  Enum.reduce(page_data.threads, 0, fn summary, acc ->
+                    acc + 1 + length(summary.replies)
+                  end)
+              },
+              config
             )
 
-          PublicControllerHelpers.maybe_log_page_performance(
-            "board.index",
-            started_at,
-            %{
-              board: board.uri,
-              page_num: page,
-              fragment: fragment?,
-              thread_count: length(page_data.threads),
-              post_count:
-                Enum.reduce(page_data.threads, 0, fn summary, acc ->
-                  acc + 1 + length(summary.replies)
-                end)
-            },
-            config
-          )
-
-          conn
+            conn
         end
 
       {:error, :not_found} ->
@@ -335,17 +345,18 @@ defmodule EirinchanWeb.BoardController do
       kind,
       board.id,
       Map.get(page_data, :page),
-      page_data_stamp(page_data),
-      PublicControllerHelpers.dynamic_fragment_stamp(assigns, :thread_watch_state)
+      PublicControllerHelpers.fragment_render_stamp(assigns, [
+        :board,
+        :page_data,
+        :backlinks_map,
+        :thread_watch_state,
+        :config,
+        :global_message_html,
+        :current_moderator,
+        :secure_manage_token,
+        :mobile_client?
+      ])
     }
-  end
-
-  defp page_data_stamp(%{threads: threads}) do
-    threads
-    |> Enum.map(fn summary ->
-      {summary.thread.id, summary.last_modified, length(summary.replies)}
-    end)
-    |> :erlang.phash2()
   end
 
   defp require_catalog_theme(conn, _opts) do
