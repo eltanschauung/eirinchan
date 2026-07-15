@@ -94,60 +94,70 @@ defmodule EirinchanWeb.BoardController do
           Map.put(
             page_data,
             :pages,
-            build_catalog_pages(board, page_data.total_pages, config, catalog_sort_by, catalog_search_term)
+            build_catalog_pages(
+              board,
+              page_data.total_pages,
+              config,
+              catalog_sort_by,
+              catalog_search_term
+            )
           )
 
         chrome = BoardChrome.for_board(board)
-        thread_watch_state = PublicControllerHelpers.thread_watch_state(conn, board.uri)
+        watcher_snapshot = PublicControllerHelpers.watcher_snapshot(conn)
+
+        thread_watch_state =
+          PublicControllerHelpers.thread_watch_state(watcher_snapshot, board.uri)
 
         %{
           watcher_count: watcher_count,
           watcher_unread_count: watcher_unread_count,
           watcher_you_count: watcher_you_count
-        } =
-          PublicControllerHelpers.watcher_metrics(conn)
+        } = PublicControllerHelpers.watcher_metrics(watcher_snapshot)
 
         fragment? = Keyword.get(opts, :fragment?, false)
         fragment_md5? = Keyword.get(opts, :fragment_md5?, false)
 
-        render_assigns = [
-          layout: false,
-          board: board,
-          board_title: board.title,
-          page_data: page_data,
-          catalog_base_path: Eirinchan.ThreadPaths.catalog_page_path(board, 1, config),
-          catalog_sort_by: catalog_sort_by,
-          catalog_search_term: catalog_search_term,
-          threads: page_data.threads,
-          thread_watch_state: thread_watch_state,
-          watcher_count: watcher_count,
-          watcher_unread_count: watcher_unread_count,
-          watcher_you_count: watcher_you_count,
-          mobile_client?: conn.assigns[:mobile_client?] || false,
-          current_moderator: conn.assigns[:current_moderator],
-          secure_manage_token: conn.assigns[:secure_manage_token],
-          config: config,
-          news_blotter_html: Announcements.news_blotter_html(config),
-          global_message_html:
-            Announcements.global_message_html(config, surround_hr: true, board: board),
-          boards: boards,
-          board_chrome: chrome,
-          global_boardlist_groups:
-            BoardChrome.boardlist_groups(
-              boards,
-              chrome.boardlist_groups,
-              mobile_client?: conn.assigns[:mobile_client?] || false
-            ),
-          body_class:
-            PublicControllerHelpers.moderator_body_class(conn, "active-catalog",
-              extra_classes: ["theme-catalog"]
-            ),
-          page_title: "#{board.uri} - Catalog"
-        ] ++
-          PublicControllerHelpers.public_shell_assigns(conn, :catalog,
-            javascript_config: config,
-            head_meta_opts: [board_name: board.uri]
-          )
+        render_assigns =
+          [
+            layout: false,
+            board: board,
+            board_title: board.title,
+            page_data: page_data,
+            catalog_base_path: Eirinchan.ThreadPaths.catalog_page_path(board, 1, config),
+            catalog_sort_by: catalog_sort_by,
+            catalog_search_term: catalog_search_term,
+            threads: page_data.threads,
+            thread_watch_state: thread_watch_state,
+            watcher_count: watcher_count,
+            watcher_unread_count: watcher_unread_count,
+            watcher_you_count: watcher_you_count,
+            mobile_client?: conn.assigns[:mobile_client?] || false,
+            current_moderator: conn.assigns[:current_moderator],
+            secure_manage_token: conn.assigns[:secure_manage_token],
+            config: config,
+            news_blotter_html: Announcements.news_blotter_html(config),
+            global_message_html:
+              Announcements.global_message_html(config, surround_hr: true, board: board),
+            boards: boards,
+            board_chrome: chrome,
+            global_boardlist_groups:
+              BoardChrome.boardlist_groups(
+                boards,
+                chrome.boardlist_groups,
+                mobile_client?: conn.assigns[:mobile_client?] || false
+              ),
+            body_class:
+              PublicControllerHelpers.moderator_body_class(conn, "active-catalog",
+                extra_classes: ["theme-catalog"]
+              ),
+            page_title: "#{board.uri} - Catalog"
+          ] ++
+            PublicControllerHelpers.public_shell_assigns(conn, :catalog,
+              javascript_config: config,
+              watcher_snapshot: watcher_snapshot,
+              head_meta_opts: [board_name: board.uri]
+            )
 
         fragment_md5 =
           PublicControllerHelpers.render_fragment_md5(
@@ -236,50 +246,54 @@ defmodule EirinchanWeb.BoardController do
       {:ok, page_data} ->
         chrome = BoardChrome.for_board(board)
         backlinks_map = page_backlinks_map(page_data)
-        thread_watch_state = PublicControllerHelpers.thread_watch_state(conn, board.uri)
+        watcher_snapshot = PublicControllerHelpers.watcher_snapshot(conn)
+
+        thread_watch_state =
+          PublicControllerHelpers.thread_watch_state(watcher_snapshot, board.uri)
 
         %{
           watcher_count: watcher_count,
           watcher_unread_count: watcher_unread_count,
           watcher_you_count: watcher_you_count
-        } =
-          PublicControllerHelpers.watcher_metrics(conn)
+        } = PublicControllerHelpers.watcher_metrics(watcher_snapshot)
 
         fragment? = Keyword.get(opts, :fragment?, false)
         fragment_md5? = Keyword.get(opts, :fragment_md5?, false)
 
-        render_assigns = [
-          layout: false,
-          board: board,
-          board_title: board.title,
-          page_title: "/#{board.uri}/ - #{board.title}",
-          page_data: page_data,
-          backlinks_map: backlinks_map,
-          thread_watch_state: thread_watch_state,
-          watcher_count: watcher_count,
-          watcher_unread_count: watcher_unread_count,
-          watcher_you_count: watcher_you_count,
-          current_moderator: conn.assigns[:current_moderator],
-          secure_manage_token: conn.assigns[:secure_manage_token],
-          mobile_client?: conn.assigns[:mobile_client?] || false,
-          config: config,
-          news_blotter_html: Announcements.news_blotter_html(config),
-          global_message_html:
-            Announcements.global_message_html(config, surround_hr: true, board: board),
-          boards: boards,
-          board_chrome: chrome,
-          global_boardlist_groups:
-            BoardChrome.boardlist_groups(
-              boards,
-              chrome.boardlist_groups,
-              mobile_client?: conn.assigns[:mobile_client?] || false
-            ),
-          body_class: PublicControllerHelpers.moderator_body_class(conn, "active-index")
-        ] ++
-          PublicControllerHelpers.public_shell_assigns(conn, :index,
-            javascript_config: config,
-            head_meta_opts: [board_name: board.uri]
-          )
+        render_assigns =
+          [
+            layout: false,
+            board: board,
+            board_title: board.title,
+            page_title: "/#{board.uri}/ - #{board.title}",
+            page_data: page_data,
+            backlinks_map: backlinks_map,
+            thread_watch_state: thread_watch_state,
+            watcher_count: watcher_count,
+            watcher_unread_count: watcher_unread_count,
+            watcher_you_count: watcher_you_count,
+            current_moderator: conn.assigns[:current_moderator],
+            secure_manage_token: conn.assigns[:secure_manage_token],
+            mobile_client?: conn.assigns[:mobile_client?] || false,
+            config: config,
+            news_blotter_html: Announcements.news_blotter_html(config),
+            global_message_html:
+              Announcements.global_message_html(config, surround_hr: true, board: board),
+            boards: boards,
+            board_chrome: chrome,
+            global_boardlist_groups:
+              BoardChrome.boardlist_groups(
+                boards,
+                chrome.boardlist_groups,
+                mobile_client?: conn.assigns[:mobile_client?] || false
+              ),
+            body_class: PublicControllerHelpers.moderator_body_class(conn, "active-index")
+          ] ++
+            PublicControllerHelpers.public_shell_assigns(conn, :index,
+              javascript_config: config,
+              watcher_snapshot: watcher_snapshot,
+              head_meta_opts: [board_name: board.uri]
+            )
 
         fragment_md5 =
           PublicControllerHelpers.render_fragment_md5(
@@ -362,5 +376,4 @@ defmodule EirinchanWeb.BoardController do
   defp require_catalog_theme(conn, _opts) do
     EirinchanWeb.Plugs.RequirePageTheme.call(conn, theme: "catalog")
   end
-
 end

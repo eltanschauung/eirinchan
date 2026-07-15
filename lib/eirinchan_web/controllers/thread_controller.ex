@@ -39,60 +39,73 @@ defmodule EirinchanWeb.ThreadController do
           redirect(conn, to: canonical_path)
         else
           page_num =
-            case Posts.find_thread_page(board, PublicIds.public_id(summary.thread), config: config) do
+            case Posts.find_thread_page(board, PublicIds.public_id(summary.thread),
+                   config: config
+                 ) do
               {:ok, value} -> value
               {:error, :not_found} -> 1
             end
 
           backlinks_map = Posts.backlinks_map_for_posts([summary.thread | summary.replies])
-          thread_watch =
-            PublicControllerHelpers.thread_watch(conn, board.uri, PublicIds.public_id(summary.thread))
           _ = maybe_mark_thread_seen(conn, board, summary)
+          watcher_snapshot = PublicControllerHelpers.watcher_snapshot(conn)
+
+          thread_watch =
+            PublicControllerHelpers.thread_watch(
+              watcher_snapshot,
+              board.uri,
+              PublicIds.public_id(summary.thread)
+            )
 
           %{
             watcher_count: watcher_count,
             watcher_unread_count: watcher_unread_count,
             watcher_you_count: watcher_you_count
-          } =
-            PublicControllerHelpers.watcher_metrics(conn)
+          } = PublicControllerHelpers.watcher_metrics(watcher_snapshot)
 
           fragment? = PublicControllerHelpers.fragment_request?(conn.params)
           fragment_md5? = PublicControllerHelpers.fragment_md5_request?(conn.params)
 
-          render_assigns = [
-            layout: false,
-            board: board,
-            board_title: board.title,
-            page_title:
-              "/#{board.uri}/ - #{summary.thread.subject || summary.thread.body || PublicIds.public_id(summary.thread)}",
-            summary: summary,
-            backlinks_map: backlinks_map,
-            thread_watch: thread_watch,
-            watcher_count: watcher_count,
-            watcher_unread_count: watcher_unread_count,
-            watcher_you_count: watcher_you_count,
-            mobile_client?: conn.assigns[:mobile_client?] || false,
-            current_moderator: conn.assigns[:current_moderator],
-            secure_manage_token: conn.assigns[:secure_manage_token],
-            config: config,
-            global_message_html:
-              Announcements.global_message_html(config, surround_hr: true, board: board),
-            page_num: page_num,
-            boards: boards,
-            board_chrome: chrome,
-            global_boardlist_groups:
-              BoardChrome.boardlist_groups(
-                boards,
-                chrome.boardlist_groups,
-                mobile_client?: conn.assigns[:mobile_client?] || false
-              ),
-            body_class: PublicControllerHelpers.moderator_body_class(conn, "active-thread"),
-            head_extra_meta_tags: EirinchanWeb.PublicShell.thread_meta(board, summary.thread, config)
-          ] ++
-            PublicControllerHelpers.public_shell_assigns(conn, :thread,
-              javascript_config: config,
-              head_meta_opts: [board_name: board.uri, thread_id: PublicIds.public_id(summary.thread)]
-            )
+          render_assigns =
+            [
+              layout: false,
+              board: board,
+              board_title: board.title,
+              page_title:
+                "/#{board.uri}/ - #{summary.thread.subject || summary.thread.body || PublicIds.public_id(summary.thread)}",
+              summary: summary,
+              backlinks_map: backlinks_map,
+              thread_watch: thread_watch,
+              watcher_count: watcher_count,
+              watcher_unread_count: watcher_unread_count,
+              watcher_you_count: watcher_you_count,
+              mobile_client?: conn.assigns[:mobile_client?] || false,
+              current_moderator: conn.assigns[:current_moderator],
+              secure_manage_token: conn.assigns[:secure_manage_token],
+              config: config,
+              global_message_html:
+                Announcements.global_message_html(config, surround_hr: true, board: board),
+              page_num: page_num,
+              boards: boards,
+              board_chrome: chrome,
+              global_boardlist_groups:
+                BoardChrome.boardlist_groups(
+                  boards,
+                  chrome.boardlist_groups,
+                  mobile_client?: conn.assigns[:mobile_client?] || false
+                ),
+              body_class: PublicControllerHelpers.moderator_body_class(conn, "active-thread"),
+              head_extra_meta_tags:
+                EirinchanWeb.PublicShell.thread_meta(board, summary.thread, config)
+            ] ++
+              PublicControllerHelpers.public_shell_assigns(conn, :thread,
+                javascript_config: config,
+                watcher_snapshot: watcher_snapshot,
+                head_meta_opts: [
+                  board_name: board.uri,
+                  thread_id: PublicIds.public_id(summary.thread)
+                ]
+              )
 
           post_fragment_context =
             PostView.post_fragment_context(
@@ -217,20 +230,13 @@ defmodule EirinchanWeb.ThreadController do
       token when is_binary(token) ->
         last_seen_post_id =
           [summary.thread | summary.replies]
-          |> Enum.map(&PublicIds.public_id/1)
-          |> Enum.max(fn -> PublicIds.public_id(summary.thread) end)
+          |> Enum.max_by(& &1.id, fn -> summary.thread end)
+          |> Map.fetch!(:id)
 
-        ThreadWatcher.mark_seen(token, board.uri, summary.thread.id, public_post_internal_id(board, last_seen_post_id))
+        ThreadWatcher.mark_seen(token, board.uri, summary.thread.id, last_seen_post_id)
 
       _ ->
         :ok
-    end
-  end
-
-  defp public_post_internal_id(board, public_post_id) do
-    case Posts.get_post(board, public_post_id) do
-      {:ok, post} -> post.id
-      _ -> public_post_id
     end
   end
 end

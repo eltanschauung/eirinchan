@@ -92,11 +92,35 @@ defmodule EirinchanWeb.ThreadWatcherControllerTest do
     assert last_seen_post_id == thread_id
   end
 
-  test "unwatching a missing thread purges stale watches", %{conn: conn} do
+  test "rejects a last-seen post from a different thread", %{conn: conn} do
+    board = board_fixture(%{uri: "watchscope", title: "Watch Scope"})
+    watched_thread = thread_fixture(board, %{body: "Watched"})
+    other_thread = thread_fixture(board, %{body: "Other"})
+    other_reply = reply_fixture(board, other_thread, %{body: "Not part of the watched thread"})
+    token = browser_token("watch-seen-scope")
+
+    assert {:ok, _watch} =
+             ThreadWatcher.watch_thread(token, board.uri, watched_thread.id, %{
+               last_seen_post_id: watched_thread.id
+             })
+
+    conn =
+      conn
+      |> put_req_cookie("browser_token", token)
+      |> put_req_header("x-csrf-token", CSRFProtection.get_csrf_token())
+      |> patch("/watcher/#{board.uri}/#{PublicIds.public_id(watched_thread)}", %{
+        "last_seen_post_id" => Integer.to_string(PublicIds.public_id(other_reply))
+      })
+
+    assert response(conn, 422) == ""
+
+    [watch] = ThreadWatcher.list_watches(token)
+    assert watch.last_seen_post_id == watched_thread.id
+  end
+
+  test "unwatching a missing thread is idempotent", %{conn: conn} do
     board = board_fixture(%{uri: "watchstale", title: "Watch Stale"})
     token = browser_token("watch-stale-delete")
-
-    assert {:ok, _watch} = ThreadWatcher.watch_thread(token, board.uri, 999_998)
 
     conn =
       conn
