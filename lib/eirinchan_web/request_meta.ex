@@ -77,24 +77,51 @@ defmodule EirinchanWeb.RequestMeta do
   end
 
   defp forwarded_client_ip(conn, config) do
-    Enum.find_value(config.client_ip_headers, fn header ->
-      conn
-      |> get_req_header(header)
-      |> List.first()
-      |> extract_client_ip(header)
+    Enum.reduce_while(config.client_ip_headers, nil, fn header, _client_ip ->
+      case get_req_header(conn, header) do
+        [] ->
+          {:cont, nil}
+
+        [value] ->
+          {:halt, extract_client_ip(value, header, conn.remote_ip, config)}
+
+        _duplicates ->
+          {:halt, nil}
+      end
     end)
   end
 
-  defp extract_client_ip(nil, _header), do: nil
-
-  defp extract_client_ip(value, "x-forwarded-for") do
-    value
-    |> String.split(",")
-    |> Enum.map(&String.trim/1)
-    |> Enum.find_value(&parsed_ip/1)
+  defp extract_client_ip(value, "x-forwarded-for", remote_ip, config) do
+    with {:ok, forwarded_ips} <- parse_forwarded_chain(value) do
+      forwarded_ips
+      |> Kernel.++([remote_ip])
+      |> Enum.reverse()
+      |> Enum.find(&(not trusted_proxy?(&1, config)))
+    else
+      :error -> nil
+    end
   end
 
-  defp extract_client_ip(value, _header), do: parsed_ip(String.trim(value))
+  defp extract_client_ip(value, _header, _remote_ip, _config),
+    do: parsed_ip(String.trim(value))
+
+  defp parse_forwarded_chain(value) when is_binary(value) do
+    value
+    |> String.split(",", trim: false)
+    |> Enum.reduce_while({:ok, []}, fn part, {:ok, ips} ->
+      case parse_ip(String.trim(part)) do
+        {:ok, ip} -> {:cont, {:ok, [ip | ips]}}
+        _error -> {:halt, :error}
+      end
+    end)
+    |> case do
+      {:ok, []} -> :error
+      {:ok, ips} -> {:ok, Enum.reverse(ips)}
+      :error -> :error
+    end
+  end
+
+  defp parse_forwarded_chain(_value), do: :error
 
   defp parse_ip(value) when is_binary(value) do
     IpMatching.parse_ip(value)
