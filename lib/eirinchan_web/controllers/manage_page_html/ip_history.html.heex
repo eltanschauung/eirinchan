@@ -238,7 +238,7 @@
         <th>Board</th>
         <td>
           <ul style="list-style:none;padding:2px 5px">
-            <li>
+            <li :if={@can_manage_global_bans?}>
               <input type="radio" name="board" value="*" id="ban-allboards" checked={@ban_form["board"] in [nil, "", "*"]} />
               <label style="display:inline" for="ban-allboards"><em>all boards</em></label>
             </li>

@@ -14,6 +14,7 @@ defmodule EirinchanWeb.ModeratorPermissions do
     show_ip_global: "admin",
     delete: "janitor",
     ban: "mod",
+    manage_global_bans: "admin",
     bandelete: "mod",
     deletebyip: "mod",
     deletebyip_global: "admin",

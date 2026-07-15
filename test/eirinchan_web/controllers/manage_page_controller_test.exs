@@ -1588,6 +1588,117 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert Eirinchan.Bans.list_bans(board_id: board.id) == []
   end
 
+  test "board moderators cannot create global bans", %{conn: conn} do
+    board = board_fixture()
+    thread = thread_fixture(board, %{ip_subnet: "198.51.100.7"})
+    moderator = moderator_fixture(%{role: "mod"}) |> grant_board_access_fixture(board)
+    post_id = PublicIds.public_id(thread)
+
+    page =
+      conn
+      |> login_moderator(moderator)
+      |> get("/manage/boards/#{board.uri}/posts/#{post_id}/ban/browser")
+      |> html_response(200)
+
+    refute page =~ ~s(id="ban-allboards")
+
+    forbidden_conn =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> post("/manage/boards/#{board.uri}/posts/#{post_id}/ban/browser", %{
+        "ip" => "198.51.100.7",
+        "reason" => "Must remain scoped",
+        "board" => "*"
+      })
+
+    assert html_response(forbidden_conn, 403) =~ "board access required"
+    assert Bans.list_bans() == []
+
+    allowed_conn =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> post("/manage/boards/#{board.uri}/posts/#{post_id}/ban/browser", %{
+        "ip" => "198.51.100.7",
+        "reason" => "Board-scoped ban",
+        "board" => board.uri
+      })
+
+    assert redirected_to(allowed_conn) == "/#{board.uri}/res/#{post_id}.html"
+    assert [%{board_id: board_id}] = Bans.list_bans()
+    assert board_id == board.id
+  end
+
+  test "board moderators cannot promote modify or deactivate global bans", %{conn: conn} do
+    board = board_fixture()
+    moderator = moderator_fixture(%{role: "mod"}) |> grant_board_access_fixture(board)
+
+    {:ok, board_ban} =
+      Bans.create_ban(%{
+        board_id: board.id,
+        mod_user_id: moderator.id,
+        ip_subnet: "198.51.100.7",
+        reason: "Board ban"
+      })
+
+    {:ok, global_ban} =
+      Bans.create_ban(%{
+        board_id: nil,
+        mod_user_id: moderator.id,
+        ip_subnet: "203.0.113.9",
+        reason: "Global ban"
+      })
+
+    promote_conn =
+      conn
+      |> login_moderator(moderator)
+      |> patch("/manage/bans/#{board_ban.id}/browser", %{
+        "board" => "*",
+        "ip_mask" => board_ban.ip_subnet,
+        "reason" => "Promoted"
+      })
+
+    assert html_response(promote_conn, 403) =~ "Board access required"
+    assert Bans.get_ban(board_ban.id).board_id == board.id
+
+    update_conn =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> patch("/manage/bans/#{global_ban.id}/browser", %{
+        "board" => board.uri,
+        "ip_mask" => global_ban.ip_subnet,
+        "reason" => "Modified"
+      })
+
+    assert html_response(update_conn, 403) =~ "Board access required"
+    assert Bans.get_ban(global_ban.id).reason == "Global ban"
+
+    delete_conn =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> delete("/manage/bans/#{global_ban.id}/browser")
+
+    assert html_response(delete_conn, 403) =~ "Board access required"
+    assert Bans.get_ban(global_ban.id).active
+
+    bulk_conn =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> post("/manage/bans/browser", %{
+        "action" => "unban",
+        "ban_ids" => [Integer.to_string(global_ban.id)]
+      })
+
+    assert html_response(bulk_conn, 403) =~
+             "Administrator access is required to manage global bans."
+
+    assert Bans.get_ban(global_ban.id).active
+  end
+
   test "browser post ban can attach the public ban message to the post", %{conn: conn} do
     moderator = moderator_fixture(%{role: "admin"})
     board = board_fixture(%{uri: "banmsg#{System.unique_integer([:positive])}", title: "Ban Msg"})

@@ -286,21 +286,31 @@ defmodule EirinchanWeb.ManagePageController do
             |> Enum.filter(&accessible_ban?(board_ids, &1))
             |> Enum.filter(&(&1.id in ban_ids))
 
-          Enum.each(bans, fn ban ->
-            {:ok, _ban} = Bans.update_ban(ban, %{active: false})
-          end)
+          with :ok <- authorize_ban_mutations(moderator, bans) do
+            Enum.each(bans, fn ban ->
+              {:ok, _ban} = Bans.update_ban(ban, %{active: false})
+            end)
 
-          if bans != [] do
-            ModerationAudit.log(
-              conn,
-              "Removed #{length(bans)} ban" <> if(length(bans) == 1, do: "", else: "s"),
-              moderator: moderator
-            )
+            if bans != [] do
+              ModerationAudit.log(
+                conn,
+                "Removed #{length(bans)} ban" <> if(length(bans) == 1, do: "", else: "s"),
+                moderator: moderator
+              )
+            end
+
+            conn
+            |> put_flash(:info, if(bans == [], do: "No bans selected.", else: "Ban(s) removed."))
+            |> redirect(to: ~p"/manage/bans/browser")
+          else
+            {:error, :forbidden} ->
+              render_dashboard_error(
+                conn,
+                "Administrator access is required to manage global bans.",
+                %{},
+                :forbidden
+              )
           end
-
-          conn
-          |> put_flash(:info, if(bans == [], do: "No bans selected.", else: "Ban(s) removed."))
-          |> redirect(to: ~p"/manage/bans/browser")
       end
     else
       {:error, :unauthorized} ->
@@ -316,6 +326,7 @@ defmodule EirinchanWeb.ManagePageController do
         ban: Repo.preload(ban, [:board, :mod_user]),
         boards: Moderation.list_accessible_boards(moderator),
         ban_form: maybe_apply_edit_ban(%{}, ban),
+        can_manage_global_bans?: can_manage_global_bans?(moderator),
         config: Settings.current_instance_config()
       )
     else
@@ -333,6 +344,7 @@ defmodule EirinchanWeb.ManagePageController do
   def update_ban_browser(conn, %{"id" => id} = params) do
     with {:ok, moderator} <- ensure_permission(conn, :unban),
          {:ok, ban} <- load_accessible_ban(id, moderator),
+         :ok <- authorize_ban_mutation(moderator, ban),
          {:ok, target_board_id} <- target_ban_board_id(moderator, params["board"]),
          {:ok, _ban} <-
            Bans.update_ban(ban, %{
@@ -365,6 +377,7 @@ defmodule EirinchanWeb.ManagePageController do
   def delete_ban_browser(conn, %{"id" => id}) do
     with {:ok, moderator} <- ensure_permission(conn, :unban),
          {:ok, ban} <- load_accessible_ban(id, moderator),
+         :ok <- authorize_ban_mutation(moderator, ban),
          {:ok, _ban} <- Bans.update_ban(ban, %{active: false}) do
       ModerationAudit.log(conn, "Removed ban ##{ban.id}", moderator: moderator)
 
@@ -1327,7 +1340,8 @@ defmodule EirinchanWeb.ManagePageController do
         bans: matching_bans,
         logs: ip_history_logs(decoded_ip, board_ids),
         ban_form: ban_form,
-        editing_ban: edit_ban
+        editing_ban: edit_ban,
+        can_manage_global_bans?: can_manage_global_bans?(moderator)
       )
     else
       {:error, :unauthorized} ->
@@ -1367,7 +1381,8 @@ defmodule EirinchanWeb.ManagePageController do
         bans: matching_bans,
         logs: ip_history_logs(decoded_ip, [board.id], board.uri),
         ban_form: ban_form,
-        editing_ban: edit_ban
+        editing_ban: edit_ban,
+        can_manage_global_bans?: can_manage_global_bans?(moderator)
       )
     else
       {:error, :unauthorized} ->
@@ -1605,6 +1620,7 @@ defmodule EirinchanWeb.ManagePageController do
          true <- PostView.can_view_ip?(moderator),
          {:ok, decoded_ip} <- decode_ip_param(ip),
          {:ok, ban} <- load_accessible_ban(id, moderator),
+         :ok <- authorize_ban_mutation(moderator, ban),
          {:ok, target_board_id} <- target_ban_board_id(moderator, params["board"]),
          {:ok, _ban} <-
            Bans.update_ban(ban, %{
@@ -1648,6 +1664,7 @@ defmodule EirinchanWeb.ManagePageController do
          true <- PostView.can_view_ip?(moderator),
          {:ok, decoded_ip} <- decode_ip_param(ip),
          {:ok, ban} <- load_accessible_ban(id, moderator),
+         :ok <- authorize_ban_mutation(moderator, ban),
          {:ok, _ban} <- Bans.update_ban(ban, %{active: false}) do
       ModerationAudit.log(conn, "Removed ban ##{ban.id} for #{display_ip_for_log(decoded_ip)}",
         subject_ip: decoded_ip,
@@ -1728,6 +1745,7 @@ defmodule EirinchanWeb.ManagePageController do
          true <- PostView.can_view_ip?(moderator, board),
          {:ok, decoded_ip} <- decode_ip_param(ip),
          {:ok, ban} <- load_accessible_ban(id, moderator),
+         :ok <- authorize_ban_mutation(moderator, ban),
          {:ok, target_board_id} <- target_ban_board_id(moderator, params["board"]),
          {:ok, _ban} <-
            Bans.update_ban(ban, %{
@@ -1775,6 +1793,7 @@ defmodule EirinchanWeb.ManagePageController do
          true <- PostView.can_view_ip?(moderator, board),
          {:ok, decoded_ip} <- decode_ip_param(ip),
          {:ok, ban} <- load_accessible_ban(id, moderator),
+         :ok <- authorize_ban_mutation(moderator, ban),
          {:ok, _ban} <- Bans.update_ban(ban, %{active: false}) do
       ModerationAudit.log(conn, "Removed ban ##{ban.id} for #{display_ip_for_log(decoded_ip)}",
         subject_ip: decoded_ip,
@@ -1958,6 +1977,7 @@ defmodule EirinchanWeb.ManagePageController do
         post: post,
         boards: Moderation.list_accessible_boards(moderator),
         show_ip: PostView.can_view_ip?(moderator, board),
+        can_manage_global_bans?: can_manage_global_bans?(moderator),
         error: nil,
         params: %{
           "ip" =>
@@ -1969,7 +1989,12 @@ defmodule EirinchanWeb.ManagePageController do
           "public_message" => Map.get(params, "public_message", "0"),
           "message" => Map.get(params, "message", "USER WAS BANNED FOR THIS POST"),
           "length" => Map.get(params, "length", ""),
-          "board" => Map.get(params, "board", "*"),
+          "board" =>
+            Map.get(
+              params,
+              "board",
+              if(can_manage_global_bans?(moderator), do: "*", else: board.uri)
+            ),
           "delete" => Map.get(params, "delete", "0")
         }
       )
@@ -3354,6 +3379,7 @@ defmodule EirinchanWeb.ManagePageController do
       post: post,
       boards: Moderation.list_accessible_boards(moderator),
       show_ip: PostView.can_view_ip?(moderator, board),
+      can_manage_global_bans?: can_manage_global_bans?(moderator),
       error: message,
       params: %{
         "ip" =>
@@ -3365,15 +3391,20 @@ defmodule EirinchanWeb.ManagePageController do
         "public_message" => Map.get(params, "public_message", "0"),
         "message" => Map.get(params, "message", "USER WAS BANNED FOR THIS POST"),
         "length" => Map.get(params, "length", ""),
-        "board" => Map.get(params, "board", "*"),
+        "board" =>
+          Map.get(
+            params,
+            "board",
+            if(can_manage_global_bans?(moderator), do: "*", else: board.uri)
+          ),
         "delete" => Map.get(params, "delete", "0")
       }
     )
   end
 
-  defp target_ban_board_id(_moderator, nil), do: {:ok, nil}
-  defp target_ban_board_id(_moderator, ""), do: {:ok, nil}
-  defp target_ban_board_id(_moderator, "*"), do: {:ok, nil}
+  defp target_ban_board_id(moderator, target) when target in [nil, "", "*"] do
+    if can_manage_global_bans?(moderator), do: {:ok, nil}, else: {:error, :forbidden}
+  end
 
   defp target_ban_board_id(moderator, uri) do
     case load_accessible_board(moderator, uri) do
@@ -3454,6 +3485,7 @@ defmodule EirinchanWeb.ManagePageController do
           moderator: moderator,
           ban: Repo.preload(ban, [:board, :mod_user]),
           boards: Moderation.list_accessible_boards(moderator),
+          can_manage_global_bans?: can_manage_global_bans?(moderator),
           ban_form: %{
             "ip_mask" => Map.get(params, "ip_mask", IpCrypt.cloak_ip(ban.ip_subnet)),
             "reason" => Map.get(params, "reason", ban.reason || ""),
@@ -3468,6 +3500,21 @@ defmodule EirinchanWeb.ManagePageController do
         render_dashboard_error(conn, "Ban not found.", %{}, :not_found)
     end
   end
+
+  defp authorize_ban_mutations(moderator, bans) do
+    if Enum.all?(bans, &(authorize_ban_mutation(moderator, &1) == :ok)),
+      do: :ok,
+      else: {:error, :forbidden}
+  end
+
+  defp authorize_ban_mutation(moderator, %{board_id: nil}) do
+    if can_manage_global_bans?(moderator), do: :ok, else: {:error, :forbidden}
+  end
+
+  defp authorize_ban_mutation(_moderator, _ban), do: :ok
+
+  defp can_manage_global_bans?(moderator),
+    do: ModeratorPermissions.allowed?(moderator, :manage_global_bans)
 
   defp render_edit_post_error(
          conn,

@@ -65,7 +65,7 @@
   </table>
 </form>
 
-<fieldset>
+<fieldset :if={@can_manage_global_bans? or not is_nil(@ban.board_id)}>
   <legend>Edit ban</legend>
   <form action={"/manage/bans/#{@ban.id}/browser"} method="post">
     <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
@@ -100,7 +100,7 @@
         <th>Board</th>
         <td>
           <ul style="list-style:none;padding:2px 5px">
-            <li>
+            <li :if={@can_manage_global_bans?}>
               <input
                 type="radio"
                 name="board"
@@ -135,7 +135,12 @@
   </form>
 </fieldset>
 
-<form action={"/manage/bans/#{@ban.id}/browser"} method="post" style="text-align:center">
+<form
+  :if={@can_manage_global_bans? or not is_nil(@ban.board_id)}
+  action={"/manage/bans/#{@ban.id}/browser"}
+  method="post"
+  style="text-align:center"
+>
   <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
   <input type="hidden" name="_method" value="delete" />
   <input type="submit" value="Remove ban" />
