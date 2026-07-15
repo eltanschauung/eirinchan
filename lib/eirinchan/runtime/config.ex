@@ -67,6 +67,7 @@ defmodule Eirinchan.Runtime.Config do
     news_blotter_button_label: "View News - {date}",
     noticeboard_page: 50,
     noticeboard_dashboard: 5,
+    ban_list_page_size: 50,
     whalestickers: WhaleStickerDefaults.entries(),
     banners: [],
     allow_roll: false,
@@ -512,6 +513,7 @@ defmodule Eirinchan.Runtime.Config do
     |> Map.put_new(:news_blotter_limit, 100)
     |> Map.put_new(:noticeboard_page, 50)
     |> Map.put_new(:noticeboard_dashboard, 5)
+    |> Map.put_new(:ban_list_page_size, 50)
     |> ensure_default_filters()
     |> Map.put_new(:post_url, path_join(config.root, config.file_post))
     |> ensure_geoip_defaults()
