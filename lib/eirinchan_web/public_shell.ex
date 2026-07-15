@@ -160,43 +160,60 @@ defmodule EirinchanWeb.PublicShell do
       |> maybe_filter_catalog_scripts(active_page)
       |> maybe_add_catalog_scripts(active_page)
 
+    urls =
+      if Map.get(config, :additional_javascript_compile, false) do
+        bundled_sources = JsBundles.bundled_sources_for(active_page)
+
+        bundled_urls =
+          active_page
+          |> JsBundles.bundle_urls_for()
+          |> Enum.map(&additional_javascript_url(config, &1))
+          |> Enum.reject(&is_nil/1)
+
+        remaining_urls =
+          scripts
+          |> Enum.reject(&JsBundles.ignored_script?/1)
+          |> Enum.filter(fn script ->
+            trimmed = String.trim(script)
+            normalized = String.trim_leading(trimmed, "/")
+
+            String.starts_with?(trimmed, ["http://", "https://", "//"]) or
+              JsBundles.external_script?(script) or
+              not String.starts_with?(normalized, "js/")
+          end)
+          |> Enum.reject(fn script ->
+            normalized = String.trim_leading(script, "/")
+            MapSet.member?(bundled_sources, normalized) and not JsBundles.external_script?(script)
+          end)
+          |> Enum.map(&additional_javascript_url(config, &1))
+          |> Enum.reject(&is_nil/1)
+
+        main ++ bundled_urls ++ remaining_urls
+      else
+        script_urls =
+          scripts
+          |> Enum.map(&additional_javascript_url(config, &1))
+          |> Enum.reject(&is_nil/1)
+
+        main ++ script_urls
+      end
+
+    maybe_add_standalone_live_updater(urls, active_page, config)
+  end
+
+  defp maybe_add_standalone_live_updater(urls, active_page, config)
+       when active_page in [:index, :thread, :catalog] do
     if Map.get(config, :additional_javascript_compile, false) do
-      bundled_sources = JsBundles.bundled_sources_for(active_page)
-
-      bundled_urls =
-        active_page
-        |> JsBundles.bundle_urls_for()
-        |> Enum.map(&additional_javascript_url(config, &1))
-        |> Enum.reject(&is_nil/1)
-
-      remaining_urls =
-        scripts
-        |> Enum.reject(&JsBundles.ignored_script?/1)
-        |> Enum.filter(fn script ->
-          trimmed = String.trim(script)
-          normalized = String.trim_leading(trimmed, "/")
-
-          String.starts_with?(trimmed, ["http://", "https://", "//"]) or
-            JsBundles.external_script?(script) or
-            not String.starts_with?(normalized, "js/")
-        end)
-        |> Enum.reject(fn script ->
-          normalized = String.trim_leading(script, "/")
-          MapSet.member?(bundled_sources, normalized) and not JsBundles.external_script?(script)
-        end)
-        |> Enum.map(&additional_javascript_url(config, &1))
-        |> Enum.reject(&is_nil/1)
-
-      main ++ bundled_urls ++ remaining_urls
+      case additional_javascript_url(config, "js/auto-reload.js") do
+        nil -> urls
+        updater_url -> Enum.uniq(urls ++ [updater_url])
+      end
     else
-      script_urls =
-        scripts
-        |> Enum.map(&additional_javascript_url(config, &1))
-        |> Enum.reject(&is_nil/1)
-
-      main ++ script_urls
+      urls
     end
   end
+
+  defp maybe_add_standalone_live_updater(urls, _active_page, _config), do: urls
 
   defp javascript_config(_active_page) do
     Config.compose(nil, Settings.current_instance_config(), %{})
