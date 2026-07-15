@@ -72,34 +72,41 @@ defmodule EirinchanWeb.PublicControllerHelpers do
     }
   end
 
-  def watcher_metrics(conn) do
+  def watcher_snapshot(conn, opts \\ []) do
     case conn.assigns[:browser_token] do
-      token when is_binary(token) -> ThreadWatcher.watch_metrics(token)
-      _ -> @empty_watcher_metrics
+      token when is_binary(token) -> ThreadWatcher.snapshot(token, opts)
+      _ -> ThreadWatcher.empty_snapshot()
     end
   end
+
+  def watcher_metrics(%Plug.Conn{} = conn), do: conn |> watcher_snapshot() |> watcher_metrics()
+  def watcher_metrics(%{metrics: metrics}) when is_map(metrics), do: metrics
+  def watcher_metrics(_snapshot), do: @empty_watcher_metrics
 
   def browser_challenge_required?(conn, config) do
     BrowserAbuse.challenge_required?(RequestMeta.public_identity(conn), config)
   end
 
-  def thread_watch_state(conn, board_uri) do
-    case conn.assigns[:browser_token] do
-      token when is_binary(token) -> ThreadWatcher.watch_state_for_board(token, board_uri)
-      _ -> %{}
-    end
+  def thread_watch_state(%Plug.Conn{} = conn, board_uri) do
+    conn
+    |> watcher_snapshot()
+    |> thread_watch_state(board_uri)
   end
 
-  def thread_watch(conn, board_uri, thread_id) do
-    case conn.assigns[:browser_token] do
-      token when is_binary(token) ->
-        ThreadWatcher.watch_state_for_board(token, board_uri)
-        |> Map.get(thread_id, empty_thread_watch(thread_id))
+  def thread_watch_state(%{watch_state_by_board: state_by_board}, board_uri)
+      when is_map(state_by_board) and is_binary(board_uri),
+      do: Map.get(state_by_board, board_uri, %{})
 
-      _ ->
-        empty_thread_watch(thread_id)
-    end
+  def thread_watch_state(_snapshot, _board_uri), do: %{}
+
+  def thread_watch(source, board_uri, thread_id) do
+    source
+    |> thread_watch_state(board_uri)
+    |> Map.get(thread_id, empty_thread_watch(thread_id))
   end
+
+  def watcher_state_by_board(%{watch_state_by_board: state}) when is_map(state), do: state
+  def watcher_state_by_board(_snapshot), do: %{}
 
   def moderator_body_class(conn, active_page, opts \\ []) do
     extra_classes =
@@ -147,11 +154,17 @@ defmodule EirinchanWeb.PublicControllerHelpers do
   end
 
   def public_shell_assigns(conn, active_page, opts \\ []) do
+    watcher_snapshot =
+      case Keyword.fetch(opts, :watcher_snapshot) do
+        {:ok, snapshot} -> snapshot
+        :error -> watcher_snapshot(conn)
+      end
+
     %{
       watcher_count: watcher_count,
       watcher_unread_count: watcher_unread_count,
       watcher_you_count: watcher_you_count
-    } = watcher_metrics(conn)
+    } = watcher_metrics(watcher_snapshot)
 
     head_meta_opts =
       [
@@ -214,8 +227,11 @@ defmodule EirinchanWeb.PublicControllerHelpers do
     boards = Keyword.get_lazy(opts, :boards, &Eirinchan.Boards.list_boards/0)
     primary_board = List.first(boards) || %{uri: ""}
 
-    common_assigns =
-      public_shell_assigns(conn, active_page, extra_stylesheets: extra_stylesheets())
+    shell_opts =
+      [extra_stylesheets: extra_stylesheets()]
+      |> Keyword.merge(Keyword.take(opts, [:watcher_snapshot]))
+
+    common_assigns = public_shell_assigns(conn, active_page, shell_opts)
 
     [
       boards: boards,
@@ -236,7 +252,7 @@ defmodule EirinchanWeb.PublicControllerHelpers do
   defp moderator_stamp(moderator), do: {moderator.id, moderator.role}
 
   defp empty_thread_watch(thread_id) do
-    %{watched: false, unread_count: 0, last_seen_post_id: thread_id}
+    %{watched: false, unread_count: 0, you_unread_count: 0, last_seen_post_id: thread_id}
   end
 
   defp current_global_message_html(boards) do

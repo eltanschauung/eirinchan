@@ -54,8 +54,29 @@ defmodule EirinchanWeb.PublicControllerHelpersTest do
     assert PublicControllerHelpers.thread_watch(conn, "bant", 42) == %{
              watched: false,
              unread_count: 0,
+             you_unread_count: 0,
              last_seen_post_id: 42
            }
+  end
+
+  test "watcher helpers reuse a supplied snapshot" do
+    snapshot = %{
+      metrics: %{watcher_count: 2, watcher_unread_count: 3, watcher_you_count: 1},
+      watch_state_by_board: %{
+        "bant" => %{42 => %{watched: true, unread_count: 3, you_unread_count: 1}}
+      },
+      summaries: []
+    }
+
+    assert PublicControllerHelpers.watcher_metrics(snapshot).watcher_count == 2
+
+    assert PublicControllerHelpers.thread_watch_state(snapshot, "bant") ==
+             snapshot.watch_state_by_board["bant"]
+
+    assert PublicControllerHelpers.thread_watch(snapshot, "bant", 42).watched
+
+    assert PublicControllerHelpers.watcher_state_by_board(snapshot) ==
+             snapshot.watch_state_by_board
   end
 
   test "logs only genuinely slow public pages" do

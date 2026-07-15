@@ -9,7 +9,6 @@ defmodule EirinchanWeb.PageController do
   alias Eirinchan.LandingPages
   alias Eirinchan.NewsBlotter
   alias Eirinchan.Posts
-  alias Eirinchan.ThreadWatcher
   alias Eirinchan.Settings
   alias Eirinchan.SiteContact
   alias Eirinchan.StaticImageDimensions
@@ -162,20 +161,25 @@ defmodule EirinchanWeb.PageController do
   end
 
   def watcher(conn, _params) do
+    watcher_snapshot = PublicControllerHelpers.watcher_snapshot(conn, summaries: true)
+
     render(
       conn,
       :watcher,
       Keyword.merge(
-        PublicControllerHelpers.public_page_assigns(conn, "active-page", "watcher"),
+        PublicControllerHelpers.public_page_assigns(conn, "active-page", "watcher",
+          watcher_snapshot: watcher_snapshot
+        ),
         layout: false,
         hide_theme_switcher: true,
-        watch_summaries: watcher_summaries(conn)
+        watch_summaries: watcher_summaries(watcher_snapshot)
       )
     )
   end
 
   def watcher_fragment(conn, _params) do
-    watcher_metrics = PublicControllerHelpers.watcher_metrics(conn)
+    watcher_snapshot = PublicControllerHelpers.watcher_snapshot(conn, summaries: true)
+    watcher_metrics = PublicControllerHelpers.watcher_metrics(watcher_snapshot)
 
     conn =
       conn
@@ -194,7 +198,7 @@ defmodule EirinchanWeb.PageController do
     html(
       conn,
       render_to_string(EirinchanWeb.PageHTML, "watcher_fragment", "html",
-        watch_summaries: watcher_summaries(conn)
+        watch_summaries: watcher_summaries(watcher_snapshot)
       )
     )
   end
@@ -227,6 +231,7 @@ defmodule EirinchanWeb.PageController do
     case overboard_threads(settings, boards, page, conn) do
       {:ok, overboard_page} ->
         threads = overboard_page.threads
+        watcher_snapshot = PublicControllerHelpers.watcher_snapshot(conn)
 
         posts =
           Enum.flat_map(threads, fn %{summary: summary} -> [summary.thread | summary.replies] end)
@@ -236,7 +241,9 @@ defmodule EirinchanWeb.PageController do
         |> render(
           :ukko,
           Keyword.merge(
-            PublicControllerHelpers.public_page_assigns(conn, "active-page", "ukko"),
+            PublicControllerHelpers.public_page_assigns(conn, "active-page", "ukko",
+              watcher_snapshot: watcher_snapshot
+            ),
             layout: false,
             page_title: "#{Themes.overboard_uri()} - #{overboard_title(settings)}",
             body_class: PublicControllerHelpers.moderator_body_class(conn, "active-page"),
@@ -255,7 +262,7 @@ defmodule EirinchanWeb.PageController do
                 else: nil
               ),
             backlinks_map: Posts.backlinks_map_for_posts(posts),
-            thread_watch_state_by_board: overboard_thread_watch_state(conn, threads),
+            thread_watch_state_by_board: overboard_thread_watch_state(watcher_snapshot, threads),
             current_moderator: conn.assigns[:current_moderator],
             secure_manage_token: conn.assigns[:secure_manage_token]
           )
@@ -613,12 +620,14 @@ defmodule EirinchanWeb.PageController do
     |> String.split(~r/\s+/, trim: true)
   end
 
-  defp overboard_thread_watch_state(conn, threads) do
+  defp overboard_thread_watch_state(watcher_snapshot, threads) do
+    state_by_board = PublicControllerHelpers.watcher_state_by_board(watcher_snapshot)
+
     threads
     |> Enum.map(& &1.board.uri)
     |> Enum.uniq()
     |> Map.new(fn board_uri ->
-      {board_uri, PublicControllerHelpers.thread_watch_state(conn, board_uri)}
+      {board_uri, Map.get(state_by_board, board_uri, %{})}
     end)
   end
 
@@ -652,32 +661,24 @@ defmodule EirinchanWeb.PageController do
     )
   end
 
-  defp watcher_summaries(conn) do
-    case conn.assigns[:browser_token] do
-      token when is_binary(token) ->
-        ThreadWatcher.purge_missing_watches(token)
+  defp watcher_summaries(%{summaries: summaries}) when is_list(summaries) do
+    board_configs =
+      Boards.list_boards()
+      |> Map.new(fn board -> {board.uri, board_config(board)} end)
 
-        board_configs =
-          Boards.list_boards()
-          |> Map.new(fn board -> {board.uri, board_config(board)} end)
+    Enum.map(summaries, fn summary ->
+      thread_path = thread_watcher_path(summary, board_configs)
 
-        ThreadWatcher.list_watch_summaries(token)
-        |> Enum.map(fn summary ->
-          thread_path = thread_watcher_path(summary, board_configs)
-
-          summary
-          |> Map.put(:thread_path, thread_path)
-          |> Map.put(
-            :you_unread_path,
-            if(is_integer(summary.you_unread_post_id),
-              do: thread_path <> "#" <> Integer.to_string(summary.you_unread_post_id),
-              else: thread_path
-            )
-          )
-        end)
-
-      _ ->
-        []
-    end
+      summary
+      |> Map.put(:thread_path, thread_path)
+      |> Map.put(
+        :you_unread_path,
+        if(is_integer(summary.you_unread_post_id),
+          do: thread_path <> "#" <> Integer.to_string(summary.you_unread_post_id),
+          else: thread_path
+        )
+      )
+    end)
   end
+  defp watcher_summaries(_watcher_snapshot), do: []
 end
