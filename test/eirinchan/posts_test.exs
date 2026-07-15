@@ -3001,7 +3001,7 @@ defmodule Eirinchan.PostsTest do
     assert reply.thread_id == thread.id
   end
 
-  test "ip nulling flags do not bypass dnsbl" do
+  test "ip nulling flag threshold alone does not bypass dnsbl" do
     board = board_fixture()
 
     config =
@@ -3031,6 +3031,44 @@ defmodule Eirinchan.PostsTest do
                  dnsbl_resolver: resolver
                }
              )
+  end
+
+  test "enabled IP nulling flags bypass dnsbl" do
+    board = board_fixture()
+
+    config =
+      post_config(%{
+        ip_nulling: true,
+        ip_nulling_flags: 8,
+        user_flag: true,
+        multiple_flags: true,
+        user_flags: %{"mokou" => "Mokou"},
+        dnsbl: [["rbl.example", 4]],
+        error: %{dnsbl: "Your IP address is listed in %s."}
+      })
+
+    resolver = fn
+      "9.113.0.203.rbl.example" -> "127.0.0.4"
+      _ -> nil
+    end
+
+    assert {:ok, thread, %{noko: false}} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "dnsbl bypassed by configured flags",
+                 "post" => "New Topic",
+                 "user_flag" => "country,mokou"
+               },
+               config: config,
+               request: %{
+                 referer: "http://example.test/#{board.uri}/index.html",
+                 remote_ip: {203, 0, 113, 9},
+                 dnsbl_resolver: resolver
+               }
+             )
+
+    assert thread.ip_subnet == nil
   end
 
   test "create_post still enforces active bans when the flag threshold is met" do

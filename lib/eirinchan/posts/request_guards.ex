@@ -55,7 +55,7 @@ defmodule Eirinchan.Posts.RequestGuards do
       ipaccess_reply_bypass?(attrs, config) ->
         :ok
 
-      ipaccess_flag_bypass?(attrs, config) ->
+      ip_nulling_flag_bypass?(attrs, config) ->
         :ok
 
       AccessList.allowed_for_posting?(request[:remote_ip] || request["remote_ip"]) ->
@@ -73,7 +73,7 @@ defmodule Eirinchan.Posts.RequestGuards do
       moderator_board_access?(request, board) -> :ok
       not Map.get(config, :ipaccess, false) -> :ok
       ipaccess_reply_bypass?(attrs, config) -> :ok
-      ipaccess_flag_bypass?(attrs, config) -> :ok
+      ip_nulling_flag_bypass?(attrs, config) -> :ok
       true -> validate_ipaccess_imagelim(attrs, request, config)
     end
   end
@@ -84,6 +84,9 @@ defmodule Eirinchan.Posts.RequestGuards do
         :ok
 
       ipaccess_reply_bypass?(attrs, config) ->
+        :ok
+
+      ip_nulling_flag_bypass?(attrs, config) ->
         :ok
 
       true ->
@@ -214,7 +217,7 @@ defmodule Eirinchan.Posts.RequestGuards do
 
   defp request_moderator(request), do: request[:moderator] || request["moderator"]
 
-  defp ipaccess_flag_bypass?(attrs, config) do
+  defp ip_nulling_flag_bypass?(attrs, config) do
     threshold = Map.get(config, :ip_nulling_flags, 0)
 
     Map.get(config, :ip_nulling, false) and
