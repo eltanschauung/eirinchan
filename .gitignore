@@ -36,10 +36,6 @@ security_skeleton.txt
 
 js_migration_plan.txt
 thread_watcher_spec.md
-/priv/static/site_logo.png
-/priv/static/site_logo2_recent.png
-/priv/static/whales.jpg
-/priv/static/error_pages/*.png
 /static/stylesheets/keyedfrog.css
 
 # Local runtime state
