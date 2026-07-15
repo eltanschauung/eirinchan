@@ -31,7 +31,7 @@ defmodule EirinchanWeb.PublicShell do
 
   @search_blocked_scripts MapSet.new([
                             "js/thread-stats.js",
-                            "js/server-thread-watcher.js",
+                            "js/thread-watcher.js",
                             "js/navarrows2.js",
                             "js/quick-reply.js",
                             "js/titlebar-notifications.js",
@@ -246,6 +246,7 @@ defmodule EirinchanWeb.PublicShell do
     |> List.wrap()
     |> Enum.map(&to_string/1)
     |> Enum.map(&String.trim/1)
+    |> Enum.map(&normalize_script_alias/1)
     |> Enum.reject(&(&1 == ""))
     |> Enum.reject(
       &(&1 in [
@@ -353,6 +354,10 @@ defmodule EirinchanWeb.PublicShell do
     normalized = String.trim_leading(script, "/")
     MapSet.member?(blocked_set, normalized)
   end
+
+  defp normalize_script_alias("js/server-thread-watcher.js"), do: "js/thread-watcher.js"
+  defp normalize_script_alias("/js/server-thread-watcher.js"), do: "js/thread-watcher.js"
+  defp normalize_script_alias(script), do: script
 
   defp additional_javascript_url(config, script) do
     cond do

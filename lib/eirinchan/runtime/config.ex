@@ -36,7 +36,7 @@ defmodule Eirinchan.Runtime.Config do
     additional_javascript: [
       "js/jquery.min.js",
       "js/inline-expanding.js",
-      "js/server-thread-watcher.js",
+      "js/thread-watcher.js",
       "js/blotter.js",
       "js/ruffle.js",
       "js/expand-swf.js"
