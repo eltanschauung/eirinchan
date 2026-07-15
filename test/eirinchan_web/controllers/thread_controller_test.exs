@@ -89,6 +89,53 @@ defmodule EirinchanWeb.ThreadControllerTest do
     assert md5_a == md5_b
   end
 
+  test "thread fragments honor weak if-none-match values", %{conn: conn} do
+    board = board_fixture()
+    thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
+    _reply = reply_fixture(board, thread, %{body: "Reply body"})
+
+    md5 =
+      conn
+      |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html?fragment=md5")
+      |> response(200)
+      |> String.trim()
+
+    etag = ~s("#{md5}")
+
+    not_modified =
+      conn
+      |> recycle()
+      |> put_req_header("if-none-match", "W/" <> etag)
+      |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html?fragment=1")
+
+    assert response(not_modified, 304) == ""
+    assert get_resp_header(not_modified, "etag") == [etag]
+  end
+
+  test "thread fragment md5 changes after an existing reply is edited", %{conn: conn} do
+    board = board_fixture()
+    thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
+    reply = reply_fixture(board, thread, %{body: "Before edit"})
+
+    md5_before =
+      conn
+      |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html?fragment=md5")
+      |> response(200)
+      |> String.trim()
+
+    assert {:ok, _updated} =
+             Posts.update_post(board, PublicIds.public_id(reply), %{"body" => "After edit"})
+
+    md5_after =
+      conn
+      |> recycle()
+      |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html?fragment=md5")
+      |> response(200)
+      |> String.trim()
+
+    refute md5_before == md5_after
+  end
+
   test "thread fragment md5 changes after a new reply is posted", %{conn: conn} do
     board = board_fixture()
     thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})

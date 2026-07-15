@@ -15,6 +15,13 @@ defmodule EirinchanWeb.FragmentHash do
     end
   end
 
+  def term_digest(value) do
+    value
+    |> :erlang.term_to_binary([:deterministic])
+    |> then(&:crypto.hash(:sha256, &1))
+    |> Base.url_encode64(padding: false)
+  end
+
   defp render_md5(view, template, assigns) do
     html =
       Phoenix.Template.render_to_string(
