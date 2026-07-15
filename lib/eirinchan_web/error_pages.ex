@@ -11,7 +11,7 @@ defmodule EirinchanWeb.ErrorPages do
 
   def not_found(conn, message \\ nil) do
     boards = Boards.list_boards()
-    primary_board = Enum.find(boards, &(&1.uri == "bant")) || %{uri: "bant"}
+    primary_board = List.first(boards) || %{uri: ""}
 
     assigns =
       [
@@ -22,7 +22,9 @@ defmodule EirinchanWeb.ErrorPages do
         primary_board: primary_board,
         board_chrome: BoardChrome.for_board(primary_board),
         global_boardlist_groups:
-          PostView.boardlist_groups(boards, mobile_client?: conn.assigns[:mobile_client?] || false),
+          PostView.boardlist_groups(boards,
+            mobile_client?: conn.assigns[:mobile_client?] || false
+          ),
         body_class: "8chan vichan is-not-moderator active-page"
       ] ++
         PublicControllerHelpers.public_shell_assigns(conn, "page",

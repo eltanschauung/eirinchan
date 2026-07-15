@@ -58,10 +58,8 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ "Recent Images"
     assert page =~ "Latest Posts"
     assert page =~ "Stats"
-    assert page =~ "What is bnat?"
-    assert page =~ "Whales are learning facts!"
-    assert page =~ ~s(src="/site_logo.png")
-    assert page =~ ~s(src="/whales.jpg")
+    assert page =~ "Welcome"
+    assert page =~ ~s(src="/images/logo.svg")
     assert page =~ "Technology"
     assert page =~ "Recent reply body"
     assert page =~ ~s(href="/stylesheets/style.css)
@@ -347,7 +345,7 @@ defmodule EirinchanWeb.PageControllerTest do
     refute page =~ "{stats.posts_perhour}"
   end
 
-  test "faq, formatting, and flags suppress the global message and preserve page-specific layout",
+  test "faq and formatting suppress the global message and preserve page-specific layout",
        %{
          conn: conn
        } do
@@ -373,18 +371,6 @@ defmodule EirinchanWeb.PageControllerTest do
       |> html_response(200)
 
     refute formatting_page =~ "Visitors in the last 10 minutes:"
-
-    flags_page =
-      conn
-      |> recycle()
-      |> get("/flags")
-      |> html_response(200)
-
-    refute flags_page =~ "Visitors in the last 10 minutes:"
-    assert flags_page =~ ~s(id="blotter")
-    assert flags_page =~ "To rizz your posts"
-    assert flags_page =~ "You can click the flags."
-    refute flags_page =~ ~s(class="static-page-panel")
   end
 
   test "custom pages render global message through the shared blotter renderer", %{conn: conn} do
@@ -458,7 +444,7 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ ~s(src="/ok.png")
   end
 
-  test "GET /faq renders the copied FAQ page", %{conn: conn} do
+  test "GET /faq renders the generic FAQ page", %{conn: conn} do
     moderator_fixture()
 
     page =
@@ -466,14 +452,12 @@ defmodule EirinchanWeb.PageControllerTest do
       |> get("/faq")
       |> html_response(200)
 
-    assert page =~ "What is bnat?"
-    assert page =~ "What are those flag things?"
-    assert page =~ "/faq/output_canvas.png"
-    assert page =~ "/faq/whale.jpg"
-    assert page =~ ~s(href="/faq/recent.css)
+    assert page =~ "What is this site?"
+    assert page =~ "How do I post?"
+    assert page =~ ~s(href="/recent.css)
   end
 
-  test "GET /rules renders the copied rules page", %{conn: conn} do
+  test "GET /rules renders the generic rules page", %{conn: conn} do
     moderator_fixture()
 
     page =
@@ -481,10 +465,9 @@ defmodule EirinchanWeb.PageControllerTest do
       |> get("/rules")
       |> html_response(200)
 
-    assert page =~ "What are the Rules?"
-    assert page =~ "/bant/ - International/Random"
-    assert page =~ "What if i'm banned?"
-    assert page =~ ~s(href="/faq/recent.css")
+    assert page =~ "Global rules"
+    assert page =~ "Contact"
+    assert page =~ ~s(href="/recent.css")
   end
 
   test "GET /rules normalizes stored full html overrides into the shared shell", %{conn: conn} do
@@ -542,7 +525,7 @@ defmodule EirinchanWeb.PageControllerTest do
     refute html =~ ~s(class="styles")
   end
 
-  test "GET /formatting renders copied formatting page", %{conn: conn} do
+  test "GET /formatting renders generic formatting help", %{conn: conn} do
     moderator_fixture()
 
     page =
@@ -551,13 +534,10 @@ defmodule EirinchanWeb.PageControllerTest do
       |> html_response(200)
 
     assert page =~ "Formatting"
-    assert page =~ "**do this to spoiler text**"
-    assert page =~ "Whalestickers"
-    assert page =~ ":gojo:"
-    assert page =~ "Let's bring /bnat/ to life with tranimals and babies!"
-    assert page =~ ~s(class="content formatting-sticker-content")
-    assert page =~ ~s(class="formatting-sticker-columns")
-    assert length(Regex.scan(~r/class="column formatting-sticker-column"/, page)) == 2
+    assert page =~ "creates a quote"
+    assert page =~ "Configured stickers"
+    assert page =~ "No stickers are configured."
+    assert page =~ "formatting-sticker-columns"
   end
 
   test "rules preserve numbered headings and use the configured contact email", %{conn: conn} do
@@ -570,10 +550,9 @@ defmodule EirinchanWeb.PageControllerTest do
 
     page = get(conn, "/rules") |> html_response(200)
 
-    assert page =~ "<p2>1. Obey US Law</p2>"
-    assert page =~ "<p2>2. Don't disrupt the funtimes</p2>"
+    assert page =~ "Do not post content that is illegal"
+    assert page =~ "Do not disrupt the service"
     assert page =~ ~s(href="mailto:rules@instance.test")
-    refute page =~ "aryanchad@hitler.rocks"
   end
 
   test "GET /formatting normalizes stored full html overrides into the shared shell", %{
@@ -835,7 +814,7 @@ defmodule EirinchanWeb.PageControllerTest do
 
     assert page =~ "Recent Posts"
     assert page =~ "Recent Images"
-    assert page =~ "What is bnat?"
+    assert page =~ "This imageboard is powered by Eirinchan."
     assert page =~ "Recent reply"
     assert page =~ board.title
     assert page =~ ~s(class="boardlist")
@@ -891,69 +870,6 @@ defmodule EirinchanWeb.PageControllerTest do
     assert xml =~ "<changefreq>hourly</changefreq>"
   end
 
-  test "GET /pages/flags renders the flags page", %{conn: conn} do
-    author = moderator_fixture(%{username: "flagmaker"})
-
-    {:ok, _page} =
-      Eirinchan.CustomPages.create_page(%{
-        slug: "flags",
-        title: "Flags",
-        body: "Custom flags",
-        mod_user_id: author.id
-      })
-
-    page =
-      conn
-      |> get("/pages/flags")
-      |> html_response(200)
-
-    assert page =~ "To rizz your posts"
-    assert page =~ "You can click the flags."
-    assert page =~ "/flags/compiled/"
-    assert page =~ ~s(id="user_flag")
-    assert page =~ "Apply"
-  end
-
-  test "GET /:board/flag redirects to the top-level flags page", %{conn: conn} do
-    author = moderator_fixture(%{username: "flagboard"})
-    board = board_fixture(%{uri: "bant", title: "International Random"})
-
-    {:ok, _page} =
-      Eirinchan.CustomPages.create_page(%{
-        slug: "flags",
-        title: "Flags",
-        body: "Custom flags",
-        mod_user_id: author.id
-      })
-
-    conn =
-      conn
-      |> get("/#{board.uri}/flag")
-
-    assert redirected_to(conn) == "/flags"
-  end
-
-  test "GET /flags renders the top-level flags page", %{conn: conn} do
-    author = moderator_fixture(%{username: "flagglobal"})
-
-    {:ok, _page} =
-      Eirinchan.CustomPages.create_page(%{
-        slug: "flags",
-        title: "Flags",
-        body: "Custom flags",
-        mod_user_id: author.id
-      })
-
-    page =
-      conn
-      |> get("/flags")
-      |> html_response(200)
-
-    assert page =~ "To rizz your posts"
-    assert page =~ "/flags/compiled/"
-    assert page =~ ~s(id="user_flag")
-  end
-
   test "GET /pages/feedback uses the feedback page constructor and form", %{conn: conn} do
     author = moderator_fixture(%{username: "feedbackwriter"})
 
@@ -986,59 +902,6 @@ defmodule EirinchanWeb.PageControllerTest do
 
     assert page =~ ~s(id="stylesheet" href="/stylesheets/eientei1.css)
     assert page =~ ~s(data-stylesheet="eientei1.css")
-  end
-
-  test "home and named public pages fall back to the saved bant board theme", %{conn: conn} do
-    moderator_fixture()
-
-    home_page =
-      conn
-      |> put_req_cookie("board_themes", ~s({"bant":"eientei1"}))
-      |> get("/")
-      |> html_response(200)
-
-    assert home_page =~ ~s(id="stylesheet" href="/stylesheets/eientei1.css)
-    assert home_page =~ ~s(data-stylesheet="eientei1.css")
-
-    faq_page =
-      conn
-      |> recycle()
-      |> put_req_cookie("board_themes", ~s({"bant":"eientei1"}))
-      |> get("/faq")
-      |> html_response(200)
-
-    assert faq_page =~ ~s(id="stylesheet" href="/stylesheets/eientei1.css)
-    assert faq_page =~ ~s(data-stylesheet="eientei1.css")
-
-    flags_page =
-      conn
-      |> recycle()
-      |> put_req_cookie("board_themes", ~s({"bant":"eientei1"}))
-      |> get("/flags")
-      |> html_response(200)
-
-    assert flags_page =~ ~s(id="stylesheet" href="/stylesheets/eientei1.css)
-    assert flags_page =~ ~s(data-stylesheet="eientei1.css")
-  end
-
-  test "GET /flag redirects to /flags", %{conn: conn} do
-    conn = get(conn, "/flag")
-    assert redirected_to(conn) == "/flags"
-  end
-
-  test "GET /banners renders the banner picker page", %{conn: conn} do
-    moderator_fixture()
-
-    page =
-      conn
-      |> get("/banners")
-      |> html_response(200)
-
-    assert page =~ "<h1>Banners</h1>"
-    assert page =~ ~s(src="/static/banners/) or page =~ ~s(src="/static/file.png")
-    assert page =~ "Submit more at"
-    refute page =~ ~s(id="exampleBox")
-    refute page =~ ~s(data-flag-page)
   end
 
   test "renders watcher page with watched threads", %{conn: conn} do

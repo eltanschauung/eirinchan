@@ -3,7 +3,6 @@ defmodule Eirinchan.PublicPages do
 
   alias Eirinchan.CustomPages
   alias Eirinchan.FeedbackPage
-  alias Eirinchan.FlagsPage
   alias Eirinchan.FaqPage
   alias Eirinchan.FormattingPage
   alias Eirinchan.RulesPage
@@ -31,7 +30,6 @@ defmodule Eirinchan.PublicPages do
       "faq" -> %{page | body: FaqPage.normalize_body(page.body)}
       "formatting" -> %{page | body: FormattingPage.normalize_body(page.body, current_stickers)}
       "rules" -> %{page | body: RulesPage.normalize_body(page.body, contact_email)}
-      "flags" -> %{page | body: FlagsPage.normalize_body(page.body)}
       "feedback" -> %{page | body: FeedbackPage.normalize_body(page.body)}
       _ -> page
     end
@@ -44,7 +42,7 @@ defmodule Eirinchan.PublicPages do
   def page_subtitle("rules"), do: "Ask questions, get answers."
   def page_subtitle(_slug), do: nil
 
-  def show_global_message?(slug) when slug in ["flags", "feedback", "faq", "formatting"],
+  def show_global_message?(slug) when slug in ["feedback", "faq", "formatting"],
     do: false
 
   def show_global_message?(_slug), do: true
@@ -64,10 +62,6 @@ defmodule Eirinchan.PublicPages do
 
   defp default_named_page("rules", _current_stickers, contact_email) do
     %{slug: "rules", title: "Rules", body: RulesPage.default_body(contact_email), mod_user: nil}
-  end
-
-  defp default_named_page("flags", _current_stickers, _contact_email) do
-    %{slug: "flags", title: "Flags", body: FlagsPage.default_body(), mod_user: nil}
   end
 
   defp default_named_page("feedback", _current_stickers, _contact_email) do

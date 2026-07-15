@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes" />
     <meta name="csrf-token" content={get_csrf_token()} />
     <title><%= @title %></title>
-    <link rel="icon" type="image/x-icon" href={EirinchanWeb.Layouts.versioned_asset("/auth/favicon.ico", @asset_version)} />
+    <link
+      rel="icon"
+      href={EirinchanWeb.Layouts.versioned_asset("/images/logo.svg", @asset_version)}
+    />
     <link
       :if={@theme_stylesheet}
       rel="stylesheet"
@@ -67,7 +70,10 @@
     </style>
   </head>
   <body data-redirect-url={if @success, do: @redirect_url}>
-    <img src={EirinchanWeb.Layouts.versioned_asset("/auth/authlanding2.png", @asset_version)} />
+    <img
+      src={EirinchanWeb.Layouts.versioned_asset("/images/logo.svg", @asset_version)}
+      alt="Eirinchan"
+    />
     <p><%= @message %></p>
     <div class="password-form" autocomplete="off">
       <form action={@auth_path} method="post" autocomplete="off">
@@ -104,16 +110,26 @@
     <br />
     <div
       id="redirectHandle"
-      style={if @success, do: "text-align:center;visibility:visible", else: "text-align:center;visibility:hidden"}
+      style={
+        if @success,
+          do: "text-align:center;visibility:visible",
+          else: "text-align:center;visibility:hidden"
+      }
     >
       <p2>Correct. Not being redirected? Click <a href={@redirect_url}>Here</a>.</p2>
     </div>
     <div class="footer">
       <hr />
-      <p1>Ray ID 810 - <a href={"mailto:" <> @contact_email}>Contact</a></p1><br />
+      <p1>Ray ID 810 - <a href={"mailto:" <> @contact_email}>Contact</a></p1>
+      <br />
       <p2>Performance &amp; Security by 無下限</p2>
     </div>
 
-    <script :if={@success} defer src={EirinchanWeb.Layouts.versioned_asset("/js/auth-redirect.js", @asset_version)}></script>
+    <script
+      :if={@success}
+      defer
+      src={EirinchanWeb.Layouts.versioned_asset("/js/auth-redirect.js", @asset_version)}
+    >
+    </script>
   </body>
 </html>

@@ -14,7 +14,7 @@ defmodule EirinchanWeb.PostView do
   alias Eirinchan.Posts.PostFile
   alias EirinchanWeb.{BoardlistPresenter, HtmlSanitizer}
   alias Eirinchan.ThreadPaths
-  alias Eirinchan.WhaleStickers
+  alias Eirinchan.Stickers
   alias EirinchanWeb.{IpPresentation, ManageSecurity, ModeratorPermissions}
 
   @deleted_file_sentinel "deleted"
@@ -1106,7 +1106,7 @@ defmodule EirinchanWeb.PostView do
       |> render_plain_urls(config)
       |> render_cross_board_links(board, config)
       |> render_quote_links(board, thread, config, opts)
-      |> WhaleStickers.replace_line(config)
+      |> Stickers.replace_line(config)
       |> render_line_formatting()
       |> render_inline_formatting()
 

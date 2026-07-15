@@ -1,11 +1,9 @@
 defmodule EirinchanWeb.Announcements do
   @moduledoc false
 
-  alias Eirinchan.AprilFoolsTeams
   alias Eirinchan.GlobalMessageRefreshWorker
   alias Eirinchan.NewsBlotter
   alias Eirinchan.Stats
-  alias Eirinchan.Tf2PlayerCount
   alias EirinchanWeb.FragmentCache
   alias EirinchanWeb.HtmlSanitizer
 
@@ -13,7 +11,6 @@ defmodule EirinchanWeb.Announcements do
 
   @refresh_cache_namespaces [
     :announcement_global_message,
-    :tf2_player_count,
     :board_fragment_md5,
     :thread_fragment_md5
   ]
@@ -86,142 +83,14 @@ defmodule EirinchanWeb.Announcements do
 
   defp expand_placeholders(message, opts) do
     message
-    |> maybe_replace_tf2_placeholders(opts)
     |> maybe_replace_posts_perhour(opts)
     |> maybe_replace_users_10minutes(opts)
-    |> maybe_replace_team_placeholders()
-  end
-
-  defp maybe_replace_tf2_placeholders(message, opts) do
-    if tf2_placeholder?(message) do
-      stats = cached_tf2_stats(opts)
-
-      message
-      |> maybe_render_tf2_conditionals(stats)
-      |> String.replace("{tf2_display}", stats.display)
-    else
-      message
-    end
-  end
-
-  defp tf2_placeholder?(message) do
-    String.contains?(message, "{tf2_display}") or
-      String.contains?(message, "{if tf2_display")
-  end
-
-  defp cached_tf2_stats(opts) do
-    now = Keyword.get(opts, :tf2_now, System.system_time(:second))
-    cache_bucket = div(now, Tf2PlayerCount.cache_seconds())
-
-    FragmentCache.fetch_or_store({:tf2_player_count, cache_bucket}, fn ->
-      fetch_opts =
-        case Keyword.get(opts, :tf2_fetcher) do
-          fetcher when is_function(fetcher, 0) -> [fetcher: fetcher]
-          _ -> []
-        end
-
-      case Tf2PlayerCount.fetch(fetch_opts) do
-        {:ok, stats} -> stats
-        {:error, _reason} -> Tf2PlayerCount.unavailable()
-      end
-    end)
-  end
-
-  defp maybe_render_tf2_conditionals(message, stats) do
-    if String.contains?(message, "{if tf2_display") do
-      message
-      |> String.replace("\\n", "\n")
-      |> String.split(~r/\r\n|\r|\n/u, trim: false)
-      |> render_tf2_conditional_lines(stats.player_count > 0, [])
-      |> Enum.join("\n")
-    else
-      message
-    end
-  end
-
-  defp render_tf2_conditional_lines([line, next_line | rest], show?, rendered) do
-    case tf2_conditional(line) do
-      {:following_line, prefix} ->
-        emitted_lines =
-          case {prefix, show?} do
-            {"", true} -> [next_line]
-            {"", false} -> []
-            {prefix, true} -> [prefix, next_line]
-            {prefix, false} -> [prefix]
-          end
-
-        rendered = Enum.reduce(emitted_lines, rendered, fn emitted, acc -> [emitted | acc] end)
-        render_tf2_conditional_lines(rest, show?, rendered)
-
-      {:inline, prefix, conditional_text} ->
-        rendered =
-          prefix
-          |> inline_conditional_value(conditional_text, show?)
-          |> maybe_prepend_rendered(rendered)
-
-        render_tf2_conditional_lines([next_line | rest], show?, rendered)
-
-      :error ->
-        render_tf2_conditional_lines([next_line | rest], show?, [line | rendered])
-    end
-  end
-
-  defp render_tf2_conditional_lines([line], show?, rendered) do
-    rendered =
-      case tf2_conditional(line) do
-        {:following_line, ""} ->
-          rendered
-
-        {:following_line, prefix} ->
-          [prefix | rendered]
-
-        {:inline, prefix, conditional_text} ->
-          prefix
-          |> inline_conditional_value(conditional_text, show?)
-          |> maybe_prepend_rendered(rendered)
-
-        :error ->
-          [line | rendered]
-      end
-
-    Enum.reverse(rendered)
-  end
-
-  defp render_tf2_conditional_lines([], _show?, rendered), do: Enum.reverse(rendered)
-
-  defp inline_conditional_value(prefix, conditional_text, true), do: prefix <> conditional_text
-
-  defp inline_conditional_value(prefix, _conditional_text, false),
-    do: String.trim_trailing(prefix)
-
-  defp maybe_prepend_rendered("", rendered), do: rendered
-  defp maybe_prepend_rendered(value, rendered), do: [value | rendered]
-
-  defp tf2_conditional(line) do
-    case Regex.run(
-           ~r/^(.*?)\{if\s+tf2_display\s*>\s*0\s*\}(.*)$/u,
-           line,
-           capture: :all_but_first
-         ) do
-      [prefix, suffix] ->
-        if String.trim(suffix) == "" do
-          {:following_line, String.trim_trailing(prefix)}
-        else
-          {:inline, prefix, suffix}
-        end
-
-      _ ->
-        :error
-    end
   end
 
   defp cacheable_aggregate_placeholders?(message, opts) do
     case stats_placeholders(message) do
-      %{board_scoped?: true, team_scoped?: false} ->
+      %{board_scoped?: true} ->
         aggregate_board_ids(opts) != []
-
-      %{team_scoped?: true} ->
-        false
 
       _ ->
         false
@@ -232,12 +101,7 @@ defmodule EirinchanWeb.Announcements do
     %{
       board_scoped?:
         String.contains?(message, "{stats.posts_perhour}") or
-          String.contains?(message, "{stats.users_10minutes}"),
-      team_scoped?:
-        Regex.match?(
-          ~r/\{stats\.team_\d+\.(?:name|display_name|colour|color|html_colour|post_count)\}/u,
-          message
-        )
+          String.contains?(message, "{stats.users_10minutes}")
     }
   end
 
@@ -322,33 +186,4 @@ defmodule EirinchanWeb.Announcements do
       _other -> Stats.users_10minutes()
     end
   end
-
-  defp maybe_replace_team_placeholders(message) do
-    Regex.replace(
-      ~r/\{stats\.(team_\d+)\.(name|display_name|colour|color|html_colour|post_count)\}/u,
-      message,
-      fn _full, team_var, field ->
-        case Stats.team_variable(team_var) do
-          {_team_id, display_name, html_colour, post_count} ->
-            team_field_value(field, display_name, html_colour, post_count)
-
-          _ ->
-            "{stats.#{team_var}.#{field}}"
-        end
-      end
-    )
-  end
-
-  defp team_field_value(field, display_name, html_colour, post_count)
-
-  defp team_field_value(field, display_name, _html_colour, _post_count)
-       when field in ["name", "display_name"],
-       do: display_name
-
-  defp team_field_value(field, _display_name, html_colour, _post_count)
-       when field in ["colour", "color", "html_colour"],
-       do: html_colour
-
-  defp team_field_value("post_count", _display_name, _html_colour, post_count),
-    do: AprilFoolsTeams.silly_post_count(post_count)
 end

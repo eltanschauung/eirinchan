@@ -276,7 +276,7 @@ defmodule Eirinchan.LandingPages do
     |> String.reverse()
   end
 
-  defp recent_thumb(%{spoiler: true}), do: {"/static/spoiler_skillet.png", 128, 128}
+  defp recent_thumb(%{spoiler: true}), do: {"/static/spoiler.png", 128, 128}
 
   defp recent_thumb(post) do
     src = "/#{post.board.uri}/thumb/#{Path.basename(post.thumb_path)}"

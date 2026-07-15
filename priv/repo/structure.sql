@@ -63,18 +63,6 @@ ALTER SEQUENCE public.announcement_entries_id_seq OWNED BY public.announcement_e
 
 
 --
--- Name: april_fools_2026; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.april_fools_2026 (
-    team integer NOT NULL,
-    display_name character varying(255) NOT NULL,
-    html_colour character varying(255) NOT NULL,
-    post_count bigint DEFAULT 0 NOT NULL
-);
-
-
---
 -- Name: ban_appeals; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -841,7 +829,6 @@ CREATE TABLE public.posts (
     cached_image_count integer DEFAULT 0 NOT NULL,
     cached_last_reply_at timestamp without time zone,
     inactive boolean DEFAULT false NOT NULL,
-    team integer,
     poster_id character varying(255)
 );
 
@@ -1159,14 +1146,6 @@ ALTER TABLE ONLY public.thread_watches ALTER COLUMN id SET DEFAULT nextval('publ
 
 ALTER TABLE ONLY public.announcement_entries
     ADD CONSTRAINT announcement_entries_pkey PRIMARY KEY (id);
-
-
---
--- Name: april_fools_2026 april_fools_2026_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.april_fools_2026
-    ADD CONSTRAINT april_fools_2026_pkey PRIMARY KEY (team);
 
 
 --

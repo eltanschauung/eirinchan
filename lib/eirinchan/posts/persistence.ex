@@ -3,7 +3,6 @@ defmodule Eirinchan.Posts.Persistence do
 
   import Ecto.Query, only: [from: 2]
 
-  alias Eirinchan.AprilFoolsTeams
   alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.PosterIds
   alias Eirinchan.Posts.Cite
@@ -20,7 +19,7 @@ defmodule Eirinchan.Posts.Persistence do
           module(),
           map(),
           DateTime.t(),
-          (() -> :ok)
+          (-> :ok)
         ) ::
           {:ok, Post.t()} | {:error, term()}
   def create_post_record(%BoardRecord{} = board, thread, attrs, repo, config, now, after_insert) do
@@ -36,7 +35,6 @@ defmodule Eirinchan.Posts.Persistence do
                   {:ok, post} <- maybe_assign_poster_id(post, attrs, repo, config),
                   {:ok, post} <-
                     maybe_store_uploads(board, post, upload_entries, repo, config, cleanup_key),
-                  :ok <- maybe_increment_april_fools_team(post, config, repo),
                   :ok <- store_citations(locked_board, post, repo),
                   :ok <- after_insert.(),
                   :ok <-
@@ -114,7 +112,9 @@ defmodule Eirinchan.Posts.Persistence do
            ) do
       {:ok, repo.preload(updated_post, :extra_files)}
     else
-      {:error, reason, _stored_files} -> {:error, reason}
+      {:error, reason, _stored_files} ->
+        {:error, reason}
+
       {:error, reason} ->
         {:error, reason}
     end
@@ -212,7 +212,11 @@ defmodule Eirinchan.Posts.Persistence do
   end
 
   defp lock_board(%BoardRecord{} = board, repo) do
-    case repo.one(from board_record in BoardRecord, where: board_record.id == ^board.id, lock: "FOR UPDATE") do
+    case repo.one(
+           from board_record in BoardRecord,
+             where: board_record.id == ^board.id,
+             lock: "FOR UPDATE"
+         ) do
       %BoardRecord{} = locked_board -> {:ok, locked_board}
       _ -> {:error, :board_not_found}
     end
@@ -221,7 +225,9 @@ defmodule Eirinchan.Posts.Persistence do
   defp allocate_public_id(%BoardRecord{} = board, attrs, repo) do
     explicit_public_id =
       case Map.get(attrs, "public_id") || Map.get(attrs, :public_id) do
-        value when is_integer(value) and value > 0 -> value
+        value when is_integer(value) and value > 0 ->
+          value
+
         value when is_binary(value) ->
           case Integer.parse(value) do
             {parsed, ""} when parsed > 0 -> parsed
@@ -233,7 +239,7 @@ defmodule Eirinchan.Posts.Persistence do
       end
 
     public_id = explicit_public_id || board.next_public_post_id || 1
-    next_public_post_id = max((board.next_public_post_id || 1), public_id + 1)
+    next_public_post_id = max(board.next_public_post_id || 1, public_id + 1)
 
     case board
          |> Ecto.Changeset.change(next_public_post_id: next_public_post_id)
@@ -299,16 +305,6 @@ defmodule Eirinchan.Posts.Persistence do
           _ ->
             {:ok, post}
         end
-    end
-  end
-
-  defp maybe_increment_april_fools_team(%Post{} = post, config, repo) do
-    team = post.team
-
-    if AprilFoolsTeams.enabled?(config) and is_integer(team) do
-      AprilFoolsTeams.increment_post_count(team, AprilFoolsTeams.image_post?(post), repo)
-    else
-      :ok
     end
   end
 

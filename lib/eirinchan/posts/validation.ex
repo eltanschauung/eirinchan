@@ -8,7 +8,7 @@ defmodule Eirinchan.Posts.Validation do
   alias Eirinchan.Posts.PostFile
   alias Eirinchan.Posts.UploadPreparation
   alias Eirinchan.Uploads
-  alias Eirinchan.WhaleStickers
+  alias Eirinchan.Stickers
 
   def validate_body(op?, attrs, config) do
     require_body = if(op?, do: config.force_body_op, else: config.force_body)
@@ -29,7 +29,8 @@ defmodule Eirinchan.Posts.Validation do
     uploads = UploadPreparation.uploads(attrs)
     embed? = present_embed?(attrs)
 
-    sticker_op? = op? and config.allow_sticker_op and WhaleStickers.contains_sticker?(attrs["body"], config)
+    sticker_op? =
+      op? and config.allow_sticker_op and Stickers.contains_sticker?(attrs["body"], config)
 
     cond do
       UploadPreparation.remote_upload_requested?(attrs) and uploads == [] ->
@@ -72,7 +73,7 @@ defmodule Eirinchan.Posts.Validation do
     embed? = present_embed?(attrs)
 
     sticker_op? =
-      op? and config.allow_sticker_op and WhaleStickers.contains_sticker?(attrs["body"], config)
+      op? and config.allow_sticker_op and Stickers.contains_sticker?(attrs["body"], config)
 
     cond do
       op? and config.force_image_op and entries == [] and not embed? and not sticker_op? ->
@@ -273,9 +274,7 @@ defmodule Eirinchan.Posts.Validation do
   end
 
   defp duplicate_md5_exists?(md5s, nil, repo) do
-    repo.exists?(
-      from(post in Post, where: post.file_md5 in ^md5s and not is_nil(post.file_md5))
-    ) or
+    repo.exists?(from(post in Post, where: post.file_md5 in ^md5s and not is_nil(post.file_md5))) or
       repo.exists?(
         from(post_file in PostFile,
           where: post_file.file_md5 in ^md5s and not is_nil(post_file.file_md5)

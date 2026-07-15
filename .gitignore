@@ -16,11 +16,6 @@
 # If the VM crashes, it generates a dump, let's ignore it too.
 erl_crash.dump
 
-# This is old now
-retrospective_design_audit.md
-skeleton.txt
-spec.md
-
 # Also ignore archive artifacts (built via "mix archive.build").
 *.ez
 
@@ -31,16 +26,8 @@ spec.md
 eirinchan-*.tar
 
 AGENTS.md
-security_skeleton.txt
-/priv/static/whalestickers/
-
-js_migration_plan.txt
-thread_watcher_spec.md
-/priv/static/site_logo.png
-/priv/static/site_logo2_recent.png
-/priv/static/whales.jpg
+/priv/static/stickers/
 /priv/static/error_pages/*.png
-/static/stylesheets/keyedfrog.css
 
 # Local runtime state
 /.eirinchan/
@@ -51,10 +38,3 @@ thread_watcher_spec.md
 /var/.*.tmp
 /var/invalid_uploads/
 /var/log/
-
-posting_pipeline_examination.txt
-posting_pipeline_speedup_plan.txt
-html_size_findings.txt
-html_size_reduction_plan.txt
-scrubs.txt
-/priv/examples/nftables-bantculture-ddos-example.nft

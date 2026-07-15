@@ -14,7 +14,10 @@ defmodule EirinchanWeb.Plugs.FetchTheme do
     stylesheets_board = Map.get(instance_config, :stylesheets_board, true)
     board = board_for_request(conn)
     forced_theme_identifier = forced_theme(board, instance_config)
-    theme_identifier = forced_theme_identifier || resolve_theme_identifier(conn, board, stylesheets_board, instance_config)
+
+    theme_identifier =
+      forced_theme_identifier ||
+        resolve_theme_identifier(conn, board, stylesheets_board, instance_config)
 
     public_theme = ThemeRegistry.public_lookup(theme_identifier)
 
@@ -24,7 +27,7 @@ defmodule EirinchanWeb.Plugs.FetchTheme do
         ThemeRegistry.fetch(ThemeRegistry.default_theme())
 
     theme_name = if public_theme, do: public_theme.name, else: theme_identifier
-    theme_label = public_theme && public_theme.label || theme.label
+    theme_label = (public_theme && public_theme.label) || theme.label
     theme_options = if forced_theme_identifier, do: [], else: ThemeRegistry.public_all()
 
     conn
@@ -38,7 +41,6 @@ defmodule EirinchanWeb.Plugs.FetchTheme do
   defp resolve_theme_identifier(conn, board, true, instance_config) do
     board_theme_identifier(conn, board) ||
       global_theme_identifier(conn) ||
-      primary_public_board_theme_identifier(conn, board) ||
       board_default_theme(board) ||
       global_default_theme(instance_config)
   end
@@ -60,15 +62,6 @@ defmodule EirinchanWeb.Plugs.FetchTheme do
     conn.cookies["board_themes"]
     |> decode_board_themes_cookie()
     |> Map.get(board.uri)
-    |> normalize_theme_identifier()
-  end
-
-  defp primary_public_board_theme_identifier(_conn, board) when not is_nil(board), do: nil
-
-  defp primary_public_board_theme_identifier(conn, nil) do
-    conn.cookies["board_themes"]
-    |> decode_board_themes_cookie()
-    |> Map.get("bant")
     |> normalize_theme_identifier()
   end
 
@@ -169,8 +162,6 @@ defmodule EirinchanWeb.Plugs.FetchTheme do
       "api",
       "auth",
       "setup",
-      "flags",
-      "flag",
       "faq",
       "formatting",
       "feedback",

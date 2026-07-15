@@ -186,7 +186,6 @@ defmodule EirinchanWeb.Router do
 
     get "/csrf-token", CsrfController, :show
     get "/mod.php", LegacyModController, :show
-    get "/b.php", BannerController, :show
     get "/search.php", SearchController, :show
     post "/post.php", PostController, :create
     post "/watcher/:board/:thread_id", ThreadWatcherController, :create
@@ -282,10 +281,6 @@ defmodule EirinchanWeb.Router do
     get "/faq", PageController, :faq
     get "/rules", PageController, :rules
     get "/formatting", PageController, :formatting
-    get "/flag", PageController, :legacy_flags
-    get "/flags", PageController, :flags
-    get "/banners", PageController, :banners
-
     get "/news", PageController, :news
     get "/catalog", PageController, :catalog
     get "/ukko", PageController, :ukko
@@ -304,8 +299,6 @@ defmodule EirinchanWeb.Router do
     get "/:board/threads.json", ApiController, :threads
     get "/:board/catalog/:page_num_html", BoardController, :catalog_page
     get "/:board/catalog.html", BoardController, :catalog
-    get "/:board/flag", PageController, :board_flag_legacy
-    get "/:board/flags", PageController, :board_flag
     get "/:board/:page_num_html", BoardController, :show_page
     get "/:board", BoardController, :show
     post "/:board/post", PostController, :create

@@ -232,8 +232,6 @@ defmodule EirinchanWeb.PublicShell do
     |> Enum.reject(&(&1 == ""))
     |> Enum.reject(
       &(&1 in [
-          "js/unspoiler3.js",
-          "/js/unspoiler3.js",
           "js/style-select.js",
           "/js/style-select.js",
           "js/show-op.js",

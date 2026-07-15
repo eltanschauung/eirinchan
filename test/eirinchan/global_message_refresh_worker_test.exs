@@ -43,7 +43,6 @@ defmodule Eirinchan.GlobalMessageRefreshWorkerTest do
   test "refreshes announcement and document hashes without flushing unrelated fragments" do
     refreshed = [
       {:announcement_global_message, :message},
-      {:tf2_player_count, 1},
       {:board_fragment_md5, :board},
       {:thread_fragment_md5, :thread}
     ]

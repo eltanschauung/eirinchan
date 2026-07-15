@@ -1,7 +1,6 @@
 defmodule Eirinchan.StatsTest do
   use Eirinchan.DataCase
 
-  alias Eirinchan.AprilFoolsTeam
   alias Eirinchan.BrowserIdentities
   alias Eirinchan.BrowserIdentities.Identity
   alias Eirinchan.BrowserIdentity
@@ -62,37 +61,6 @@ defmodule Eirinchan.StatsTest do
     BrowserPresence.touch(human.browser_ref)
 
     assert Stats.users_10minutes() == 1
-  end
-
-  test "team_* helpers return the april fools team tuple" do
-    team = Repo.get!(AprilFoolsTeam, 2)
-    futa = Repo.get!(AprilFoolsTeam, 7)
-    limbus = Repo.get!(AprilFoolsTeam, 10)
-    cobson = Repo.get!(AprilFoolsTeam, 11)
-    haters = Repo.get!(AprilFoolsTeam, 12)
-
-    assert Stats.team_2() == {2, team.display_name, team.html_colour, team.post_count}
-    assert Stats.team_7() == {7, futa.display_name, futa.html_colour, futa.post_count}
-    assert Stats.team_10() == {10, limbus.display_name, limbus.html_colour, limbus.post_count}
-    assert Stats.team_11() == {11, cobson.display_name, cobson.html_colour, cobson.post_count}
-    assert Stats.team_12() == {12, haters.display_name, haters.html_colour, haters.post_count}
-
-    assert Stats.team_variable("team_2") ==
-             {2, team.display_name, team.html_colour, team.post_count}
-
-    assert Stats.team_variable("team_7") ==
-             {7, futa.display_name, futa.html_colour, futa.post_count}
-
-    assert Stats.team_variable("team_10") ==
-             {10, limbus.display_name, limbus.html_colour, limbus.post_count}
-
-    assert Stats.team_variable("team_11") ==
-             {11, cobson.display_name, cobson.html_colour, cobson.post_count}
-
-    assert Stats.team_variable("team_12") ==
-             {12, haters.display_name, haters.html_colour, haters.post_count}
-
-    assert Stats.team_variable("team_99") == nil
   end
 
   defp identity_fixture do

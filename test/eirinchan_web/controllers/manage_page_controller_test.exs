@@ -359,7 +359,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
           "desktop": [
             ["bant"],
             {"Administration": "/manage/login"},
-            {"Booru": "https://gyate.net", "TF2 {if tf2_display > 0}TF2 playercount: {tf2_display}/24": "https://kogasa.tf"},
+            {"Project": "https://example.com"},
             {"Home": "/"}
           ],
           "mobile": [
@@ -378,8 +378,8 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert persisted =~ "\"label\": \"Administration\""
     assert persisted =~ "\"href\": \"/manage/login\""
     assert persisted =~ "\"label\": \"bant\""
-    assert persisted =~ "TF2 {if tf2_display > 0}TF2 playercount: {tf2_display}/24"
-    assert persisted =~ "https://kogasa.tf"
+    assert persisted =~ "Project"
+    assert persisted =~ "https://example.com"
 
     assert Eirinchan.Boardlist.encode_for_edit(Eirinchan.Boards.list_boards()) =~
              "\"Administration\""
@@ -387,8 +387,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert Eirinchan.Boardlist.encode_for_edit(Eirinchan.Boards.list_boards()) =~ "\"desktop\""
     assert Eirinchan.Boardlist.encode_for_edit(Eirinchan.Boards.list_boards()) =~ "\"mobile\""
 
-    assert Eirinchan.Boardlist.encode_for_edit(Eirinchan.Boards.list_boards()) =~
-             "TF2 {if tf2_display > 0}TF2 playercount: {tf2_display}/24"
+    assert Eirinchan.Boardlist.encode_for_edit(Eirinchan.Boards.list_boards()) =~ "Project"
   end
 
   test "admin can update dnsbl configuration from the dashboard", %{conn: conn} do
@@ -444,7 +443,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert persisted =~ "\"198.51.100.0/24\""
   end
 
-  test "admin can update whale sticker configuration from the dashboard", %{conn: conn} do
+  test "admin can update sticker configuration from the dashboard", %{conn: conn} do
     original_path = Application.get_env(:eirinchan, :instance_config_path)
 
     path =
@@ -479,7 +478,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
         "stickers_json" => """
         [
           {"token": "gojo", "file": "gojo.png", "title": "gojo"},
-          {"token": "whale", "file": "whale1.png", "title": "whale", "append_break": true}
+          {"token": "example", "file": "example.png", "title": "example", "append_break": true}
         ]
         """
       })
@@ -487,7 +486,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert redirected_to(update_conn) == "/manage/stickers/browser"
 
     persisted = File.read!(path)
-    assert persisted =~ "\"whalestickers\""
+    assert persisted =~ "\"stickers\""
     assert persisted =~ "\"gojo.png\""
     assert persisted =~ "\"append_break\": true"
   end

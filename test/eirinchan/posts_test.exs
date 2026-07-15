@@ -72,8 +72,6 @@ end
 defmodule Eirinchan.PostsTest do
   use Eirinchan.DataCase, async: true
 
-  alias Eirinchan.AprilFoolsTeam
-  alias Eirinchan.AprilFoolsTeams
   alias Eirinchan.Antispam
   alias Eirinchan.Build
   alias Eirinchan.BrowserAbuse
@@ -275,78 +273,6 @@ defmodule Eirinchan.PostsTest do
 
     assert reply.ip_subnet == nil
     assert reply.poster_id == thread.poster_id
-  end
-
-  test "create_post assigns the collapsed april fools teams for text posts" do
-    board = board_fixture(%{config_overrides: %{april_fools_teams: true}})
-    request = Map.put(post_request(board.uri), :remote_ip, {203, 0, 113, 44})
-    config = post_config(board.config_overrides)
-    expected_team = AprilFoolsTeams.team_for_ip("203.0.113.44")
-
-    Repo.get!(AprilFoolsTeam, expected_team)
-    |> Ecto.Changeset.change(post_count: 0)
-    |> Repo.update!()
-
-    assert {:ok, thread, %{noko: false}} =
-             Posts.create_post(
-               board,
-               %{
-                 "body" => "team post",
-                 "post" => "New Topic"
-               },
-               config: config,
-               request: request
-             )
-
-    assert thread.team == expected_team
-    assert Repo.get!(AprilFoolsTeam, expected_team).post_count in 1..6
-  end
-
-  test "create_post uses the same collapsed team assignment for image posts" do
-    board = board_fixture(%{config_overrides: %{april_fools_teams: true}})
-    request = Map.put(post_request(board.uri), :remote_ip, {203, 0, 113, 45})
-    config = post_config(board.config_overrides)
-    expected_team = AprilFoolsTeams.team_for_ip("203.0.113.45")
-
-    Repo.get!(AprilFoolsTeam, expected_team)
-    |> Ecto.Changeset.change(post_count: 0)
-    |> Repo.update!()
-
-    assert {:ok, thread, %{noko: false}} =
-             Posts.create_post(
-               board,
-               %{
-                 "body" => "team image post",
-                 "file" => upload_fixture("team.png", "png-bytes"),
-                 "post" => "New Topic"
-               },
-               config: config,
-               request: request
-             )
-
-    assert thread.team == expected_team
-    assert Repo.get!(AprilFoolsTeam, expected_team).post_count in 1..6
-  end
-
-  test "team_for_ip maps rolls 1, 3, 6 to team 11 and 2, 4, 5 to team 12" do
-    ip_for_team_11 =
-      Enum.find_value(1..2000, fn n ->
-        ip = "198.51.100.#{n}"
-        roll = :erlang.phash2(ip, 6) + 1
-        if roll in [1, 3, 6], do: ip, else: nil
-      end)
-
-    ip_for_team_12 =
-      Enum.find_value(1..2000, fn n ->
-        ip = "198.51.101.#{n}"
-        roll = :erlang.phash2(ip, 6) + 1
-        if roll in [2, 4, 5], do: ip, else: nil
-      end)
-
-    assert is_binary(ip_for_team_11)
-    assert is_binary(ip_for_team_12)
-    assert AprilFoolsTeams.team_for_ip(ip_for_team_11) == 11
-    assert AprilFoolsTeams.team_for_ip(ip_for_team_12) == 12
   end
 
   test "create_post accepts legacy post parameter aliases and mode=regist" do
@@ -604,7 +530,12 @@ defmodule Eirinchan.PostsTest do
   test "create_post allows sticker-only OPs when force_image_op and allow_sticker_op are enabled" do
     board =
       board_fixture(%{
-        config_overrides: %{force_image_op: true, allow_sticker_op: true, force_body_op: false}
+        config_overrides: %{
+          force_image_op: true,
+          allow_sticker_op: true,
+          force_body_op: false,
+          stickers: [%{token: "gojo", file: "gojo.png", title: "gojo"}]
+        }
       })
 
     config = post_config(board.config_overrides)

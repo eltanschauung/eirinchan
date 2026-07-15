@@ -5,7 +5,6 @@ defmodule EirinchanWeb.PageController do
   alias Eirinchan.Boards
   alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.CustomPages
-  alias Eirinchan.FlagsPage
   alias Eirinchan.PublicPages
   alias Eirinchan.LandingPages
   alias Eirinchan.NewsBlotter
@@ -130,18 +129,6 @@ defmodule EirinchanWeb.PageController do
     end
   end
 
-  def banners(conn, _params) do
-    render(
-      conn,
-      :banners,
-      Keyword.merge(
-        PublicControllerHelpers.public_page_assigns(conn, "active-page", "banners"),
-        layout: false,
-        banner_assets: banner_assets()
-      )
-    )
-  end
-
   def sitemap(conn, _params) do
     if Themes.page_theme_enabled?("sitemap") do
       settings = Themes.theme_settings("sitemap")
@@ -213,8 +200,6 @@ defmodule EirinchanWeb.PageController do
 
   def faq(conn, _params), do: render_custom_page(conn, PublicPages.fetch_named_page("faq"))
 
-  def flags(conn, _params), do: render_custom_page(conn, PublicPages.fetch_named_page("flags"))
-
   def formatting(conn, _params) do
     render_custom_page(
       conn,
@@ -233,10 +218,6 @@ defmodule EirinchanWeb.PageController do
 
   def feedback(conn, _params),
     do: render_custom_page(conn, PublicPages.fetch_named_page("feedback"))
-
-  def legacy_flags(conn, _params), do: redirect(conn, to: ~p"/flags")
-
-  def board_flag_legacy(conn, %{"board" => _uri}), do: redirect(conn, to: ~p"/flags")
 
   def render_overboard(conn, page \\ 1) do
     settings = Themes.theme_settings("ukko")
@@ -284,21 +265,11 @@ defmodule EirinchanWeb.PageController do
     end
   end
 
-  def board_flag(conn, %{"board" => uri}) do
-    case Boards.get_board_by_uri(uri) do
-      nil ->
-        ErrorPages.not_found(conn)
-
-      _board ->
-        redirect(conn, to: ~p"/flags")
-    end
-  end
-
   def not_found(conn, _params), do: ErrorPages.not_found(conn)
 
   defp current_sticker_config do
     Settings.current_instance_config()
-    |> Eirinchan.WhaleStickers.entries()
+    |> Eirinchan.Stickers.entries()
   end
 
   defp sticker_entries(stickers) when is_list(stickers) do
@@ -306,8 +277,8 @@ defmodule EirinchanWeb.PageController do
     |> Enum.map(fn
       %{"token" => token, "path" => path} -> %{token: token, path: path}
       %{token: token, path: path} -> %{token: token, path: path}
-      %{"token" => token, "file" => file} -> %{token: token, path: "/whalestickers/#{file}"}
-      %{token: token, file: file} -> %{token: token, path: "/whalestickers/#{file}"}
+      %{"token" => token, "file" => file} -> %{token: token, path: "/stickers/#{file}"}
+      %{token: token, file: file} -> %{token: token, path: "/stickers/#{file}"}
       _ -> nil
     end)
     |> Enum.reject(&is_nil/1)
@@ -315,8 +286,7 @@ defmodule EirinchanWeb.PageController do
 
   defp sticker_entries(_), do: []
 
-  defp render_custom_page(conn, page, opts \\ []) do
-    board = Keyword.get(opts, :board)
+  defp render_custom_page(conn, page, _opts \\ []) do
     current_stickers = sticker_entries(current_sticker_config())
     show_global_message = PublicPages.show_global_message?(page.slug)
 
@@ -329,15 +299,6 @@ defmodule EirinchanWeb.PageController do
       )
 
     sanitized_body = HtmlSanitizer.sanitize_fragment(page.body || "")
-    current_flag_assets = flag_assets()
-
-    flag_body_html =
-      if page.slug == "flags" do
-        FlagsPage.expand_dynamic(sanitized_body,
-          flag_assets: current_flag_assets,
-          flag_board: board
-        )
-      end
 
     public_page_assigns =
       PublicControllerHelpers.public_page_assigns(conn, "active-page", page.slug,
@@ -360,9 +321,6 @@ defmodule EirinchanWeb.PageController do
             else: nil
           ),
         sanitized_body: sanitized_body,
-        flag_board: board,
-        flag_storage_key: "flag_",
-        flag_body_html: flag_body_html,
         extra_stylesheets: extra_stylesheets,
         page_subtitle: PublicPages.page_subtitle(page.slug),
         show_global_message: show_global_message,
@@ -374,7 +332,6 @@ defmodule EirinchanWeb.PageController do
     conn = put_public_document_etag(conn, {:custom_page, page_cache_key(page)})
 
     case page.slug do
-      "flags" -> render(conn, :flag, assigns)
       "feedback" -> render(conn, :feedback, assigns)
       "faq" -> render(conn, :faq, assigns)
       "formatting" -> render(conn, :formatting, assigns)
@@ -385,7 +342,7 @@ defmodule EirinchanWeb.PageController do
 
   defp maybe_add_page_stylesheet(stylesheets, %{slug: slug})
        when slug in ["faq", "formatting", "rules"],
-       do: stylesheets ++ ["/faq/recent.css"]
+       do: stylesheets ++ ["/recent.css"]
 
   defp maybe_add_page_stylesheet(stylesheets, _page), do: stylesheets
 
@@ -405,21 +362,6 @@ defmodule EirinchanWeb.PageController do
 
   defp page_cache_key(page) do
     {page.slug, page.title, page.body, Map.get(page, :updated_at), Map.get(page, :inserted_at)}
-  end
-
-  defp flag_assets do
-    compiled_dir = Path.join([:code.priv_dir(:eirinchan), "static", "flags", "compiled"])
-
-    compiled_dir
-    |> File.ls!()
-    |> Enum.filter(&String.match?(&1, ~r/\.(png|gif|jpe?g)$/i))
-    |> Enum.sort()
-    |> Enum.map(fn file ->
-      %{
-        name: Path.rootname(file),
-        url: "/flags/compiled/#{URI.encode(file)}"
-      }
-    end)
   end
 
   defp render_recent_theme(conn, active_page) do
@@ -570,7 +512,7 @@ defmodule EirinchanWeb.PageController do
   end
 
   defp public_custom_page_path(%{slug: slug})
-       when slug in ["faq", "feedback", "flags", "formatting", "rules"],
+       when slug in ["faq", "feedback", "formatting", "rules"],
        do: "/#{slug}"
 
   defp public_custom_page_path(%{slug: slug}), do: "/pages/#{slug}"
@@ -728,18 +670,5 @@ defmodule EirinchanWeb.PageController do
       _ ->
         []
     end
-  end
-
-  defp banner_assets do
-    Path.join(:code.priv_dir(:eirinchan), "static/static/banners")
-    |> File.ls!()
-    |> Enum.filter(&String.match?(&1, ~r/\.(png|gif|jpg)$/i))
-    |> Enum.sort()
-    |> Enum.map(fn filename ->
-      %{
-        name: Path.rootname(filename),
-        url: "/static/banners/#{filename}"
-      }
-    end)
   end
 end

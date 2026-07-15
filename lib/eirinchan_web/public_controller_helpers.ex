@@ -177,7 +177,7 @@ defmodule EirinchanWeb.PublicControllerHelpers do
 
   def public_page_assigns(conn, page_kind, active_page, opts \\ []) do
     boards = Keyword.get_lazy(opts, :boards, &Eirinchan.Boards.list_boards/0)
-    primary_board = Enum.find(boards, &(&1.uri == "bant")) || %{uri: "bant"}
+    primary_board = List.first(boards) || %{uri: ""}
 
     common_assigns =
       public_shell_assigns(conn, active_page, extra_stylesheets: extra_stylesheets())

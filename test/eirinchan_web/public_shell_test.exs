@@ -260,23 +260,6 @@ defmodule EirinchanWeb.PublicShellTest do
            ]
   end
 
-  test "filters legacy unspoiler script from additional javascript" do
-    config = %{
-      root: "/",
-      url_javascript: "/main.js",
-      additional_javascript: ["js/jquery.min.js", "js/unspoiler3.js", "js/ajax.js"],
-      additional_javascript_url: "/",
-      additional_javascript_compile: false
-    }
-
-    assert PublicShell.javascript_urls(:thread, config) == [
-             "/js/runtime-config.js",
-             "/main.js",
-             "/js/jquery.min.js",
-             "/js/ajax.js"
-           ]
-  end
-
   test "filters legacy style select script from additional javascript" do
     config = %{
       root: "/",

@@ -19,7 +19,7 @@ defmodule EirinchanWeb.ManagePageController do
   alias Eirinchan.Runtime.Config
   alias Eirinchan.Settings
   alias Eirinchan.Themes
-  alias Eirinchan.WhaleStickers
+  alias Eirinchan.Stickers
   alias EirinchanWeb.{BoardRuntime, BrowserEntries}
 
   alias EirinchanWeb.{
@@ -444,7 +444,7 @@ defmodule EirinchanWeb.ManagePageController do
     with {:ok, moderator} <- ensure_admin(conn) do
       render(conn, :stickers,
         moderator: moderator,
-        stickers_json: WhaleStickers.encode_for_edit(),
+        stickers_json: Stickers.encode_for_edit(),
         error: nil
       )
     else
@@ -538,7 +538,7 @@ defmodule EirinchanWeb.ManagePageController do
 
   def update_stickers(conn, %{"stickers_json" => stickers_json}) do
     with {:ok, moderator} <- ensure_admin(conn),
-         {:ok, _stickers} <- WhaleStickers.update(stickers_json) do
+         {:ok, _stickers} <- Stickers.update(stickers_json) do
       ModerationAudit.log(conn, "Updated sticker configuration", moderator: moderator)
 
       conn

@@ -10,7 +10,7 @@ defmodule EirinchanWeb.Plugs.FetchSiteAssets do
     version: nil,
     custom_javascript: [],
     analytics_html: nil,
-    url_favicon: "favicon.ico",
+    url_favicon: "images/logo.svg",
     show_styles_block: true,
     allow_custom_javascript: false,
     allow_remote_script_urls: false,
@@ -110,7 +110,10 @@ defmodule EirinchanWeb.Plugs.FetchSiteAssets do
   defp blank_to_nil(value), do: value
 
   defp sanitize_html_fragment(nil), do: nil
-  defp sanitize_html_fragment(value) when is_binary(value), do: HtmlSanitizer.sanitize_fragment(value)
+
+  defp sanitize_html_fragment(value) when is_binary(value),
+    do: HtmlSanitizer.sanitize_fragment(value)
+
   defp sanitize_html_fragment(value), do: value |> to_string() |> sanitize_html_fragment()
 
   defp normalize_favicon_url(nil), do: nil

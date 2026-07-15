@@ -1,10 +1,9 @@
 <a id="top"></a>
 
 <header>
-  <.board_banner style="margin-bottom:1em;width:300px;height:100px;cursor:pointer" />
   <h1><%= PostView.board_heading(@board) %></h1>
   <div class="subtitle">
-    <%= if @board.uri == "bant", do: "", else: @board_chrome.subtitle || @board.subtitle %>
+    <%= @board_chrome.subtitle || @board.subtitle %>
   </div>
   <.admin_shortcuts moderator={@current_moderator} />
 </header>
@@ -110,7 +109,13 @@
         <textarea name="body" id="body" rows="5" cols="35" data-post-body></textarea>
       </td>
     </tr>
-    <tr :if={captcha_enabled?(@config, @browser_challenge_required?) && @config.captcha.provider == "native"} class="captcha">
+    <tr
+      :if={
+        captcha_enabled?(@config, @browser_challenge_required?) &&
+          @config.captcha.provider == "native"
+      }
+      class="captcha"
+    >
       <th>Verification</th>
       <td>
         <label data-captcha-lazy>
@@ -119,13 +124,19 @@
         </label>
       </td>
     </tr>
-    <tr :if={captcha_enabled?(@config, @browser_challenge_required?) && @config.captcha.provider == "recaptcha"}>
+    <tr :if={
+      captcha_enabled?(@config, @browser_challenge_required?) &&
+        @config.captcha.provider == "recaptcha"
+    }>
       <th>Verification</th>
       <td>
         <input type="text" name="g-recaptcha-response" placeholder="reCAPTCHA" data-captcha-lazy />
       </td>
     </tr>
-    <tr :if={captcha_enabled?(@config, @browser_challenge_required?) && @config.captcha.provider == "hcaptcha"}>
+    <tr :if={
+      captcha_enabled?(@config, @browser_challenge_required?) &&
+        @config.captcha.provider == "hcaptcha"
+    }>
       <th>Verification</th>
       <td>
         <input type="text" name="h-captcha-response" placeholder="hCaptcha" data-captcha-lazy />
@@ -285,17 +296,18 @@
       <%= for summary <- @threads do %>
         <% post = summary.thread %>
         <% post_public_id = PostView.public_post_id(post) %>
-      <div
-        class="mix"
-        data-board={@board.uri}
-        data-reply={summary.reply_count}
-        data-bump={PostView.unix_timestamp(post.bump_at || post.inserted_at)}
-        data-time={PostView.unix_timestamp(post.inserted_at)}
+        <div
+          class="mix"
+          data-board={@board.uri}
+          data-reply={summary.reply_count}
+          data-bump={PostView.unix_timestamp(post.bump_at || post.inserted_at)}
+          data-time={PostView.unix_timestamp(post.inserted_at)}
           data-id={post_public_id}
           data-sticky={to_string(post.sticky || false)}
           data-locked={to_string(post.locked || false)}
         >
-          <% watch = Map.get(@thread_watch_state, post_public_id, %{watched: false, unread_count: 0}) %>
+          <% watch =
+            Map.get(@thread_watch_state, post_public_id, %{watched: false, unread_count: 0}) %>
           <div
             class="thread grid-li grid-size-large"
             id={"catalog-#{post_public_id}"}
@@ -321,17 +333,17 @@
                 title={PostView.formatted_timestamp(post, @config)}
               />
             </a>
-          <div class="replies">
-            <div class="catalog-filter-meta" hidden>
-              <span class="name"><%= PostView.display_name(post, @config) %></span>
-              <span :if={post.tripcode} class="trip"><%= post.tripcode %></span>
-              <%= for flag <- PostView.post_flags(post, @config) do %>
-                <img class="flag" src={flag.src} alt={flag.alt} title={flag.alt} />
-              <% end %>
-            </div>
-            <strong>R: <%= summary.reply_count %> / I: <%= summary.image_count %></strong>
-            <.post_controls
-              post={post}
+            <div class="replies">
+              <div class="catalog-filter-meta" hidden>
+                <span class="name"><%= PostView.display_name(post, @config) %></span>
+                <span :if={post.tripcode} class="trip"><%= post.tripcode %></span>
+                <%= for flag <- PostView.post_flags(post, @config) do %>
+                  <img class="flag" src={flag.src} alt={flag.alt} title={flag.alt} />
+                <% end %>
+              </div>
+              <strong>R: <%= summary.reply_count %> / I: <%= summary.image_count %></strong>
+              <.post_controls
+                post={post}
                 board={@board}
                 moderator={@current_moderator}
                 secure_manage_token={@secure_manage_token}
@@ -342,12 +354,12 @@
               <%= if !PostView.catalog_label(post, @config) do %>
                 <br />
               <% end %>
-            <.summary_body
-              class="body"
-              post={post}
-              board={@board}
-              thread={post}
-              config={@config}
+              <.summary_body
+                class="body"
+                post={post}
+                board={@board}
+                thread={post}
+                config={@config}
               />
             </div>
           </div>

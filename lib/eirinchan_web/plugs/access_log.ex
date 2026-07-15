@@ -29,13 +29,10 @@ defmodule EirinchanWeb.Plugs.AccessLog do
     end)
   end
 
-  defp skip_access_log?(%Plug.Conn{
-         method: "POST",
-         request_path: "/api/you-markers/bant",
-         status: status
-       })
-       when status in 200..299,
-       do: true
+  defp skip_access_log?(%Plug.Conn{method: "POST", request_path: path, status: status})
+       when status in 200..299 do
+    Regex.match?(~r|^/api/you-markers/[a-zA-Z0-9_-]+$|, path)
+  end
 
   defp skip_access_log?(_conn), do: false
 

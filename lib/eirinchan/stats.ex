@@ -3,7 +3,6 @@ defmodule Eirinchan.Stats do
 
   import Ecto.Query
 
-  alias Eirinchan.AprilFoolsTeams
   alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.BrowserPresence
   alias Eirinchan.Posts.Post
@@ -31,14 +30,4 @@ defmodule Eirinchan.Stats do
 
   @spec users_10minutes() :: non_neg_integer()
   def users_10minutes, do: active_browsers_10minutes()
-
-  def team_variable(name) when is_binary(name) do
-    AprilFoolsTeams.dynamic_team_variable(name)
-  end
-
-  for team_id <- 1..12 do
-    def unquote(String.to_atom("team_#{team_id}"))() do
-      AprilFoolsTeams.team_tuple(unquote(team_id))
-    end
-  end
 end

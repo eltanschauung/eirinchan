@@ -10,7 +10,6 @@ defmodule Eirinchan.Runtime.Config do
   """
 
   alias Eirinchan.Boards.Board
-  alias Eirinchan.WhaleStickers.Defaults, as: WhaleStickerDefaults
 
   @default_config %{
     root: "/",
@@ -26,7 +25,7 @@ defmodule Eirinchan.Runtime.Config do
     file_catalog_page: "catalog/%d.html",
     catalog_name: "Catalog",
     archive_url: false,
-    url_favicon: "favicon.ico",
+    url_favicon: "images/logo.svg",
     show_styles_block: true,
     stylesheets_board: true,
     default_theme: nil,
@@ -67,8 +66,7 @@ defmodule Eirinchan.Runtime.Config do
     news_blotter_button_label: "View News - {date}",
     noticeboard_page: 50,
     noticeboard_dashboard: 5,
-    whalestickers: WhaleStickerDefaults.entries(),
-    banners: [],
+    stickers: [],
     allow_roll: false,
     try_smarter: false,
     board_locked: false,
@@ -173,12 +171,11 @@ defmodule Eirinchan.Runtime.Config do
     reply_hard_limit: 0,
     image_hard_limit: 0,
     spoiler_images: true,
-    spoiler_image: "static/spoiler_skillet.png",
+    spoiler_image: "static/spoiler.png",
     cycle_limit: 1000,
     always_noko: false,
     poster_ids: false,
     poster_id_length: 5,
-    april_fools_teams: false,
     secure_trip_salt: ")(*&^%$#@!98765432190zyxwvutsrqponmlkjihgfedcba",
     custom_tripcode: %{},
     slugify: false,
@@ -442,7 +439,6 @@ defmodule Eirinchan.Runtime.Config do
     "convertAutoOrient" => :convert_auto_orient,
     "posterIds" => :poster_ids,
     "posterIdLength" => :poster_id_length,
-    "aprilFoolsTeams" => :april_fools_teams,
     "secureTripSalt" => :secure_trip_salt,
     "customTripcode" => :custom_tripcode
   }

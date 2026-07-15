@@ -81,45 +81,27 @@ defmodule Eirinchan.BoardlistTest do
     assert encoded =~ ~s("phone")
   end
 
-  test "runtime boardlist labels support global message placeholders and inline conditions", %{
+  test "runtime boardlist labels support global message placeholders", %{
     boards: boards
   } do
-    label = "TF2 {if tf2_display > 0}TF2 playercount: {tf2_display}/24"
+    label = "Visitors: {stats.users_10minutes}"
 
     :ok =
       Settings.persist_instance_config(%{
         boardlist: %{
-          desktop: [%{label => "https://kogasa.tf"}],
-          mobile: [%{label => "https://kogasa.tf"}]
+          desktop: [%{label => "https://example.com"}],
+          mobile: [%{label => "https://example.com"}]
         }
       })
 
-    [online_group] =
+    [group] =
       PostView.boardlist_groups(boards,
         variant: :desktop,
-        tf2_now: 6_000,
-        tf2_fetcher: fn ->
-          {:ok, %{"success" => true, "display" => "16", "player_count" => 16}}
-        end
+        board_ids: [1, 2],
+        users_10minutes_fetcher: fn -> 16 end
       )
 
-    assert [%{label: "TF2 TF2 playercount: 16/24", title: "TF2 TF2 playercount: 16/24"} = link] =
-             online_group
-
-    assert link.href == "https://kogasa.tf"
-
-    FragmentCache.clear()
-
-    [offline_group] =
-      PostView.boardlist_groups(boards,
-        variant: :desktop,
-        tf2_now: 6_000,
-        tf2_fetcher: fn ->
-          {:ok, %{"success" => true, "display" => "0", "player_count" => 0}}
-        end
-      )
-
-    assert [%{label: "TF2", title: "TF2", href: "https://kogasa.tf"}] = offline_group
+    assert [%{label: "Visitors: 16", title: "Visitors: 16", href: "https://example.com"}] = group
     assert Boardlist.encode_for_edit(boards) =~ label
   end
 

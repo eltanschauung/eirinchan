@@ -4,7 +4,7 @@
 <p :if={@error} class="error"><%= @error %></p>
 
 <p>
-  Configure whale stickers as JSON. Each entry must contain at least <code>token</code>
+  Configure stickers as JSON. Each entry must contain at least <code>token</code>
   and <code>file</code>. Optional fields are <code>title</code>
   and <code>append_break</code>.
 </p>
@@ -12,7 +12,7 @@
 <pre>Example:
 [
   {"token": "gojo", "file": "gojo.png", "title": "gojo"},
-  {"token": "whale", "file": "whale1.png", "title": "whale", "append_break": true}
+  {"token": "example", "file": "example.png", "title": "example", "append_break": true}
 ]</pre>
 
 <form action={~p"/manage/stickers/browser"} method="post">

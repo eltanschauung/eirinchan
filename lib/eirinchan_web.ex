@@ -22,35 +22,26 @@ defmodule EirinchanWeb do
         assets
         auth
         error_pages
-        faq
-        flag
-        flags
         fonts
         images
         js
         main.js
         recent.css
-        secret_bfc.png
-        site_logo.png
-        site_logo2.png
         static
         stylesheets
         theme-thumbs
-        whalestickers
+        stickers
         background_christmas.jpg
         background_kivotos.jpg
         background_tiekan.jpg
         eientei_day.jpg
         eientei_night.jpg
         christmas_alice.png
-        favicon.ico
         lei_heng.png
         reisen_up.png
         robots.txt
-        spoiler_skillet.png
         tewi_down.png
         yuuka.png
-        whales.jpg
       )
 
   def router do

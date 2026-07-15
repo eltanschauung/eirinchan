@@ -1,7 +1,6 @@
 <%= if @error do %>
   <h2 style="text-align:center"><%= @error %></h2>
 <% end %>
-<.board_banner />
 <form action={~p"/manage/login/browser"} method="post" class="mod-login-form">
   <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
   <table style="margin-top:25px;">

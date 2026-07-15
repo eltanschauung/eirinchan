@@ -73,13 +73,17 @@ defmodule EirinchanWeb.PostViewTest do
     assert html == "a<br/>b<br/>c"
   end
 
-  test "body_html renders configured whale stickers" do
-    config = Config.compose()
+  test "body_html renders configured stickers" do
+    config =
+      Config.compose(%{
+        stickers: [%{token: "gojo", file: "gojo.png", title: "gojo", append_break: false}]
+      })
+
     post = %Post{body: ":gojo:waow"}
 
     html = PostView.body_html(post, %BoardRecord{uri: "bant"}, post, config)
 
-    assert html =~ ~s(<img src="/whalestickers/gojo.png" title=":gojo:">waow)
+    assert html =~ ~s(<img src="/stickers/gojo.png" title=":gojo:">waow)
   end
 
   test "body_html renders inactive OP gap warnings with the public ban styling" do
@@ -178,29 +182,6 @@ defmodule EirinchanWeb.PostViewTest do
     assert badge.style =~ "background-color:"
     assert html =~ ~s(class="poster_id standard_poster_id")
     assert html =~ "abcde"
-  end
-
-  test "april fools teams replace poster ids with styled team badges" do
-    config = Config.compose(%{april_fools_teams: true})
-    board = %BoardRecord{uri: "bant", title: "Bant"}
-
-    post = %Post{
-      id: 100,
-      thread_id: nil,
-      team: 2,
-      ip_subnet: "198.51.100.0/24",
-      inserted_at: ~N[2026-03-31 12:00:00]
-    }
-
-    badge = PostView.poster_identity_badge(post, config)
-    html = PostComponents.post_identity_html(%{post: post, config: config, board: board})
-
-    assert PostView.poster_id(post, config) == "Judaism ✡"
-    assert badge.label == "Judaism ✡"
-    assert badge.class == "poster_id april_fools_team"
-    assert badge.style =~ "#000080"
-    assert html =~ ~s(class="poster_id april_fools_team")
-    assert html =~ "Judaism ✡"
   end
 
   test "catalog threads with no file use the dedicated no-file image" do
@@ -403,11 +384,15 @@ defmodule EirinchanWeb.PostViewTest do
     refute html =~ "<script"
   end
 
-
   test "embed_html sanitizes static script markup in configured templates" do
     config = %{
       Config.compose()
-      | embedding: [[~r/^x:(.+)$/i, "<div class=\"video-container\"><script>alert(1)</script><b>$1</b></div>"]]
+      | embedding: [
+          [
+            ~r/^x:(.+)$/i,
+            "<div class=\"video-container\"><script>alert(1)</script><b>$1</b></div>"
+          ]
+        ]
     }
 
     html = PostView.embed_html("x:safe", config)

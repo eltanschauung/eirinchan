@@ -53,7 +53,6 @@ defmodule EirinchanWeb.ManagePageHTML do
 
   def custom_page_path(%{slug: slug}), do: custom_page_path(slug)
   def custom_page_path("faq"), do: "/faq"
-  def custom_page_path("flags"), do: "/flags"
   def custom_page_path("formatting"), do: "/formatting"
   def custom_page_path("rules"), do: "/rules"
   def custom_page_path(slug) when is_binary(slug), do: "/pages/#{slug}"

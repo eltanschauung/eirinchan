@@ -44,8 +44,7 @@ Canonical keys
 - news_blotter_button_label
 - noticeboard_page
 - noticeboard_dashboard
-- whalestickers
-- banners
+- stickers
 - allow_roll
 - try_smarter
 - board_locked

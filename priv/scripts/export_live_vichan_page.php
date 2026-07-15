@@ -1,7 +1,7 @@
 <?php
 
 $root = $argv[1] ?? '/path/to/vichan';
-$board = $argv[2] ?? 'bant';
+$board = $argv[2] ?? throw new InvalidArgumentException('board argument is required');
 $limit = isset($argv[3]) ? max((int) $argv[3], 1) : 10;
 
 $config = ['db' => []];

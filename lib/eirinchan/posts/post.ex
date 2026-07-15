@@ -39,7 +39,6 @@ defmodule Eirinchan.Posts.Post do
     field :slug, :string
     field :public_id, :integer
     field :legacy_import_id, :integer
-    field :team, :integer
 
     belongs_to :board, Eirinchan.Boards.BoardRecord
     belongs_to :thread, __MODULE__
@@ -86,8 +85,7 @@ defmodule Eirinchan.Posts.Post do
       :sage,
       :slug,
       :public_id,
-      :legacy_import_id,
-      :team
+      :legacy_import_id
     ])
     |> update_change(:name, &normalize_string/1)
     |> update_change(:email, &normalize_string/1)

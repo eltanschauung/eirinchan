@@ -1,8 +1,6 @@
 defmodule Eirinchan.PosterIds do
   @moduledoc false
 
-  alias Eirinchan.AprilFoolsTeams
-
   @default_length 5
   @max_length 40
   @colours [
@@ -53,34 +51,10 @@ defmodule Eirinchan.PosterIds do
   def poster_id(_post, _config), do: nil
 
   def badge(post, config) when is_map(post) and is_map(config) do
-    cond do
-      AprilFoolsTeams.enabled?(config) ->
-        april_fools_badge(post)
-
-      enabled?(config) ->
-        standard_badge(post, config)
-
-      true ->
-        nil
-    end
+    if enabled?(config), do: standard_badge(post, config), else: nil
   end
 
   def badge(_post, _config), do: nil
-
-  defp april_fools_badge(%{} = post) do
-    case AprilFoolsTeams.badge(post) do
-      %{label: label, html_colour: html_colour, text_colour: text_colour} ->
-        %{
-          label: label,
-          class: "poster_id april_fools_team",
-          style:
-            "background-color: #{html_colour}; color: #{text_colour}; padding: 0 0.35em; border-radius: 6px;"
-        }
-
-      _ ->
-        nil
-    end
-  end
 
   defp standard_badge(post, _config) do
     case persisted_poster_id(post) do
