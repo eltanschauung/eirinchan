@@ -213,6 +213,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       conn
       |> recycle()
       |> login_moderator(moderator)
+      |> put_req_header("accept", "*/*")
       |> get("/manage/bans/browser.json")
       |> json_response(200)
 
