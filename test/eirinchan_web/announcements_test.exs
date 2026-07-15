@@ -175,6 +175,28 @@ defmodule EirinchanWeb.AnnouncementsTest do
     assert Agent.get(calls, & &1) == 1
   end
 
+  test "single-board stats use the configured aggregate cache interval" do
+    now = System.system_time(:second)
+    :ets.delete_all_objects(:eirinchan_browser_presence)
+    true = :ets.insert(:eirinchan_browser_presence, {"token-1234567890123456", now})
+
+    config = %{
+      global_message: "Visitors: {stats.users_10minutes}",
+      global_message_refresh_seconds: 7
+    }
+
+    assert Announcements.global_message(config, board: %{id: 42}, aggregate_now: 98) ==
+             "Visitors: 1"
+
+    true = :ets.insert(:eirinchan_browser_presence, {"token-abcdefghijklmnop", now})
+
+    assert Announcements.global_message(config, board: %{id: 42}, aggregate_now: 104) ==
+             "Visitors: 1"
+
+    assert Announcements.global_message(config, board: %{id: 42}, aggregate_now: 105) ==
+             "Visitors: 2"
+  end
+
   test "silly post count applies the requested replacements" do
     transformed = AprilFoolsTeams.silly_post_count("1236789")
     transformed_again = AprilFoolsTeams.silly_post_count("1236789")

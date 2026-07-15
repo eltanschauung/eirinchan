@@ -2,13 +2,14 @@ defmodule EirinchanWeb.Announcements do
   @moduledoc false
 
   alias Eirinchan.AprilFoolsTeams
+  alias Eirinchan.GlobalMessageRefreshWorker
   alias Eirinchan.NewsBlotter
   alias Eirinchan.Stats
   alias Eirinchan.Tf2PlayerCount
   alias EirinchanWeb.FragmentCache
   alias EirinchanWeb.HtmlSanitizer
 
-  @aggregate_cache_bucket_seconds 30
+  @default_aggregate_cache_seconds 30
 
   @refresh_cache_namespaces [
     :announcement_global_message,
@@ -26,6 +27,13 @@ defmodule EirinchanWeb.Announcements do
   end
 
   def global_message(config, opts \\ []) when is_map(config) do
+    opts =
+      Keyword.put_new(
+        opts,
+        :aggregate_cache_seconds,
+        GlobalMessageRefreshWorker.interval_seconds(config)
+      )
+
     case Map.get(config, :global_message) do
       value when is_binary(value) and value != "" -> expand_text(value, opts)
       _ -> nil
@@ -210,7 +218,7 @@ defmodule EirinchanWeb.Announcements do
   defp cacheable_aggregate_placeholders?(message, opts) do
     case stats_placeholders(message) do
       %{board_scoped?: true, team_scoped?: false} ->
-        aggregate_board_ids?(opts[:board_ids])
+        aggregate_board_ids(opts) != []
 
       %{team_scoped?: true} ->
         false
@@ -219,8 +227,6 @@ defmodule EirinchanWeb.Announcements do
         false
     end
   end
-
-  defp aggregate_board_ids?(board_ids), do: is_list(board_ids) and board_ids != []
 
   defp stats_placeholders(message) do
     %{
@@ -240,9 +246,37 @@ defmodule EirinchanWeb.Announcements do
       :announcement_global_message,
       message,
       opts[:surround_hr] || false,
-      opts[:board_ids] |> List.wrap() |> Enum.sort(),
-      div(System.system_time(:second), @aggregate_cache_bucket_seconds)
+      aggregate_board_ids(opts),
+      div(aggregate_cache_now(opts), aggregate_cache_seconds(opts))
     }
+  end
+
+  defp aggregate_board_ids(opts) do
+    case opts[:board] do
+      %{id: board_id} when is_integer(board_id) ->
+        [board_id]
+
+      _other ->
+        opts[:board_ids]
+        |> List.wrap()
+        |> Enum.filter(&is_integer/1)
+        |> Enum.uniq()
+        |> Enum.sort()
+    end
+  end
+
+  defp aggregate_cache_seconds(opts) do
+    case opts[:aggregate_cache_seconds] do
+      seconds when is_integer(seconds) and seconds > 0 -> seconds
+      _other -> @default_aggregate_cache_seconds
+    end
+  end
+
+  defp aggregate_cache_now(opts) do
+    case opts[:aggregate_now] do
+      now when is_integer(now) and now >= 0 -> now
+      _other -> System.system_time(:second)
+    end
   end
 
   defp posts_perhour_placeholder(opts) do
