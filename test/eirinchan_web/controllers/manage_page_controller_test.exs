@@ -204,6 +204,12 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert page =~ ~s(data-banlist-url="/manage/bans/browser.json")
     assert page =~ "/js/mod/ban-list.js"
     assert page =~ ~s(class="mod banlist-table" id="banlist")
+    assert page =~ ~s(id="banlist-pagination-top")
+    assert page =~ ~s(id="banlist-pagination-bottom")
+    assert length(Regex.scan(~r/data-ban-pagination/, page)) == 2
+    assert page =~ ~s(class="banlist-skeleton-row")
+    assert page =~ ~s(id="banlist" aria-busy="true")
+    refute page =~ ~s(class="banlist-table-wrap" hidden)
     assert page =~ ~s(data-ban-sort="mask")
     assert page =~ ~s(data-ban-sort="created")
     refute page =~ "/js/longtable/longtable.js"

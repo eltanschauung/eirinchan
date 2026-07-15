@@ -60,8 +60,18 @@
     Loading bans...
   </p>
 
-  <div class="banlist-table-wrap" hidden>
-    <table class="mod banlist-table" id="banlist">
+  <nav
+    id="banlist-pagination-top"
+    class="banlist-pagination"
+    data-ban-pagination
+    aria-label="Ban list pages (top)"
+    aria-busy="true"
+  >
+    <span class="banlist-pagination-placeholder" aria-hidden="true">Previous [1] Next</span>
+  </nav>
+
+  <div class="banlist-table-wrap">
+    <table class="mod banlist-table" id="banlist" aria-busy="true">
       <caption class="banlist-visually-hidden">Bans</caption>
       <colgroup>
         <col class="banlist-col-target" />
@@ -88,10 +98,25 @@
           <th scope="col">Edit</th>
         </tr>
       </thead>
-      <tbody></tbody>
+      <tbody>
+        <tr :for={_ <- 1..6} class="banlist-skeleton-row" aria-hidden="true">
+          <td data-label="Target"><span class="banlist-skeleton-line"></span></td>
+          <td data-label="Reason"><span class="banlist-skeleton-line"></span></td>
+          <td data-label="Scope"><span class="banlist-skeleton-line"></span></td>
+          <td data-label="Timing"><span class="banlist-skeleton-line"></span></td>
+          <td data-label="Edit"><span class="banlist-skeleton-line"></span></td>
+        </tr>
+      </tbody>
     </table>
   </div>
 
-  <nav id="banlist-pagination" class="banlist-pagination" aria-label="Ban list pages" hidden>
+  <nav
+    id="banlist-pagination-bottom"
+    class="banlist-pagination"
+    data-ban-pagination
+    aria-label="Ban list pages (bottom)"
+    aria-busy="true"
+  >
+    <span class="banlist-pagination-placeholder" aria-hidden="true">Previous [1] Next</span>
   </nav>
 </form>
