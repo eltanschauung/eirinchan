@@ -46,6 +46,12 @@ defmodule EirinchanWeb.Plugs.PublicDocumentCache do
     |> Enum.any?(&String.starts_with?(&1, "text/html"))
   end
 
+  # The feedback document embeds a session-bound CSRF token in a plain HTML
+  # form. Revalidating it by its content-only ETag can pair a cached form from
+  # an old session with a newly issued session cookie, making the submission
+  # fail CSRF validation.
+  defp excluded_path?("/feedback"), do: true
+
   defp excluded_path?(path) when is_binary(path) do
     String.starts_with?(path, "/manage")
   end

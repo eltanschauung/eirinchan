@@ -25,6 +25,27 @@ defmodule EirinchanWeb.FeedbackControllerTest do
     assert %{"feedback_id" => _id, "status" => "ok"} = json_response(conn, 200)
   end
 
+  test "feedback form is not conditionally cached with a session-bound csrf token", %{conn: conn} do
+    response = get(conn, "/feedback")
+
+    assert html_response(response, 200) =~ ~s(name="_csrf_token")
+    assert get_resp_header(response, "etag") == []
+
+    assert Enum.any?(
+             get_resp_header(response, "cache-control"),
+             &String.contains?(&1, "no-store")
+           )
+
+    stale_revalidation =
+      conn
+      |> recycle()
+      |> put_req_header("if-none-match", ~s("stale-feedback-document"))
+      |> get("/feedback")
+
+    assert html_response(stale_revalidation, 200) =~ ~s(name="_csrf_token")
+    assert get_resp_header(stale_revalidation, "etag") == []
+  end
+
   test "feedback submission validates body", %{conn: conn} do
     conn =
       conn
