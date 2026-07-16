@@ -39,6 +39,16 @@ defmodule EirinchanWeb.JsBundlesTest do
            ]
   end
 
+  test "loads options before scripts that extend it" do
+    core_sources = JsBundles.sources_for(:core)
+    options_index = Enum.find_index(core_sources, &(&1 == "js/options.js"))
+    watcher_index = Enum.find_index(core_sources, &(&1 == "js/thread-watcher.js"))
+
+    assert is_integer(options_index)
+    assert is_integer(watcher_index)
+    assert options_index < watcher_index
+  end
+
   test "maintained minified outputs resolve to readable non-static sources" do
     outputs = JsBundles.maintained_outputs()
 

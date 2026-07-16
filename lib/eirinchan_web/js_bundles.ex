@@ -6,11 +6,11 @@ defmodule EirinchanWeb.JsBundles do
   @bundle_sources %{
     core: [
       "js/jquery.min.js",
+      "js/options.js",
+      "js/options/general.js",
       "js/thread-watcher.js",
       "js/blotter.js",
       "js/youtube.js",
-      "js/options.js",
-      "js/options/general.js",
       "js/mobile-style.js"
     ],
     default: [
