@@ -31,8 +31,8 @@ The supported production installation uses Docker Compose. Before starting:
 Then run:
 
 ```sh
-git clone https://github.com/eltanschauung/eirinchan-v1.git
-cd eirinchan-v1
+git clone https://github.com/eltanschauung/eirinchan-devel.git
+cd eirinchan-devel
 ./eirinchan install
 ```
 
