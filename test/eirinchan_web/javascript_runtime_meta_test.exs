@@ -15,4 +15,8 @@ defmodule EirinchanWeb.JavaScriptRuntimeMetaTest do
     assert PublicShell.head_meta(:index, config: config)["eirinchan:allow-user-custom-code"] ==
              "true"
   end
+
+  test "custom code is enabled in the default runtime config" do
+    assert Eirinchan.Runtime.Config.default_config().allow_user_custom_code
+  end
 end
