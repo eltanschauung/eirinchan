@@ -8,6 +8,7 @@ defmodule EirinchanWeb.BoardController do
   alias EirinchanWeb.BoardChrome
   alias EirinchanWeb.ErrorPages
   alias EirinchanWeb.PublicControllerHelpers
+  alias EirinchanWeb.ShowYous
 
   plug EirinchanWeb.Plugs.RenderOverboard when action in [:show, :show_page]
   plug EirinchanWeb.Plugs.LoadBoard when action in [:show]
@@ -272,6 +273,8 @@ defmodule EirinchanWeb.BoardController do
             watcher_count: watcher_count,
             watcher_unread_count: watcher_unread_count,
             watcher_you_count: watcher_you_count,
+            own_post_ids: MapSet.new(),
+            show_yous: false,
             current_moderator: conn.assigns[:current_moderator],
             secure_manage_token: conn.assigns[:secure_manage_token],
             mobile_client?: conn.assigns[:mobile_client?] || false,
@@ -303,6 +306,9 @@ defmodule EirinchanWeb.BoardController do
             fragment_cache_key(:index, board, page_data, render_assigns)
           )
 
+        response_assigns =
+          fragment_ownership_assigns(render_assigns, conn, page_data, fragment?)
+
         cond do
           fragment_md5? ->
             text(conn, fragment_md5)
@@ -318,7 +324,7 @@ defmodule EirinchanWeb.BoardController do
               render(
                 conn,
                 if(fragment?, do: :index_fragment, else: :show),
-                Keyword.put(render_assigns, :fragment_md5, fragment_md5)
+                Keyword.put(response_assigns, :fragment_md5, fragment_md5)
               )
 
             PublicControllerHelpers.maybe_log_page_performance(
@@ -351,6 +357,24 @@ defmodule EirinchanWeb.BoardController do
       |> Enum.flat_map(fn summary -> [summary.thread | summary.replies] end)
 
     Posts.backlinks_map_for_posts(posts)
+  end
+
+  defp fragment_ownership_assigns(assigns, _conn, _page_data, false), do: assigns
+
+  defp fragment_ownership_assigns(assigns, conn, page_data, true) do
+    show_yous = ShowYous.enabled?(conn)
+
+    posts =
+      Enum.flat_map(page_data.threads, fn summary ->
+        [summary.thread | summary.replies]
+      end)
+
+    assigns
+    |> Keyword.put(:show_yous, show_yous)
+    |> Keyword.put(
+      :own_post_ids,
+      if(show_yous, do: ShowYous.owned_post_ids(conn, posts), else: MapSet.new())
+    )
   end
 
   defp fragment_cache_key(kind, board, page_data, assigns) do
