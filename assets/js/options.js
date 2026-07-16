@@ -10,6 +10,77 @@
   var panel;
   var tabList;
   var exitTab;
+  var tabIconSelector = ".options_tab_icon[id^='options-tab-icon-']";
+
+  var allowedContentElements = {
+    A: true,
+    BR: true,
+    BUTTON: true,
+    DIV: true,
+    FIELDSET: true,
+    INPUT: true,
+    LABEL: true,
+    LEGEND: true,
+    OPTION: true,
+    SELECT: true,
+    SMALL: true,
+    SPAN: true,
+    TABLE: true,
+    TBODY: true,
+    TD: true,
+    TEXTAREA: true,
+    TH: true,
+    THEAD: true,
+    TR: true
+  };
+
+  var globalContentAttributes = {
+    "aria-label": true,
+    "aria-labelledby": true,
+    "aria-describedby": true,
+    "aria-expanded": true,
+    class: true,
+    hidden: true,
+    id: true,
+    title: true
+  };
+
+  var elementContentAttributes = {
+    A: {href: true},
+    BUTTON: {disabled: true, name: true, type: true, value: true},
+    INPUT: {
+      autocomplete: true,
+      checked: true,
+      disabled: true,
+      max: true,
+      maxlength: true,
+      min: true,
+      minlength: true,
+      name: true,
+      placeholder: true,
+      size: true,
+      step: true,
+      type: true,
+      value: true
+    },
+    LABEL: {for: true},
+    OPTION: {disabled: true, selected: true, value: true},
+    SELECT: {disabled: true, multiple: true, name: true, size: true},
+    TEXTAREA: {cols: true, maxlength: true, name: true, placeholder: true, rows: true}
+  };
+
+  var blockedContentElements = {
+    BASE: true,
+    EMBED: true,
+    IFRAME: true,
+    LINK: true,
+    MATH: true,
+    META: true,
+    OBJECT: true,
+    SCRIPT: true,
+    STYLE: true,
+    SVG: true
+  };
 
   function translate(value) {
     return typeof window._ === "function" ? window._(value) : value;
@@ -26,6 +97,62 @@
     return $(document.createElement("i")).addClass("fa fa-" + normalized);
   }
 
+  function safeContentHref(value) {
+    var href = String(value || "").trim();
+    if (!href) return false;
+
+    try {
+      var url = new URL(href, window.location.href);
+      return (
+        url.origin === window.location.origin &&
+        (url.protocol === "http:" || url.protocol === "https:")
+      );
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  function allowedContentAttribute(element, attribute) {
+    var name = attribute.name.toLowerCase();
+
+    if (name.startsWith("on") || name === "style" || name === "src" || name === "srcdoc") {
+      return false;
+    }
+
+    if (globalContentAttributes[name] || name.startsWith("aria-") || name.startsWith("data-")) {
+      return true;
+    }
+
+    var elementAttributes = elementContentAttributes[element.tagName] || {};
+    if (!elementAttributes[name]) return false;
+    if (name === "href") return safeContentHref(attribute.value);
+    return true;
+  }
+
+  function optionsContentFragment(markup) {
+    var template = document.createElement("template");
+    template.innerHTML = String(markup || "");
+
+    Array.prototype.slice.call(template.content.querySelectorAll("*")).forEach(function (element) {
+      if (blockedContentElements[element.tagName]) {
+        element.remove();
+        return;
+      }
+
+      if (!allowedContentElements[element.tagName]) {
+        while (element.firstChild) element.parentNode.insertBefore(element.firstChild, element);
+        element.remove();
+        return;
+      }
+
+      Array.prototype.slice.call(element.attributes).forEach(function (attribute) {
+        if (!allowedContentAttribute(element, attribute)) element.removeAttribute(attribute.name);
+      });
+    });
+
+    return template.content;
+  }
+
   function appendContent(target, content) {
     if (!content) return;
 
@@ -34,8 +161,35 @@
     } else if (content.nodeType) {
       target.append(content);
     } else if (typeof content === "string") {
-      $(document.createElement("div")).text(content).appendTo(target);
+      target.append(optionsContentFragment(content));
     }
+  }
+
+  function tabIdFromIcon(icon) {
+    var prefix = "options-tab-icon-";
+    var id = String(icon && icon.id ? icon.id : "");
+    return id.startsWith(prefix) ? id.slice(prefix.length) : null;
+  }
+
+  function selectTabFromIcon(event) {
+    var id = tabIdFromIcon(event.currentTarget);
+    if (id) Options.select_tab(id);
+  }
+
+  function selectTabFromKeyboard(event) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    selectTabFromIcon(event);
+  }
+
+  function refreshTabElements(tab) {
+    if (!tab) return tab;
+
+    var liveIcon = $("#options-tab-icon-" + tab.id);
+    var liveContent = $("#options-tab-" + tab.id);
+    if (liveIcon.length) tab.icon = liveIcon;
+    if (liveContent.length) tab.content = liveContent;
+    return tab;
   }
 
   function createButton(id, label) {
@@ -74,6 +228,14 @@
       event.preventDefault();
       Options.hide();
     });
+
+    tabList
+      .off("click.optionsTabs", tabIconSelector)
+      .on("click.optionsTabs", tabIconSelector, selectTabFromIcon)
+      .off("keydown.optionsTabs", tabIconSelector)
+      .on("keydown.optionsTabs", tabIconSelector, selectTabFromKeyboard);
+
+    tabList.find(tabIconSelector).attr({role: "button", tabindex: "0"});
   }
 
   var Options = {};
@@ -105,6 +267,7 @@
     if (!tab.icon.length) {
       tab.icon = $(document.createElement("div"))
         .attr("id", "options-tab-icon-" + normalizedId)
+        .attr({role: "button", tabindex: "0"})
         .addClass("options_tab_icon");
       var iconNode = iconElement(icon);
       if (iconNode) tab.icon.append(iconNode);
@@ -132,9 +295,7 @@
       }
     }
 
-    tab.icon.off("click.optionsTab").on("click.optionsTab", function () {
-      Options.select_tab(normalizedId);
-    });
+    tab.icon.attr({role: "button", tabindex: "0"});
 
     if (exitTab && exitTab.length) exitTab.detach().appendTo(tabList);
     appendContent(tab.content, content);
@@ -154,9 +315,13 @@
   };
 
   Options.select_tab = function (id, immediate) {
-    var nextTab = tabs[id];
+    var nextTab = refreshTabElements(tabs[id]);
     if (!nextTab) return false;
-    if (currentTab && currentTab.id === nextTab.id) return false;
+    currentTab = refreshTabElements(currentTab);
+    if (currentTab && currentTab.id === nextTab.id) {
+      currentTab.icon.addClass("active");
+      return false;
+    }
 
     if (currentTab) {
       currentTab.content.stop(true, true).fadeOut();

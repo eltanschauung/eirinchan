@@ -3,17 +3,17 @@
     {
       "label": "bundle:core",
       "output": "priv/static/js/bundle-public-core.js",
-      "output_bytes": 105350,
+      "output_bytes": 107463,
       "public_path": "/js/bundle-public-core.js",
-      "sha256": "388c2756250989588f90a7139ae6f78f8b4ac7819cef0a97a5497389b59a4e96",
-      "source_bytes": 122189,
+      "sha256": "b649765abcb93cc470113532a3c44a4e8c8577084fdc76935a653bdfc278b200",
+      "source_bytes": 126586,
       "sources": [
         "priv/static/js/jquery.min.js",
+        "assets/js/options.js",
+        "assets/js/options/general.js",
         "priv/static/js/thread-watcher.js",
         "assets/js/blotter.js",
         "assets/js/youtube.js",
-        "assets/js/options.js",
-        "assets/js/options/general.js",
         "assets/js/mobile-style.js"
       ]
     },
@@ -209,10 +209,10 @@
     {
       "label": "maintained:js/options.js",
       "output": "priv/static/js/options.js",
-      "output_bytes": 3725,
+      "output_bytes": 5838,
       "public_path": "/js/options.js",
-      "sha256": "3f10e22030a7fcacdf696f4f96e012e6ad2c2997029dcf9570e2f5322d1b9d89",
-      "source_bytes": 6866,
+      "sha256": "3a3dd002d2ad5a8d46aa8531763f0837b25c4c1967534589f58f98bf94f4cdfd",
+      "source_bytes": 11263,
       "sources": [
         "assets/js/options.js"
       ]
