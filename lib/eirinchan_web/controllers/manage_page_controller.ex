@@ -21,7 +21,7 @@ defmodule EirinchanWeb.ManagePageController do
   alias Eirinchan.Settings
   alias Eirinchan.Themes
   alias Eirinchan.WhaleStickers
-  alias EirinchanWeb.{BoardRuntime, BrowserEntries}
+  alias EirinchanWeb.{BoardRuntime, BrowserEntries, ChangesetErrors}
 
   alias EirinchanWeb.{
     ManageSecurity,
@@ -3425,7 +3425,9 @@ defmodule EirinchanWeb.ManagePageController do
 
   defp format_changeset(changeset) do
     changeset.errors
-    |> Enum.map_join(", ", fn {field, {message, _opts}} -> "#{field} #{message}" end)
+    |> Enum.map_join(", ", fn {field, error} ->
+      "#{field} #{ChangesetErrors.translate_error(error)}"
+    end)
   end
 
   defp effective_board_config(board_record, request_host) do

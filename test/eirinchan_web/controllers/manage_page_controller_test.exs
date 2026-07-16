@@ -759,6 +759,23 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert Moderation.get_user(created.id).role == "mod"
   end
 
+  test "admin password validation renders the minimum length", %{conn: conn} do
+    admin = moderator_fixture(%{role: "admin", username: "passwordadmin"})
+    janitor = moderator_fixture(%{role: "janitor", username: "passwordjanitor"})
+
+    response =
+      conn
+      |> login_moderator(admin)
+      |> post("/manage/users/browser/#{janitor.id}", %{
+        "username" => janitor.username,
+        "password" => "short"
+      })
+      |> html_response(422)
+
+    assert response =~ "password should be at least 12 character(s)"
+    refute response =~ "%{count}"
+  end
+
   test "moderator can list users but janitor cannot", %{conn: conn} do
     moderator = moderator_fixture(%{role: "mod"})
     janitor = moderator_fixture(%{role: "janitor"})
