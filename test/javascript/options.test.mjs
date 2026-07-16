@@ -76,3 +76,22 @@ test("legacy option markup renders as controls and is sanitized", () => {
   assert.equal(document.getElementById("unsafe-link").hasAttribute("href"), false);
   assert.equal(document.getElementById("safe-link").getAttribute("href"), "/bant/");
 });
+
+test("separate legacy option extensions retain block-level spacing", () => {
+  const window = optionsWindow();
+  const {document, Options} = window;
+
+  Options.extend_tab("general", '<label id="add-nav-arrows"><input type="checkbox">Arrows</label>');
+  Options.extend_tab("general", '<label id="show-yous"><input type="checkbox">Show (You)s</label>');
+  Options.extend_tab("general", '<span id="inline-expand-max"><input type="number"></span>');
+
+  const controls = ["add-nav-arrows", "show-yous", "inline-expand-max"].map((id) =>
+    document.getElementById(id)
+  );
+
+  assert.deepEqual(
+    controls.map((control) => control.parentElement.tagName),
+    ["DIV", "DIV", "DIV"]
+  );
+  assert.equal(new Set(controls.map((control) => control.parentElement)).size, 3);
+});
