@@ -17,4 +17,10 @@ defmodule EirinchanWeb.ChangesetErrorsTest do
              field: ["invalid value"]
            }
   end
+
+  test "translates a single Ecto validation error" do
+    assert ChangesetErrors.translate_error(
+             {"should be at least %{count} character(s)", count: 12, validation: :length}
+           ) == "should be at least 12 character(s)"
+  end
 end
