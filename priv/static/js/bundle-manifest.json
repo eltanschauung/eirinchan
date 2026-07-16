@@ -1,7 +1,6 @@
 {
   "bundles": [
     {
-      "gzip_bytes": 35727,
       "label": "bundle:core",
       "output": "priv/static/js/bundle-public-core.js",
       "output_bytes": 105350,
@@ -19,7 +18,6 @@
       ]
     },
     {
-      "gzip_bytes": 5189,
       "label": "bundle:default",
       "output": "priv/static/js/bundle-public-default.js",
       "output_bytes": 14825,
@@ -35,7 +33,6 @@
       ]
     },
     {
-      "gzip_bytes": 89516,
       "label": "bundle:thread",
       "output": "priv/static/js/bundle-public-thread.js",
       "output_bytes": 328669,
@@ -69,7 +66,6 @@
       ]
     },
     {
-      "gzip_bytes": 90132,
       "label": "bundle:index",
       "output": "priv/static/js/bundle-public-index.js",
       "output_bytes": 331137,
@@ -103,7 +99,6 @@
       ]
     },
     {
-      "gzip_bytes": 13938,
       "label": "bundle:catalog",
       "output": "priv/static/js/bundle-public-catalog.js",
       "output_bytes": 47031,
@@ -126,7 +121,6 @@
       ]
     },
     {
-      "gzip_bytes": 764,
       "label": "bundle:ukko",
       "output": "priv/static/js/bundle-public-ukko.js",
       "output_bytes": 1696,
@@ -138,7 +132,6 @@
       ]
     },
     {
-      "gzip_bytes": 5109,
       "label": "bundle:search",
       "output": "priv/static/js/bundle-public-search.js",
       "output_bytes": 14576,
@@ -159,7 +152,6 @@
   "generator": "priv/scripts/build_public_bundles.exs",
   "maintained": [
     {
-      "gzip_bytes": 1914,
       "label": "maintained:assets/app.js",
       "output": "priv/static/assets/app.js",
       "output_bytes": 5271,
@@ -171,7 +163,6 @@
       ]
     },
     {
-      "gzip_bytes": 204,
       "label": "maintained:js/auth-redirect.js",
       "output": "priv/static/js/auth-redirect.js",
       "output_bytes": 256,
@@ -183,7 +174,6 @@
       ]
     },
     {
-      "gzip_bytes": 230,
       "label": "maintained:js/blotter.js",
       "output": "priv/static/js/blotter.js",
       "output_bytes": 344,
@@ -195,7 +185,6 @@
       ]
     },
     {
-      "gzip_bytes": 742,
       "label": "maintained:js/manage-forms.js",
       "output": "priv/static/js/manage-forms.js",
       "output_bytes": 1985,
@@ -207,7 +196,6 @@
       ]
     },
     {
-      "gzip_bytes": 258,
       "label": "maintained:js/mobile-style.js",
       "output": "priv/static/js/mobile-style.js",
       "output_bytes": 378,
@@ -219,7 +207,6 @@
       ]
     },
     {
-      "gzip_bytes": 1354,
       "label": "maintained:js/options.js",
       "output": "priv/static/js/options.js",
       "output_bytes": 3725,
@@ -231,7 +218,6 @@
       ]
     },
     {
-      "gzip_bytes": 1330,
       "label": "maintained:js/options/general.js",
       "output": "priv/static/js/options/general.js",
       "output_bytes": 3345,
@@ -243,7 +229,6 @@
       ]
     },
     {
-      "gzip_bytes": 617,
       "label": "maintained:js/options/user-css.js",
       "output": "priv/static/js/options/user-css.js",
       "output_bytes": 1131,
@@ -255,7 +240,6 @@
       ]
     },
     {
-      "gzip_bytes": 732,
       "label": "maintained:js/options/user-js.js",
       "output": "priv/static/js/options/user-js.js",
       "output_bytes": 1351,
@@ -267,7 +251,6 @@
       ]
     },
     {
-      "gzip_bytes": 2994,
       "label": "maintained:js/runtime-config.js",
       "output": "priv/static/js/runtime-config.js",
       "output_bytes": 7114,
@@ -279,7 +262,6 @@
       ]
     },
     {
-      "gzip_bytes": 512,
       "label": "maintained:js/youtube.js",
       "output": "priv/static/js/youtube.js",
       "output_bytes": 740,
