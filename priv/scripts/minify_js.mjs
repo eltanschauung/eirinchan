@@ -1,5 +1,4 @@
 import {createHash} from "node:crypto";
-import {gzipSync} from "node:zlib";
 import {mkdir, readFile, rename, rm, writeFile} from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
@@ -96,7 +95,6 @@ process.stdout.write(
     sources: options.sources,
     source_bytes: Buffer.byteLength(input),
     output_bytes: Buffer.byteLength(output),
-    gzip_bytes: gzipSync(output, {level: 9}).byteLength,
     sha256: sha256(output)
   }) + "\n"
 );
