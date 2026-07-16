@@ -13,6 +13,7 @@ defmodule EirinchanWeb.ThreadController do
   alias EirinchanWeb.Param
   alias EirinchanWeb.PostView
   alias EirinchanWeb.PublicControllerHelpers
+  alias EirinchanWeb.ShowYous
 
   plug EirinchanWeb.Plugs.LoadBoard
 
@@ -79,6 +80,8 @@ defmodule EirinchanWeb.ThreadController do
               watcher_count: watcher_count,
               watcher_unread_count: watcher_unread_count,
               watcher_you_count: watcher_you_count,
+              own_post_ids: MapSet.new(),
+              show_yous: false,
               mobile_client?: conn.assigns[:mobile_client?] || false,
               current_moderator: conn.assigns[:current_moderator],
               secure_manage_token: conn.assigns[:secure_manage_token],
@@ -138,6 +141,8 @@ defmodule EirinchanWeb.ThreadController do
               fragment_cache_key(board, summary, render_assigns)
             )
 
+          response_assigns = fragment_ownership_assigns(render_assigns, conn, summary, fragment?)
+
           cond do
             fragment_md5? ->
               text(conn, fragment_md5)
@@ -153,7 +158,7 @@ defmodule EirinchanWeb.ThreadController do
                 render(
                   conn,
                   if(fragment?, do: :thread_fragment, else: :show),
-                  Keyword.put(render_assigns, :fragment_md5, fragment_md5)
+                  Keyword.put(response_assigns, :fragment_md5, fragment_md5)
                 )
 
               PublicControllerHelpers.maybe_log_page_performance(
@@ -223,6 +228,20 @@ defmodule EirinchanWeb.ThreadController do
         :mobile_client?
       ])
     }
+  end
+
+  defp fragment_ownership_assigns(assigns, _conn, _summary, false), do: assigns
+
+  defp fragment_ownership_assigns(assigns, conn, summary, true) do
+    show_yous = ShowYous.enabled?(conn)
+    posts = [summary.thread | summary.replies]
+
+    assigns
+    |> Keyword.put(:show_yous, show_yous)
+    |> Keyword.put(
+      :own_post_ids,
+      if(show_yous, do: ShowYous.owned_post_ids(conn, posts), else: MapSet.new())
+    )
   end
 
   defp maybe_mark_thread_seen(conn, board, summary) do

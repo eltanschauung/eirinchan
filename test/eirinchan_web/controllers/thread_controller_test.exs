@@ -5,6 +5,7 @@ defmodule EirinchanWeb.ThreadControllerTest do
   alias Eirinchan.Posts
   alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Posts.Post
+  alias Eirinchan.PostOwnership
   alias Eirinchan.Repo
   alias Eirinchan.Runtime.Config
   alias Eirinchan.ThreadWatcher
@@ -788,6 +789,28 @@ defmodule EirinchanWeb.ThreadControllerTest do
 
     refute page =~ ~s|<span class="own_post">(You)</span>|
     refute page =~ ~s|<small>(You)</small>|
+  end
+
+  test "thread updater fragments preserve server-known (You) markers", %{conn: conn} do
+    board = board_fixture(%{uri: "threadyous", title: "Thread Yous"})
+    thread = thread_fixture(board, %{body: "Opening body"})
+    reply = reply_fixture(board, thread, %{body: "Reply body"})
+    token = browser_token("thread-fragment-yous")
+
+    assert {:ok, _} = PostOwnership.record(token, reply.id)
+
+    request =
+      conn
+      |> put_req_cookie("browser_token", token)
+      |> put_req_cookie("show_yous", "true")
+
+    path = "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html"
+    public_md5 = request |> get(path <> "?fragment=md5") |> response(200)
+    fragment = request |> recycle() |> get(path <> "?fragment=1") |> html_response(200)
+
+    assert fragment =~ ~s(data-fragment-md5="#{public_md5}")
+    assert fragment =~ ~r/class="post reply you"[^>]*id="reply_\d+"/
+    assert fragment =~ ~s|<span class="own_post">(You)</span>|
   end
 
   test "thread pages render poster tripcodes", %{conn: conn} do

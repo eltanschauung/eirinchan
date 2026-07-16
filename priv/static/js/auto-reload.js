@@ -657,6 +657,13 @@ window.auto_reload_enabled = true;
       if (current.style.display) {
         replacement.style.display = current.style.display;
       }
+
+      if (
+        window.EirinchanShowOwnPosts &&
+        typeof window.EirinchanShowOwnPosts.prepareReplacement === "function"
+      ) {
+        window.EirinchanShowOwnPosts.prepareReplacement(current, replacement);
+      }
     }
 
     function replyVersion(reply) {
