@@ -161,7 +161,9 @@
     } else if (content.nodeType) {
       target.append(content);
     } else if (typeof content === "string") {
-      target.append(optionsContentFragment(content));
+      var wrapper = document.createElement("div");
+      wrapper.appendChild(optionsContentFragment(content));
+      target.append(wrapper);
     }
   }
 
