@@ -1,1 +1,63 @@
-"thread"!==active_page&&"index"!==active_page&&"catalog"!==active_page&&"ukko"!==active_page||document.addEventListener("DOMContentLoaded",(function(){if(window.Options&&Options.get_tab("general")){var e=window.EirinchanRuntime||{},a=e.readCookie||function(e,a){var n=document.cookie.match(new RegExp("(?:^|; )"+e.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"=([^;]*)"));return n?decodeURIComponent(n[1]):a},n=e.writeCookie||function(e,a){document.cookie=e+"="+encodeURIComponent(a)+"; path=/; max-age=31536000; samesite=lax"};Options.extend_tab("general",'<label id="add-nav-arrows"><input type="checkbox">'+_("Display navigation arrows")+"</label>");var o=a("navarrows",null);o="false"!==o,$("#add-nav-arrows>input").prop("checked",o),$("#add-nav-arrows>input").on("click",(function(){var e=$("#add-nav-arrows>input").is(":checked")?"true":"false";n("navarrows",e,{path:"/",maxAge:31536e3,sameSite:"lax"}),location.reload()}))}}));
+(function (window, document) {
+  "use strict";
+
+  var supportedPages = ["thread", "index", "catalog", "ukko"];
+  if (supportedPages.indexOf(window.active_page) === -1) return;
+
+  function fallbackReadCookie(name, fallback) {
+    var escapedName = String(name).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    var match = document.cookie.match(new RegExp("(?:^|; )" + escapedName + "=([^;]*)"));
+    return match ? decodeURIComponent(match[1]) : fallback;
+  }
+
+  function fallbackWriteCookie(name, value) {
+    document.cookie =
+      name + "=" + encodeURIComponent(value) + "; path=/; max-age=31536000; samesite=lax";
+  }
+
+  function setArrowVisibility(enabled) {
+    document.querySelectorAll(".navarrow").forEach(function (arrow) {
+      arrow.style.display = enabled ? "" : "none";
+    });
+  }
+
+  function initialize() {
+    var runtime = window.EirinchanRuntime || {};
+    var readCookie = runtime.readCookie || fallbackReadCookie;
+    var writeCookie = runtime.writeCookie || fallbackWriteCookie;
+    var enabled = readCookie("navarrows", null) !== "false";
+
+    setArrowVisibility(enabled);
+
+    if (!window.Options || !window.Options.get_tab("general")) return;
+
+    window.Options.extend_tab(
+      "general",
+      '<label id="add-nav-arrows"><input type="checkbox">' +
+        (typeof window._ === "function" ? window._("Display navigation arrows") : "Display navigation arrows") +
+        "</label>"
+    );
+
+    var checkbox = document.querySelector("#add-nav-arrows > input");
+    if (!checkbox) return;
+
+    checkbox.checked = enabled;
+    checkbox.addEventListener("change", function () {
+      enabled = checkbox.checked;
+      writeCookie("navarrows", enabled ? "true" : "false", {
+        path: "/",
+        maxAge: 31_536_000,
+        sameSite: "lax"
+      });
+      setArrowVisibility(enabled);
+
+      if (enabled && !document.querySelector(".navarrow")) window.location.reload();
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initialize, {once: true});
+  } else {
+    initialize();
+  }
+})(window, document);

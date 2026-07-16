@@ -35,10 +35,10 @@
     {
       "label": "bundle:thread",
       "output": "priv/static/js/bundle-public-thread.js",
-      "output_bytes": 328669,
+      "output_bytes": 328884,
       "public_path": "/js/bundle-public-thread.js",
-      "sha256": "be223b57b7f44d286d542f053fc7a014dfecc28d8994d52fa6294c7a6df1bb65",
-      "source_bytes": 349425,
+      "sha256": "b70b107c4acfb49a6b7a64c76b8325e3eb31e488cc1a624193b30eed5e5f7666",
+      "source_bytes": 350581,
       "sources": [
         "priv/static/js/inline-expanding.js",
         "priv/static/js/thread-stats.js",
@@ -68,10 +68,10 @@
     {
       "label": "bundle:index",
       "output": "priv/static/js/bundle-public-index.js",
-      "output_bytes": 331137,
+      "output_bytes": 331352,
       "public_path": "/js/bundle-public-index.js",
-      "sha256": "a17e72291a3a30c9e08e1e881cdbb0f2b3b3a26d56e5019948f33bb9892b64e5",
-      "source_bytes": 354926,
+      "sha256": "8520cffab4cbd52553e101400d2e35cbf3f152bca53c9d5294899cd1b889687a",
+      "source_bytes": 356082,
       "sources": [
         "priv/static/js/inline-expanding.js",
         "priv/static/js/strftime.min.js",
