@@ -585,22 +585,22 @@ defmodule EirinchanWeb.ThreadControllerTest do
 
     assert Floki.find(
              document,
-             ~s(template#quick-reply-template td.quick-reply-grow input[name="email"])
+             ~s(template#quick-reply-template .quick-reply-split-row input.quick-reply-grow-control[name="email"])
            ) != []
 
     assert Floki.find(
              document,
-             ~s(template#quick-reply-template td.quick-reply-grow input[name="user_flag"][type="text"])
+             ~s(template#quick-reply-template .quick-reply-split-row input.quick-reply-grow-control[name="user_flag"][type="text"])
            ) != []
 
     assert Floki.find(
              document,
-             ~s(template#quick-reply-template td.submit input[type="submit"])
+             ~s(template#quick-reply-template .quick-reply-split-row input.quick-reply-action[type="submit"])
            ) != []
 
     assert Floki.find(
              document,
-             ~s(template#quick-reply-template td.spoiler input[name="spoiler"])
+             ~s(template#quick-reply-template .quick-reply-split-row .quick-reply-spoiler input[name="spoiler"])
            ) != []
   end
 
