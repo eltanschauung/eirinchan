@@ -206,8 +206,7 @@ defmodule EirinchanWeb.PublicShell do
   end
 
   defp maybe_add_optional_custom_code(urls, config) do
-    if Map.get(config, :additional_javascript_compile, false) and
-         Map.get(config, :allow_user_custom_code, false) do
+    if Map.get(config, :allow_user_custom_code, false) do
       optional_urls =
         JsBundles.optional_custom_scripts()
         |> Enum.map(&additional_javascript_url(config, &1))
