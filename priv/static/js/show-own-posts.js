@@ -216,6 +216,14 @@
   }
 
   function prepareReplacement(current, replacement) {
+    var postBoard = threadBoard(current);
+    var currentPostIds = ownedPostIds(current);
+
+    if (postBoard && currentPostIds.length) {
+      rememberOwnPosts(postBoard, currentPostIds);
+      markOwnedPosts(replacement, postBoard, currentPostIds);
+    }
+
     rememberRenderedMarkers(current);
 
     threadsIn(replacement).each(function () {

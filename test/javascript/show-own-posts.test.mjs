@@ -57,3 +57,23 @@ test("post success stores ownership using the submitted form board", () => {
 
   assert.deepEqual(JSON.parse(dom.window.localStorage.own_posts), {bant: ["456"]});
 });
+
+test("ownership markers survive a changed-reply replacement", () => {
+  const dom = setup(`
+    <div class="thread" data-board="bant">
+      <div class="post reply" id="reply_789">
+        <span class="name">Anon <span class="own_post">(You)</span></span>
+      </div>
+    </div>
+  `);
+  const current = dom.window.document.getElementById("reply_789");
+  const replacement = dom.window.document.createElement("div");
+  replacement.className = "post reply";
+  replacement.id = "reply_789";
+  replacement.innerHTML = '<span class="name">Anon</span>';
+
+  dom.window.EirinchanShowOwnPosts.prepareReplacement(current, replacement);
+
+  assert.equal(replacement.classList.contains("you"), true);
+  assert.equal(replacement.querySelector(".own_post").textContent, "(You)");
+});

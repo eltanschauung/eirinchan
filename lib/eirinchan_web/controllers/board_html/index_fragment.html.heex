@@ -31,10 +31,11 @@
           />
 
           <div
-            class={[
-              "post op",
-              @show_yous && MapSet.member?(@own_post_ids, thread_public_id) && "you"
-            ]}
+            class={
+              if @show_yous && MapSet.member?(@own_post_ids, thread_public_id),
+                do: "post op you",
+                else: "post op"
+            }
             id={"op_#{thread_public_id}"}
             {case PostView.post_container_style(thread) do
           nil -> []
@@ -112,10 +113,11 @@
           <%= for reply <- summary.replies do %>
             <% reply_public_id = PostView.public_post_id(reply) %>
             <div
-              class={[
-                "post reply",
-                @show_yous && MapSet.member?(@own_post_ids, reply_public_id) && "you"
-              ]}
+              class={
+                if @show_yous && MapSet.member?(@own_post_ids, reply_public_id),
+                  do: "post reply you",
+                  else: "post reply"
+              }
               id={"reply_#{reply_public_id}"}
             >
               <p class="intro">
