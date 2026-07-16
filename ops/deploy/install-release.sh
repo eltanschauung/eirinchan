@@ -1,13 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPOSITORY="${1:-/home/telemazer/eirinchan-v1}"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+REPOSITORY="${1:-$(realpath -- "$SCRIPT_DIR/../..")}"
 RELEASE_ROOT=/opt/eirinchan/releases
 CURRENT_LINK=/opt/eirinchan/current
 SERVICE=bantculture-phoenix.service
 DROP_IN=/etc/systemd/system/bantculture-phoenix.service.d/hardening.conf
 
 REPOSITORY="$(realpath -- "$REPOSITORY")"
+
+if [[ ! "$REPOSITORY" =~ ^/[A-Za-z0-9._/-]+$ ]]; then
+  echo "Refusing repository path with unsupported characters." >&2
+  exit 1
+fi
+
 COMMIT="$(git -C "$REPOSITORY" rev-parse HEAD)"
 TOOLCHAIN_ID=elixir-1.20.2-otp-27
 CACHE_ROOT="${EIRINCHAN_DEPLOY_CACHE_ROOT:-${HOME}/.cache/eirinchan/deploy/${TOOLCHAIN_ID}}"
@@ -28,6 +35,8 @@ flock 9
 BUILD_ROOT="$(mktemp -d "$RUN_ROOT/release.XXXXXX")"
 SOURCE_ROOT="$BUILD_ROOT/source"
 OUTPUT_ROOT="$BUILD_ROOT/output"
+HARDENING_RENDERED="$BUILD_ROOT/hardening.conf"
+LOG_RETENTION_RENDERED="$BUILD_ROOT/eirinchan-log-retention.service"
 TARGET="$RELEASE_ROOT/$COMMIT"
 TEMP_TARGET="$RELEASE_ROOT/.${COMMIT}.new"
 PREVIOUS_TARGET=""
@@ -68,6 +77,30 @@ mix deps.get --only prod --check-locked
 mix compile
 mix release --path "$OUTPUT_ROOT" --overwrite
 
+STATE_ROOT_REPLACEMENT="${REPOSITORY//\\/\\\\}"
+STATE_ROOT_REPLACEMENT="${STATE_ROOT_REPLACEMENT//&/\\&}"
+STATE_ROOT_REPLACEMENT="${STATE_ROOT_REPLACEMENT//|/\\|}"
+
+for script in start-production migrate log-retention; do
+  sed -i "s|@EIRINCHAN_STATE_ROOT@|$STATE_ROOT_REPLACEMENT|g" "$OUTPUT_ROOT/bin/$script"
+
+  if grep -qF '@EIRINCHAN_STATE_ROOT@' "$OUTPUT_ROOT/bin/$script"; then
+    echo "Failed to render state root in release script: $script" >&2
+    exit 1
+  fi
+done
+
+sed "s|@EIRINCHAN_STATE_ROOT@|$STATE_ROOT_REPLACEMENT|g" \
+  "$SOURCE_ROOT/ops/systemd/bantculture-phoenix.service.d/hardening.conf" \
+  >"$HARDENING_RENDERED"
+sed "s|@EIRINCHAN_STATE_ROOT@|$STATE_ROOT_REPLACEMENT|g" \
+  "$SOURCE_ROOT/ops/systemd/eirinchan-log-retention.service" \
+  >"$LOG_RETENTION_RENDERED"
+if grep -qF '@EIRINCHAN_STATE_ROOT@' "$HARDENING_RENDERED" "$LOG_RETENTION_RENDERED"; then
+  echo "Failed to render state root in systemd configuration." >&2
+  exit 1
+fi
+
 APP_STATIC="$(find "$OUTPUT_ROOT/lib" -type d -path '*/priv/static' -print -quit)"
 if [[ -z "$APP_STATIC" ]]; then
   echo "Release static directory was not generated." >&2
@@ -89,7 +122,7 @@ fi
 sudo -u telemazer "$TARGET/bin/migrate"
 
 sudo install -m 0644 -o root -g root \
-  "$SOURCE_ROOT/ops/systemd/bantculture-phoenix.service.d/hardening.conf" \
+  "$HARDENING_RENDERED" \
   "$DROP_IN"
 sudo install -m 0644 -o root -g root \
   "$SOURCE_ROOT/ops/logrotate/bantculture-phoenix" \
@@ -101,12 +134,12 @@ if ! command -v goaccess >/dev/null 2>&1; then
 fi
 
 # Debian ships every log format disabled. Select the standard Combined preset
-# so `goaccess ~/eirinchan-v1/access.log` works without additional arguments.
+# so `goaccess "$REPOSITORY/access.log"` works without additional arguments.
 sudo sed -i 's/^#log-format COMBINED$/log-format COMBINED/' /etc/goaccess/goaccess.conf
 sudo grep -qxF 'log-format COMBINED' /etc/goaccess/goaccess.conf
 
 sudo install -m 0644 -o root -g root \
-  "$SOURCE_ROOT/ops/systemd/eirinchan-log-retention.service" \
+  "$LOG_RETENTION_RENDERED" \
   /etc/systemd/system/eirinchan-log-retention.service
 sudo install -m 0644 -o root -g root \
   "$SOURCE_ROOT/ops/systemd/eirinchan-log-retention.timer" \
