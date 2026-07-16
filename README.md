@@ -1,21 +1,24 @@
 # Eirinchan
 
-This is a remake of the Vichan imageboard software in Elixir and Phoenix. Feature parity is partial; however, this is mostly
-contained to removing features I don't personally use. The purpose of this is to replace the PHP/HTML/MySQL type of imageboard with a compiled
-high-speed app. Uses PostgreSQL. Credit to Tinyboard, Vichan Devel and Fredrick Brennan.
+This is a remake of the Vichan imageboard software in Elixir and Phoenix. Feature parity is partial; however, this is mostly contained to removing features I don't personally use. The purpose of this is to replace the PHP/HTML/MySQL type of imageboard with a compiled high-speed app. The release(s) are for Docker, but feel free to try setting it up natively. Credit to Tinyboard, Vichan Devel, RealAngeleno and Fredrick Brennan. Here's a demo: https://bantculture.com/bant/index.html
+
+Shoot me a question on Telegram if you need help: @eltanschauung
 
 # Unique Features
 - Lightning fast speeds with Phoenix and PostgreSQL
 - Modernization to catalog and other page templates
 - Catalog pagination, updated catalog search js
-- Configurability to new themes such as a faq and flags page
-- Configurable multi flags system
-- IpAccessConf theme, a security system based on only allowing certain subnets to post + a password page for having your subnet added
 - New themes from the bantculture community + Tomorrow
-- Live updates using md5 checksum values, including live catalog and index pages
-- Large amounts of standard Vichan js migrated downwards into PHP and Elixir
+- Blur spoilers system
+- Superior live updates system using one If-None-Match request for the index and threads, catalog is also supported but it's not as far along.
+- Large amount of de-JavaScriptification of Vichan
 - Embeds can be used alongside files
 - 4chanX inspired thread watcher mainly using backend functionality and minimal JS
+- Programmable announcements div for index and catalog pages, configurable in the admin dashboard. Includes a PPH counter, visitors in last 10 minutes counter.
+- Feedback system and page
+- Programmable boardlist system
+- JSON instance configuration system as opposed to interacting with config.php in /inc
+- Keyword search in Admin recent posts browser
 
 # Installation
 
@@ -58,9 +61,13 @@ Stopping the stack with `./eirinchan stop` preserves all volumes. Do not use
 There is intentionally no browser installation endpoint and there are no default
 administrator credentials.
 
-## Native development
+## Security
 
-Native development remains available for contributors with Elixir 1.20.2, Erlang/OTP 27,
+This software has been heavily pentested by GPT 5.6 Pro in software-side and live environments. This software is not subject to CSRF vulnerability recently found in Vichan.
+
+## Don't like Docker?
+
+Installing this software natively is possible with Elixir 1.20.2, Erlang/OTP 27,
 and PostgreSQL installed:
 
 ```sh
