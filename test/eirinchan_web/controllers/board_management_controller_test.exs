@@ -148,6 +148,62 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     assert response =~ ~s(name="eirinchan:selected-style" content="Tomorrow")
   end
 
+  test "board pages use their dark default before first paint when the client prefers dark", %{
+    conn: conn
+  } do
+    board =
+      board_fixture(%{
+        uri: "darkdefault",
+        title: "Dark Default",
+        config_overrides: %{default_theme: "vichan", default_theme_dark: "tomorrow"}
+      })
+
+    light_response =
+      conn
+      |> get(~p"/#{board.uri}")
+      |> html_response(200)
+
+    assert light_response =~ ~s(id="stylesheet" href="/stylesheets/style.css)
+    assert light_response =~ ~s(data-auto-theme-light-name="vichan")
+    assert light_response =~ ~s(data-auto-theme-dark-name="tomorrow")
+    assert light_response =~ ~s(src="/js/theme-bootstrap.js)
+
+    dark_response =
+      conn
+      |> put_req_cookie("eirinchan_color_scheme", "dark")
+      |> get(~p"/#{board.uri}")
+      |> html_response(200)
+
+    assert dark_response =~ ~s(id="stylesheet" href="/stylesheets/tomorrow.css)
+    assert dark_response =~ ~s(data-stylesheet="tomorrow.css")
+    assert dark_response =~ ~s(name="eirinchan:selected-style" content="Tomorrow")
+    assert dark_response =~ ~s(data-auto-theme-light-name="vichan")
+    assert dark_response =~ ~s(data-auto-theme-dark-name="tomorrow")
+    assert dark_response =~ ~s(src="/js/theme-bootstrap.js)
+  end
+
+  test "an explicit board style remains stronger than the board dark default", %{conn: conn} do
+    board =
+      board_fixture(%{
+        uri: "darkoverride",
+        title: "Dark Override",
+        config_overrides: %{default_theme: "vichan", default_theme_dark: "tomorrow"}
+      })
+
+    response =
+      conn
+      |> put_req_cookie("eirinchan_color_scheme", "dark")
+      |> put_req_cookie("board_themes", ~s({"#{board.uri}":"yotsuba"}))
+      |> get(~p"/#{board.uri}")
+      |> html_response(200)
+
+    assert response =~ ~s(id="stylesheet" href="/stylesheets/yotsuba.css)
+    assert response =~ ~s(data-stylesheet="yotsuba.css")
+    assert response =~ ~s(name="eirinchan:selected-style" content="Yotsuba")
+    refute response =~ "data-auto-theme-dark-name"
+    refute response =~ "/js/theme-bootstrap.js"
+  end
+
   test "board pages require private cache revalidation", %{conn: conn} do
     board = board_fixture(%{uri: "cachetest", title: "Cache Test"})
 

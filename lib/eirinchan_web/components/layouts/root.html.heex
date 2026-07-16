@@ -35,7 +35,25 @@
       rel="stylesheet"
       id={assigns[:primary_stylesheet_id]}
       href={versioned_asset(assigns[:primary_stylesheet], assigns[:asset_version])}
+      data-auto-theme-light-name={assigns[:auto_theme_light] && assigns[:auto_theme_light].name}
+      data-auto-theme-light-label={assigns[:auto_theme_light] && assigns[:auto_theme_light].label}
+      data-auto-theme-light-href={
+        assigns[:auto_theme_light] &&
+          versioned_asset(assigns[:auto_theme_light].stylesheet, assigns[:asset_version])
+      }
+      data-auto-theme-dark-name={assigns[:auto_theme_dark] && assigns[:auto_theme_dark].name}
+      data-auto-theme-dark-label={assigns[:auto_theme_dark] && assigns[:auto_theme_dark].label}
+      data-auto-theme-dark-href={
+        assigns[:auto_theme_dark] &&
+          versioned_asset(assigns[:auto_theme_dark].stylesheet, assigns[:asset_version])
+      }
     />
+    <script
+      :if={assigns[:primary_stylesheet] && assigns[:auto_theme_dark]}
+      type="text/javascript"
+      src={versioned_asset("/js/theme-bootstrap.js", assigns[:asset_version])}
+    >
+    </script>
     <link
       :if={!assigns[:public_shell] && !assigns[:primary_stylesheet] && assigns[:theme_stylesheet]}
       phx-track-static

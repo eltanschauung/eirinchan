@@ -201,6 +201,8 @@ defmodule EirinchanWeb.PublicControllerHelpers do
       head_meta: PublicShell.head_meta(active_page, head_meta_opts),
       primary_stylesheet: Keyword.get(opts, :primary_stylesheet, primary_stylesheet(conn)),
       primary_stylesheet_id: "stylesheet",
+      auto_theme_light: conn.assigns[:auto_theme_light],
+      auto_theme_dark: conn.assigns[:auto_theme_dark],
       extra_stylesheets: Keyword.get(opts, :extra_stylesheets, extra_stylesheets()),
       theme_label: Keyword.get(opts, :theme_label, conn.assigns[:theme_label]),
       theme_options: Keyword.get(opts, :theme_options, conn.assigns[:theme_options]),
