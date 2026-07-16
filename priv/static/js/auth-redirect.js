@@ -1,11 +1,1 @@
-(function () {
-  "use strict";
-
-  var redirectUrl = document.body && document.body.dataset.redirectUrl;
-
-  if (redirectUrl) {
-    window.setTimeout(function () {
-      window.location.assign(redirectUrl);
-    }, 3000);
-  }
-})();
+!function(t,i){"use strict";var n=i.body&&i.body.dataset.redirectUrl;if(n)try{var o=new URL(n,t.location.href);if(o.origin!==t.location.origin)return;t.setTimeout(function(){t.location.assign(o.pathname+o.search+o.hash)},3e3)}catch(a){}}(window,document);

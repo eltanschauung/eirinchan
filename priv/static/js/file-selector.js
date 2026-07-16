@@ -1,3 +1,5 @@
+var fileSelectorInstanceCounter = 0;
+
 function init_file_selector(maxFiles, targetForm) {
   if (maxFiles === undefined) {
     maxFiles = 1;
@@ -25,7 +27,9 @@ function init_file_selector(maxFiles, targetForm) {
   }
 
   var files = [];
-  var namespace = ".file_selector_" + ($form.attr("id") || Math.floor(Math.random() * 1000000));
+  var previewObjectUrls = [];
+  var namespace =
+    ".file_selector_" + ($form.attr("id") || "anonymous_" + String(++fileSelectorInstanceCounter));
   var dragDepth = 0;
 
   $form.data("file-selector-initialized", true);
@@ -56,6 +60,13 @@ function init_file_selector(maxFiles, targetForm) {
     });
   }
 
+  function revokePreviewObjectUrls() {
+    previewObjectUrls.forEach(function (objectUrl) {
+      window.URL.revokeObjectURL(objectUrl);
+    });
+    previewObjectUrls = [];
+  }
+
   function renderFileThumb(file) {
     var filename = file.name.length < 24 ? file.name : file.name.substr(0, 22) + "…";
     var majorType = file.type.split("/")[0];
@@ -81,13 +92,16 @@ function init_file_selector(maxFiles, targetForm) {
     var $preview = $thumb.find(".file-tmb");
 
     if (majorType === "image") {
-      $preview.css("background-image", "url(" + window.URL.createObjectURL(file) + ")");
+      var objectUrl = window.URL.createObjectURL(file);
+      previewObjectUrls.push(objectUrl);
+      $preview.css("background-image", "url(" + objectUrl + ")");
     } else {
       $("<span>").text(extension).appendTo($preview.empty());
     }
   }
 
   function renderFiles() {
+    revokePreviewObjectUrls();
     $thumbs.empty();
     files.forEach(renderFileThumb);
     updateMoveButtons();

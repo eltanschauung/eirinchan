@@ -1,0 +1,18 @@
+{
+  "name": "eirinchan-javascript-tooling",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Deterministic JavaScript audit and minification tooling for Eirinchan",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "js:audit": "node priv/scripts/audit_javascript.mjs --check",
+    "js:audit:report": "node priv/scripts/audit_javascript.mjs --output var/javascript-audit.md",
+    "js:build": "mix run --no-start priv/scripts/build_public_bundles.exs",
+    "test": "node --test test/javascript/*.test.mjs"
+  },
+  "devDependencies": {
+    "terser": "5.49.0"
+  }
+}

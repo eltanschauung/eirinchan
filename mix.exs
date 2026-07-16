@@ -62,6 +62,14 @@ defmodule Eirinchan.MixProject do
       setup: ["deps.get", "ecto.setup"],
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
+      "assets.setup": ["cmd npm ci --ignore-scripts --no-audit --no-fund"],
+      "assets.build": [
+        "assets.setup",
+        "run --no-start priv/scripts/build_public_bundles.exs",
+        "cmd npm run js:audit",
+        "cmd npm test"
+      ],
+      "assets.audit": ["assets.setup", "cmd npm run js:audit", "cmd npm test"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"]
     ]
   end

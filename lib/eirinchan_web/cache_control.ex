@@ -5,9 +5,19 @@ defmodule EirinchanWeb.CacheControl do
   @one_minute 60
   @ten_minutes 60 * 10
   @one_year 60 * 60 * 24 * 365
+  @version_pattern ~r/\A[A-Za-z0-9._:-]{1,128}\z/
 
   def static_headers(conn) do
-    [{"cache-control", cache_control_for_path(conn.request_path)}]
+    [{"cache-control", cache_control_for_request(conn.request_path, conn.query_string)}]
+  end
+
+  def cache_control_for_request(path, query_string)
+      when is_binary(path) and is_binary(query_string) do
+    if versioned_code_asset?(path, query_string) do
+      immutable(@one_year)
+    else
+      cache_control_for_path(path)
+    end
   end
 
   def cache_control_for_path(path) when is_binary(path) do
@@ -36,6 +46,23 @@ defmodule EirinchanWeb.CacheControl do
   def cache_control_for_upload_bucket("thumb"), do: immutable(@one_year)
   def cache_control_for_upload_bucket("src"), do: public(@one_month)
   def cache_control_for_upload_bucket(_bucket), do: public(@ten_minutes)
+
+  defp versioned_code_asset?(path, query_string) do
+    (path |> Path.extname() |> String.downcase()) in [".css", ".js"] and
+      valid_version?(query_string)
+  end
+
+  defp valid_version?(query_string) do
+    query_string
+    |> URI.decode_query()
+    |> Map.get("v")
+    |> case do
+      value when is_binary(value) -> Regex.match?(@version_pattern, value)
+      _ -> false
+    end
+  rescue
+    ArgumentError -> false
+  end
 
   defp public(seconds), do: "public, max-age=#{seconds}"
   defp immutable(seconds), do: "public, max-age=#{seconds}, immutable"

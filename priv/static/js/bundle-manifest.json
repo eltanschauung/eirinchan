@@ -1,0 +1,294 @@
+{
+  "bundles": [
+    {
+      "gzip_bytes": 35727,
+      "label": "bundle:core",
+      "output": "priv/static/js/bundle-public-core.js",
+      "output_bytes": 105350,
+      "public_path": "/js/bundle-public-core.js",
+      "sha256": "388c2756250989588f90a7139ae6f78f8b4ac7819cef0a97a5497389b59a4e96",
+      "source_bytes": 122189,
+      "sources": [
+        "priv/static/js/jquery.min.js",
+        "priv/static/js/thread-watcher.js",
+        "assets/js/blotter.js",
+        "assets/js/youtube.js",
+        "assets/js/options.js",
+        "assets/js/options/general.js",
+        "assets/js/mobile-style.js"
+      ]
+    },
+    {
+      "gzip_bytes": 5189,
+      "label": "bundle:default",
+      "output": "priv/static/js/bundle-public-default.js",
+      "output_bytes": 14825,
+      "public_path": "/js/bundle-public-default.js",
+      "sha256": "509d68e5b7e787a9703c7d19f141c2aa15731d9ab0224b473db4c652c04f9ed7",
+      "source_bytes": 15015,
+      "sources": [
+        "priv/static/js/inline-expanding.js",
+        "priv/static/js/expand.js",
+        "priv/static/js/image-hover.js",
+        "priv/static/js/post-hover.js",
+        "priv/static/js/local-time.js"
+      ]
+    },
+    {
+      "gzip_bytes": 89516,
+      "label": "bundle:thread",
+      "output": "priv/static/js/bundle-public-thread.js",
+      "output_bytes": 328669,
+      "public_path": "/js/bundle-public-thread.js",
+      "sha256": "be223b57b7f44d286d542f053fc7a014dfecc28d8994d52fa6294c7a6df1bb65",
+      "source_bytes": 349425,
+      "sources": [
+        "priv/static/js/inline-expanding.js",
+        "priv/static/js/thread-stats.js",
+        "priv/static/js/strftime.min.js",
+        "priv/static/js/ajax.js",
+        "priv/static/js/navarrows2.js",
+        "priv/static/js/file-selector.js",
+        "priv/static/js/upload-selection.js",
+        "priv/static/js/expand.js",
+        "priv/static/js/jquery-ui.custom.min.js",
+        "priv/static/js/quick-reply.js",
+        "priv/static/js/post-menu.js",
+        "priv/static/js/post-filter.js",
+        "priv/static/js/local-time.js",
+        "priv/static/js/titlebar-notifications.js",
+        "priv/static/js/image-hover.js",
+        "priv/static/js/post-hover.js",
+        "priv/static/js/show-own-posts.js",
+        "priv/static/js/show-own-posts-options.js",
+        "priv/static/js/legacy-mod-actions.js",
+        "priv/static/js/fix-report-delete-submit.js",
+        "priv/static/js/quick-post-controls.js",
+        "priv/static/js/webm-settings.js",
+        "priv/static/js/expand-video.js"
+      ]
+    },
+    {
+      "gzip_bytes": 90132,
+      "label": "bundle:index",
+      "output": "priv/static/js/bundle-public-index.js",
+      "output_bytes": 331137,
+      "public_path": "/js/bundle-public-index.js",
+      "sha256": "a17e72291a3a30c9e08e1e881cdbb0f2b3b3a26d56e5019948f33bb9892b64e5",
+      "source_bytes": 354926,
+      "sources": [
+        "priv/static/js/inline-expanding.js",
+        "priv/static/js/strftime.min.js",
+        "priv/static/js/ajax.js",
+        "priv/static/js/navarrows2.js",
+        "priv/static/js/file-selector.js",
+        "priv/static/js/upload-selection.js",
+        "priv/static/js/expand.js",
+        "priv/static/js/jquery-ui.custom.min.js",
+        "priv/static/js/quick-reply.js",
+        "priv/static/js/hide-threads.js",
+        "priv/static/js/post-menu.js",
+        "priv/static/js/post-filter.js",
+        "priv/static/js/local-time.js",
+        "priv/static/js/titlebar-notifications.js",
+        "priv/static/js/image-hover.js",
+        "priv/static/js/post-hover.js",
+        "priv/static/js/show-own-posts.js",
+        "priv/static/js/show-own-posts-options.js",
+        "priv/static/js/legacy-mod-actions.js",
+        "priv/static/js/fix-report-delete-submit.js",
+        "priv/static/js/quick-post-controls.js",
+        "priv/static/js/webm-settings.js",
+        "priv/static/js/expand-video.js"
+      ]
+    },
+    {
+      "gzip_bytes": 13938,
+      "label": "bundle:catalog",
+      "output": "priv/static/js/bundle-public-catalog.js",
+      "output_bytes": 47031,
+      "public_path": "/js/bundle-public-catalog.js",
+      "sha256": "dfb83203875bc8acc28866fb4c437dfbcd5703198089040de5875f836e711552",
+      "source_bytes": 68167,
+      "sources": [
+        "priv/static/js/ajax.js",
+        "priv/static/js/file-selector.js",
+        "priv/static/js/upload-selection.js",
+        "priv/static/js/post-menu.js",
+        "priv/static/js/post-filter.js",
+        "priv/static/js/image-hover.js",
+        "priv/static/js/show-own-posts.js",
+        "priv/static/js/show-own-posts-options.js",
+        "priv/static/js/legacy-mod-actions.js",
+        "priv/static/js/fix-report-delete-submit.js",
+        "priv/static/js/catalog.js",
+        "priv/static/js/catalog-search.js"
+      ]
+    },
+    {
+      "gzip_bytes": 764,
+      "label": "bundle:ukko",
+      "output": "priv/static/js/bundle-public-ukko.js",
+      "output_bytes": 1696,
+      "public_path": "/js/bundle-public-ukko.js",
+      "sha256": "50558a9af7909c11b86823cec744c6ad711afe0c4a4f6c2534ddc6525216b2cc",
+      "source_bytes": 1728,
+      "sources": [
+        "priv/static/js/overboard.js"
+      ]
+    },
+    {
+      "gzip_bytes": 5109,
+      "label": "bundle:search",
+      "output": "priv/static/js/bundle-public-search.js",
+      "output_bytes": 14576,
+      "public_path": "/js/bundle-public-search.js",
+      "sha256": "0d8e3f7ccb417f825c3a79b64c129e0ea3b89060c457376c9b2841d0e47c7eb1",
+      "source_bytes": 17602,
+      "sources": [
+        "priv/static/js/inline-expanding.js",
+        "priv/static/js/expand.js",
+        "priv/static/js/image-hover.js",
+        "priv/static/js/local-time.js",
+        "priv/static/js/show-own-posts.js",
+        "priv/static/js/show-own-posts-options.js"
+      ]
+    }
+  ],
+  "format": 1,
+  "generator": "priv/scripts/build_public_bundles.exs",
+  "maintained": [
+    {
+      "gzip_bytes": 1914,
+      "label": "maintained:assets/app.js",
+      "output": "priv/static/assets/app.js",
+      "output_bytes": 5271,
+      "public_path": "/assets/app.js",
+      "sha256": "544ac2ce8f1229fa2b2310753c6d16aa4a311cc3305a5d5033ca6dcfd107d46d",
+      "source_bytes": 9536,
+      "sources": [
+        "assets/js/app.js"
+      ]
+    },
+    {
+      "gzip_bytes": 204,
+      "label": "maintained:js/auth-redirect.js",
+      "output": "priv/static/js/auth-redirect.js",
+      "output_bytes": 256,
+      "public_path": "/js/auth-redirect.js",
+      "sha256": "4d72706ce48d9ea4e19e634dc4d509b324f7a53123cd1628f7cedfeb36438dfc",
+      "source_bytes": 542,
+      "sources": [
+        "assets/js/auth-redirect.js"
+      ]
+    },
+    {
+      "gzip_bytes": 230,
+      "label": "maintained:js/blotter.js",
+      "output": "priv/static/js/blotter.js",
+      "output_bytes": 344,
+      "public_path": "/js/blotter.js",
+      "sha256": "65efb701e66d7443f51bf8699e7483b74b555b62a29bc579abfa60af1fe9f811",
+      "source_bytes": 593,
+      "sources": [
+        "assets/js/blotter.js"
+      ]
+    },
+    {
+      "gzip_bytes": 742,
+      "label": "maintained:js/manage-forms.js",
+      "output": "priv/static/js/manage-forms.js",
+      "output_bytes": 1985,
+      "public_path": "/js/manage-forms.js",
+      "sha256": "47d894abf84909fe5e0932ebcbe47481b7519a10c41186ef568ef2961519e887",
+      "source_bytes": 3592,
+      "sources": [
+        "assets/js/manage-forms.js"
+      ]
+    },
+    {
+      "gzip_bytes": 258,
+      "label": "maintained:js/mobile-style.js",
+      "output": "priv/static/js/mobile-style.js",
+      "output_bytes": 378,
+      "public_path": "/js/mobile-style.js",
+      "sha256": "01e03ea64a47f71c156d8d3245d79fccdb0bf87b43f7f85e68a77940be482015",
+      "source_bytes": 585,
+      "sources": [
+        "assets/js/mobile-style.js"
+      ]
+    },
+    {
+      "gzip_bytes": 1354,
+      "label": "maintained:js/options.js",
+      "output": "priv/static/js/options.js",
+      "output_bytes": 3725,
+      "public_path": "/js/options.js",
+      "sha256": "3f10e22030a7fcacdf696f4f96e012e6ad2c2997029dcf9570e2f5322d1b9d89",
+      "source_bytes": 6866,
+      "sources": [
+        "assets/js/options.js"
+      ]
+    },
+    {
+      "gzip_bytes": 1330,
+      "label": "maintained:js/options/general.js",
+      "output": "priv/static/js/options/general.js",
+      "output_bytes": 3345,
+      "public_path": "/js/options/general.js",
+      "sha256": "59bd2ff6209c55fd9eaf33944b82228edcb21fa37442a8aeb3a0d35046816438",
+      "source_bytes": 5308,
+      "sources": [
+        "assets/js/options/general.js"
+      ]
+    },
+    {
+      "gzip_bytes": 617,
+      "label": "maintained:js/options/user-css.js",
+      "output": "priv/static/js/options/user-css.js",
+      "output_bytes": 1131,
+      "public_path": "/js/options/user-css.js",
+      "sha256": "fd775c287cc00e76c7194082f845e0b4f2fbb5a1b935bd643c5e3e15163e89c2",
+      "source_bytes": 1777,
+      "sources": [
+        "assets/js/options/user-css.js"
+      ]
+    },
+    {
+      "gzip_bytes": 732,
+      "label": "maintained:js/options/user-js.js",
+      "output": "priv/static/js/options/user-js.js",
+      "output_bytes": 1351,
+      "public_path": "/js/options/user-js.js",
+      "sha256": "258a25371e5b3820bbbd18c9b13cdce0384aad93876f16669b49e5b8cd89e1d4",
+      "source_bytes": 2039,
+      "sources": [
+        "assets/js/options/user-js.js"
+      ]
+    },
+    {
+      "gzip_bytes": 2994,
+      "label": "maintained:js/runtime-config.js",
+      "output": "priv/static/js/runtime-config.js",
+      "output_bytes": 7114,
+      "public_path": "/js/runtime-config.js",
+      "sha256": "40e5c16a33cd2d50a81127c958494b70ce7ee14b5a79800614280d31c1275c43",
+      "source_bytes": 13747,
+      "sources": [
+        "assets/js/runtime-config.js"
+      ]
+    },
+    {
+      "gzip_bytes": 512,
+      "label": "maintained:js/youtube.js",
+      "output": "priv/static/js/youtube.js",
+      "output_bytes": 740,
+      "public_path": "/js/youtube.js",
+      "sha256": "47fdd701ec35a553a84a145185ee4c2a1938d68874959aa56c28fae2edba8d5f",
+      "source_bytes": 1221,
+      "sources": [
+        "assets/js/youtube.js"
+      ]
+    }
+  ]
+}
