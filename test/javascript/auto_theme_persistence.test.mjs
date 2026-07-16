@@ -57,3 +57,21 @@ test("a later explicit style selection is still persisted", async () => {
   assert.match(window.document.cookie, /(?:^|; )theme=yotsuba(?:;|$)/);
   assert.match(window.document.cookie, /(?:^|; )board_themes=/);
 });
+
+test("a non-board page does not persist its server fallback", async () => {
+  const window = await autoThemeWindow();
+
+  delete window.__eirinchanAutoTheme;
+  delete window.board_name;
+  window.localStorage.clear();
+  window.document.cookie = "theme=; Max-Age=0; path=/";
+  window.document.cookie = "board_themes=; Max-Age=0; path=/";
+  window.selectedstyle = "Yotsuba";
+  window.document.body.dataset.stylesheet = "yotsuba.css";
+  window.ready();
+
+  assert.equal(window.localStorage.getItem("stylesheet"), null);
+  assert.equal(window.localStorage.getItem("board_stylesheets"), null);
+  assert.equal(window.document.cookie.includes("theme="), false);
+  assert.equal(window.document.cookie.includes("board_themes="), false);
+});
