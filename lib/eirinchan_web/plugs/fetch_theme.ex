@@ -7,6 +7,8 @@ defmodule EirinchanWeb.Plugs.FetchTheme do
   alias Eirinchan.Settings
   alias EirinchanWeb.ThemeRegistry
 
+  @color_scheme_cookie "eirinchan_color_scheme"
+
   def init(opts), do: opts
 
   def call(conn, _opts) do
@@ -14,40 +16,41 @@ defmodule EirinchanWeb.Plugs.FetchTheme do
     stylesheets_board = Map.get(instance_config, :stylesheets_board, true)
     board = board_for_request(conn)
     forced_theme_identifier = forced_theme(board, instance_config)
-    theme_identifier = forced_theme_identifier || resolve_theme_identifier(conn, board, stylesheets_board, instance_config)
+    saved_theme_identifier = saved_theme_identifier(conn, board, stylesheets_board)
+    light_theme_identifier = board_default_theme(board) || global_default_theme(instance_config)
+    dark_theme_identifier = board_default_dark_theme(board)
+    light_theme = theme_entry(light_theme_identifier) || default_theme_entry()
+    dark_theme = theme_entry(dark_theme_identifier)
 
-    public_theme = ThemeRegistry.public_lookup(theme_identifier)
+    auto_theme? =
+      is_nil(forced_theme_identifier) and is_nil(saved_theme_identifier) and
+        not is_nil(dark_theme)
 
-    theme =
-      ThemeRegistry.fetch(theme_identifier) ||
-        ThemeRegistry.fetch(public_theme && public_theme.name) ||
-        ThemeRegistry.fetch(ThemeRegistry.default_theme())
+    theme_identifier =
+      forced_theme_identifier ||
+        saved_theme_identifier ||
+        if(auto_theme? and dark_scheme?(conn), do: dark_theme.name, else: light_theme.name)
 
-    theme_name = if public_theme, do: public_theme.name, else: theme_identifier
-    theme_label = public_theme && public_theme.label || theme.label
+    theme = theme_entry(theme_identifier) || default_theme_entry()
     theme_options = if forced_theme_identifier, do: [], else: ThemeRegistry.public_all()
 
     conn
-    |> assign(:theme_name, theme_name)
-    |> assign(:theme_label, theme_label)
+    |> assign(:theme_name, theme.name)
+    |> assign(:theme_label, theme.label)
     |> assign(:theme_stylesheet, theme.stylesheet)
-    |> assign(:theme_preload_assets, ThemeRegistry.preload_assets(theme_name))
+    |> assign(:theme_preload_assets, ThemeRegistry.preload_assets(theme.name))
     |> assign(:theme_options, theme_options)
+    |> assign(:auto_theme_light, if(auto_theme?, do: light_theme))
+    |> assign(:auto_theme_dark, if(auto_theme?, do: dark_theme))
   end
 
-  defp resolve_theme_identifier(conn, board, true, instance_config) do
+  defp saved_theme_identifier(conn, board, true) do
     board_theme_identifier(conn, board) ||
       global_theme_identifier(conn) ||
-      primary_public_board_theme_identifier(conn, board) ||
-      board_default_theme(board) ||
-      global_default_theme(instance_config)
+      primary_public_board_theme_identifier(conn, board)
   end
 
-  defp resolve_theme_identifier(conn, board, false, instance_config) do
-    global_theme_identifier(conn) ||
-      board_default_theme(board) ||
-      global_default_theme(instance_config)
-  end
+  defp saved_theme_identifier(conn, _board, false), do: global_theme_identifier(conn)
 
   defp global_theme_identifier(conn) do
     conn.cookies["theme"]
@@ -101,8 +104,47 @@ defmodule EirinchanWeb.Plugs.FetchTheme do
     |> normalize_theme_identifier()
   end
 
+  defp board_default_dark_theme(nil), do: nil
+
+  defp board_default_dark_theme(board) do
+    board.config_overrides
+    |> case do
+      overrides when is_map(overrides) ->
+        Map.get(overrides, :default_theme_dark) || Map.get(overrides, "default_theme_dark")
+
+      _ ->
+        nil
+    end
+    |> normalize_theme_identifier()
+  end
+
   defp global_default_theme(instance_config) do
     Map.get(instance_config, :default_theme) || ThemeRegistry.default_theme()
+  end
+
+  defp dark_scheme?(conn), do: conn.cookies[@color_scheme_cookie] == "dark"
+
+  defp default_theme_entry do
+    ThemeRegistry.default_theme()
+    |> theme_entry()
+  end
+
+  defp theme_entry(nil), do: nil
+
+  defp theme_entry(identifier) do
+    public_theme = ThemeRegistry.public_lookup(identifier)
+
+    case ThemeRegistry.fetch(identifier) || ThemeRegistry.fetch(public_theme && public_theme.name) do
+      nil ->
+        nil
+
+      theme ->
+        %{
+          name: if(public_theme, do: public_theme.name, else: identifier),
+          label: (public_theme && public_theme.label) || theme.label,
+          stylesheet: theme.stylesheet
+        }
+    end
   end
 
   defp forced_theme(board, instance_config) do

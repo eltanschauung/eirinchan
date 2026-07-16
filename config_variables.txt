@@ -20,6 +20,7 @@ Canonical keys
 - show_styles_block
 - stylesheets_board
 - default_theme
+- default_theme_dark
 - file_mod
 - file_script
 - additional_javascript
