@@ -41,6 +41,7 @@ AGENTS.md
 
 # Locally licensed GeoIP databases
 *.mmdb
+GeoIP.conf
 
 # JavaScript toolchain and generated local audit output
 /node_modules/

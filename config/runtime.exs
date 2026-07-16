@@ -29,6 +29,7 @@ if config_env() == :prod do
     instance_config_path: Path.join(state_root, "var/settings.json"),
     build_output_root: Path.join(state_root, "tmp/build"),
     access_log_path: Path.join([state_root, "var", "log", "access.log"]),
+    geoip2_database_path: Path.join([state_root, "var", "geoip", "GeoLite2-Country.mmdb"]),
     quarantine_invalid_upload_root: Path.join(state_root, "var/invalid_uploads")
 
   database_url =

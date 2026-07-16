@@ -606,7 +606,7 @@ defmodule Eirinchan.Runtime.Config do
   end
 
   defp default_geoip2_database_path do
-    Application.app_dir(:eirinchan, "priv/geoip2/GeoLite2-Country.mmdb")
+    Application.get_env(:eirinchan, :geoip2_database_path)
   end
 
   defp ensure_static_assets(config) do
