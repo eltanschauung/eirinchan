@@ -37,6 +37,7 @@ AGENTS.md
 /var/*.tmp
 /var/.*.tmp
 /var/invalid_uploads/
+/var/geoip/
 /var/log/
 
 # Locally licensed GeoIP databases
