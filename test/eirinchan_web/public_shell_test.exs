@@ -128,6 +128,44 @@ defmodule EirinchanWeb.PublicShellTest do
     refute MapSet.member?(JsBundles.bundled_sources_for(:thread), "js/auto-reload.js")
   end
 
+  test "compile mode loads optional user code only when explicitly enabled" do
+    config = %{
+      root: "/",
+      url_javascript: "/main.js",
+      additional_javascript: ["js/jquery.min.js"],
+      additional_javascript_url: "/",
+      additional_javascript_compile: true,
+      allow_user_custom_code: true
+    }
+
+    assert PublicShell.javascript_urls(:thread, config) == [
+             "/js/runtime-config.js",
+             "/main.js",
+             "/js/bundle-public-core.js",
+             "/js/bundle-public-thread.js",
+             "/js/options/user-js.js",
+             "/js/options/user-css.js",
+             "/js/auto-reload.js"
+           ]
+  end
+
+  test "compile mode excludes optional user code by default" do
+    config = %{
+      root: "/",
+      url_javascript: "/main.js",
+      additional_javascript: [
+        "js/jquery.min.js",
+        "js/options/user-js.js",
+        "js/options/user-css.js"
+      ],
+      additional_javascript_url: "/",
+      additional_javascript_compile: true,
+      allow_user_custom_code: false
+    }
+
+    refute Enum.any?(PublicShell.javascript_urls(:thread, config), &String.contains?(&1, "user-"))
+  end
+
   test "compile mode drops remote scripts" do
     config = %{
       root: "/",

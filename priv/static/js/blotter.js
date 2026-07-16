@@ -1,1 +1,1 @@
-function toggleNews(){var e=document.querySelector("#blotterContainer .news-blotter");e&&(e.style.display="block"===e.style.display?"none":"block")}window.toggleNews=window.toggleNews||toggleNews;
+!function(e,t){"use strict";e.toggleNews=e.toggleNews||function(){var e=t.querySelector("#blotterContainer .news-blotter");if(e){var n=!e.hidden&&"none"!==e.style.display;e.hidden=n,e.style.display=n?"none":"block";var o=t.querySelector("#blotterContainer .news-button");o&&o.setAttribute("aria-expanded",n?"false":"true")}}}(window,document);

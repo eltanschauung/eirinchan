@@ -106,6 +106,8 @@ defmodule EirinchanWeb.PublicShell do
       "eirinchan:styles" => styles_json,
       "eirinchan:stylesheets-board" => if(stylesheets_board, do: "true", else: "false"),
       "eirinchan:genpassword-chars" => to_string(Map.get(config, :genpassword_chars) || ""),
+      "eirinchan:allow-user-custom-code" =>
+        if(Map.get(config, :allow_user_custom_code, false), do: "true", else: "false"),
       "eirinchan:post-success-cookie-name" => "eirinchan_posted",
       "eirinchan:watcher-count" => to_string(watcher_count),
       "eirinchan:watcher-unread-count" => to_string(watcher_unread_count),
@@ -198,7 +200,23 @@ defmodule EirinchanWeb.PublicShell do
         main ++ script_urls
       end
 
-    maybe_add_standalone_live_updater(urls, active_page, config)
+    urls
+    |> maybe_add_optional_custom_code(config)
+    |> maybe_add_standalone_live_updater(active_page, config)
+  end
+
+  defp maybe_add_optional_custom_code(urls, config) do
+    if Map.get(config, :additional_javascript_compile, false) and
+         Map.get(config, :allow_user_custom_code, false) do
+      optional_urls =
+        JsBundles.optional_custom_scripts()
+        |> Enum.map(&additional_javascript_url(config, &1))
+        |> Enum.reject(&is_nil/1)
+
+      Enum.uniq(urls ++ optional_urls)
+    else
+      urls
+    end
   end
 
   defp maybe_add_standalone_live_updater(urls, active_page, config)

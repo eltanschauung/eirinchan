@@ -5,6 +5,7 @@ _build
 cover
 deps
 doc
+node_modules
 tmp
 var
 access.log

@@ -38,3 +38,8 @@ AGENTS.md
 /var/.*.tmp
 /var/invalid_uploads/
 /var/log/
+
+# JavaScript toolchain and generated local audit output
+/node_modules/
+/var/javascript-audit.md
+/var/javascript-audit.json

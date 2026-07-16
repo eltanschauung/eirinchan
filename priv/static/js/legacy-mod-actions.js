@@ -1,10 +1,11 @@
 !(function () {
   var RELOAD_DELAY_MS = 6000;
   var reloadTimer = null;
+  var runtime = window.EirinchanRuntime || {};
 
   function showFailure(message) {
-    if (typeof window.showAlert === "function") {
-      window.showAlert(message);
+    if (typeof runtime.showAlert === "function") {
+      runtime.showAlert(message);
     } else {
       window.alert(message);
     }

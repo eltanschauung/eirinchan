@@ -74,6 +74,7 @@
     />
     <script
       :for={script_url <- assigns[:eager_javascript_urls] || []}
+      defer
       type="text/javascript"
       src={versioned_asset(script_url, assigns[:asset_version])}
     >
