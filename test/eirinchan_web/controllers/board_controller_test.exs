@@ -2,6 +2,7 @@ defmodule EirinchanWeb.BoardControllerTest do
   use EirinchanWeb.ConnCase, async: false
 
   alias Eirinchan.BrowserAbuse
+  alias Eirinchan.PostOwnership
 
   test "board index returns an etag and honors if-none-match", %{conn: conn} do
     board = board_fixture()
@@ -54,6 +55,27 @@ defmodule EirinchanWeb.BoardControllerTest do
     assert threads_pos < form_pos
     assert form_pos < pages_pos
     assert length(Regex.scan(~r/id="bottom"/, page)) == 1
+  end
+
+  test "board updater fragments preserve server-known (You) markers", %{conn: conn} do
+    board = board_fixture(%{uri: "fragmentyous", title: "Fragment Yous"})
+    thread = thread_fixture(board, %{body: "Opening body"})
+    reply = reply_fixture(board, thread, %{body: "Reply body"})
+    token = browser_token("board-fragment-yous")
+
+    assert {:ok, _} = PostOwnership.record(token, reply.id)
+
+    request =
+      conn
+      |> put_req_cookie("browser_token", token)
+      |> put_req_cookie("show_yous", "true")
+
+    public_md5 = request |> get("/#{board.uri}?fragment=md5") |> response(200)
+    fragment = request |> recycle() |> get("/#{board.uri}?fragment=1") |> html_response(200)
+
+    assert fragment =~ ~s(data-fragment-md5="#{public_md5}")
+    assert fragment =~ ~r/class="post reply you"[^>]*id="reply_\d+"/
+    assert fragment =~ ~s|<span class="own_post">(You)</span>|
   end
 
   test "board index derives watcher paths client-side instead of embedding per-thread watch urls",

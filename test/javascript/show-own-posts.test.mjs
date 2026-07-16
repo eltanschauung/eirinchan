@@ -26,7 +26,7 @@ test("ownership markers survive an auto-updater fragment replacement", () => {
   const dom = setup(`
     <div id="current">
       <div class="thread" data-board="bant">
-        <div class="post reply you" id="reply_123">
+        <div class="post reply" id="reply_123">
           <span class="name">Anon <span class="own_post">(You)</span></span>
         </div>
       </div>

@@ -159,9 +159,11 @@
     var postIds = [];
 
     $(root)
-      .filter(".post.you[id]")
-      .add($(root).find(".post.you[id]"))
+      .filter(".post[id]")
+      .add($(root).find(".post[id]"))
       .each(function () {
+        if (!this.classList.contains("you") && !this.querySelector(".own_post")) return;
+
         var match = (this.id || "").match(/^(?:op|reply)_(\d+)$/);
 
         if (match) postIds.push(match[1]);
