@@ -186,16 +186,21 @@ defmodule EirinchanWeb.Router do
   end
 
   scope "/", EirinchanWeb do
+    pipe_through :public_json
+
+    post "/watcher/:board/:thread_id", ThreadWatcherController, :create
+    delete "/watcher/:board/:thread_id", ThreadWatcherController, :delete
+    patch "/watcher/:board/:thread_id", ThreadWatcherController, :update
+    delete "/watcher", ThreadWatcherController, :clear
+  end
+
+  scope "/", EirinchanWeb do
     pipe_through :browser
 
     get "/csrf-token", CsrfController, :show
     get "/mod.php", LegacyModController, :show
     get "/search.php", SearchController, :show
     post "/post.php", PostController, :create
-    post "/watcher/:board/:thread_id", ThreadWatcherController, :create
-    delete "/watcher/:board/:thread_id", ThreadWatcherController, :delete
-    patch "/watcher/:board/:thread_id", ThreadWatcherController, :update
-    delete "/watcher", ThreadWatcherController, :clear
     post "/theme", ThemeController, :update
     get "/auth", IpAccessAuthController, :show
     post "/auth", IpAccessAuthController, :create
