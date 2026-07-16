@@ -608,6 +608,13 @@ window.auto_reload_enabled = true;
 
       restoreBoardState(replacement, saved);
 
+      if (
+        window.EirinchanShowOwnPosts &&
+        typeof window.EirinchanShowOwnPosts.prepareReplacement === "function"
+      ) {
+        window.EirinchanShowOwnPosts.prepareReplacement(current, replacement);
+      }
+
       Array.prototype.forEach.call(replacement.querySelectorAll(".post[id]"), function (post) {
         if (numericSuffix(post.id) > saved.maximumPostId) {
           newPostIds.push(post.id);

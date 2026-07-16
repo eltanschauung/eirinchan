@@ -86,7 +86,8 @@
     });
 
     $(root)
-      .find(".post.op, .post.reply")
+      .filter(".post.op, .post.reply")
+      .add($(root).find(".post.op, .post.reply"))
       .each(function () {
         var match = (this.id || "").match(/^(?:op|reply)_(\d+)$/);
 
@@ -154,6 +155,21 @@
     }
   }
 
+  function ownedPostIds(root) {
+    var postIds = [];
+
+    $(root)
+      .filter(".post.you[id]")
+      .add($(root).find(".post.you[id]"))
+      .each(function () {
+        var match = (this.id || "").match(/^(?:op|reply)_(\d+)$/);
+
+        if (match) postIds.push(match[1]);
+      });
+
+    return postIds;
+  }
+
   function processThread(root) {
     if (!showYousEnabled()) return;
 
@@ -188,6 +204,28 @@
     });
   }
 
+  function rememberRenderedMarkers(root) {
+    threadsIn(root || document.body).each(function () {
+      var board = threadBoard(this);
+      var postIds = ownedPostIds(this);
+
+      if (board && postIds.length) rememberOwnPosts(board, postIds);
+    });
+  }
+
+  function prepareReplacement(current, replacement) {
+    rememberRenderedMarkers(current);
+
+    threadsIn(replacement).each(function () {
+      var board = threadBoard(this);
+      if (board) applyCachedMarkers(this, board);
+    });
+  }
+
+  window.EirinchanShowOwnPosts = {
+    prepareReplacement: prepareReplacement
+  };
+
   var currentBoard = null;
 
   $(function () {
@@ -197,9 +235,12 @@
     processThreads(document.body);
   });
 
-  $(document).on("ajax_after_post", function (_event, post) {
-    if (showYousEnabled() && currentBoard) {
-      rememberOwnPosts(currentBoard, [post.id]);
+  $(document).on("ajax_after_post", function (_event, post, submittedForm) {
+    var submittedBoard = $(submittedForm).find('input[name="board"]').first().val();
+    var board = submittedBoard || currentBoard;
+
+    if (showYousEnabled() && board && post && post.id) {
+      rememberOwnPosts(board, [post.id]);
     }
   });
 
