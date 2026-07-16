@@ -5,7 +5,7 @@
     var blotter = document.querySelector("#blotterContainer .news-blotter");
     if (!blotter) return;
 
-    var visible = !blotter.hidden && blotter.style.display !== "none";
+    var visible = !blotter.hidden && window.getComputedStyle(blotter).display !== "none";
     blotter.hidden = visible;
     blotter.style.display = visible ? "none" : "block";
 
