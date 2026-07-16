@@ -166,6 +166,25 @@ defmodule EirinchanWeb.PublicShellTest do
     refute Enum.any?(PublicShell.javascript_urls(:thread, config), &String.contains?(&1, "user-"))
   end
 
+  test "uncompiled mode adds enabled user-code editors without requiring script-list entries" do
+    config = %{
+      root: "/",
+      url_javascript: "/main.js",
+      additional_javascript: ["js/jquery.min.js"],
+      additional_javascript_url: "/",
+      additional_javascript_compile: false,
+      allow_user_custom_code: true
+    }
+
+    assert PublicShell.javascript_urls(:thread, config) == [
+             "/js/runtime-config.js",
+             "/main.js",
+             "/js/jquery.min.js",
+             "/js/options/user-js.js",
+             "/js/options/user-css.js"
+           ]
+  end
+
   test "compile mode drops remote scripts" do
     config = %{
       root: "/",
@@ -299,7 +318,8 @@ defmodule EirinchanWeb.PublicShellTest do
              "/js/runtime-config.js",
              "/main.js",
              "/js/jquery.min.js",
-             "/js/options/user-js.js"
+             "/js/options/user-js.js",
+             "/js/options/user-css.js"
            ]
   end
 
