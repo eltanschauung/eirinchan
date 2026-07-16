@@ -9,7 +9,7 @@ defmodule EirinchanWeb.SecurityHeadersTest do
     assert get_resp_header(conn, "referrer-policy") == ["strict-origin-when-cross-origin"]
     assert [csp] = get_resp_header(conn, "content-security-policy")
     assert csp =~ "object-src 'none'"
-    assert csp =~ "script-src 'self' 'wasm-unsafe-eval'"
+    assert csp =~ "script-src 'self' blob: 'wasm-unsafe-eval'"
     refute csp =~ "script-src 'self' 'unsafe-inline'"
     assert [permissions] = get_resp_header(conn, "permissions-policy")
     assert permissions =~ "camera=()"

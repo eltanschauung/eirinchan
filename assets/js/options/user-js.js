@@ -5,6 +5,7 @@
 
   var $ = window.jQuery;
   var runtime = window.EirinchanRuntime || {};
+  var maxCustomCodeBytes = 256 * 1024;
   var tab = window.Options.add_tab("user-js", "code", translate("User JS"));
   var textarea = $(document.createElement("textarea"))
     .css({fontSize: 12, position: "absolute", top: 35, bottom: 35, width: "calc(100% - 20px)", margin: 0, padding: 4, border: "1px solid black", left: 5, right: 5})
@@ -28,13 +29,48 @@
     else window.localStorage.setItem("user_js", value);
   }
 
+  function normalize(value) {
+    return String(value || "")
+      .replace(/^\uFEFF/, "")
+      .replace(/\u0000/g, "")
+      .slice(0, maxCustomCodeBytes);
+  }
+
+  function execute(value) {
+    var code = normalize(value);
+    if (!code.trim()) return;
+
+    var blob = new window.Blob(
+      [code, "\n//# sourceURL=eirinchan-user.js\n"],
+      {type: "text/javascript"}
+    );
+    var objectUrl = window.URL.createObjectURL(blob);
+    var script = document.createElement("script");
+    script.className = "user-js";
+    script.src = objectUrl;
+
+    function releaseObjectUrl() {
+      window.URL.revokeObjectURL(objectUrl);
+    }
+
+    script.addEventListener("load", releaseObjectUrl, {once: true});
+    script.addEventListener("error", releaseObjectUrl, {once: true});
+    document.head.appendChild(script);
+  }
+
   button.on("click", function () {
-    write(textarea.val());
-    window.console.warn("Stored user JavaScript is not evaluated. The Content Security Policy intentionally blocks inline code.");
+    write(normalize(textarea.val()));
+    window.location.reload();
   });
 
-  var existing = read();
-  textarea.val(existing || "/* " + translate("Store notes or same-origin loader calls here. Inline code is not evaluated.") + " */");
+  var existing = normalize(read());
+  textarea.val(existing || "/* " + translate("Enter your own JavaScript code here. It is stored only in this browser.") + " */");
+
+  if (existing) {
+    if (/immediate\s*\(\s*\)/.test(existing)) execute(existing);
+    else if (runtime.onReady) runtime.onReady(function () { execute(existing); });
+    else $(function () { execute(existing); });
+  }
 
   window.load_js = function (value) {
     var url = runtime.sameOriginUrl ? runtime.sameOriginUrl(String(value || "")) : null;

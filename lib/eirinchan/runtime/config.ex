@@ -43,7 +43,7 @@ defmodule Eirinchan.Runtime.Config do
     allow_custom_javascript: false,
     allow_remote_script_urls: false,
     allow_analytics_html: false,
-    allow_user_custom_code: false,
+    allow_user_custom_code: true,
     security_headers: true,
     additional_javascript_compile: false,
     generation_strategy: "immediate",

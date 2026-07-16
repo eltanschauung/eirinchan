@@ -17,7 +17,7 @@ defmodule EirinchanWeb.Plugs.SecureHeaders do
                                "object-src 'none'",
                                "frame-ancestors 'self'",
                                "form-action 'self'",
-                               "script-src 'self' 'wasm-unsafe-eval'",
+                               "script-src 'self' blob: 'wasm-unsafe-eval'",
                                "style-src 'self' 'unsafe-inline'",
                                "img-src 'self' data: blob: https:",
                                "media-src 'self' blob: https:",

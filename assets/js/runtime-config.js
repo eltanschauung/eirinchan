@@ -412,7 +412,7 @@
   if (window.allow_user_custom_code === undefined) {
     window.allow_user_custom_code = parseBoolean(
       metaContent("eirinchan:allow-user-custom-code"),
-      false
+      true
     );
   }
 
