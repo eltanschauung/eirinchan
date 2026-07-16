@@ -7,6 +7,7 @@
 
   var runtime = window.EirinchanRuntime || {};
   var tab = Options.add_tab("general", "home", translate("General"));
+  var themeCookieNames = ["theme", "board_themes", "eirinchan_color_scheme"];
 
   function translate(value) {
     return typeof window._ === "function" ? window._(value) : value;
@@ -80,6 +81,19 @@
       .catch(function () {});
   }
 
+  function clearThemeCookies() {
+    themeCookieNames.forEach(function (name) {
+      if (typeof runtime.removeCookie === "function") {
+        runtime.removeCookie(name, {path: "/"});
+        return;
+      }
+
+      var cookie = name + "=; path=/; max-age=0; samesite=lax";
+      if (window.location.protocol === "https:") cookie += "; secure";
+      document.cookie = cookie;
+    });
+  }
+
   function createStorageControls() {
     var controls = $("#options-storage-controls");
     if (controls.length) return controls;
@@ -127,11 +141,7 @@
         window.sessionStorage.clear();
       } catch (_error) {}
 
-      if (runtime.removeCookie) {
-        runtime.removeCookie("theme", {path: "/"});
-        runtime.removeCookie("board_themes", {path: "/"});
-        runtime.removeCookie("eirinchan_color_scheme", {path: "/"});
-      }
+      clearThemeCookies();
 
       clearWatcher().finally(function () {
         window.location.reload();
