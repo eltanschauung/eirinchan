@@ -21,4 +21,14 @@ defmodule Eirinchan.NewsBlotterTest do
     assert html =~ ~s(href="#")
     assert html =~ ~s(<span class="glow">ok</span>)
   end
+
+  test "renders the news panel initially collapsed" do
+    html =
+      NewsBlotter.render_html(%{
+        news_blotter_entries: [%{date: "03/13/26", message: "News"}]
+      })
+
+    assert html =~ ~s(class="news-button" data-toggle-news role="button" tabindex="0" aria-expanded="false")
+    assert html =~ ~s(class="news-blotter" hidden)
+  end
 end
