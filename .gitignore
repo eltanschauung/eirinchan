@@ -39,6 +39,9 @@ AGENTS.md
 /var/invalid_uploads/
 /var/log/
 
+# Locally licensed GeoIP databases
+*.mmdb
+
 # JavaScript toolchain and generated local audit output
 /node_modules/
 /var/javascript-audit.md
