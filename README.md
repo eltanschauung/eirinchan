@@ -9,7 +9,9 @@ Shoot me a question on Telegram if you need help: @eltanschauung
 - Modernization to catalog and other page templates
 - Catalog pagination, updated catalog search js
 - New themes from the bantculture community + Tomorrow
+- Default theme for devices set to prefer dark styles can be set such as "default_theme_dark": "tomorrow"
 - Blur spoilers system
+- Uses GeoLite2-Country for international type boards, Docker installation process includes skippable GeoIp2 setup process and automatic .mmdb updater. If skipped, country flags will default to the US flag if an international board is created.
 - Superior live updates system using one If-None-Match request for the index and threads, catalog is also supported but it's not as far along.
 - Large amount of de-JavaScriptification of Vichan
 - Embeds can be used alongside files
