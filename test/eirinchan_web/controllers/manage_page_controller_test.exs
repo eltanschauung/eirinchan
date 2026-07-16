@@ -53,25 +53,66 @@ defmodule EirinchanWeb.ManagePageControllerTest do
   test "feedback browser page renders the moderation queue", %{conn: conn} do
     moderator = moderator_fixture(%{role: "admin"})
 
-    conn =
-      conn
-      |> post("/feedback", %{"body" => "Needs review", "json_response" => "1"})
+    feedback = [
+      {%{"body" => "Named and emailed", "name" => "Whale", "email" => "whale@example.test"},
+       {203, 0, 113, 10}},
+      {%{"body" => "Named only", "name" => "Onyx", "email" => " "}, {203, 0, 113, 11}},
+      {%{"body" => "Emailed only", "name" => "", "email" => "onyx@example.test"},
+       {203, 0, 113, 12}},
+      {%{"body" => "Anonymous", "name" => " ", "email" => ""}, {203, 0, 113, 13}}
+    ]
 
-    assert %{"feedback_id" => feedback_id} = json_response(conn, 200)
-    assert Feedback.get_feedback(feedback_id)
+    Enum.each(feedback, fn {attrs, remote_ip} ->
+      assert {:ok, _entry} =
+               Feedback.create_feedback(attrs, remote_ip: remote_ip, store_ip: true)
+    end)
 
     page =
       conn
-      |> recycle()
       |> login_moderator(moderator)
       |> get("/manage/feedback/browser")
       |> html_response(200)
 
     assert page =~ "Feedback"
-    assert page =~ "Needs review"
     assert page =~ "Mark as Read"
     assert page =~ "Add Note"
     assert page =~ "Delete"
+
+    document = Floki.parse_document!(page)
+
+    report_for = fn body ->
+      document
+      |> Floki.find("div.report")
+      |> Enum.find(fn report -> normalized_text(report) =~ body end)
+    end
+
+    submitter_for = fn body ->
+      report = report_for.(body)
+      assert report
+      assert [submitter] = Floki.find(report, ".feedback-submitter")
+      ip = submitter |> Floki.find(".feedback-submitter-ip") |> normalized_text()
+      {submitter, ip}
+    end
+
+    {both, both_ip} = submitter_for.("Named and emailed")
+    assert normalized_text(both) == "Submitted by: Whale whale@example.test #{both_ip}"
+    assert Floki.find(both, ".feedback-submitter-name") != []
+    assert Floki.find(both, ".feedback-submitter-email") != []
+
+    {name_only, name_only_ip} = submitter_for.("Named only")
+    assert normalized_text(name_only) == "Submitted by: Onyx #{name_only_ip}"
+    assert Floki.find(name_only, ".feedback-submitter-name") != []
+    assert Floki.find(name_only, ".feedback-submitter-email") == []
+
+    {email_only, email_only_ip} = submitter_for.("Emailed only")
+    assert normalized_text(email_only) == "Submitted by: onyx@example.test #{email_only_ip}"
+    assert Floki.find(email_only, ".feedback-submitter-name") == []
+    assert Floki.find(email_only, ".feedback-submitter-email") != []
+
+    {anonymous, anonymous_ip} = submitter_for.("Anonymous")
+    assert normalized_text(anonymous) == "Submitted by: #{anonymous_ip}"
+    assert Floki.find(anonymous, ".feedback-submitter-name") == []
+    assert Floki.find(anonymous, ".feedback-submitter-email") == []
   end
 
   test "recent posts browser links to noko50 when available", %{conn: conn} do
@@ -2254,5 +2295,12 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert updated.email == "noko"
     assert updated.subject == "New"
     assert updated.body == "New body"
+  end
+
+  defp normalized_text(node) do
+    node
+    |> Floki.text(sep: " ")
+    |> String.replace(~r/\s+/, " ")
+    |> String.trim()
   end
 end
