@@ -747,7 +747,7 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     assert page =~ "Sort by:"
     assert page =~ ~s(id="Grid")
     assert page =~ "Tinyboard + vichan 5.2.2 +"
-    assert page =~ ~s(href="https://github.com/eltanschauung/eirinchan-v1")
+    assert page =~ ~s(href="https://github.com/eltanschauung/eirinchan-devel")
   end
 
   test "catalog page renders formatted body excerpts", %{conn: conn} do
