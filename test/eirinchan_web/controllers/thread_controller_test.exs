@@ -563,7 +563,7 @@ defmodule EirinchanWeb.ThreadControllerTest do
   end
 
   test "thread pages embed a server rendered quick reply template", %{conn: conn} do
-    board = board_fixture()
+    board = board_fixture(%{config_overrides: %{user_flag: true, multiple_flags: true}})
     thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
 
     page =
@@ -581,6 +581,26 @@ defmodule EirinchanWeb.ThreadControllerTest do
     assert Floki.find(
              document,
              ~s(template#quick-reply-template textarea[name="body"][placeholder="Comment"])
+           ) != []
+
+    assert Floki.find(
+             document,
+             ~s(template#quick-reply-template td.quick-reply-grow input[name="email"])
+           ) != []
+
+    assert Floki.find(
+             document,
+             ~s(template#quick-reply-template td.quick-reply-grow input[name="user_flag"][type="text"])
+           ) != []
+
+    assert Floki.find(
+             document,
+             ~s(template#quick-reply-template td.submit input[type="submit"])
+           ) != []
+
+    assert Floki.find(
+             document,
+             ~s(template#quick-reply-template td.spoiler input[name="spoiler"])
            ) != []
   end
 

@@ -27,7 +27,10 @@
       </td>
     </tr>
     <tr :if={!@config.field_disable_email}>
-      <td colspan={if @config.field_disable_reply_subject, do: 1, else: 2}>
+      <td
+        class="quick-reply-grow"
+        colspan={if @config.field_disable_reply_subject, do: 1, else: 2}
+      >
         <%= if Map.get(@config, :field_email_selectbox, false) ||
                  Map.get(@config, :hide_email, false) do %>
           <select name="email" autocomplete="off">
@@ -81,10 +84,10 @@
       </td>
     </tr>
     <tr :if={@config.user_flag}>
-      <td colspan="1">
+      <td class="quick-reply-grow" colspan="1">
         <input
           :if={@config.multiple_flags}
-          type="user_flag"
+          type="text"
           name="user_flag"
           id="user_flag"
           size="25"
