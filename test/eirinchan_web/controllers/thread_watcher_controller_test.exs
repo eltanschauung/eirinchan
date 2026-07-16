@@ -4,20 +4,20 @@ defmodule EirinchanWeb.ThreadWatcherControllerTest do
   alias Eirinchan.Posts.PublicIds
 
   alias Eirinchan.ThreadWatcher
-  alias Plug.CSRFProtection
-
   test "watches and unwatches a thread with browser token", %{conn: conn} do
     board = board_fixture(%{uri: "watch", title: "Watch"})
     thread = thread_fixture(board, %{body: "Watch me"})
     token = browser_token("watch-index")
     thread_id = PublicIds.public_id(thread)
 
+    {conn, csrf_token} = json_conn_with_csrf(conn, token)
+
     conn =
       conn
       |> put_req_cookie("browser_token", token)
-      |> post("/watcher/#{board.uri}/#{PublicIds.public_id(thread)}", %{
-        "_csrf_token" => CSRFProtection.get_csrf_token()
-      })
+      |> put_req_header("accept", "application/json")
+      |> put_req_header("x-csrf-token", csrf_token)
+      |> post("/watcher/#{board.uri}/#{PublicIds.public_id(thread)}")
 
     assert %{
              "ok" => true,
@@ -30,10 +30,12 @@ defmodule EirinchanWeb.ThreadWatcherControllerTest do
 
     assert ThreadWatcher.watched?(token, board.uri, thread.id)
 
+    {conn, csrf_token} = json_conn_with_csrf(build_conn(), token)
+
     conn =
-      build_conn()
+      conn
       |> put_req_cookie("browser_token", token)
-      |> put_req_header("x-csrf-token", CSRFProtection.get_csrf_token())
+      |> put_req_header("x-csrf-token", csrf_token)
       |> delete("/watcher/#{board.uri}/#{thread_id}")
 
     assert %{
@@ -48,17 +50,31 @@ defmodule EirinchanWeb.ThreadWatcherControllerTest do
     refute ThreadWatcher.watched?(token, board.uri, thread.id)
   end
 
+  test "rejects JSON watcher mutations without a CSRF token", %{conn: conn} do
+    board = board_fixture(%{uri: "watchcsrf", title: "Watch CSRF"})
+    thread = thread_fixture(board, %{body: "Watch me"})
+
+    conn =
+      conn
+      |> put_req_cookie("browser_token", browser_token("watch-csrf"))
+      |> put_req_header("accept", "application/json")
+      |> post("/watcher/#{board.uri}/#{PublicIds.public_id(thread)}")
+
+    assert %{"csrf" => true} = json_response(conn, 403)
+  end
+
   test "returns not found for reply ids", %{conn: conn} do
     board = board_fixture(%{uri: "watch404", title: "Watch 404"})
     thread = thread_fixture(board, %{body: "OP"})
     reply = reply_fixture(board, thread, %{body: "Reply"})
+    token = browser_token("watch-invalid-thread")
+
+    {conn, csrf_token} = json_conn_with_csrf(conn, token)
 
     conn =
       conn
-      |> put_req_cookie("browser_token", browser_token("watch-invalid-thread"))
-      |> post("/watcher/#{board.uri}/#{PublicIds.public_id(reply)}", %{
-        "_csrf_token" => CSRFProtection.get_csrf_token()
-      })
+      |> put_req_header("x-csrf-token", csrf_token)
+      |> post("/watcher/#{board.uri}/#{PublicIds.public_id(reply)}")
 
     assert response(conn, 404)
   end
@@ -72,10 +88,12 @@ defmodule EirinchanWeb.ThreadWatcherControllerTest do
     {:ok, _watch} =
       ThreadWatcher.watch_thread(token, board.uri, thread.id, %{last_seen_post_id: thread.id})
 
+    {conn, csrf_token} = json_conn_with_csrf(conn, token)
+
     conn =
       conn
       |> put_req_cookie("browser_token", token)
-      |> put_req_header("x-csrf-token", CSRFProtection.get_csrf_token())
+      |> put_req_header("x-csrf-token", csrf_token)
       |> patch("/watcher/#{board.uri}/#{thread_id}", %{
         "last_seen_post_id" => Integer.to_string(thread_id)
       })
@@ -104,10 +122,12 @@ defmodule EirinchanWeb.ThreadWatcherControllerTest do
                last_seen_post_id: watched_thread.id
              })
 
+    {conn, csrf_token} = json_conn_with_csrf(conn, token)
+
     conn =
       conn
       |> put_req_cookie("browser_token", token)
-      |> put_req_header("x-csrf-token", CSRFProtection.get_csrf_token())
+      |> put_req_header("x-csrf-token", csrf_token)
       |> patch("/watcher/#{board.uri}/#{PublicIds.public_id(watched_thread)}", %{
         "last_seen_post_id" => Integer.to_string(PublicIds.public_id(other_reply))
       })
@@ -121,11 +141,12 @@ defmodule EirinchanWeb.ThreadWatcherControllerTest do
   test "unwatching a missing thread is idempotent", %{conn: conn} do
     board = board_fixture(%{uri: "watchstale", title: "Watch Stale"})
     token = browser_token("watch-stale-delete")
+    {conn, csrf_token} = json_conn_with_csrf(conn, token)
 
     conn =
       conn
       |> put_req_cookie("browser_token", token)
-      |> put_req_header("x-csrf-token", CSRFProtection.get_csrf_token())
+      |> put_req_header("x-csrf-token", csrf_token)
       |> delete("/watcher/#{board.uri}/123456")
 
     assert %{
@@ -142,11 +163,12 @@ defmodule EirinchanWeb.ThreadWatcherControllerTest do
     thread = thread_fixture(board, %{body: "OP"})
 
     assert {:ok, _watch} = ThreadWatcher.watch_thread(token, board.uri, thread.id)
+    {conn, csrf_token} = json_conn_with_csrf(conn, token)
 
     conn =
       conn
       |> put_req_cookie("browser_token", token)
-      |> put_req_header("x-csrf-token", CSRFProtection.get_csrf_token())
+      |> put_req_header("x-csrf-token", csrf_token)
       |> delete("/watcher")
 
     assert %{
@@ -157,5 +179,15 @@ defmodule EirinchanWeb.ThreadWatcherControllerTest do
            } = json_response(conn, 200)
 
     assert ThreadWatcher.list_watches(token) == []
+  end
+
+  defp json_conn_with_csrf(conn, browser_token) do
+    csrf_conn =
+      conn
+      |> put_req_cookie("__Host-eirinchan_browser", Eirinchan.BrowserIdentity.issue(browser_token))
+      |> get("/csrf-token")
+    %{"csrf_token" => csrf_token} = json_response(csrf_conn, 200)
+
+    {recycle(csrf_conn) |> put_req_header("accept", "application/json"), csrf_token}
   end
 end
