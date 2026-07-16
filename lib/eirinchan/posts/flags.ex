@@ -45,7 +45,8 @@ defmodule Eirinchan.Posts.Flags do
 
     default_flags =
       with {:ok, parsed_flags} <- parse_user_flags(default_flag_source, config.multiple_flags),
-           {:ok, validated_flags} <- validate_user_flags(parsed_flags, allowed_flags, country_fallback_code) do
+           {:ok, validated_flags} <-
+             validate_user_flags(parsed_flags, allowed_flags, country_fallback_code) do
         validated_flags
       end
 
@@ -196,7 +197,7 @@ defmodule Eirinchan.Posts.Flags do
           remote_ip ->
             case GeoIp.lookup_country(remote_ip, config) do
               {:ok, metadata} -> metadata
-              :error -> nil
+              :error -> config.country_flag_fallback
             end
         end
 
@@ -208,8 +209,13 @@ defmodule Eirinchan.Posts.Flags do
   end
 
   defp normalize_country_metadata(nil), do: nil
-  defp normalize_country_metadata(%{code: code, name: name}), do: normalize_country_metadata({code, name})
-  defp normalize_country_metadata(%{"code" => code, "name" => name}), do: normalize_country_metadata({code, name})
+
+  defp normalize_country_metadata(%{code: code, name: name}),
+    do: normalize_country_metadata({code, name})
+
+  defp normalize_country_metadata(%{"code" => code, "name" => name}),
+    do: normalize_country_metadata({code, name})
+
   defp normalize_country_metadata([code, name]), do: normalize_country_metadata({code, name})
 
   defp normalize_country_metadata({code, name}) do
@@ -224,7 +230,9 @@ defmodule Eirinchan.Posts.Flags do
   end
 
   defp reject_excluded_country(nil, _excluded_codes), do: nil
-  defp reject_excluded_country({code, alt}, excluded_codes), do: if(code in excluded_codes, do: nil, else: {code, alt})
+
+  defp reject_excluded_country({code, alt}, excluded_codes),
+    do: if(code in excluded_codes, do: nil, else: {code, alt})
 
   defp normalize_ip({a, b, c, d}), do: Enum.join([a, b, c, d], ".")
 

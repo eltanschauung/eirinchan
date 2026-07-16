@@ -1,10 +1,15 @@
 defmodule Eirinchan.GeoIp do
   @moduledoc """
-  GeoIP2 country lookup backed by a bundled MaxMind MMDB.
+  GeoIP2 country lookup backed by a locally managed MaxMind MMDB.
+
+  Locus watches local database sources and reloads changed files automatically.
   """
 
   @loader_id :eirinchan_geoip2_country
   @loader_key {__MODULE__, :loader_path}
+  @validation_key {__MODULE__, :database_validation}
+  @metadata_marker <<0xAB, 0xCD, 0xEF, "MaxMind.com">>
+  @metadata_search_bytes 131_072
 
   @spec lookup_country(term(), map()) :: {:ok, %{code: binary(), name: binary()}} | :error
   def lookup_country(nil, _config), do: :error
@@ -16,7 +21,7 @@ defmodule Eirinchan.GeoIp do
       not is_binary(database_path) or String.trim(database_path) == "" ->
         :error
 
-      not File.exists?(database_path) ->
+      not valid_database_file?(database_path) ->
         :error
 
       true ->
@@ -27,6 +32,43 @@ defmodule Eirinchan.GeoIp do
         else
           _ -> :error
         end
+    end
+  end
+
+  defp valid_database_file?(database_path) do
+    with {:ok, %{type: :regular, size: size, mtime: mtime, inode: inode}} <-
+           File.stat(database_path),
+         true <- size >= byte_size(@metadata_marker) do
+      signature = {database_path, size, mtime, inode}
+
+      case :persistent_term.get(@validation_key, nil) do
+        {^signature, valid?} ->
+          valid?
+
+        _ ->
+          valid? = contains_metadata_marker?(database_path, size)
+          :persistent_term.put(@validation_key, {signature, valid?})
+          valid?
+      end
+    else
+      _ -> false
+    end
+  end
+
+  defp contains_metadata_marker?(database_path, size) do
+    offset = max(size - @metadata_search_bytes, 0)
+
+    with {:ok, file} <- File.open(database_path, [:read, :binary]) do
+      try do
+        case :file.pread(file, offset, size - offset) do
+          {:ok, data} -> :binary.match(data, @metadata_marker) != :nomatch
+          _ -> false
+        end
+      after
+        File.close(file)
+      end
+    else
+      _ -> false
     end
   end
 

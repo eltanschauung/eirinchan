@@ -1,0 +1,27 @@
+[Unit]
+Description=Update Eirinchan's GeoLite2-Country database
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=telemazer
+Group=telemazer
+ExecStart=/usr/bin/geoipupdate -f /home/telemazer/.config/maxmind/GeoIP.conf -d @EIRINCHAN_STATE_ROOT@/var/geoip
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=@EIRINCHAN_STATE_ROOT@/var/geoip
+PrivateDevices=true
+PrivateTmp=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictSUIDSGID=true
+CapabilityBoundingSet=
+TasksMax=32
+MemoryMax=256M
+UMask=0077

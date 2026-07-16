@@ -39,7 +39,7 @@ fi
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --project-directory | --env-file | --file)
+    --project-directory | --env-file | --file | --profile)
       shift 2
       ;;
     *)
@@ -88,6 +88,7 @@ export FAKE_ADMIN_MARKER="$admin_marker"
 PATH="$fake_bin:$PATH" "$sandbox/eirinchan" install \
   >"$temporary/install.out" <<'EOF'
 chan.example.com
+n
 owner
 correct horse battery staple
 correct horse battery staple
@@ -104,6 +105,7 @@ test "$(stat -c '%a' "$sandbox/.eirinchan/secrets/postgres_password")" = "600"
 test "$(stat -c '%a' "$sandbox/.eirinchan/secrets/secret_key_base")" = "600"
 
 grep -q '^EIRINCHAN_HOST=chan.example.com$' "$sandbox/.eirinchan/install.env"
+grep -q '^EIRINCHAN_GEOIP_ENABLED=0$' "$sandbox/.eirinchan/install.env"
 test "$(tr -d '\n' <"$sandbox/.eirinchan/secrets/postgres_password" | wc -c)" = "64"
 test "$(tr -d '\n' <"$sandbox/.eirinchan/secrets/secret_key_base" | wc -c)" = "128"
 
@@ -114,5 +116,37 @@ fi
 
 PATH="$fake_bin:$PATH" "$sandbox/eirinchan" doctor >"$temporary/doctor.out"
 grep -q 'Installation files and Compose configuration are valid.' "$temporary/doctor.out"
+
+geoip_sandbox="$temporary/geoip-repository"
+mkdir -p "$geoip_sandbox"
+cp "$repository/eirinchan" "$repository/compose.yaml" "$geoip_sandbox/"
+chmod 0755 "$geoip_sandbox/eirinchan"
+
+export FAKE_DOCKER_LOG="$temporary/geoip-docker.log"
+export FAKE_ADMIN_MARKER="$temporary/geoip-admin-created"
+
+PATH="$fake_bin:$PATH" "$geoip_sandbox/eirinchan" install \
+  >"$temporary/geoip-install.out" <<'EOF'
+geo.example.com
+y
+123456
+test-license-key-1234567890
+owner
+correct horse battery staple
+correct horse battery staple
+EOF
+
+test -f "$FAKE_ADMIN_MARKER"
+grep -q '^EIRINCHAN_GEOIP_ENABLED=1$' "$geoip_sandbox/.eirinchan/install.env"
+test "$(stat -c '%a' "$geoip_sandbox/.eirinchan/secrets/maxmind_account_id")" = "600"
+test "$(stat -c '%a' "$geoip_sandbox/.eirinchan/secrets/maxmind_license_key")" = "600"
+grep -q '^123456$' "$geoip_sandbox/.eirinchan/secrets/maxmind_account_id"
+grep -q '^test-license-key-1234567890$' "$geoip_sandbox/.eirinchan/secrets/maxmind_license_key"
+grep -q -- '--profile geoip' "$FAKE_DOCKER_LOG"
+
+if grep -q 'test-license-key-1234567890' "$FAKE_DOCKER_LOG"; then
+  echo "MaxMind license key leaked into Docker arguments" >&2
+  exit 1
+fi
 
 echo "CLI installer test passed"

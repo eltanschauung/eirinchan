@@ -379,7 +379,7 @@ defmodule Eirinchan.Runtime.ConfigTest do
     assert config.ipaccess_imagelim == 0
   end
 
-  test "defaults GeoIP2 database path to the bundled MMDB" do
+  test "defaults GeoIP2 database path to external runtime storage" do
     config =
       Config.compose(
         %{
@@ -391,7 +391,7 @@ defmodule Eirinchan.Runtime.ConfigTest do
       )
 
     assert config.geoip2_database_path ==
-             Application.app_dir(:eirinchan, "priv/geoip2/GeoLite2-Country.mmdb")
+             Application.fetch_env!(:eirinchan, :geoip2_database_path)
   end
 
   test "normalizes deprecated camelCase feature switches" do

@@ -121,10 +121,6 @@ defmodule Eirinchan.PostsTest do
     path
   end
 
-  defp bundled_geoip_database_path do
-    Application.app_dir(:eirinchan, "priv/geoip2/GeoLite2-Country.mmdb")
-  end
-
   test "create_post creates an OP when no thread is supplied" do
     board = board_fixture()
 
@@ -1998,7 +1994,7 @@ defmodule Eirinchan.PostsTest do
     assert thread.flag_alts == ["United States", "Sauce"]
   end
 
-  test "create_post can resolve country metadata via the bundled GeoIP2 database" do
+  test "create_post falls back to the United States when the GeoIP2 database is missing" do
     board = board_fixture()
 
     assert {:ok, thread, _meta} =
@@ -2011,7 +2007,11 @@ defmodule Eirinchan.PostsTest do
                config:
                  post_config(%{
                    country_flags: true,
-                   geoip2_database_path: bundled_geoip_database_path()
+                   geoip2_database_path:
+                     Path.join(
+                       System.tmp_dir!(),
+                       "missing-eirinchan-geoip-#{System.unique_integer([:positive])}.mmdb"
+                     )
                  }),
                request: %{
                  referer: "http://example.test/#{board.uri}/index.html",
@@ -2019,8 +2019,39 @@ defmodule Eirinchan.PostsTest do
                }
              )
 
-    assert thread.flag_codes == ["ca"]
-    assert thread.flag_alts == ["Canada"]
+    assert thread.flag_codes == ["us"]
+    assert thread.flag_alts == ["United States"]
+  end
+
+  test "create_post falls back to the United States when the GeoIP2 database is invalid" do
+    board = board_fixture()
+
+    invalid_database =
+      Path.join(
+        System.tmp_dir!(),
+        "invalid-eirinchan-geoip-#{System.unique_integer([:positive])}.mmdb"
+      )
+
+    File.write!(invalid_database, "not an MMDB")
+    on_exit(fn -> File.rm(invalid_database) end)
+
+    assert {:ok, thread, _meta} =
+             Posts.create_post(
+               board,
+               %{"body" => "geoip body", "post" => "New Topic"},
+               config:
+                 post_config(%{
+                   country_flags: true,
+                   geoip2_database_path: invalid_database
+                 }),
+               request: %{
+                 referer: "http://example.test/#{board.uri}/index.html",
+                 remote_ip: {24, 48, 0, 1}
+               }
+             )
+
+    assert thread.flag_codes == ["us"]
+    assert thread.flag_alts == ["United States"]
   end
 
   test "create_post stores allowed OP tags and proxy metadata and encodes compatibility modifiers" do

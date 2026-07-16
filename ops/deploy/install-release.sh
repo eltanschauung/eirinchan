@@ -37,6 +37,7 @@ SOURCE_ROOT="$BUILD_ROOT/source"
 OUTPUT_ROOT="$BUILD_ROOT/output"
 HARDENING_RENDERED="$BUILD_ROOT/hardening.conf"
 LOG_RETENTION_RENDERED="$BUILD_ROOT/eirinchan-log-retention.service"
+GEOIP_UPDATE_RENDERED="$BUILD_ROOT/eirinchan-geoip-update.service"
 TARGET="$RELEASE_ROOT/$COMMIT"
 TEMP_TARGET="$RELEASE_ROOT/.${COMMIT}.new"
 PREVIOUS_TARGET=""
@@ -96,7 +97,10 @@ sed "s|@EIRINCHAN_STATE_ROOT@|$STATE_ROOT_REPLACEMENT|g" \
 sed "s|@EIRINCHAN_STATE_ROOT@|$STATE_ROOT_REPLACEMENT|g" \
   "$SOURCE_ROOT/ops/systemd/eirinchan-log-retention.service" \
   >"$LOG_RETENTION_RENDERED"
-if grep -qF '@EIRINCHAN_STATE_ROOT@' "$HARDENING_RENDERED" "$LOG_RETENTION_RENDERED"; then
+sed "s|@EIRINCHAN_STATE_ROOT@|$STATE_ROOT_REPLACEMENT|g" \
+  "$SOURCE_ROOT/ops/systemd/eirinchan-geoip-update.service" \
+  >"$GEOIP_UPDATE_RENDERED"
+if grep -qF '@EIRINCHAN_STATE_ROOT@' "$HARDENING_RENDERED" "$LOG_RETENTION_RENDERED" "$GEOIP_UPDATE_RENDERED"; then
   echo "Failed to render state root in systemd configuration." >&2
   exit 1
 fi
@@ -144,6 +148,12 @@ sudo install -m 0644 -o root -g root \
 sudo install -m 0644 -o root -g root \
   "$SOURCE_ROOT/ops/systemd/eirinchan-log-retention.timer" \
   /etc/systemd/system/eirinchan-log-retention.timer
+sudo install -m 0644 -o root -g root \
+  "$GEOIP_UPDATE_RENDERED" \
+  /etc/systemd/system/eirinchan-geoip-update.service
+sudo install -m 0644 -o root -g root \
+  "$SOURCE_ROOT/ops/systemd/eirinchan-geoip-update.timer" \
+  /etc/systemd/system/eirinchan-geoip-update.timer
 sudo rm -f -- /etc/tmpfiles.d/eirinchan-logs.conf
 sudo install -d -m 0700 -o root -g root /home/telemazer/logs
 sudo touch /home/telemazer/logs/bantculture-phoenix.log
@@ -204,5 +214,10 @@ if [[ "$healthy" -ne 1 ]]; then
 fi
 
 sudo systemctl enable --now eirinchan-log-retention.timer
+
+if command -v geoipupdate >/dev/null 2>&1 && sudo test -r /home/telemazer/.config/maxmind/GeoIP.conf; then
+  sudo install -d -m 0700 -o telemazer -g telemazer "$REPOSITORY/var/geoip"
+  sudo systemctl enable --now eirinchan-geoip-update.timer
+fi
 
 printf 'Deployed immutable release %s\n' "$COMMIT"

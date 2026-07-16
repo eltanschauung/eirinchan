@@ -38,8 +38,10 @@ cd eirinchan-devel
 
 The installer asks for the public hostname, generates private database and application
 secrets, builds an immutable release, starts PostgreSQL, and runs all migrations. Its final
-prompt creates the first administrator. The password is confirmed without being displayed
-or placed in command arguments or configuration files.
+prompt creates the first administrator. Before that, MaxMind GeoLite2-Country updates can
+optionally be enabled with an account ID and license key; the option may be skipped. If no
+valid database is available, country flag checks safely use `us.png`. Passwords are confirmed
+without being displayed or placed in command arguments or configuration files.
 
 Caddy is included and obtains and renews HTTPS certificates automatically. Phoenix and
 PostgreSQL are not published directly to the host. Persistent database, certificate, upload,
@@ -79,4 +81,6 @@ mix phx.server
 
 The native administrator command prompts for a password without echoing it. Database and
 application secrets must be supplied through the server environment in production; the web
-application never persists database credentials.
+application never persists database credentials. Native deployments may install `geoipupdate`,
+keep `GeoIP.conf` outside the repository, and schedule it monthly to write
+`var/geoip/GeoLite2-Country.mmdb`.

@@ -1,0 +1,12 @@
+[Unit]
+Description=Update Eirinchan's GeoIP database on the first of each month
+
+[Timer]
+OnCalendar=*-*-01 00:00:00
+Persistent=true
+AccuracySec=1s
+RandomizedDelaySec=0
+Unit=eirinchan-geoip-update.service
+
+[Install]
+WantedBy=timers.target

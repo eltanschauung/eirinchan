@@ -27,6 +27,39 @@ services:
       - database
     logging: *log-policy
 
+  geoipupdate:
+    image: ghcr.io/maxmind/geoipupdate:v8.0.0
+    profiles: ["geoip"]
+    restart: unless-stopped
+    environment:
+      GEOIPUPDATE_ACCOUNT_ID_FILE: /run/secrets/maxmind_account_id
+      GEOIPUPDATE_DB_DIR: /usr/share/GeoIP
+      GEOIPUPDATE_EDITION_IDS: GeoLite2-Country
+      GEOIPUPDATE_LICENSE_KEY_FILE: /run/secrets/maxmind_license_key
+      GEOIPUPDATE_FREQUENCY: 0
+    entrypoint: ["/bin/sh", "/usr/local/bin/eirinchan-geoipupdate-monthly"]
+    secrets:
+      - maxmind_account_id
+      - maxmind_license_key
+    volumes:
+      - geoip-data:/usr/share/GeoIP
+      - ./docker/geoipupdate-monthly.sh:/usr/local/bin/eirinchan-geoipupdate-monthly:ro
+    tmpfs:
+      - /tmp:mode=1777,size=16m
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 32
+    healthcheck:
+      test: ["CMD-SHELL", "test -s /usr/share/GeoIP/GeoLite2-Country.mmdb"]
+      interval: 1h
+      timeout: 5s
+      retries: 2
+      start_period: 2m
+    logging: *log-policy
+
   app:
     build:
       context: .
@@ -49,6 +82,7 @@ services:
       - secret_key_base
     volumes:
       - application-state:/var/lib/eirinchan
+      - geoip-data:/var/lib/eirinchan/var/geoip:ro
     tmpfs:
       - /tmp:mode=1777,size=256m
     read_only: true
@@ -118,9 +152,14 @@ volumes:
   caddy-config:
   caddy-data:
   database-data:
+  geoip-data:
 
 secrets:
   postgres_password:
     file: ./.eirinchan/secrets/postgres_password
   secret_key_base:
     file: ./.eirinchan/secrets/secret_key_base
+  maxmind_account_id:
+    file: ./.eirinchan/secrets/maxmind_account_id
+  maxmind_license_key:
+    file: ./.eirinchan/secrets/maxmind_license_key
