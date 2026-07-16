@@ -1,22 +1,24 @@
 # Eirinchan
 
-Eirinchan is a Vichan-compatible imageboard written in Elixir and Phoenix with PostgreSQL.
-It keeps familiar imageboard workflows while providing a compiled application, a modern
-runtime, and a supported container installation. Credit to Tinyboard, Vichan Devel, and
-Fredrick Brennan.
+This is a remake of the Vichan imageboard software in Elixir and Phoenix. Feature parity is partial; however, this is mostly contained to removing features I don't personally use. The purpose of this is to replace the PHP/HTML/MySQL type of imageboard with a compiled high-speed app. The release(s) are for Docker, but feel free to try setting it up natively. Credit to Tinyboard, Vichan Devel, RealAngeleno and Fredrick Brennan. Here's a demo: https://bantculture.com/bant/index.html
+
+Shoot me a question on Telegram if you need help: @eltanschauung
 
 # Unique Features
 - Lightning fast speeds with Phoenix and PostgreSQL
 - Modernization to catalog and other page templates
 - Catalog pagination, updated catalog search js
-- Editable FAQ, rules, formatting, and custom pages
-- Configurable country and user flags
-- Optional subnet-based IP access authentication
-- Configurable themes, announcements, stickers, and board navigation
-- Live updates using md5 checksum values, including live catalog and index pages
-- Large parts of the standard Vichan frontend integrated with Phoenix
+- New themes from the bantculture community + Tomorrow
+- Blur spoilers system
+- Superior live updates system using one If-None-Match request for the index and threads, catalog is also supported but it's not as far along.
+- Large amount of de-JavaScriptification of Vichan
 - Embeds can be used alongside files
 - 4chanX inspired thread watcher mainly using backend functionality and minimal JS
+- Programmable announcements div for index and catalog pages, configurable in the admin dashboard. Includes a PPH counter, visitors in last 10 minutes counter.
+- Feedback system and page
+- Programmable boardlist system
+- JSON instance configuration system as opposed to interacting with config.php in /inc
+- Keyword search in Admin recent posts browser
 
 # Installation
 
@@ -29,7 +31,7 @@ The supported production installation uses Docker Compose. Before starting:
 Then run:
 
 ```sh
-git clone --branch main-release https://github.com/eltanschauung/eirinchan-v1.git
+git clone https://github.com/eltanschauung/eirinchan-v1.git
 cd eirinchan-v1
 ./eirinchan install
 ```
@@ -59,9 +61,13 @@ Stopping the stack with `./eirinchan stop` preserves all volumes. Do not use
 There is intentionally no browser installation endpoint and there are no default
 administrator credentials.
 
-## Native development
+## Security
 
-Native development remains available for contributors with Elixir 1.20.2, Erlang/OTP 27,
+This software has been heavily pentested by GPT 5.6 Pro in software-side and live environments. This software is not subject to CSRF vulnerability recently found in Vichan.
+
+## Don't like Docker?
+
+Installing this software natively is possible with Elixir 1.20.2, Erlang/OTP 27,
 and PostgreSQL installed:
 
 ```sh
