@@ -489,6 +489,7 @@ defmodule EirinchanWeb.PageControllerTest do
     assert html =~ "Stored Rules"
     assert html =~ ~s(class="boardlist")
     refute html =~ "<header><h1>ignored</h1></header>"
+    refute html =~ "Updated by ruleseditor"
   end
 
   test "GET /faq normalizes stored full html overrides into the shared shell", %{conn: conn} do
@@ -570,9 +571,12 @@ defmodule EirinchanWeb.PageControllerTest do
 
     formatting_conn = get(conn, "/formatting")
 
-    assert response(formatting_conn, 200) =~ "<h1>Stored Formatting</h1>"
-    assert response(formatting_conn, 200) =~ ~s(class="boardlist")
-    assert response(formatting_conn, 200) =~ ~s(id="options-link")
+    html = response(formatting_conn, 200)
+
+    assert html =~ "<h1>Stored Formatting</h1>"
+    assert html =~ ~s(class="boardlist")
+    assert html =~ ~s(id="options-link")
+    refute html =~ "Updated by formattingeditor"
     assert get_resp_header(formatting_conn, "content-type") == ["text/html; charset=utf-8"]
   end
 

@@ -7,5 +7,4 @@
   show_global_message={@show_global_message}
 >
   <%= raw(@sanitized_body || "") %>
-  <p :if={@page.mod_user} class="unimportant public-panel">Updated by <%= @page.mod_user.username %></p>
 </.page_shell>
