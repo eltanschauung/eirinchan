@@ -154,10 +154,10 @@
     {
       "label": "maintained:assets/app.js",
       "output": "priv/static/assets/app.js",
-      "output_bytes": 5271,
+      "output_bytes": 6249,
       "public_path": "/assets/app.js",
-      "sha256": "544ac2ce8f1229fa2b2310753c6d16aa4a311cc3305a5d5033ca6dcfd107d46d",
-      "source_bytes": 9536,
+      "sha256": "655651218a317d064eed610f84ab87212d367ade78ec7fe2ef8afc7c680c108d",
+      "source_bytes": 11508,
       "sources": [
         "assets/js/app.js"
       ]
