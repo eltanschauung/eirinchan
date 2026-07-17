@@ -201,6 +201,58 @@
     var selectors = form.querySelectorAll("[data-post-select]");
     if (!selectors.length) return;
 
+    function showDeleteError(message) {
+      var text = message || "Delete failed. Please try again.";
+      if (typeof window.showAlert === "function") window.showAlert(text);
+      else window.alert(text);
+    }
+
+    function deleteAndReturn(submitter, selected, deleteField, reportField) {
+      var returnLink = document.querySelector("#thread-return") ||
+        document.querySelector("#thread-return-top");
+
+      if (!returnLink || typeof window.fetch !== "function" || typeof window.FormData !== "function") {
+        return false;
+      }
+
+      var payload = new window.FormData(form);
+      payload.set("delete_post_id", selected.value);
+      payload.delete("report_post_id");
+      payload.delete("report");
+      payload.set("json_response", "1");
+      if (submitter.name) payload.set(submitter.name, submitter.value || "Delete");
+
+      submitter.disabled = true;
+
+      window.fetch(form.action, {
+        method: (form.method || "post").toUpperCase(),
+        body: payload,
+        credentials: "same-origin",
+        headers: {
+          Accept: "application/json",
+          "X-Requested-With": "XMLHttpRequest"
+        }
+      }).then(function (response) {
+        return response.json().then(function (body) {
+          return {response: response, body: body};
+        });
+      }).then(function (result) {
+        if (!result.response.ok || !result.body || result.body.error) {
+          throw new Error(result.body && result.body.error);
+        }
+
+        returnLink.click();
+      }).catch(function (error) {
+        showDeleteError(error && error.message);
+      }).then(function () {
+        submitter.disabled = false;
+        if (deleteField) deleteField.value = "";
+        if (reportField) reportField.value = "";
+      });
+
+      return true;
+    }
+
     Array.prototype.forEach.call(selectors, function (selector) {
       selector.addEventListener("change", function () {
         if (!selector.checked) return;
@@ -229,6 +281,13 @@
       if (reportField) reportField.value = "";
       if (submitter.dataset.postAction === "delete" && deleteField) deleteField.value = selected.value;
       if (submitter.dataset.postAction === "report" && reportField) reportField.value = selected.value;
+
+      if (
+        submitter.dataset.postAction === "delete" &&
+        deleteAndReturn(submitter, selected, deleteField, reportField)
+      ) {
+        event.preventDefault();
+      }
     });
   }
 
