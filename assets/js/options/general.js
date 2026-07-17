@@ -81,6 +81,19 @@
       .catch(function () {});
   }
 
+  function clearGoOnyxState() {
+    if (!window.fetch) return Promise.resolve();
+
+    return window
+      .fetch("/.go-away/clear-state", {
+        method: "POST",
+        headers: {"x-requested-with": "XMLHttpRequest"},
+        credentials: "same-origin",
+        cache: "no-store"
+      })
+      .catch(function () {});
+  }
+
   function clearThemeCookies() {
     themeCookieNames.forEach(function (name) {
       if (typeof runtime.removeCookie === "function") {
@@ -143,7 +156,7 @@
 
       clearThemeCookies();
 
-      clearWatcher().finally(function () {
+      Promise.all([clearWatcher(), clearGoOnyxState()]).finally(function () {
         window.location.reload();
       });
     });

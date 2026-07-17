@@ -22,14 +22,7 @@ async function generalOptionsWindow(runtime = {}) {
   window.confirm = () => true;
   window.EirinchanRuntime = {
     requestJson() {
-      return {
-        catch() {
-          return this;
-        },
-        finally() {
-          return this;
-        }
-      };
+      return new Promise(() => {});
     },
     ...runtime
   };
@@ -47,11 +40,16 @@ async function generalOptionsWindow(runtime = {}) {
 
 test("erasing options storage removes all theme cookies and browser storage", async () => {
   const removed = [];
+  const requests = [];
   const window = await generalOptionsWindow({
     removeCookie(name, options) {
       removed.push([name, options]);
     }
   });
+  window.fetch = (url, options) => {
+    requests.push([url, options]);
+    return Promise.resolve({ok: true});
+  };
 
   window.localStorage.setItem("selected", "tomorrow");
   window.sessionStorage.setItem("temporary", "value");
@@ -67,6 +65,11 @@ test("erasing options storage removes all theme cookies and browser storage", as
       ["eirinchan_color_scheme", "/"]
     ]
   );
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0][0], "/.go-away/clear-state");
+  assert.equal(requests[0][1].method, "POST");
+  assert.equal(requests[0][1].credentials, "same-origin");
+  assert.equal(requests[0][1].headers["x-requested-with"], "XMLHttpRequest");
 });
 
 test("erasing options storage expires theme cookies without the runtime helper", async () => {
