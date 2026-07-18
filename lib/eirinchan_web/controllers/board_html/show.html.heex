@@ -233,6 +233,7 @@
           class="board-search-input"
           name="search"
           placeholder="Search"
+          maxlength={@config.search_max_query_length}
         />
         <input type="hidden" name="board" value={@board.uri} />
         <input type="submit" value="Search" style="margin-right:4px;" />

@@ -72,6 +72,28 @@ defmodule EirinchanWeb.SearchControllerTest do
            )
   end
 
+  test "public search bounds query length and term complexity", %{conn: conn} do
+    board =
+      board_fixture(%{
+        uri: "bound#{System.unique_integer([:positive, :monotonic])}",
+        config_overrides: %{search_max_query_length: 20, search_max_terms: 2}
+      })
+
+    long_page =
+      conn
+      |> get("/search.php", %{"search" => String.duplicate("x", 21), "board" => board.uri})
+      |> html_response(200)
+
+    assert long_page =~ "Search queries are limited to 20 characters."
+
+    complex_page =
+      build_conn()
+      |> get("/search.php", %{"search" => "one two three", "board" => board.uri})
+      |> html_response(200)
+
+    assert complex_page =~ "Search queries are limited to 2 terms."
+  end
+
   test "public search applies global query throttles across IPs", %{conn: _conn} do
     board =
       board_fixture(%{

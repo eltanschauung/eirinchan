@@ -84,6 +84,8 @@ Canonical keys
 - board_search
 - search_enabled
 - search_limit
+- search_max_query_length
+- search_max_terms
 - search_queries_per_minutes
 - search_queries_per_minutes_all
 - watcher_max_threads

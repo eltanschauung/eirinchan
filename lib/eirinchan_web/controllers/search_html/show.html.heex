@@ -5,7 +5,14 @@
   <form style="display:inline" action="" method="get">
     <p>
       <label style="display:inline" for="search">Phrase:</label>
-      <input id="search" name="search" type="text" size="40" value={@query} />
+      <input
+        id="search"
+        name="search"
+        type="text"
+        size="40"
+        maxlength={@config.search_max_query_length}
+        value={@query}
+      />
       <select name="board">
         <option value="none">Select board&hellip;</option>
         <%= for board <- @boards do %>
