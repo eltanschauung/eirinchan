@@ -236,7 +236,10 @@
         [Return to Index]
       </a>
       <a id="thread-bottom" href="#bottom">[Go to bottom]</a>
-      <.live_updater page_kind={:catalog} />
+      <.live_updater
+        page_kind={:catalog}
+        poll_interval_seconds={@config.auto_updater_poll_interval_seconds}
+      />
     </span>
   </div>
   <div :if={@page_data.total_pages > 1} class="catalog-nav-row">

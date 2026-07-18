@@ -443,7 +443,10 @@
         [<%= @config.catalog_name %>]
       </a>
 
-      <.live_updater page_kind={:thread} />
+      <.live_updater
+        page_kind={:thread}
+        poll_interval_seconds={@config.auto_updater_poll_interval_seconds}
+      />
     </span>
 
     <span id="thread-quick-reply">
