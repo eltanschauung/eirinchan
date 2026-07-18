@@ -20,8 +20,10 @@
   var selectedStyleMeta = document.querySelector('meta[name="eirinchan:selected-style"]');
   if (selectedStyleMeta) selectedStyleMeta.setAttribute("content", selected.label);
 
+  var maxAgeMeta = document.querySelector('meta[name="eirinchan:preference-cookie-max-age"]');
+  var maxAge = parseInt(maxAgeMeta && maxAgeMeta.content, 10) || 31536000;
   var cookie = "eirinchan_color_scheme=" + (dark ? "dark" : "light") +
-    "; path=/; max-age=31536000; samesite=lax";
+    "; path=/; max-age=" + maxAge + "; samesite=lax";
   if (window.location.protocol === "https:") cookie += "; secure";
   document.cookie = cookie;
 

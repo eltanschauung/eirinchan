@@ -2,6 +2,7 @@ defmodule EirinchanWeb.ThemeController do
   use EirinchanWeb, :controller
 
   alias Eirinchan.Boards
+  alias Eirinchan.Runtime.Config
   alias Eirinchan.Settings
   alias EirinchanWeb.ThemeRegistry
 
@@ -17,6 +18,7 @@ defmodule EirinchanWeb.ThemeController do
     board = normalize_board(params["board"])
     board_record = if board, do: Boards.get_board_by_uri(board), else: nil
     forced_theme_identifier = forced_theme(board_record, Settings.current_instance_config())
+    cookie_max_age = preference_cookie_max_age()
 
     conn =
       if forced_theme_identifier do
@@ -29,15 +31,24 @@ defmodule EirinchanWeb.ThemeController do
             |> Map.put(board, selected_theme)
 
           put_resp_cookie(conn, "board_themes", Jason.encode!(board_themes),
-            max_age: 60 * 60 * 24 * 365,
+            max_age: cookie_max_age,
             path: "/"
           )
         else
-          put_resp_cookie(conn, "theme", selected_theme, max_age: 60 * 60 * 24 * 365, path: "/")
+          put_resp_cookie(conn, "theme", selected_theme, max_age: cookie_max_age, path: "/")
         end
       end
 
     redirect(conn, to: return_to)
+  end
+
+  defp preference_cookie_max_age do
+    config = Config.compose(nil, Settings.current_instance_config(), %{})
+
+    case config.preference_cookie_max_age_seconds do
+      value when is_integer(value) and value > 0 -> min(value, 10 * 365 * 86_400)
+      _other -> 365 * 86_400
+    end
   end
 
   defp decode_board_themes_cookie(value) when is_binary(value) do

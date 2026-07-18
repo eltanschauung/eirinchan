@@ -44,4 +44,17 @@ defmodule EirinchanWeb.ThemeLayoutTest do
     assert page =~ "/stylesheets/yotsuba.css"
     refute page =~ "Keyed Frog"
   end
+
+  test "instance default dark theme is selected without a saved theme", %{conn: conn} do
+    :ok = Eirinchan.Settings.persist_instance_config(%{default_theme_dark: "tomorrow"})
+
+    page =
+      conn
+      |> put_req_cookie("eirinchan_color_scheme", "dark")
+      |> get("/search", %{"q" => ""})
+      |> html_response(200)
+
+    assert page =~ ~s(id="stylesheet")
+    assert page =~ ~s(href="/stylesheets/tomorrow.css)
+  end
 end

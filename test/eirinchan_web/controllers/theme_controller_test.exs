@@ -34,6 +34,19 @@ defmodule EirinchanWeb.ThemeControllerTest do
     assert conn.resp_cookies["theme"].value == "vichan"
   end
 
+  test "theme update uses the configured preference cookie lifetime", %{conn: conn} do
+    :ok = Eirinchan.Settings.persist_instance_config(%{preference_cookie_max_age_seconds: 12_345})
+
+    conn =
+      post(conn, "/theme", %{
+        "_csrf_token" => Plug.CSRFProtection.get_csrf_token(),
+        "theme" => "vichan",
+        "return_to" => "/search"
+      })
+
+    assert conn.resp_cookies["theme"].max_age == 12_345
+  end
+
   test "theme update falls back to the default theme for invalid values", %{conn: conn} do
     conn =
       post(conn, "/theme", %{

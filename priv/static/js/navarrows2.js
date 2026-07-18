@@ -11,8 +11,12 @@
   }
 
   function fallbackWriteCookie(name, value) {
+    var maxAge = parseInt(
+      (document.querySelector('meta[name="eirinchan:preference-cookie-max-age"]') || {}).content,
+      10
+    ) || 31_536_000;
     document.cookie =
-      name + "=" + encodeURIComponent(value) + "; path=/; max-age=31536000; samesite=lax";
+      name + "=" + encodeURIComponent(value) + "; path=/; max-age=" + maxAge + "; samesite=lax";
   }
 
   function setArrowVisibility(enabled) {
@@ -46,7 +50,7 @@
       enabled = checkbox.checked;
       writeCookie("navarrows", enabled ? "true" : "false", {
         path: "/",
-        maxAge: 31_536_000,
+        maxAge: runtime.preferenceCookieMaxAge || 31_536_000,
         sameSite: "lax"
       });
       setArrowVisibility(enabled);
