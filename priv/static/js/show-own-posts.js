@@ -219,9 +219,12 @@
     var postBoard = threadBoard(current);
     var currentPostIds = ownedPostIds(current);
 
-    if (postBoard && currentPostIds.length) {
-      rememberOwnPosts(postBoard, currentPostIds);
-      markOwnedPosts(replacement, postBoard, currentPostIds);
+    if (postBoard) {
+      if (currentPostIds.length) {
+        rememberOwnPosts(postBoard, currentPostIds);
+      }
+
+      applyCachedMarkers(replacement, postBoard);
     }
 
     rememberRenderedMarkers(current);

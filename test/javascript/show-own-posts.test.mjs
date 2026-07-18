@@ -77,3 +77,29 @@ test("ownership markers survive a changed-reply replacement", () => {
   assert.equal(replacement.classList.contains("you"), true);
   assert.equal(replacement.querySelector(".own_post").textContent, "(You)");
 });
+
+test("quote markers survive a changed-reply replacement", () => {
+  const dom = setup(`
+    <div class="thread" data-board="bant">
+      <div class="post reply" id="reply_3">
+        <span class="mentioned">
+          <a data-highlight-reply="456">&gt;&gt;456</a> <small>(You)</small>
+        </span>
+      </div>
+    </div>
+  `);
+  dom.window.localStorage.own_posts = JSON.stringify({bant: ["456"]});
+  const current = dom.window.document.getElementById("reply_3");
+  const replacement = dom.window.document.createElement("div");
+  replacement.className = "post reply";
+  replacement.id = "reply_3";
+  replacement.innerHTML = `
+    <span class="mentioned">
+      <a data-highlight-reply="456">&gt;&gt;456</a>
+    </span>
+  `;
+
+  dom.window.EirinchanShowOwnPosts.prepareReplacement(current, replacement);
+
+  assert.equal(replacement.querySelector(".mentioned small").textContent, "(You)");
+});

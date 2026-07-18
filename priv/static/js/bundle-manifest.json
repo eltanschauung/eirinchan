@@ -35,10 +35,10 @@
     {
       "label": "bundle:thread",
       "output": "priv/static/js/bundle-public-thread.js",
-      "output_bytes": 329484,
+      "output_bytes": 329482,
       "public_path": "/js/bundle-public-thread.js",
-      "sha256": "054dfb85849b2dc9eb6ba309556f5803cd0e883beebcd89f9dac31e612836466",
-      "source_bytes": 352021,
+      "sha256": "0f7f5ea1e0448f865c4fde1f7bfd4c60075f62bfff9551c781e6bdee6e90470e",
+      "source_bytes": 352030,
       "sources": [
         "priv/static/js/inline-expanding.js",
         "priv/static/js/thread-stats.js",
@@ -68,10 +68,10 @@
     {
       "label": "bundle:index",
       "output": "priv/static/js/bundle-public-index.js",
-      "output_bytes": 331952,
+      "output_bytes": 331950,
       "public_path": "/js/bundle-public-index.js",
-      "sha256": "3e54a76fd1b764521eab46b688db7bdbb2c922b1c472314c3f0597c2d80fc911",
-      "source_bytes": 357522,
+      "sha256": "7c03ef56cb056b909f4c2130f507994d4bda6e223df93b3a46f0d38f696088e3",
+      "source_bytes": 357531,
       "sources": [
         "priv/static/js/inline-expanding.js",
         "priv/static/js/strftime.min.js",
@@ -101,10 +101,10 @@
     {
       "label": "bundle:catalog",
       "output": "priv/static/js/bundle-public-catalog.js",
-      "output_bytes": 47631,
+      "output_bytes": 47629,
       "public_path": "/js/bundle-public-catalog.js",
-      "sha256": "47a4ead82c5bb75dc15e6dbc95151f24df75af36ee8c5d138d2395654f71c1a3",
-      "source_bytes": 69607,
+      "sha256": "effd40ca95e0b8d270aa7482c2d3d73b748f8728b09726f983dff7e34f4e9da8",
+      "source_bytes": 69616,
       "sources": [
         "priv/static/js/ajax.js",
         "priv/static/js/file-selector.js",
@@ -134,10 +134,10 @@
     {
       "label": "bundle:search",
       "output": "priv/static/js/bundle-public-search.js",
-      "output_bytes": 15176,
+      "output_bytes": 15174,
       "public_path": "/js/bundle-public-search.js",
-      "sha256": "811e88afaa97831d4cea18e9ddcd3b43c8b7cb76dcb54dd9807bbbc174cb02b5",
-      "source_bytes": 19042,
+      "sha256": "47ef338533516f22d9df8a7552a6074372115406165b4d89dc15e4ee05d244e6",
+      "source_bytes": 19051,
       "sources": [
         "priv/static/js/inline-expanding.js",
         "priv/static/js/expand.js",
