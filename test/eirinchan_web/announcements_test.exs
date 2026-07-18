@@ -209,6 +209,16 @@ defmodule EirinchanWeb.AnnouncementsTest do
     assert Agent.get(calls, & &1) == 2
   end
 
+  test "global messages expand the threads-per-hour placeholder" do
+    board = board_fixture()
+    _thread = thread_fixture(board)
+
+    assert Announcements.global_message(
+             %{global_message: "TPH: {stats.threads_perhour}"},
+             board: board
+           ) == "TPH: 1"
+  end
+
   test "silly post count applies the requested replacements" do
     transformed = AprilFoolsTeams.silly_post_count("1236789")
     transformed_again = AprilFoolsTeams.silly_post_count("1236789")

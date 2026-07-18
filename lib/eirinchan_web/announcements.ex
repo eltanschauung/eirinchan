@@ -88,6 +88,7 @@ defmodule EirinchanWeb.Announcements do
     message
     |> maybe_replace_tf2_placeholders(opts)
     |> maybe_replace_posts_perhour(opts)
+    |> maybe_replace_threads_perhour(opts)
     |> maybe_replace_users_10minutes(opts)
     |> maybe_replace_team_placeholders()
   end
@@ -232,6 +233,7 @@ defmodule EirinchanWeb.Announcements do
     %{
       board_scoped?:
         String.contains?(message, "{stats.posts_perhour}") or
+          String.contains?(message, "{stats.threads_perhour}") or
           String.contains?(message, "{stats.users_10minutes}"),
       team_scoped?:
         Regex.match?(
@@ -301,6 +303,31 @@ defmodule EirinchanWeb.Announcements do
       String.replace(message, "{stats.posts_perhour}", posts_perhour_placeholder(opts))
     else
       message
+    end
+  end
+
+  defp maybe_replace_threads_perhour(message, opts) do
+    if String.contains?(message, "{stats.threads_perhour}") do
+      String.replace(message, "{stats.threads_perhour}", threads_perhour_placeholder(opts))
+    else
+      message
+    end
+  end
+
+  defp threads_perhour_placeholder(opts) do
+    cond do
+      is_map(opts[:board]) and Map.has_key?(opts[:board], :id) ->
+        opts[:board]
+        |> Stats.threads_perhour()
+        |> Integer.to_string()
+
+      is_list(opts[:board_ids]) and opts[:board_ids] != [] ->
+        opts[:board_ids]
+        |> Stats.threads_perhour()
+        |> Integer.to_string()
+
+      true ->
+        "{stats.threads_perhour}"
     end
   end
 
