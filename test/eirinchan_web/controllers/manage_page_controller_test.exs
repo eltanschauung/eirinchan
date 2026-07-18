@@ -1083,7 +1083,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
            )
   end
 
-  test "browser announcement management updates global message and history", %{
+  test "browser announcement management updates the global message", %{
     conn: conn
   } do
     original_path = Application.get_env(:eirinchan, :instance_config_path)
@@ -1162,7 +1162,6 @@ defmodule EirinchanWeb.ManagePageControllerTest do
 
     assert redirected_to(delete_conn) == "/manage/announcement/browser"
     persisted = File.read!(path)
-    assert persisted =~ "\"global_message_history\""
     refute persisted =~ "\"global_message\":\"Important notice updated\""
   end
 
