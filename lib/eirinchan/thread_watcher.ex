@@ -8,6 +8,8 @@ defmodule Eirinchan.ThreadWatcher do
   alias Eirinchan.ThreadWatcher.Snapshot
   alias Eirinchan.ThreadWatcher.Watch
 
+  @default_max_threads 500
+
   def snapshot(browser_token, opts \\ []) when is_binary(browser_token) do
     Snapshot.build(browser_token, opts)
   end
@@ -102,10 +104,11 @@ defmodule Eirinchan.ThreadWatcher do
     )
   end
 
-  def watch_thread(browser_token, board_uri, thread_id, attrs \\ %{})
+  def watch_thread(browser_token, board_uri, thread_id, attrs \\ %{}, opts \\ [])
       when is_binary(browser_token) and is_binary(board_uri) and is_integer(thread_id) do
     browser_token = BrowserIdentity.reference(browser_token)
     attrs = Map.new(attrs)
+    max_threads = positive_integer(Keyword.get(opts, :max_threads), @default_max_threads)
 
     last_seen_post_id =
       Map.get(attrs, :last_seen_post_id, Map.get(attrs, "last_seen_post_id"))
@@ -120,6 +123,12 @@ defmodule Eirinchan.ThreadWatcher do
     now = DateTime.utc_now() |> DateTime.truncate(:second)
 
     Repo.transaction(fn ->
+      lock_browser_watches(browser_token)
+
+      unless watch_capacity_available?(browser_token, thread_id, max_threads) do
+        Repo.rollback(:watch_limit)
+      end
+
       case %Watch{}
            |> Watch.changeset(insert_attrs)
            |> Repo.insert(
@@ -150,6 +159,33 @@ defmodule Eirinchan.ThreadWatcher do
       end
     end)
   end
+
+  defp lock_browser_watches(browser_token) do
+    Repo.query!("SELECT pg_advisory_xact_lock(hashtext($1))", [browser_token])
+    :ok
+  end
+
+  defp watch_capacity_available?(browser_token, thread_id, max_threads) do
+    Repo.exists?(
+      from watch in Watch,
+        where: watch.browser_token == ^browser_token and watch.thread_id == ^thread_id
+    ) or
+      Repo.aggregate(
+        from(watch in Watch, where: watch.browser_token == ^browser_token),
+        :count
+      ) < max_threads
+  end
+
+  defp positive_integer(value, _default) when is_integer(value) and value > 0, do: value
+
+  defp positive_integer(value, default) when is_binary(value) do
+    case Integer.parse(value) do
+      {parsed, ""} when parsed > 0 -> parsed
+      _ -> default
+    end
+  end
+
+  defp positive_integer(_value, default), do: default
 
   def activate_for_reply(thread_id, excluded_browser_token \\ nil)
       when is_integer(thread_id) and

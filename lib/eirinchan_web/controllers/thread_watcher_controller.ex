@@ -4,6 +4,8 @@ defmodule EirinchanWeb.ThreadWatcherController do
   alias Eirinchan.Boards
   alias Eirinchan.Posts
   alias Eirinchan.Posts.PublicIds
+  alias Eirinchan.Runtime.Config
+  alias Eirinchan.Settings
   alias Eirinchan.ThreadWatcher
 
   def create(conn, %{"board" => board_uri, "thread_id" => thread_id}) do
@@ -14,7 +16,8 @@ defmodule EirinchanWeb.ThreadWatcherController do
              conn.assigns.browser_token,
              board.uri,
              thread.id,
-             %{last_seen_post_id: thread.id}
+             %{last_seen_post_id: thread.id},
+             max_threads: watcher_max_threads()
            ) do
       json(
         conn,
@@ -31,6 +34,11 @@ defmodule EirinchanWeb.ThreadWatcherController do
     else
       {:error, :not_found} -> send_resp(conn, :not_found, "")
       {:error, :thread_not_found} -> send_resp(conn, :not_found, "")
+
+      {:error, :watch_limit} ->
+        conn
+        |> put_status(:too_many_requests)
+        |> json(%{error: "watch_limit", message: "Watcher thread limit reached."})
     end
   end
 
@@ -115,6 +123,12 @@ defmodule EirinchanWeb.ThreadWatcherController do
     browser_token
     |> ThreadWatcher.watch_metrics()
     |> Map.take([:watcher_count, :watcher_unread_count, :watcher_you_count])
+  end
+
+  defp watcher_max_threads do
+    Settings.current_instance_config()
+    |> then(&Config.compose(nil, &1, %{}))
+    |> Map.fetch!(:watcher_max_threads)
   end
 
   defp post_belongs_to_thread?(post, thread) do
