@@ -5,9 +5,9 @@ After=network-online.target
 
 [Service]
 Type=oneshot
-User=telemazer
-Group=telemazer
-ExecStart=/usr/bin/geoipupdate -f /home/telemazer/.config/maxmind/GeoIP.conf -d @EIRINCHAN_STATE_ROOT@/var/geoip
+User=@EIRINCHAN_DEPLOY_USER@
+Group=@EIRINCHAN_DEPLOY_GROUP@
+ExecStart=/usr/bin/geoipupdate -f @EIRINCHAN_GEOIP_CONFIG@ -d @EIRINCHAN_STATE_ROOT@/var/geoip
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=read-only

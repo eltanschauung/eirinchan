@@ -3,16 +3,16 @@ set -euo pipefail
 
 export EIRINCHAN_STATE_ROOT="@EIRINCHAN_STATE_ROOT@"
 export PHX_SERVER=true
-export PHX_HOST=bantculture.com
-export PORT=4001
+export PHX_HOST="@EIRINCHAN_HOST@"
+export PORT="@EIRINCHAN_PORT@"
 export RELEASE_TMP="$EIRINCHAN_STATE_ROOT/tmp/release"
 
 set -a
 # shellcheck source=/dev/null
-source /home/telemazer/.config/eirinchan-shared.env
+source "@EIRINCHAN_SHARED_ENV@"
 set +a
 
-SECRET_KEY_BASE="$(tail -n 1 /home/telemazer/.config/eirinchan4001/secret_key_base)"
+SECRET_KEY_BASE="$(tail -n 1 "@EIRINCHAN_SECRET_KEY_FILE@")"
 export SECRET_KEY_BASE
 install -d -m 0700 "$RELEASE_TMP"
 

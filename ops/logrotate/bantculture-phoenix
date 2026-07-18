@@ -1,4 +1,4 @@
-/home/telemazer/logs/*phoenix*.log {
+@EIRINCHAN_LOG_DIR@/@EIRINCHAN_PHOENIX_LOG_NAME@ {
     su root root
     daily
     maxsize 10M
