@@ -11,6 +11,43 @@ defmodule Eirinchan.Runtime.Config do
 
   alias Eirinchan.Boards.Board
 
+  @bounded_positive_defaults %{
+    announcement_cache_seconds: {30, 3_600},
+    recent_theme_cache_seconds: {30, 3_600},
+    statistics_challenge_step_percent: {80, 10_000},
+    statistics_api_default_hours: {1, 8_760},
+    statistics_api_max_hours: {168, 8_760},
+    mod_login_max_attempts: {5, 10_000},
+    mod_login_username_max_attempts: {10, 10_000},
+    mod_login_ip_max_attempts: {20, 10_000},
+    mod_username_max_length: {64, 255},
+    mod_password_min_length: {12, 4_096},
+    mod_password_max_length: {255, 4_096},
+    feedback_name_max_length: {255, 255},
+    feedback_email_max_length: {255, 255},
+    feedback_body_max_length: {4_000, 100_000},
+    feedback_comment_max_length: {4_000, 100_000},
+    report_reason_max_length: {2_000, 100_000},
+    you_markers_max_post_ids: {500, 5_000},
+    max_name_length: {35, 255},
+    max_email_length: {40, 255},
+    max_subject_length: {100, 255},
+    max_embed_length: {120, 255},
+    post_password_max_length: {18, 255},
+    thumbnail_jpeg_quality: {85, 100},
+    spoiler_thumbnail_width: {144, 4_096},
+    preference_cookie_max_age_seconds: {31_536_000, 315_360_000},
+    browser_identity_ttl_seconds: {34_560_000, 315_360_000},
+    browser_identity_rotation_seconds: {2_592_000, 315_360_000},
+    browser_identity_touch_interval_seconds: {3_600, 31_536_000},
+    ip_cloak_ttl_seconds: {604_800, 31_536_000},
+    moderation_recent_posts_default: {25, 500},
+    moderation_recent_posts_max: {100, 500},
+    moderation_log_page_size: {15, 500},
+    ip_history_log_limit: {50, 500},
+    legacy_ip_log_scan_limit: {1_000, 100_000}
+  }
+
   @default_config %{
     root: "/",
     root_file: nil,
@@ -29,6 +66,7 @@ defmodule Eirinchan.Runtime.Config do
     show_styles_block: true,
     stylesheets_board: true,
     default_theme: nil,
+    default_theme_dark: nil,
     forced_theme: false,
     file_mod: "mod.php",
     file_script: "main.js",
@@ -57,8 +95,13 @@ defmodule Eirinchan.Runtime.Config do
     contact_email: "example@example.com",
     global_message: false,
     global_message_refresh_seconds: 30,
+    announcement_cache_seconds: 30,
+    recent_theme_cache_seconds: 30,
     auto_updater_poll_interval_seconds: 5,
     statistics_snapshots: true,
+    statistics_challenge_step_percent: 80,
+    statistics_api_default_hours: 1,
+    statistics_api_max_hours: 168,
     footer: [
       "All trademarks, copyrights, comments, and images on this page are owned by and are the responsibility of their respective parties."
     ],
@@ -87,8 +130,12 @@ defmodule Eirinchan.Runtime.Config do
     mod_session_max_hours: 12,
     mod_login_max_attempts: 5,
     mod_login_username_max_attempts: 10,
+    mod_login_ip_max_attempts: 20,
     mod_login_window_seconds: 300,
     mod_login_lockout_seconds: 900,
+    mod_username_max_length: 64,
+    mod_password_min_length: 12,
+    mod_password_max_length: 255,
     ip_nulling: false,
     ip_nulling_flags: 0,
     ban_appeals: true,
@@ -127,7 +174,13 @@ defmodule Eirinchan.Runtime.Config do
     search_queries_per_minutes_all: [50, 2],
     feedback_submissions_per_minutes: [5, 24 * 60],
     feedback_submissions_per_minutes_all: [50, 2],
+    feedback_name_max_length: 255,
+    feedback_email_max_length: 255,
+    feedback_body_max_length: 4_000,
+    feedback_comment_max_length: 4_000,
+    report_reason_max_length: 2_000,
     watcher_max_threads: 500,
+    you_markers_max_post_ids: 500,
     search_allowed_boards: nil,
     search_disallowed_boards: [],
     early_404: false,
@@ -144,6 +197,11 @@ defmodule Eirinchan.Runtime.Config do
     force_body_op: true,
     force_image_op: false,
     allow_sticker_op: false,
+    max_name_length: 35,
+    max_email_length: 40,
+    max_subject_length: 100,
+    max_embed_length: 120,
+    post_password_max_length: 18,
     max_body: 2_000,
     maximum_lines: 100,
     max_images: 1,
@@ -235,6 +293,8 @@ defmodule Eirinchan.Runtime.Config do
     max_filename_display_length: 30,
     thumb_ext: "",
     thumb_keep_animation_frames: 90,
+    thumbnail_jpeg_quality: 85,
+    spoiler_thumbnail_width: 144,
     strip_exif: true,
     convert_auto_orient: true,
     thumb_width: 208,
@@ -296,7 +356,7 @@ defmodule Eirinchan.Runtime.Config do
     },
     api: %{enabled: false},
     lock: %{enabled: "none", path: "tmp/locks"},
-    queue: %{enabled: "db", path: "tmp/queue/build"},
+    queue: %{enabled: "db", path: "tmp/queue/build", max_attempts: 3},
     purge: [],
     purge_timeout_seconds: 3,
     cookies: %{
@@ -306,6 +366,21 @@ defmodule Eirinchan.Runtime.Config do
       expire: 60 * 60 * 24 * 7,
       httponly: true
     },
+    preference_cookie_max_age_seconds: 60 * 60 * 24 * 365,
+    browser_identity_ttl_seconds: 400 * 86_400,
+    browser_identity_rotation_seconds: 30 * 86_400,
+    browser_identity_touch_interval_seconds: 3_600,
+    ip_cloak_ttl_seconds: 7 * 24 * 60 * 60,
+    moderation_recent_posts_default: 25,
+    moderation_recent_posts_max: 100,
+    moderation_log_page_size: 15,
+    ip_history_log_limit: 50,
+    legacy_ip_log_scan_limit: 1_000,
+    asset_version: nil,
+    custom_javascript: [],
+    analytics_html: nil,
+    hide_email: false,
+    hide_sage: false,
     dir: %{
       img: "src/",
       thumb: "thumb/",
@@ -543,6 +618,40 @@ defmodule Eirinchan.Runtime.Config do
     |> ensure_static_assets()
     |> apply_board_paths(board)
     |> normalize_flags()
+    |> normalize_runtime_limits()
+  end
+
+  defp normalize_runtime_limits(config) do
+    config =
+      Enum.reduce(@bounded_positive_defaults, config, fn {key, {default, maximum}}, acc ->
+        Map.update(acc, key, default, &bounded_positive_integer(&1, default, maximum))
+      end)
+
+    statistics_max = config.statistics_api_max_hours
+    moderator_password_max = config.mod_password_max_length
+    recent_posts_max = config.moderation_recent_posts_max
+    identity_ttl = config.browser_identity_ttl_seconds
+    identity_rotation = min(config.browser_identity_rotation_seconds, identity_ttl)
+
+    config
+    |> Map.put(:statistics_api_default_hours, min(config.statistics_api_default_hours, statistics_max))
+    |> Map.put(:mod_password_min_length, min(config.mod_password_min_length, moderator_password_max))
+    |> Map.put(:moderation_recent_posts_default, min(config.moderation_recent_posts_default, recent_posts_max))
+    |> Map.put(:browser_identity_rotation_seconds, identity_rotation)
+    |> Map.put(:browser_identity_touch_interval_seconds, min(config.browser_identity_touch_interval_seconds, identity_rotation))
+    |> update_in([:queue], &normalize_queue_limits/1)
+  end
+
+  defp normalize_queue_limits(queue) when is_map(queue) do
+    Map.update(queue, :max_attempts, 3, &bounded_positive_integer(&1, 3, 100))
+  end
+
+  defp normalize_queue_limits(_queue), do: %{enabled: "db", path: "tmp/queue/build", max_attempts: 3}
+
+  defp bounded_positive_integer(value, default, maximum) do
+    value
+    |> positive_integer(default)
+    |> min(maximum)
   end
 
   defp ensure_web_assets(config) do

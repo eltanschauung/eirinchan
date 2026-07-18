@@ -3,6 +3,7 @@ defmodule Eirinchan.Moderation.ModUser do
   import Ecto.Changeset
 
   alias Eirinchan.Moderation.ModBoardAccess
+  alias Eirinchan.Runtime.Config
 
   @argon2_salt_marker "argon2id:v1"
 
@@ -20,14 +21,18 @@ defmodule Eirinchan.Moderation.ModUser do
     timestamps(type: :utc_datetime_usec)
   end
 
-  def create_changeset(user, attrs) do
+  def create_changeset(user, attrs), do: create_changeset(user, attrs, Config.default_config())
+
+  def create_changeset(user, attrs, config) do
+    limits = credential_limits(config)
+
     user
     |> cast(attrs, [:username, :password, :role, :all_boards, :last_login_at])
     |> update_change(:username, &normalize_string/1)
     |> normalize_optional_password()
     |> validate_required([:username, :password, :role])
-    |> validate_length(:username, min: 1, max: 64)
-    |> validate_length(:password, min: 12, max: 255)
+    |> validate_length(:username, min: 1, max: limits.username_max)
+    |> validate_length(:password, min: limits.password_min, max: limits.password_max)
     |> validate_inclusion(:role, ["admin", "mod", "janitor"])
     |> put_password_fields()
     |> validate_required([:password_hash, :password_salt])
@@ -39,17 +44,34 @@ defmodule Eirinchan.Moderation.ModUser do
     |> cast(attrs, [:last_login_at])
   end
 
-  def update_changeset(user, attrs) do
+  def update_changeset(user, attrs), do: update_changeset(user, attrs, Config.default_config())
+
+  def update_changeset(user, attrs, config) do
+    limits = credential_limits(config)
+
     user
     |> cast(attrs, [:username, :password, :role, :all_boards])
     |> update_change(:username, &normalize_string/1)
     |> normalize_optional_password()
     |> validate_required([:username, :role])
-    |> validate_length(:username, min: 1, max: 64)
-    |> validate_length(:password, min: 12, max: 255)
+    |> validate_length(:username, min: 1, max: limits.username_max)
+    |> validate_length(:password, min: limits.password_min, max: limits.password_max)
     |> validate_inclusion(:role, ["admin", "mod", "janitor"])
     |> put_password_fields()
     |> unique_constraint(:username)
+  end
+
+  def credential_limits(config) do
+    username_max = bounded(config, :mod_username_max_length, 64, 1, 255)
+    password_max = bounded(config, :mod_password_max_length, 255, 12, 4_096)
+    password_min = bounded(config, :mod_password_min_length, 12, 12, password_max)
+
+    %{username_max: username_max, password_min: password_min, password_max: password_max}
+  end
+
+  defp bounded(config, key, default, minimum, maximum) do
+    value = Map.get(config, key, default)
+    if is_integer(value), do: value |> max(minimum) |> min(maximum), else: default
   end
 
   defp put_password_fields(changeset) do

@@ -55,4 +55,30 @@ defmodule EirinchanWeb.YouMarkersControllerTest do
 
     assert %{"enabled" => true, "post_ids" => []} = json_response(conn, 200)
   end
+
+  test "api honors the configured ownership lookup bound", %{conn: conn} do
+    board = board_fixture(%{uri: "showyousconfigured", title: "Configured Yous"})
+    thread = thread_fixture(board, %{body: "Opening body"})
+    first = reply_fixture(board, thread, %{body: "First reply"})
+    second = reply_fixture(board, thread, %{body: "Second reply"})
+    token = browser_token("show-yous-configured")
+
+    for post <- [thread, first, second] do
+      assert {:ok, _ownership} = PostOwnership.record(token, post.id)
+    end
+
+    with_instance_config(%{"you_markers_max_post_ids" => 2}, fn ->
+      conn =
+        conn
+        |> put_req_cookie("browser_token", token)
+        |> put_req_cookie("show_yous", "true")
+        |> put_req_header("content-type", "application/json")
+        |> post("/api/you-markers/#{board.uri}", %{
+          post_ids: Enum.map([thread, first, second], &PublicIds.public_id/1)
+        })
+
+      expected = Enum.map([thread, first], &PublicIds.public_id/1) |> Enum.sort()
+      assert %{"enabled" => true, "post_ids" => ^expected} = json_response(conn, 200)
+    end)
+  end
 end

@@ -7,12 +7,12 @@
     <tr>
       <th>Username</th>
       <td>
-        <input type="text" name="username" size="20" maxlength="30" value={@username} autofocus />
+        <input type="text" name="username" size="20" maxlength={@credential_limits.username_max} value={@username} autofocus />
       </td>
     </tr>
     <tr>
       <th>Password</th>
-      <td><input type="password" name="password" size="20" maxlength="30" value="" /></td>
+      <td><input type="password" name="password" size="20" maxlength={@credential_limits.password_max} value="" /></td>
     </tr>
     <tr>
       <td></td>

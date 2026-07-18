@@ -98,4 +98,21 @@ defmodule Eirinchan.ReportsTest do
     assert {:ok, 2} = Reports.dismiss_reports_for_post(board, thread.id)
     assert Reports.list_reports(board) == []
   end
+
+  test "report reasons honor the configured maximum" do
+    board = board_fixture()
+    thread = thread_fixture(board)
+
+    assert {:error, changeset} =
+             Reports.create_report(
+               board,
+               %{
+                 "report_post_id" => Integer.to_string(thread.id),
+                 "reason" => "123456"
+               },
+               config: %{report_reason_max_length: 5}
+             )
+
+    assert changeset.errors[:reason]
+  end
 end

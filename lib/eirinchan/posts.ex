@@ -56,6 +56,11 @@ defmodule Eirinchan.Posts do
              | :thread_locked
              | :body_required
              | :body_too_long
+             | :name_too_long
+             | :email_too_long
+             | :subject_too_long
+             | :embed_too_long
+             | :password_too_long
              | :too_many_lines
              | :invalid_user_flag
              | :reply_hard_limit

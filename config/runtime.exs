@@ -32,6 +32,14 @@ if config_env() == :prod do
     geoip2_database_path: Path.join([state_root, "var", "geoip", "GeoLite2-Country.mmdb"]),
     quarantine_invalid_upload_root: Path.join(state_root, "var/invalid_uploads")
 
+  max_request_bytes =
+    case Integer.parse(System.get_env("EIRINCHAN_MAX_REQUEST_BYTES", "50000000")) do
+      {value, ""} when value > 0 -> value
+      _other -> raise "EIRINCHAN_MAX_REQUEST_BYTES must be a positive integer"
+    end
+
+  config :eirinchan, :max_request_bytes, max_request_bytes
+
   database_url =
     System.get_env("DATABASE_URL") ||
       raise """

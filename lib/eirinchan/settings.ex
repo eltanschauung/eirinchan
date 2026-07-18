@@ -7,6 +7,7 @@ defmodule Eirinchan.Settings do
   alias Eirinchan.SecureFile
 
   @settings_cache_key {__MODULE__, :instance_config}
+  @effective_config_cache_key {__MODULE__, :effective_instance_config}
   @raw_json_cache_key {__MODULE__, :raw_instance_config_json}
 
   @spec current_instance_config() :: map()
@@ -15,6 +16,20 @@ defmodule Eirinchan.Settings do
       :missing ->
         config = persisted_instance_config_uncached() || %{}
         :persistent_term.put(cache_key(@settings_cache_key), config)
+        config
+
+      config ->
+        config
+    end
+  end
+
+  @doc "Returns instance settings merged with defaults and normalized runtime bounds."
+  @spec effective_instance_config() :: map()
+  def effective_instance_config do
+    case :persistent_term.get(cache_key(@effective_config_cache_key), :missing) do
+      :missing ->
+        config = Config.compose(nil, current_instance_config(), %{})
+        :persistent_term.put(cache_key(@effective_config_cache_key), config)
         config
 
       config ->
@@ -62,6 +77,7 @@ defmodule Eirinchan.Settings do
 
   def refresh_instance_config_cache do
     clear_cache_entry(@settings_cache_key)
+    clear_cache_entry(@effective_config_cache_key)
     clear_cache_entry(@raw_json_cache_key)
 
     if Process.whereis(EirinchanWeb.FragmentCache) do

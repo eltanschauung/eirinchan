@@ -56,7 +56,8 @@ defmodule EirinchanWeb.PostController do
         with :ok <- Antispam.reserve_public_action(board, :report, params, request, config),
              {:ok, report} <-
                Reports.create_report(board, params,
-                 remote_ip: RequestMeta.effective_remote_ip(conn)
+                 remote_ip: RequestMeta.effective_remote_ip(conn),
+                 config: config
                ) do
           respond_reported(conn, board, report, params)
         else
@@ -770,6 +771,15 @@ defmodule EirinchanWeb.PostController do
   defp error_status(:invalid_post_mode), do: :forbidden
   defp error_status(:board_locked), do: :forbidden
   defp error_status(:body_too_long), do: :unprocessable_entity
+  defp error_status(reason)
+       when reason in [
+              :name_too_long,
+              :email_too_long,
+              :subject_too_long,
+              :embed_too_long,
+              :password_too_long
+            ],
+       do: :unprocessable_entity
   defp error_status(:too_many_lines), do: :unprocessable_entity
   defp error_status(:invalid_user_flag), do: :unprocessable_entity
   defp error_status(:reply_hard_limit), do: :unprocessable_entity
@@ -818,6 +828,20 @@ defmodule EirinchanWeb.PostController do
   defp error_message(:invalid_post_mode, config), do: config.error.bot
   defp error_message(:board_locked, config), do: config.error.board_locked
   defp error_message(:body_too_long, config), do: config.error.toolong_body
+  defp error_message(:name_too_long, config),
+    do: "Name is limited to #{config.max_name_length} characters."
+
+  defp error_message(:email_too_long, config),
+    do: "Email is limited to #{config.max_email_length} characters."
+
+  defp error_message(:subject_too_long, config),
+    do: "Subject is limited to #{config.max_subject_length} characters."
+
+  defp error_message(:embed_too_long, config),
+    do: "Embed URL is limited to #{config.max_embed_length} characters."
+
+  defp error_message(:password_too_long, config),
+    do: "Password is limited to #{config.post_password_max_length} characters."
   defp error_message(:too_many_lines, config), do: config.error.toomanylines
   defp error_message(:invalid_user_flag, config), do: config.error.invalid_flag
   defp error_message(:reply_hard_limit, config), do: config.error.reply_hard_limit

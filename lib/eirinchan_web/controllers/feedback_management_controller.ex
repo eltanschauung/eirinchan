@@ -2,6 +2,8 @@ defmodule EirinchanWeb.FeedbackManagementController do
   use EirinchanWeb, :controller
 
   alias Eirinchan.Feedback
+  alias Eirinchan.Runtime.Config
+  alias Eirinchan.Settings
   alias EirinchanWeb.ModerationAudit
 
   action_fallback EirinchanWeb.FallbackController
@@ -26,7 +28,7 @@ defmodule EirinchanWeb.FeedbackManagementController do
   end
 
   def create_comment(conn, %{"id" => id} = params) do
-    with {:ok, _comment} <- Feedback.add_comment(id, params),
+    with {:ok, _comment} <- Feedback.add_comment(id, params, config: instance_config()),
          {:ok, _feedback} <- Feedback.mark_read(id),
          feedback when not is_nil(feedback) <- Feedback.get_feedback(id) do
       ModerationAudit.log(conn, "Commented on feedback ##{feedback.id}")
@@ -42,5 +44,9 @@ defmodule EirinchanWeb.FeedbackManagementController do
       ModerationAudit.log(conn, "Deleted feedback ##{id}")
       send_resp(conn, :no_content, "")
     end
+  end
+
+  defp instance_config do
+    Config.compose(nil, Settings.current_instance_config(), %{})
   end
 end

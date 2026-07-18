@@ -47,10 +47,9 @@ defmodule EirinchanWeb.Endpoint do
   # still records exceptions, without duplicating a start/stop pair per request.
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint], log: false
 
-  plug Plug.Parsers,
+  plug EirinchanWeb.Plugs.RuntimeParsers,
     parsers: [:urlencoded, :multipart, :json],
     pass: ["*/*"],
-    length: 50_000_000,
     json_decoder: Phoenix.json_library()
 
   plug Plug.MethodOverride

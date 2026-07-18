@@ -5,11 +5,14 @@ defmodule Eirinchan.ModerationLog do
   alias Eirinchan.Moderation.ModUser
   alias Eirinchan.IpCrypt
   alias Eirinchan.Repo
+  alias Eirinchan.Settings
 
   @default_page_size 15
   @legacy_ip_scan_limit 1_000
 
-  def default_page_size, do: @default_page_size
+  def default_page_size(config \\ Settings.effective_instance_config()) do
+    configured_positive(config, :moderation_log_page_size, @default_page_size, 500)
+  end
 
   def log_action(attrs, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
@@ -22,7 +25,7 @@ defmodule Eirinchan.ModerationLog do
   def list_entries(opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
     page = max(Keyword.get(opts, :page, 1), 1)
-    page_size = max(Keyword.get(opts, :page_size, @default_page_size), 1)
+    page_size = max(Keyword.get(opts, :page_size, default_page_size()), 1)
     offset = (page - 1) * page_size
 
     query =
@@ -102,6 +105,14 @@ defmodule Eirinchan.ModerationLog do
     limit = max(Keyword.get(opts, :limit, 50), 1)
     token = IpCrypt.lookup_token(ip)
 
+    legacy_scan_limit =
+      configured_positive(
+        Keyword.get(opts, :config, Settings.effective_instance_config()),
+        :legacy_ip_log_scan_limit,
+        @legacy_ip_scan_limit,
+        100_000
+      )
+
     exact =
       if is_binary(token) do
         from([log, _mod_user] in filtered_query(Keyword.put(opts, :subject_ip_token, token)),
@@ -117,7 +128,7 @@ defmodule Eirinchan.ModerationLog do
       from([log, _mod_user] in filtered_query(opts),
         where: is_nil(log.subject_ip_token),
         order_by: [desc: log.inserted_at, desc: log.id],
-        limit: @legacy_ip_scan_limit
+        limit: ^legacy_scan_limit
       )
       |> repo.all()
       |> Enum.filter(&legacy_entry_mentions_ip?(&1, ip))
@@ -127,6 +138,13 @@ defmodule Eirinchan.ModerationLog do
     |> Enum.sort_by(&{&1.inserted_at, &1.id}, :desc)
     |> Enum.take(limit)
     |> repo.preload(:mod_user)
+  end
+
+  defp configured_positive(config, key, default, maximum) do
+    case Map.get(config, key, default) do
+      value when is_integer(value) and value > 0 -> min(value, maximum)
+      _other -> default
+    end
   end
 
   defp filtered_query(opts) do

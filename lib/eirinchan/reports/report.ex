@@ -1,6 +1,7 @@
 defmodule Eirinchan.Reports.Report do
   use Ecto.Schema
   import Ecto.Changeset
+  alias Eirinchan.Runtime.Config
 
   schema "reports" do
     field :reason, :string
@@ -14,7 +15,9 @@ defmodule Eirinchan.Reports.Report do
     timestamps(type: :utc_datetime_usec, updated_at: false)
   end
 
-  def changeset(report, attrs) do
+  def changeset(report, attrs), do: changeset(report, attrs, Config.default_config())
+
+  def changeset(report, attrs, config) do
     report
     |> cast(attrs, [:board_id, :post_id, :thread_id, :reason, :ip, :dismissed_at])
     |> update_change(:reason, &normalize_reason/1)
@@ -23,7 +26,10 @@ defmodule Eirinchan.Reports.Report do
     |> foreign_key_constraint(:board_id)
     |> foreign_key_constraint(:post_id)
     |> foreign_key_constraint(:thread_id)
-    |> validate_length(:reason, min: 1, max: 2000)
+    |> validate_length(:reason,
+      min: 1,
+      max: positive_limit(config, :report_reason_max_length, 2_000)
+    )
   end
 
   def dismiss_changeset(report, attrs) do
@@ -51,6 +57,13 @@ defmodule Eirinchan.Reports.Report do
     |> case do
       "" -> nil
       trimmed -> trimmed
+    end
+  end
+
+  defp positive_limit(config, key, default) do
+    case Map.get(config, key) do
+      value when is_integer(value) and value > 0 -> value
+      _other -> default
     end
   end
 end

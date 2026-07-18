@@ -23,7 +23,14 @@ defmodule Eirinchan.ModerationTest do
 
   test "authenticate accepts imported vichan passwords and upgrades them" do
     {legacy_hash, 0} =
-      System.cmd("mkpasswd", ["--method=sha-512", "--rounds", "25000", "--salt", "testsalt", "secret123"])
+      System.cmd("mkpasswd", [
+        "--method=sha-512",
+        "--rounds",
+        "25000",
+        "--salt",
+        "testsalt",
+        "secret123"
+      ])
 
     {:ok, user} =
       %Eirinchan.Moderation.ModUser{}

@@ -19,7 +19,6 @@ defmodule EirinchanWeb.PostView do
 
   @deleted_file_sentinel "deleted"
   @filename_title_limit 256
-  @spoiler_thumbnail_width 144
 
   def template_assigns(board, post, config) do
     %{
@@ -627,12 +626,18 @@ defmodule EirinchanWeb.PostView do
         )
 
       if Map.get(file, :spoiler, false) do
-        scale_dimensions_to_width(dimensions, @spoiler_thumbnail_width)
+        scale_dimensions_to_width(
+          dimensions,
+          positive_integer(Map.get(config, :spoiler_thumbnail_width), 144)
+        )
       else
         dimensions
       end
     end
   end
+
+  defp positive_integer(value, _default) when is_integer(value) and value > 0, do: value
+  defp positive_integer(_value, default), do: default
 
   def thumb_style(file, config, opts \\ []) do
     case thumb_dimensions(file, config, opts) do

@@ -9,13 +9,15 @@ defmodule Eirinchan.Moderation do
   alias Eirinchan.Moderation.{IpNote, ModBoardAccess, ModMessage, ModUser}
   alias Eirinchan.Posts.Post
   alias Eirinchan.Repo
+  alias Eirinchan.Runtime.Config
 
   @spec create_user(map(), keyword()) :: {:ok, ModUser.t()} | {:error, Ecto.Changeset.t()}
   def create_user(attrs, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
+    config = Keyword.get(opts, :config, Config.default_config())
 
     %ModUser{}
-    |> ModUser.create_changeset(attrs)
+    |> ModUser.create_changeset(attrs, config)
     |> repo.insert()
   end
 
@@ -41,12 +43,14 @@ defmodule Eirinchan.Moderation do
     |> maybe_preload(preload, repo)
   end
 
-  @spec update_user(ModUser.t(), map(), keyword()) :: {:ok, ModUser.t()} | {:error, Ecto.Changeset.t()}
+  @spec update_user(ModUser.t(), map(), keyword()) ::
+          {:ok, ModUser.t()} | {:error, Ecto.Changeset.t()}
   def update_user(%ModUser{} = user, attrs, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
+    config = Keyword.get(opts, :config, Config.default_config())
 
     user
-    |> ModUser.update_changeset(attrs)
+    |> ModUser.update_changeset(attrs, config)
     |> repo.update()
   end
 
@@ -56,7 +60,8 @@ defmodule Eirinchan.Moderation do
     repo.delete(user)
   end
 
-  @spec set_board_accesses(ModUser.t(), [BoardRecord.t()], keyword()) :: {:ok, ModUser.t()} | {:error, term()}
+  @spec set_board_accesses(ModUser.t(), [BoardRecord.t()], keyword()) ::
+          {:ok, ModUser.t()} | {:error, term()}
   def set_board_accesses(%ModUser{} = user, boards, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
     board_ids = boards |> Enum.map(& &1.id) |> Enum.uniq()

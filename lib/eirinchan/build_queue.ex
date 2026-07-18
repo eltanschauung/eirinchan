@@ -69,15 +69,15 @@ defmodule Eirinchan.BuildQueue do
   def mark_done(%Job{} = job, opts \\ []) do
     case driver(opts) do
       "fs" ->
-        path = get_in(job.driver_meta || %{}, [:path])
-        if path, do: File.rm(path)
-
-        {:ok,
-         %{
-           job
-           | status: "done",
-             finished_at: DateTime.utc_now() |> DateTime.truncate(:microsecond)
-         }}
+        with {:ok, path} <- validated_fs_job_path(job, queue_config(opts)),
+             :ok <- File.rm(path) do
+          {:ok,
+           %{
+             job
+             | status: "done",
+               finished_at: DateTime.utc_now() |> DateTime.truncate(:microsecond)
+           }}
+        end
 
       "none" ->
         {:ok,
@@ -103,12 +103,21 @@ defmodule Eirinchan.BuildQueue do
   end
 
   def mark_failed(%Job{} = job, reason, opts \\ []) do
-    max_attempts = Keyword.get(opts, :max_attempts, 3)
+    queue_config = queue_config(opts)
+
+    max_attempts =
+      opts
+      |> Keyword.get(:max_attempts, Map.get(queue_config, :max_attempts, 3))
+      |> normalize_max_attempts()
+
     repo = Keyword.get(opts, :repo, Repo)
 
     case driver(opts) do
-      driver when driver in ["fs", "none"] ->
-        {:ok, %{job | status: "pending", attempts: (job.attempts || 0) + 1, last_error: inspect(reason)}}
+      "fs" ->
+        persist_fs_failure(job, reason, max_attempts, queue_config, opts)
+
+      "none" ->
+        {:ok, failed_job(job, reason, max_attempts)}
 
       _ ->
         job
@@ -268,7 +277,8 @@ defmodule Eirinchan.BuildQueue do
     with {:ok, body} <- File.read(path),
          {:ok, decoded} <- Jason.decode(body),
          board_id when is_integer(board_id) <- decoded["board_id"],
-         kind when kind in ["thread", "indexes"] <- decoded["kind"] do
+         kind when kind in ["thread", "indexes"] <- decoded["kind"],
+         status when status in [nil, "pending"] <- decoded["status"] do
       inserted_at =
         case decoded["inserted_at"] do
           value when is_binary(value) ->
@@ -286,6 +296,8 @@ defmodule Eirinchan.BuildQueue do
         kind: kind,
         thread_id: decoded["thread_id"],
         status: "pending",
+        attempts: normalize_fs_attempts(decoded["attempts"]),
+        last_error: normalize_fs_error(decoded["last_error"]),
         inserted_at: inserted_at,
         driver_meta: %{path: path, driver: "fs"}
       }
@@ -314,10 +326,10 @@ defmodule Eirinchan.BuildQueue do
     |> Keyword.get(:config, %{})
     |> case do
       %{queue: queue} when is_map(queue) ->
-        Map.merge(%{enabled: "db", path: "tmp/queue/build"}, queue)
+        Map.merge(%{enabled: "db", path: "tmp/queue/build", max_attempts: 3}, queue)
 
       _ ->
-        %{enabled: "db", path: "tmp/queue/build"}
+        %{enabled: "db", path: "tmp/queue/build", max_attempts: 3}
     end
   end
 
@@ -344,6 +356,116 @@ defmodule Eirinchan.BuildQueue do
 
     "#{timestamp}-#{System.unique_integer([:positive])}.json"
   end
+
+  defp persist_fs_failure(job, reason, max_attempts, queue_config, opts) do
+    Locking.with_exclusive_lock(lock_config(opts), "build_queue", fn ->
+      with {:ok, path} <- validated_fs_job_path(job, queue_config),
+           {:ok, body} <- File.read(path),
+           {:ok, payload} when is_map(payload) <- Jason.decode(body) do
+        persisted_attempts = normalize_fs_attempts(payload["attempts"])
+        attempts = max(persisted_attempts, normalize_fs_attempts(job.attempts)) + 1
+        terminal? = attempts >= max_attempts
+        now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
+        error = format_failure(reason)
+
+        updated_payload =
+          payload
+          |> Map.put("status", if(terminal?, do: "failed", else: "pending"))
+          |> Map.put("attempts", attempts)
+          |> Map.put("last_error", error)
+          |> Map.put("started_at", nil)
+          |> Map.put("available_at", nil)
+          |> maybe_put_finished_at(terminal?, now)
+
+        with :ok <- atomic_write_json(path, updated_payload),
+             :ok <- maybe_archive_fs_failure(path, terminal?, queue_config) do
+          {:ok,
+           %{
+             job
+             | status: if(terminal?, do: "failed", else: "pending"),
+               attempts: attempts,
+               last_error: error,
+               started_at: nil,
+               available_at: nil,
+               finished_at: if(terminal?, do: now, else: nil)
+           }}
+        end
+      else
+        {:error, _reason} = error -> error
+        _other -> {:error, :invalid_queue_job}
+      end
+    end)
+  end
+
+  defp failed_job(job, reason, max_attempts) do
+    attempts = normalize_fs_attempts(job.attempts) + 1
+    terminal? = attempts >= max_attempts
+
+    %{
+      job
+      | status: if(terminal?, do: "failed", else: "pending"),
+        attempts: attempts,
+        last_error: format_failure(reason),
+        started_at: nil,
+        available_at: nil,
+        finished_at:
+          if(terminal?, do: DateTime.utc_now() |> DateTime.truncate(:microsecond), else: nil)
+    }
+  end
+
+  defp maybe_put_finished_at(payload, true, now),
+    do: Map.put(payload, "finished_at", DateTime.to_iso8601(now))
+
+  defp maybe_put_finished_at(payload, false, _now), do: Map.put(payload, "finished_at", nil)
+
+  defp maybe_archive_fs_failure(_path, false, _queue_config), do: :ok
+
+  defp maybe_archive_fs_failure(path, true, queue_config) do
+    failed_root = Path.join(queue_root(queue_config), "failed")
+
+    with :ok <- File.mkdir_p(failed_root) do
+      File.rename(path, Path.join(failed_root, Path.basename(path)))
+    end
+  end
+
+  defp validated_fs_job_path(job, queue_config) do
+    with path when is_binary(path) <- get_in(job.driver_meta || %{}, [:path]),
+         expanded <- Path.expand(path),
+         root <- queue_root(queue_config),
+         true <- Path.dirname(expanded) == root,
+         ".json" <- Path.extname(expanded),
+         {:ok, %File.Stat{type: :regular}} <- File.lstat(expanded) do
+      {:ok, expanded}
+    else
+      _other -> {:error, :invalid_job_path}
+    end
+  end
+
+  defp atomic_write_json(path, payload) do
+    temporary_path = path <> ".tmp-#{System.unique_integer([:positive])}"
+
+    with {:ok, encoded} <- Jason.encode(payload),
+         :ok <- File.write(temporary_path, encoded, [:binary, :exclusive]),
+         :ok <- File.rename(temporary_path, path) do
+      :ok
+    else
+      {:error, _reason} = error ->
+        _ = File.rm(temporary_path)
+        error
+    end
+  end
+
+  defp normalize_max_attempts(value) when is_integer(value) and value > 0, do: min(value, 100)
+  defp normalize_max_attempts(_value), do: 3
+
+  defp normalize_fs_attempts(value) when is_integer(value) and value >= 0, do: value
+  defp normalize_fs_attempts(_value), do: 0
+
+  defp normalize_fs_error(value) when is_binary(value), do: String.slice(value, 0, 2_000)
+  defp normalize_fs_error(_value), do: nil
+
+  defp format_failure(reason),
+    do: reason |> inspect(limit: 20, printable_limit: 1_500) |> String.slice(0, 2_000)
 
   defp project_root do
     case Application.get_env(:eirinchan, :instance_config_path) do

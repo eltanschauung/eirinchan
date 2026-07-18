@@ -860,6 +860,7 @@ defmodule EirinchanWeb.PostComponents do
   end
 
   attr :board_uri, :string, required: true
+  attr :config, :map, required: true
 
   def board_postcontrols(assigns) do
     ~H"""
@@ -877,14 +878,14 @@ defmodule EirinchanWeb.PostComponents do
             type="password"
             name="password"
             size="12"
-            maxlength="18"
+            maxlength={@config.post_password_max_length}
             autocomplete="off"
           /> <input type="submit" name="delete" value="Delete" />
         </div>
 
         <div id="report-fields">
           <label for="reason">Reason</label>
-          <input id="reason" type="text" name="reason" size="20" maxlength="30" />
+          <input id="reason" type="text" name="reason" size="20" maxlength={@config.report_reason_max_length} />
           <input type="submit" name="report" value="Report" />
         </div>
       </div>

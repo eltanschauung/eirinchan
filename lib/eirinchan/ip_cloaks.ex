@@ -5,6 +5,7 @@ defmodule Eirinchan.IpCloaks do
 
   alias Eirinchan.IpCloaks.Alias
   alias Eirinchan.Repo
+  alias Eirinchan.Settings
 
   @prefix "c2_"
   @payload_characters 13
@@ -15,7 +16,12 @@ defmodule Eirinchan.IpCloaks do
 
   def token_prefix, do: @prefix
   def token_length, do: @token_length
-  def ttl_seconds, do: @ttl_seconds
+  def ttl_seconds do
+    case Map.get(Settings.effective_instance_config(), :ip_cloak_ttl_seconds, @ttl_seconds) do
+      value when is_integer(value) and value > 0 -> value
+      _other -> @ttl_seconds
+    end
+  end
 
   def short_token?(value) when is_binary(value) and byte_size(value) == @token_length do
     Regex.match?(@token_pattern, value)
@@ -28,7 +34,7 @@ defmodule Eirinchan.IpCloaks do
   def issue(payload, opts) when is_binary(payload) do
     repo = Keyword.get(opts, :repo, Repo)
     now = Keyword.get(opts, :now, DateTime.utc_now()) |> DateTime.truncate(:microsecond)
-    ttl_seconds = Keyword.get(opts, :ttl_seconds, @ttl_seconds)
+    ttl_seconds = Keyword.get(opts, :ttl_seconds, ttl_seconds())
 
     if authenticated_payload?(payload) and is_integer(ttl_seconds) and ttl_seconds > 0 do
       expires_at = DateTime.add(now, ttl_seconds, :second)

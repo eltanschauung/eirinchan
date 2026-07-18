@@ -16,8 +16,6 @@ defmodule Eirinchan.Uploads do
     ".webm" => "vp8,vp9,av1,opus,vorbis",
     ".mp4" => "h264,av1,aac,opus,mp3"
   }
-  @jpeg_thumbnail_quality 85
-
   @spec describe(Plug.Upload.t(), map()) :: {:ok, map()} | {:error, atom()}
   def describe(%Plug.Upload{} = upload, config) do
     normalized_name = normalized_input_filename(upload.filename)
@@ -172,10 +170,17 @@ defmodule Eirinchan.Uploads do
   end
 
   defp expected_file_signature?(".png", <<0x89, "PNG\r\n", 0x1A, "\n", _::binary>>), do: true
-  defp expected_file_signature?(ext, <<0xFF, 0xD8, 0xFF, _::binary>>) when ext in [".jpg", ".jpeg"], do: true
-  defp expected_file_signature?(".gif", <<signature::binary-size(6), _::binary>>), do: signature in ["GIF87a", "GIF89a"]
+
+  defp expected_file_signature?(ext, <<0xFF, 0xD8, 0xFF, _::binary>>)
+       when ext in [".jpg", ".jpeg"], do: true
+
+  defp expected_file_signature?(".gif", <<signature::binary-size(6), _::binary>>),
+    do: signature in ["GIF87a", "GIF89a"]
+
   defp expected_file_signature?(".bmp", <<"BM", _::binary>>), do: true
-  defp expected_file_signature?(".webp", <<"RIFF", _size::binary-size(4), "WEBP", _::binary>>), do: true
+
+  defp expected_file_signature?(".webp", <<"RIFF", _size::binary-size(4), "WEBP", _::binary>>),
+    do: true
 
   defp expected_file_signature?(".avif", <<_size::binary-size(4), "ftyp", brands::binary>>),
     do: String.contains?(brands, ["avif", "avis"])
@@ -793,7 +798,7 @@ defmodule Eirinchan.Uploads do
     cond do
       image?(metadata) ->
         with :ok <- generate_image_thumbnail(source, destination, config, op?),
-             :ok <- maybe_compress_jpeg_thumbnail(destination) do
+             :ok <- maybe_compress_jpeg_thumbnail(destination, config) do
           if Map.get(metadata, :spoiler),
             do: generate_spoiler_thumbnail(destination, config),
             else: :ok
@@ -801,7 +806,7 @@ defmodule Eirinchan.Uploads do
 
       video_extension?(metadata.ext) and get_in(config, [:webm, :use_ffmpeg]) ->
         with :ok <- generate_video_thumbnail(source, destination, config, metadata, op?),
-             :ok <- maybe_compress_jpeg_thumbnail(destination) do
+             :ok <- maybe_compress_jpeg_thumbnail(destination, config) do
           if Map.get(metadata, :spoiler),
             do: generate_spoiler_thumbnail(destination, config),
             else: :ok
@@ -1010,12 +1015,14 @@ defmodule Eirinchan.Uploads do
     end
   end
 
-  defp maybe_compress_jpeg_thumbnail(destination) do
+  defp maybe_compress_jpeg_thumbnail(destination, config) do
     case String.downcase(Path.extname(destination)) do
       ext when ext in [".jpg", ".jpeg"] ->
+        quality = positive_integer(Map.get(config, :thumbnail_jpeg_quality), 85) |> min(100)
+
         case Command.run(
                "mogrify",
-               ["-strip", "-quality", Integer.to_string(@jpeg_thumbnail_quality), destination],
+               ["-strip", "-quality", Integer.to_string(quality), destination],
                stderr_to_stdout: true
              ) do
           {_output, 0} -> :ok
@@ -1026,6 +1033,9 @@ defmodule Eirinchan.Uploads do
         :ok
     end
   end
+
+  defp positive_integer(value, _default) when is_integer(value) and value > 0, do: value
+  defp positive_integer(_value, default), do: default
 
   defp thumbnail_extension(metadata, config) do
     cond do

@@ -7,6 +7,7 @@ defmodule Eirinchan.BrowserIdentities do
   alias Eirinchan.BrowserIdentity
   alias Eirinchan.PostOwnership.Ownership
   alias Eirinchan.Repo
+  alias Eirinchan.Settings
   alias Eirinchan.ThreadWatcher.Watch
 
   @default_ttl_seconds 400 * 86_400
@@ -25,13 +26,22 @@ defmodule Eirinchan.BrowserIdentities do
     end
   end
 
-  def ttl_seconds, do: positive_env(:browser_identity_ttl_seconds, @default_ttl_seconds)
+  def ttl_seconds,
+    do: configured_positive(:browser_identity_ttl_seconds, @default_ttl_seconds)
 
   def rotation_seconds,
-    do: positive_env(:browser_identity_rotation_seconds, @default_rotation_seconds)
+    do:
+      min(
+        configured_positive(:browser_identity_rotation_seconds, @default_rotation_seconds),
+        ttl_seconds()
+      )
 
   def touch_interval_seconds,
-    do: positive_env(:browser_identity_touch_interval_seconds, @default_touch_interval_seconds)
+    do:
+      min(
+        configured_positive(:browser_identity_touch_interval_seconds, @default_touch_interval_seconds),
+        rotation_seconds()
+      )
 
   def prune_expired(opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
@@ -106,9 +116,16 @@ defmodule Eirinchan.BrowserIdentities do
     :ok
   end
 
-  defp positive_env(key, default) do
-    case Application.get_env(:eirinchan, key, default) do
-      value when is_integer(value) and value > 0 -> value
+  defp configured_positive(key, default) do
+    instance = Settings.current_instance_config()
+
+    value =
+      if Map.has_key?(instance, key),
+        do: Map.get(instance, key),
+        else: Application.get_env(:eirinchan, key, default)
+
+    case value do
+      value when is_integer(value) and value > 0 -> min(value, 10 * 365 * 86_400)
       _ -> default
     end
   end
