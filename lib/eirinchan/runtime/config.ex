@@ -119,6 +119,8 @@ defmodule Eirinchan.Runtime.Config do
     board_search: true,
     search_enabled: true,
     search_limit: 100,
+    search_max_query_length: 256,
+    search_max_terms: 12,
     search_queries_per_minutes: [15, 2],
     search_queries_per_minutes_all: [50, 2],
     watcher_max_threads: 500,
@@ -412,6 +414,8 @@ defmodule Eirinchan.Runtime.Config do
     "boardSearch" => :board_search,
     "searchEnabled" => :search_enabled,
     "searchLimit" => :search_limit,
+    "searchMaxQueryLength" => :search_max_query_length,
+    "searchMaxTerms" => :search_max_terms,
     "searchQueriesPerMinutes" => :search_queries_per_minutes,
     "searchQueriesPerMinutesAll" => :search_queries_per_minutes_all,
     "watcherMaxThreads" => :watcher_max_threads,
@@ -481,6 +485,18 @@ defmodule Eirinchan.Runtime.Config do
       end
     end)
   end
+
+  @spec positive_integer(term(), pos_integer()) :: pos_integer()
+  def positive_integer(value, _default) when is_integer(value) and value > 0, do: value
+
+  def positive_integer(value, default) when is_binary(value) do
+    case Integer.parse(value) do
+      {parsed, ""} when parsed > 0 -> parsed
+      _ -> default
+    end
+  end
+
+  def positive_integer(_value, default), do: default
 
   @spec normalize_override_keys(map()) :: map()
   def normalize_override_keys(overrides) when is_map(overrides) do

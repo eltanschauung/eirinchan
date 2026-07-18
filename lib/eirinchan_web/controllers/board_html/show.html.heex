@@ -238,7 +238,13 @@
   <form style="display:inline;" action="/search.php" method="get">
     <p class="board-search-row" style="margin: 8px;">
       <span class="board-search-form-controls">
-        <input type="text" class="board-search-input" name="search" placeholder="Search" />
+        <input
+          type="text"
+          class="board-search-input"
+          name="search"
+          placeholder="Search"
+          maxlength={@config.search_max_query_length}
+        />
         <input type="hidden" name="board" value={@board.uri} />
         <input type="submit" value="Search" style="margin-right:4px;" />
       </span>

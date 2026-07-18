@@ -854,31 +854,37 @@ defmodule Eirinchan.Posts do
   end
 
   @spec search_posts(BoardRecord.t(), String.t(), keyword()) ::
-          {:ok, [Post.t()]} | {:query_too_broad, [Post.t()]}
+          {:ok, [Post.t()]} | {:query_too_broad | :query_too_complex, [Post.t()]}
   def search_posts(%BoardRecord{} = board, phrase, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
     limit = Keyword.get(opts, :limit, 100)
+    max_terms = Config.positive_integer(Keyword.get(opts, :max_terms), 12)
     {query_text, filters} = extract_search_query_parts(phrase)
 
-    if search_query_too_broad?(query_text, filters) do
-      {:query_too_broad, []}
-    else
-      posts =
-        from(post in Post,
-          where: post.board_id == ^board.id,
-          order_by: [desc: post.inserted_at, desc: post.id],
-          limit: ^limit
-        )
-        |> apply_search_text(query_text)
-        |> apply_search_filters(filters)
-        |> repo.all()
-        |> repo.preload([:board, :thread])
+    cond do
+      search_query_too_broad?(query_text, filters) ->
+        {:query_too_broad, []}
 
-      if length(posts) == limit do
-        {:query_too_broad, posts}
-      else
-        {:ok, posts}
-      end
+      search_term_count(query_text, filters) > max_terms ->
+        {:query_too_complex, []}
+
+      true ->
+        posts =
+          from(post in Post,
+            where: post.board_id == ^board.id,
+            order_by: [desc: post.inserted_at, desc: post.id],
+            limit: ^limit
+          )
+          |> apply_search_text(query_text)
+          |> apply_search_filters(filters)
+          |> repo.all()
+          |> repo.preload([:board, :thread])
+
+        if length(posts) == limit do
+          {:query_too_broad, posts}
+        else
+          {:ok, posts}
+        end
     end
   end
 
@@ -1906,6 +1912,12 @@ defmodule Eirinchan.Posts do
 
   defp search_query_too_broad?(query_text, filters) do
     filters == %{} and not Regex.match?(~r/[^*^\s]/u, query_text || "")
+  end
+
+  defp search_term_count(query_text, filters) do
+    [query_text | Map.values(filters)]
+    |> Enum.flat_map(&tokenize_search_terms/1)
+    |> Enum.count(&(String.trim(&1) != ""))
   end
 
   defp apply_search_text(query, nil), do: query

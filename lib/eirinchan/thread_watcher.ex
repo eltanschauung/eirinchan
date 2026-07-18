@@ -5,6 +5,7 @@ defmodule Eirinchan.ThreadWatcher do
   alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.Posts.Post
   alias Eirinchan.Repo
+  alias Eirinchan.Runtime.Config
   alias Eirinchan.ThreadWatcher.Snapshot
   alias Eirinchan.ThreadWatcher.Watch
 
@@ -108,7 +109,7 @@ defmodule Eirinchan.ThreadWatcher do
       when is_binary(browser_token) and is_binary(board_uri) and is_integer(thread_id) do
     browser_token = BrowserIdentity.reference(browser_token)
     attrs = Map.new(attrs)
-    max_threads = positive_integer(Keyword.get(opts, :max_threads), @default_max_threads)
+    max_threads = Config.positive_integer(Keyword.get(opts, :max_threads), @default_max_threads)
 
     last_seen_post_id =
       Map.get(attrs, :last_seen_post_id, Map.get(attrs, "last_seen_post_id"))
@@ -175,17 +176,6 @@ defmodule Eirinchan.ThreadWatcher do
         :count
       ) < max_threads
   end
-
-  defp positive_integer(value, _default) when is_integer(value) and value > 0, do: value
-
-  defp positive_integer(value, default) when is_binary(value) do
-    case Integer.parse(value) do
-      {parsed, ""} when parsed > 0 -> parsed
-      _ -> default
-    end
-  end
-
-  defp positive_integer(_value, default), do: default
 
   def activate_for_reply(thread_id, excluded_browser_token \\ nil)
       when is_integer(thread_id) and

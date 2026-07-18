@@ -32,8 +32,11 @@ defmodule EirinchanWeb.ThreadWatcherController do
         )
       )
     else
-      {:error, :not_found} -> send_resp(conn, :not_found, "")
-      {:error, :thread_not_found} -> send_resp(conn, :not_found, "")
+      {:error, :not_found} ->
+        send_resp(conn, :not_found, "")
+
+      {:error, :thread_not_found} ->
+        send_resp(conn, :not_found, "")
 
       {:error, :watch_limit} ->
         conn

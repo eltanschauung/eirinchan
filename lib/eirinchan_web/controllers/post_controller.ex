@@ -317,10 +317,14 @@ defmodule EirinchanWeb.PostController do
         _ = ThreadWatcher.activate_for_reply(thread_id, token)
 
         _ =
-          ThreadWatcher.watch_thread(token, board.uri, thread_id, %{
-            last_seen_post_id: post.id,
-            activated: false
-          }, max_threads: conn.assigns.current_board_config.watcher_max_threads)
+          ThreadWatcher.watch_thread(
+            token,
+            board.uri,
+            thread_id,
+            %{
+              last_seen_post_id: post.id,
+              activated: false
+            }, max_threads: conn.assigns.current_board_config.watcher_max_threads)
 
         ThreadWatcher.watch_metrics(token)
 

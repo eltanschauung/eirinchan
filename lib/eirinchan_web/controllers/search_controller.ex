@@ -52,17 +52,53 @@ defmodule EirinchanWeb.SearchController do
       true ->
         _ = Antispam.log_public_activity("search", request, board_id: board.id)
 
-        case Posts.search_posts(board, query, limit: search_limit(config)) do
-          {:query_too_broad, _posts} ->
-            render_search(conn, query, board, boards, [], "Query too broad.", config)
+        if String.length(query) > search_max_query_length(config) do
+          EventLog.log(conn, "search.rejected", %{
+            board: board.uri,
+            outcome: "query_too_long",
+            query_length: String.length(query)
+          })
 
-          {:ok, posts} ->
-            results =
-              posts
-              |> BrowserEntries.post_entries(boards, conn, instance_config: instance_overrides)
-
-            render_search(conn, query, board, boards, results, nil, config)
+          render_search(
+            conn,
+            query,
+            board,
+            boards,
+            [],
+            "Search queries are limited to #{search_max_query_length(config)} characters.",
+            config
+          )
+        else
+          run_search(conn, query, board, boards, config, instance_overrides)
         end
+    end
+  end
+
+  defp run_search(conn, query, board, boards, config, instance_overrides) do
+    case Posts.search_posts(board, query,
+           limit: search_limit(config),
+           max_terms: search_max_terms(config)
+         ) do
+      {:query_too_broad, _posts} ->
+        render_search(conn, query, board, boards, [], "Query too broad.", config)
+
+      {:query_too_complex, _posts} ->
+        render_search(
+          conn,
+          query,
+          board,
+          boards,
+          [],
+          "Search queries are limited to #{search_max_terms(config)} terms.",
+          config
+        )
+
+      {:ok, posts} ->
+        results =
+          posts
+          |> BrowserEntries.post_entries(boards, conn, instance_config: instance_overrides)
+
+        render_search(conn, query, board, boards, results, nil, config)
     end
   end
 
@@ -78,6 +114,7 @@ defmodule EirinchanWeb.SearchController do
         ),
       results: results,
       result_count: length(results),
+      config: config,
       board_chrome: EirinchanWeb.BoardChrome.default(config),
       error: error
     )
@@ -162,6 +199,12 @@ defmodule EirinchanWeb.SearchController do
   defp normalize_uri(uri) when is_binary(uri), do: uri |> String.trim() |> String.trim("/")
   defp normalize_uri(uri), do: to_string(uri)
 
-  defp search_limit(config), do: max(Map.get(config, :search_limit, 100), 1)
+  defp search_limit(config),
+    do: Config.positive_integer(Map.get(config, :search_limit), 100)
 
+  defp search_max_query_length(config),
+    do: Config.positive_integer(Map.get(config, :search_max_query_length), 256)
+
+  defp search_max_terms(config),
+    do: Config.positive_integer(Map.get(config, :search_max_terms), 12)
 end
