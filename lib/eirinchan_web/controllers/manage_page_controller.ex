@@ -1085,7 +1085,6 @@ defmodule EirinchanWeb.ManagePageController do
         moderator: moderator,
         global_message: current_global_message(),
         global_message_preview_html: current_global_message_preview_html(),
-        history: global_message_history(),
         entries: Eirinchan.NewsBlotter.entries(config),
         button_label: Eirinchan.NewsBlotter.button_label(config),
         limit: Eirinchan.NewsBlotter.preview_limit(config),
@@ -2684,7 +2683,6 @@ defmodule EirinchanWeb.ManagePageController do
       moderator: conn.assigns[:current_moderator],
       global_message: current_global_message(),
       global_message_preview_html: current_global_message_preview_html(),
-      history: global_message_history(),
       entries: Eirinchan.NewsBlotter.entries(config),
       button_label: Eirinchan.NewsBlotter.button_label(config),
       limit: Eirinchan.NewsBlotter.preview_limit(config),
@@ -2803,28 +2801,11 @@ defmodule EirinchanWeb.ManagePageController do
     |> Enum.map(& &1.id)
   end
 
-  defp global_message_history do
-    Settings.current_instance_config()
-    |> Map.get(:global_message_history, [])
-    |> List.wrap()
-    |> Enum.filter(&(is_binary(&1) and String.trim(&1) != ""))
-  end
-
   defp update_global_message(body) do
     config = Settings.current_instance_config()
-    previous = current_global_message()
     body = String.trim(body || "")
 
-    history =
-      [previous | global_message_history()]
-      |> Enum.filter(&(&1 != "" and &1 != body))
-      |> Enum.uniq()
-      |> Enum.take(20)
-
-    updated =
-      config
-      |> Map.put(:global_message, if(body == "", do: false, else: body))
-      |> Map.put(:global_message_history, history)
+    updated = Map.put(config, :global_message, if(body == "", do: false, else: body))
 
     case Settings.persist_instance_config(updated) do
       :ok -> {:ok, updated}
