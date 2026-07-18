@@ -8,21 +8,41 @@ defmodule Eirinchan.Stats do
   alias Eirinchan.Posts.Post
   alias Eirinchan.Repo
 
-  @spec posts_perhour(BoardRecord.t() | integer() | [integer()]) :: integer()
-  def posts_perhour(%BoardRecord{id: board_id}), do: posts_perhour(board_id)
+  @spec posts_perhour(BoardRecord.t() | integer() | [integer()], keyword()) :: integer()
+  def posts_perhour(target, opts \\ [])
 
-  def posts_perhour(board_id) when is_integer(board_id) do
-    posts_perhour([board_id])
+  def posts_perhour(%BoardRecord{id: board_id}, opts), do: posts_perhour(board_id, opts)
+  def posts_perhour(board_id, opts) when is_integer(board_id), do: posts_perhour([board_id], opts)
+
+  def posts_perhour(board_ids, opts) when is_list(board_ids) do
+    count_perhour(board_ids, opts, false)
   end
 
-  def posts_perhour(board_ids) when is_list(board_ids) do
-    hour_cutoff = DateTime.utc_now() |> DateTime.add(-60 * 60, :second)
+  @spec threads_perhour(BoardRecord.t() | integer() | [integer()], keyword()) :: integer()
+  def threads_perhour(target, opts \\ [])
 
-    Repo.aggregate(
-      from(post in Post, where: post.board_id in ^board_ids and post.inserted_at > ^hour_cutoff),
-      :count,
-      :id
-    ) || 0
+  def threads_perhour(%BoardRecord{id: board_id}, opts), do: threads_perhour(board_id, opts)
+
+  def threads_perhour(board_id, opts) when is_integer(board_id),
+    do: threads_perhour([board_id], opts)
+
+  def threads_perhour(board_ids, opts) when is_list(board_ids) do
+    count_perhour(board_ids, opts, true)
+  end
+
+  defp count_perhour(board_ids, opts, threads_only?) do
+    now = Keyword.get(opts, :now, DateTime.utc_now(:second)) |> DateTime.truncate(:second)
+    hour_cutoff = DateTime.add(now, -60 * 60, :second)
+
+    query =
+      from post in Post,
+        where:
+          post.board_id in ^board_ids and post.inserted_at > ^hour_cutoff and
+            post.inserted_at <= ^now
+
+    query = if threads_only?, do: from(post in query, where: is_nil(post.thread_id)), else: query
+
+    Repo.aggregate(query, :count, :id) || 0
   end
 
   @spec active_browsers_10minutes() :: non_neg_integer()

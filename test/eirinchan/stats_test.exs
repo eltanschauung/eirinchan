@@ -31,6 +31,28 @@ defmodule Eirinchan.StatsTest do
     assert recent_reply.id != old_reply.id
   end
 
+  test "threads_perhour excludes replies and respects the supplied snapshot time" do
+    board = board_fixture()
+    thread = thread_fixture(board)
+    _reply = reply_fixture(board, thread)
+    now = ~U[2026-07-18 12:00:00Z]
+
+    Eirinchan.Repo.update_all(
+      Ecto.Query.from(p in Eirinchan.Posts.Post, where: p.id in ^[thread.id]),
+      set: [inserted_at: DateTime.add(now, -30 * 60, :second)]
+    )
+
+    old_thread = thread_fixture(board)
+
+    Eirinchan.Repo.update_all(
+      Ecto.Query.from(p in Eirinchan.Posts.Post, where: p.id == ^old_thread.id),
+      set: [inserted_at: DateTime.add(now, -2 * 60 * 60, :second)]
+    )
+
+    assert Stats.threads_perhour(board, now: now) == 1
+    assert Stats.threads_perhour(board.id, now: now) == 1
+  end
+
   test "users_10minutes counts tracked browser presence" do
     first = identity_fixture()
     second = identity_fixture()
