@@ -7,6 +7,7 @@ defmodule EirinchanWeb.SearchController do
   alias Eirinchan.Posts
   alias Eirinchan.Runtime.Config
   alias Eirinchan.Settings
+  alias Eirinchan.Statistics
   alias EirinchanWeb.BrowserEntries
   alias EirinchanWeb.PublicShell
   alias EirinchanWeb.RequestMeta
@@ -47,7 +48,7 @@ defmodule EirinchanWeb.SearchController do
             })
 
             render_search(
-              conn,
+              Statistics.mark_rate_limited(conn, :search),
               query,
               board,
               boards,

@@ -86,6 +86,24 @@ defmodule Eirinchan.StatsTest do
     assert Stats.users_10minutes() == 1
   end
 
+  test "users_24hours uses persisted crawler-filtered presence" do
+    recent = identity_fixture()
+    stale = identity_fixture()
+    now = DateTime.utc_now(:second)
+
+    Repo.update_all(
+      Ecto.Query.from(identity in Identity, where: identity.browser_ref == ^recent.browser_ref),
+      set: [presence_seen_at: DateTime.add(now, -60 * 60, :second)]
+    )
+
+    Repo.update_all(
+      Ecto.Query.from(identity in Identity, where: identity.browser_ref == ^stale.browser_ref),
+      set: [presence_seen_at: DateTime.add(now, -25 * 60 * 60, :second)]
+    )
+
+    assert Stats.users_24hours(now: now) == 1
+  end
+
   test "team_* helpers return the april fools team tuple" do
     team = Repo.get!(AprilFoolsTeam, 2)
     futa = Repo.get!(AprilFoolsTeam, 7)

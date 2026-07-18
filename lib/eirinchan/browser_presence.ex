@@ -59,10 +59,15 @@ defmodule Eirinchan.BrowserPresence do
   end
 
   def active_browsers_10minutes(opts \\ []) do
+    active_browsers(@window_seconds, opts)
+  end
+
+  def active_browsers(window_seconds, opts \\ [])
+      when is_integer(window_seconds) and window_seconds > 0 do
     repo = Keyword.get(opts, :repo, Repo)
     now = Keyword.get(opts, :now, DateTime.utc_now(:second)) |> DateTime.truncate(:second)
     server = Keyword.get(opts, :server, __MODULE__)
-    cutoff = DateTime.add(now, -@window_seconds, :second)
+    cutoff = DateTime.add(now, -window_seconds, :second)
 
     _ = flush(server)
 
