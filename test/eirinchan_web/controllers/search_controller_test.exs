@@ -65,8 +65,10 @@ defmodule EirinchanWeb.SearchControllerTest do
     assert first_page =~ "(No results.)"
 
     assert Enum.any?(
-             Eirinchan.Antispam.list_search_queries("198.51.100.99", repo: Eirinchan.Repo),
-             &(&1.query == "tripcode" and &1.board_id == board.id)
+             Eirinchan.Antispam.list_public_activity_entries("198.51.100.99",
+               repo: Eirinchan.Repo
+             ),
+             &(&1.activity == "search" and &1.board_id == board.id)
            )
   end
 

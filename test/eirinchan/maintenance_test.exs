@@ -56,7 +56,9 @@ defmodule Eirinchan.MaintenanceTest do
 
     stale_request = %{remote_ip: {198, 51, 100, 20}}
     {:ok, flood_entry} = Antispam.log_post(board, %{"body" => "old"}, stale_request)
-    {:ok, search_entry} = Antispam.log_search_query("old", stale_request, board_id: board.id)
+
+    {:ok, search_entry} =
+      Antispam.log_public_activity("search", stale_request, board_id: board.id)
 
     stale_time =
       DateTime.add(DateTime.utc_now(), -172_900, :second) |> DateTime.truncate(:microsecond)
@@ -89,7 +91,7 @@ defmodule Eirinchan.MaintenanceTest do
     assert antispam_count >= 2
     assert length(Bans.list_bans(board_id: board.id, repo: Repo)) == 1
     assert Antispam.list_flood_entries("198.51.100.20", repo: Repo) == []
-    assert Antispam.list_search_queries("198.51.100.20", repo: Repo) == []
+    assert Antispam.list_public_activity_entries("198.51.100.20", repo: Repo) == []
     assert Repo.get(Identity, browser_ref) == nil
   end
 end
