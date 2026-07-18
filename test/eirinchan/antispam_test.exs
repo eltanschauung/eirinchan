@@ -35,7 +35,7 @@ defmodule Eirinchan.AntispamTest do
     assert board_id == board.id
   end
 
-  test "public actions reuse the flood table rate limits" do
+  test "public action flood limits are isolated by activity" do
     board =
       board_fixture(%{
         config_overrides: %{flood_time: 60, flood_time_ip: 60, flood_time_same: 60}
@@ -52,12 +52,25 @@ defmodule Eirinchan.AntispamTest do
     attrs = %{"report_post_id" => "123", "reason" => "spam"}
 
     assert :ok =
-             Antispam.reserve_public_action(board, :report, attrs, request, config,
-               repo: Repo
-             )
+             Antispam.reserve_public_action(board, :report, attrs, request, config, repo: Repo)
 
     assert {:error, :antispam} =
              Antispam.check_public_action(board, :report, attrs, request, config, repo: Repo)
+
+    assert :ok =
+             Antispam.check_public_action(
+               board,
+               :delete,
+               %{"delete_post_id" => "123"},
+               request,
+               config,
+               repo: Repo
+             )
+
+    assert :ok = Antispam.check_post(board, %{"body" => "reply"}, request, config, repo: Repo)
+
+    assert [%{activity: "report"}] =
+             Antispam.list_flood_entries("198.51.100.44", repo: Repo)
   end
 
   test "search limits enforce browser, IP-browser pair, and global dimensions independently" do

@@ -57,6 +57,7 @@ defmodule Eirinchan.Runtime.Config do
     contact_email: "example@example.com",
     global_message: false,
     global_message_refresh_seconds: 30,
+    auto_updater_poll_interval_seconds: 5,
     statistics_snapshots: true,
     footer: [
       "All trademarks, copyrights, comments, and images on this page are owned by and are the responsibility of their respective parties."
@@ -124,6 +125,8 @@ defmodule Eirinchan.Runtime.Config do
     search_max_terms: 12,
     search_queries_per_minutes: [15, 2],
     search_queries_per_minutes_all: [50, 2],
+    feedback_submissions_per_minutes: [5, 24 * 60],
+    feedback_submissions_per_minutes_all: [50, 2],
     watcher_max_threads: 500,
     search_allowed_boards: nil,
     search_disallowed_boards: [],
@@ -419,6 +422,9 @@ defmodule Eirinchan.Runtime.Config do
     "searchMaxTerms" => :search_max_terms,
     "searchQueriesPerMinutes" => :search_queries_per_minutes,
     "searchQueriesPerMinutesAll" => :search_queries_per_minutes_all,
+    "feedbackSubmissionsPerMinutes" => :feedback_submissions_per_minutes,
+    "feedbackSubmissionsPerMinutesAll" => :feedback_submissions_per_minutes_all,
+    "autoUpdaterPollIntervalSeconds" => :auto_updater_poll_interval_seconds,
     "statisticsSnapshots" => :statistics_snapshots,
     "watcherMaxThreads" => :watcher_max_threads,
     "searchAllowedBoards" => :search_allowed_boards,

@@ -68,16 +68,18 @@ defmodule EirinchanWeb.FeedbackControllerTest do
     assert Eirinchan.Feedback.unread_count() == 0
   end
 
-  test "feedback submission uses search-style public rate limits", %{conn: conn} do
-    previous = Application.get_env(:eirinchan, :search_overrides, %{})
+  test "feedback submission uses its own public rate limits", %{conn: conn} do
+    previous = Application.get_env(:eirinchan, :feedback_overrides, %{})
 
-    Application.put_env(:eirinchan, :search_overrides, %{
-      search_queries_per_minutes: [1, 2],
-      search_queries_per_minutes_all: [0, 2]
+    Application.put_env(:eirinchan, :feedback_overrides, %{
+      search_queries_per_minutes: [0, 2],
+      search_queries_per_minutes_all: [0, 2],
+      feedback_submissions_per_minutes: [1, 2],
+      feedback_submissions_per_minutes_all: [0, 2]
     })
 
     on_exit(fn ->
-      Application.put_env(:eirinchan, :search_overrides, previous)
+      Application.put_env(:eirinchan, :feedback_overrides, previous)
     end)
 
     first_conn =
@@ -101,20 +103,20 @@ defmodule EirinchanWeb.FeedbackControllerTest do
 
     assert %{
              "error" =>
-               "Feedback is limited to five submissions per 24 hours. Please try again later."
+               "Feedback is limited to 1 submission per 2 minutes. Please try again later."
            } =
              json_response(second_conn, 429)
   end
 
   test "feedback page displays rate-limit messages without internal field names", %{conn: conn} do
-    previous = Application.get_env(:eirinchan, :search_overrides, %{})
+    previous = Application.get_env(:eirinchan, :feedback_overrides, %{})
 
-    Application.put_env(:eirinchan, :search_overrides, %{
-      search_queries_per_minutes: [1, 2],
-      search_queries_per_minutes_all: [0, 2]
+    Application.put_env(:eirinchan, :feedback_overrides, %{
+      feedback_submissions_per_minutes: [1, 2],
+      feedback_submissions_per_minutes_all: [0, 2]
     })
 
-    on_exit(fn -> Application.put_env(:eirinchan, :search_overrides, previous) end)
+    on_exit(fn -> Application.put_env(:eirinchan, :feedback_overrides, previous) end)
 
     conn
     |> post("/feedback", %{"body" => "First feedback", "json_response" => "1"})
@@ -126,19 +128,19 @@ defmodule EirinchanWeb.FeedbackControllerTest do
       |> post("/feedback", %{"body" => "Second feedback"})
       |> html_response(429)
 
-    assert page =~ "Feedback is limited to five submissions per 24 hours."
+    assert page =~ "Feedback is limited to 1 submission per 2 minutes."
     refute page =~ "rate_limit:"
   end
 
   test "feedback submission is limited to five attempts per IP in 24 hours", %{conn: conn} do
-    previous = Application.get_env(:eirinchan, :search_overrides, %{})
+    previous = Application.get_env(:eirinchan, :feedback_overrides, %{})
 
-    Application.put_env(:eirinchan, :search_overrides, %{
-      search_queries_per_minutes: [0, 2],
-      search_queries_per_minutes_all: [0, 2]
+    Application.put_env(:eirinchan, :feedback_overrides, %{
+      feedback_submissions_per_minutes: [5, 1440],
+      feedback_submissions_per_minutes_all: [0, 2]
     })
 
-    on_exit(fn -> Application.put_env(:eirinchan, :search_overrides, previous) end)
+    on_exit(fn -> Application.put_env(:eirinchan, :feedback_overrides, previous) end)
 
     Enum.each(1..5, fn attempt ->
       response =
@@ -159,9 +161,31 @@ defmodule EirinchanWeb.FeedbackControllerTest do
 
     assert %{
              "error" =>
-               "Feedback is limited to five submissions per 24 hours. Please try again later."
+               "Feedback is limited to 5 submissions per 24 hours. Please try again later."
            } =
              json_response(response, 429)
+  end
+
+  test "feedback limits are independent from search limits", %{conn: conn} do
+    previous = Application.get_env(:eirinchan, :feedback_overrides, %{})
+
+    Application.put_env(:eirinchan, :feedback_overrides, %{
+      search_queries_per_minutes: [1, 2],
+      search_queries_per_minutes_all: [0, 2],
+      feedback_submissions_per_minutes: [2, 2],
+      feedback_submissions_per_minutes_all: [0, 2]
+    })
+
+    on_exit(fn -> Application.put_env(:eirinchan, :feedback_overrides, previous) end)
+
+    Enum.each(["First feedback", "Second feedback"], fn body ->
+      response =
+        conn
+        |> recycle()
+        |> post("/feedback", %{"body" => body, "json_response" => "1"})
+
+      assert %{"status" => "ok"} = json_response(response, 200)
+    end)
   end
 
   test "feedback page suppresses the global message and keeps the centered feedback body", %{
