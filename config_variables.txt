@@ -85,6 +85,7 @@ Canonical keys
 - search_limit
 - search_queries_per_minutes
 - search_queries_per_minutes_all
+- watcher_max_threads
 - search_allowed_boards
 - search_disallowed_boards
 - early_404

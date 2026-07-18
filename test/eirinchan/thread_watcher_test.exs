@@ -24,6 +24,24 @@ defmodule Eirinchan.ThreadWatcherTest do
              ThreadWatcher.watched_thread_ids(token, board.uri)
   end
 
+  test "watch_thread enforces a per-browser storage cap while allowing upserts" do
+    board = board_fixture(%{uri: "watchcap", title: "Watch Cap"})
+    first_thread = thread_fixture(board, %{body: "First"})
+    second_thread = thread_fixture(board, %{body: "Second"})
+    token = "token-cap-123456789012"
+
+    assert {:ok, _watch} =
+             ThreadWatcher.watch_thread(token, board.uri, first_thread.id, %{}, max_threads: 1)
+
+    assert {:ok, _watch} =
+             ThreadWatcher.watch_thread(token, board.uri, first_thread.id, %{}, max_threads: 1)
+
+    assert {:error, :watch_limit} =
+             ThreadWatcher.watch_thread(token, board.uri, second_thread.id, %{}, max_threads: 1)
+
+    assert ThreadWatcher.watch_count(token) == 1
+  end
+
   test "mark_seen updates last_seen_post_id" do
     board = board_fixture(%{uri: "watchseenctx", title: "Watch Seen"})
     thread = thread_fixture(board, %{body: "OP"})

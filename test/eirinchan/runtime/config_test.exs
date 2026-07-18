@@ -200,6 +200,7 @@ defmodule Eirinchan.Runtime.ConfigTest do
     assert config.search_limit == 100
     assert config.search_queries_per_minutes == [15, 2]
     assert config.search_queries_per_minutes_all == [50, 2]
+    assert config.watcher_max_threads == 500
     assert config.ip_access_auth.max_attempts == 5
     assert config.ip_access_auth.global_max_attempts == 100
     assert config.ip_access_auth.window_seconds == 300

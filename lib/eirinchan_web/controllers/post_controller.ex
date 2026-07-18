@@ -320,7 +320,7 @@ defmodule EirinchanWeb.PostController do
           ThreadWatcher.watch_thread(token, board.uri, thread_id, %{
             last_seen_post_id: post.id,
             activated: false
-          })
+          }, max_threads: conn.assigns.current_board_config.watcher_max_threads)
 
         ThreadWatcher.watch_metrics(token)
 
