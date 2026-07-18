@@ -352,11 +352,11 @@
       var serverOffset = parseInteger(metaContent("eirinchan:browser-timezone-offset"), 0);
 
       if (timezone && timezone !== serverTimezone) {
-        writeCookie("timezone", timezone, {path: "/", maxAge: 31_536_000});
+        writeCookie("timezone", timezone, {path: "/", maxAge: runtime.preferenceCookieMaxAge});
       }
 
       if (Number.isFinite(offset) && offset !== serverOffset) {
-        writeCookie("timezone_offset", offset, {path: "/", maxAge: 31_536_000});
+        writeCookie("timezone_offset", offset, {path: "/", maxAge: runtime.preferenceCookieMaxAge});
       }
     } catch (_error) {
       // Timezone detection is an optional enhancement.
@@ -385,6 +385,10 @@
   runtime.showAlert = showAlert;
   runtime.generatePassword = generatePassword;
   runtime.syncTimezoneCookies = syncTimezoneCookies;
+  runtime.preferenceCookieMaxAge = Math.max(
+    1,
+    parseInteger(metaContent("eirinchan:preference-cookie-max-age"), 31_536_000)
+  );
 
   if (window.active_page === undefined) window.active_page = metaContent("eirinchan:active-page") || "";
   if (window.board_name === undefined) window.board_name = metaContent("eirinchan:board-name") || null;

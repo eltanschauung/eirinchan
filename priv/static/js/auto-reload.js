@@ -176,7 +176,7 @@ window.auto_reload_enabled = true;
       if (runtime.writeCookie) {
         runtime.writeCookie(cookieName, enabled ? "1" : "0", {
           path: "/",
-          maxAge: 60 * 60 * 24 * 365,
+          maxAge: runtime.preferenceCookieMaxAge || 60 * 60 * 24 * 365,
           sameSite: "lax"
         });
         return;
@@ -187,7 +187,7 @@ window.auto_reload_enabled = true;
         "=" +
         encodeURIComponent(enabled ? "1" : "0") +
         "; path=/; max-age=" +
-        60 * 60 * 24 * 365 +
+        (runtime.preferenceCookieMaxAge || 60 * 60 * 24 * 365) +
         "; samesite=lax";
     }
 

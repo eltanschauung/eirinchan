@@ -109,6 +109,8 @@ defmodule EirinchanWeb.PublicShell do
       "eirinchan:allow-user-custom-code" =>
         if(Map.get(config, :allow_user_custom_code, false), do: "true", else: "false"),
       "eirinchan:post-success-cookie-name" => "eirinchan_posted",
+      "eirinchan:preference-cookie-max-age" =>
+        to_string(Map.get(config, :preference_cookie_max_age_seconds, 31_536_000)),
       "eirinchan:watcher-count" => to_string(watcher_count),
       "eirinchan:watcher-unread-count" => to_string(watcher_unread_count),
       "eirinchan:watcher-you-count" => to_string(watcher_you_count),

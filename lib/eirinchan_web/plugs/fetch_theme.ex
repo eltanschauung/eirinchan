@@ -12,13 +12,13 @@ defmodule EirinchanWeb.Plugs.FetchTheme do
   def init(opts), do: opts
 
   def call(conn, _opts) do
-    instance_config = Settings.current_instance_config()
+    instance_config = Settings.effective_instance_config()
     stylesheets_board = Map.get(instance_config, :stylesheets_board, true)
     board = board_for_request(conn)
     forced_theme_identifier = forced_theme(board, instance_config)
     saved_theme_identifier = saved_theme_identifier(conn, board, stylesheets_board)
     light_theme_identifier = board_default_theme(board) || global_default_theme(instance_config)
-    dark_theme_identifier = board_default_dark_theme(board)
+    dark_theme_identifier = board_default_dark_theme(board) || global_default_dark_theme(instance_config)
     light_theme = theme_entry(light_theme_identifier) || default_theme_entry()
     dark_theme = theme_entry(dark_theme_identifier)
 
@@ -120,6 +120,11 @@ defmodule EirinchanWeb.Plugs.FetchTheme do
 
   defp global_default_theme(instance_config) do
     Map.get(instance_config, :default_theme) || ThemeRegistry.default_theme()
+  end
+
+  defp global_default_dark_theme(instance_config) do
+    Map.get(instance_config, :default_theme_dark)
+    |> normalize_theme_identifier()
   end
 
   defp dark_scheme?(conn), do: conn.cookies[@color_scheme_cookie] == "dark"
