@@ -11,8 +11,8 @@
   </section>
 
   <section :if={@errors} class="public-panel feedback-errors">
-    <%= for {field, messages} <- @errors do %>
-      <p><%= field %>: <%= Enum.join(messages, ", ") %></p>
+    <%= for {_field, messages} <- @errors, message <- messages do %>
+      <p><%= message %></p>
     <% end %>
   </section>
 
