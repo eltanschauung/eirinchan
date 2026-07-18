@@ -249,7 +249,10 @@
         >
           [Archive]
         </a>
-        <.live_updater page_kind={:index} />
+        <.live_updater
+          page_kind={:index}
+          poll_interval_seconds={@config.auto_updater_poll_interval_seconds}
+        />
       </span>
     </p>
   </form>

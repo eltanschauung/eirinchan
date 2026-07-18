@@ -50,14 +50,17 @@ window.auto_reload_enabled = true;
     var runtime = window.EirinchanRuntime || {};
     var settings = createSettings();
     var cookieName = "live_page_auto_update";
-    var minimumDelay = positiveDelay(settings.get("min_delay_bottom", 5000), 5000);
+    var configuredPollDelay = positiveDelay(
+      Number(updater.getAttribute("data-poll-interval-seconds")) * 1000,
+      5000
+    );
+    var minimumDelay = configuredPollDelay;
     var errorDelay = positiveDelay(settings.get("error_delay", 30000), 30000);
 
-    // Index pages historically refresh at a fixed five-second cadence. Keep
-    // that behavior because hiding/filtering state is reconciled on each pass.
+    // Index pages retry on the configured polling cadence because their
+    // hiding/filtering state is reconciled on each pass.
     if (pageKind === "index") {
-      minimumDelay = 5000;
-      errorDelay = 5000;
+      errorDelay = configuredPollDelay;
     }
 
     var state = {

@@ -237,7 +237,12 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
   end
 
   test "board page renders updater controls and refresh target", %{conn: conn} do
-    board = board_fixture(%{uri: "update", title: "Update Test"})
+    board =
+      board_fixture(%{
+        uri: "update",
+        title: "Update Test",
+        config_overrides: %{auto_updater_poll_interval_seconds: 9}
+      })
 
     response =
       conn
@@ -247,6 +252,7 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     assert response =~ ~s(id="updater")
     assert response =~ ~s(data-live-updater="true")
     assert response =~ ~s(data-page-kind="index")
+    assert response =~ ~s(data-poll-interval-seconds="9")
     assert response =~ ~s(id="update_thread")
     assert response =~ ~s(class="live-page-indicator")
     assert response =~ ~s(id="auto_update_status")

@@ -101,6 +101,7 @@ defmodule EirinchanWeb.PostComponents do
   end
 
   attr :page_kind, :atom, required: true
+  attr :poll_interval_seconds, :integer, default: 5
 
   def live_updater(assigns) do
     assigns = assign(assigns, :title, live_updater_title(assigns.page_kind))
@@ -111,6 +112,7 @@ defmodule EirinchanWeb.PostComponents do
       class="board-live-updater"
       data-live-updater="true"
       data-page-kind={to_string(@page_kind)}
+      data-poll-interval-seconds={positive_poll_interval(@poll_interval_seconds)}
     >
       <a href="#" id="update_thread" title={@title} aria-pressed="true">
         [Live&nbsp;<span class="live-page-indicator" aria-hidden="true">⬤</span>]
@@ -129,6 +131,9 @@ defmodule EirinchanWeb.PostComponents do
 
   defp live_updater_title(:thread),
     do: "This thread is updated automatically. Click to toggle this functionality persistently."
+
+  defp positive_poll_interval(value) when is_integer(value) and value > 0, do: value
+  defp positive_poll_interval(_value), do: 5
 
   attr :entries, :list, default: nil
 
