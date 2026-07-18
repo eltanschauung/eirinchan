@@ -14,6 +14,7 @@ defmodule EirinchanWeb.PostController do
   alias Eirinchan.Posts
   alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Reports
+  alias Eirinchan.Statistics
   alias Eirinchan.ThreadWatcher
   alias Eirinchan.ThreadPaths
   alias EirinchanWeb.Announcements
@@ -377,6 +378,11 @@ defmodule EirinchanWeb.PostController do
 
   defp respond_error(conn, reason, status, message, config) do
     log_post_error(reason, status, conn)
+
+    conn =
+      if reason == :antispam,
+        do: Statistics.mark_rate_limited(conn, branch(conn.params)),
+        else: conn
 
     if json_response?(conn) do
       payload =

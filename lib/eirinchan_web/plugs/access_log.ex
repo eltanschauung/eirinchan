@@ -5,6 +5,7 @@ defmodule EirinchanWeb.Plugs.AccessLog do
 
   alias Eirinchan.AccessLog
   alias Eirinchan.CredentialHash
+  alias Eirinchan.Statistics
   alias EirinchanWeb.RequestMeta
 
   @months ~w(Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec)
@@ -22,7 +23,10 @@ defmodule EirinchanWeb.Plugs.AccessLog do
 
     register_before_send(conn, fn conn ->
       unless skip_access_log?(conn) do
-        _ = AccessLog.write(format_line(conn, goaccess_host(client_id)))
+        case AccessLog.write(format_line(conn, goaccess_host(client_id))) do
+          :ok -> Statistics.record_request(conn)
+          _error -> :ok
+        end
       end
 
       conn

@@ -1,0 +1,120 @@
+defmodule Eirinchan.Statistics do
+  @moduledoc """
+  Collects bounded, privacy-preserving site counters for hourly snapshots.
+
+  Request processes only update ETS. Persistence is batched by the snapshot
+  worker so statistics never add a database write to the request path.
+  """
+
+  alias Eirinchan.Settings
+  alias Eirinchan.Statistics.RequestClassifier
+
+  @counter_table :eirinchan_statistics_counters
+  @metric_pattern ~r/\A[a-z0-9_.-]{1,160}\z/
+  @rate_limit_actions ~w(catalog_search delete feedback ip_access_auth manage_login post report search watcher)
+
+  def enabled? do
+    Map.get(Settings.current_instance_config(), :statistics_snapshots, true) != false
+  end
+
+  def record_request(%Plug.Conn{} = conn, opts \\ []) do
+    if Keyword.get(opts, :enabled?, enabled?()) do
+      now = Keyword.get(opts, :now, DateTime.utc_now(:second))
+      record_metrics(RequestClassifier.metrics(conn), now)
+    end
+
+    :ok
+  end
+
+  def mark_rate_limited(%Plug.Conn{} = conn, action) when is_atom(action) do
+    mark_rate_limited(conn, Atom.to_string(action))
+  end
+
+  def mark_rate_limited(%Plug.Conn{} = conn, action) when action in @rate_limit_actions do
+    Plug.Conn.put_private(conn, :statistics_rate_limit, action)
+  end
+
+  def mark_rate_limited(%Plug.Conn{} = conn, _action), do: conn
+
+  def record_metrics(metrics, %DateTime{} = now) when is_list(metrics) do
+    if :ets.whereis(@counter_table) != :undefined do
+      bucket = hour_start_unix(now)
+
+      metrics
+      |> Enum.filter(&valid_metric?/1)
+      |> Enum.uniq()
+      |> Enum.each(fn metric ->
+        :ets.update_counter(@counter_table, {bucket, metric}, {2, 1}, {{bucket, metric}, 0})
+      end)
+    end
+
+    :ok
+  end
+
+  def drain_counters do
+    if :ets.whereis(@counter_table) == :undefined do
+      %{}
+    else
+      @counter_table
+      |> :ets.tab2list()
+      |> Enum.reduce(%{}, fn {{bucket, metric} = key, _count}, drained ->
+        case :ets.take(@counter_table, key) do
+          [{^key, count}] ->
+            update_in(drained, [Access.key(bucket, %{}), Access.key(metric, 0)], &(&1 + count))
+
+          [] ->
+            drained
+        end
+      end)
+    end
+  end
+
+  def restore_counters(bucket, counters) when is_integer(bucket) and is_map(counters) do
+    if :ets.whereis(@counter_table) != :undefined do
+      Enum.each(counters, fn {metric, count} ->
+        if valid_metric?(metric) and is_integer(count) and count > 0 do
+          :ets.update_counter(
+            @counter_table,
+            {bucket, metric},
+            {2, count},
+            {{bucket, metric}, 0}
+          )
+        end
+      end)
+    end
+
+    :ok
+  end
+
+  def create_counter_table do
+    case :ets.whereis(@counter_table) do
+      :undefined ->
+        :ets.new(@counter_table, [
+          :named_table,
+          :public,
+          :set,
+          read_concurrency: true,
+          write_concurrency: true
+        ])
+
+      table ->
+        table
+    end
+  end
+
+  def hour_start(%DateTime{} = datetime) do
+    datetime
+    |> hour_start_unix()
+    |> DateTime.from_unix!(:second)
+  end
+
+  def hour_start_unix(%DateTime{} = datetime) do
+    datetime
+    |> DateTime.to_unix(:second)
+    |> then(&(div(&1, 3_600) * 3_600))
+  end
+
+  def counter_table, do: @counter_table
+
+  defp valid_metric?(metric), do: is_binary(metric) and Regex.match?(@metric_pattern, metric)
+end

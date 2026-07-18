@@ -31,6 +31,7 @@ defmodule Eirinchan.Stats do
   end
 
   defp count_perhour(board_ids, opts, threads_only?) do
+    repo = Keyword.get(opts, :repo, Repo)
     now = Keyword.get(opts, :now, DateTime.utc_now(:second)) |> DateTime.truncate(:second)
     hour_cutoff = DateTime.add(now, -60 * 60, :second)
 
@@ -42,12 +43,15 @@ defmodule Eirinchan.Stats do
 
     query = if threads_only?, do: from(post in query, where: is_nil(post.thread_id)), else: query
 
-    Repo.aggregate(query, :count, :id) || 0
+    repo.aggregate(query, :count, :id) || 0
   end
 
-  @spec active_browsers_10minutes() :: non_neg_integer()
-  def active_browsers_10minutes, do: BrowserPresence.active_browsers_10minutes()
+  @spec active_browsers_10minutes(keyword()) :: non_neg_integer()
+  def active_browsers_10minutes(opts \\ []), do: BrowserPresence.active_browsers_10minutes(opts)
 
-  @spec users_10minutes() :: non_neg_integer()
-  def users_10minutes, do: active_browsers_10minutes()
+  @spec users_10minutes(keyword()) :: non_neg_integer()
+  def users_10minutes(opts \\ []), do: active_browsers_10minutes(opts)
+
+  @spec users_24hours(keyword()) :: non_neg_integer()
+  def users_24hours(opts \\ []), do: BrowserPresence.active_browsers(24 * 60 * 60, opts)
 end

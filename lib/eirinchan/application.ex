@@ -22,6 +22,7 @@ defmodule Eirinchan.Application do
         Eirinchan.IpAccessAuthThrottle,
         Eirinchan.StaticImageDimensions,
         EirinchanWeb.FragmentCache,
+        statistics_snapshot_worker(),
         global_message_refresh_worker(),
         maintenance_worker(),
         health_log_worker(),
@@ -47,6 +48,11 @@ defmodule Eirinchan.Application do
   defp global_message_refresh_worker do
     if Application.get_env(:eirinchan, :start_global_message_refresh_worker, true),
       do: Eirinchan.GlobalMessageRefreshWorker
+  end
+
+  defp statistics_snapshot_worker do
+    if Application.get_env(:eirinchan, :start_statistics_snapshots, true),
+      do: Eirinchan.Statistics.Worker
   end
 
   defp health_log_worker do

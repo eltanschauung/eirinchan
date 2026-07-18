@@ -57,6 +57,7 @@ defmodule Eirinchan.Runtime.Config do
     contact_email: "example@example.com",
     global_message: false,
     global_message_refresh_seconds: 30,
+    statistics_snapshots: true,
     footer: [
       "All trademarks, copyrights, comments, and images on this page are owned by and are the responsibility of their respective parties."
     ],
@@ -418,6 +419,7 @@ defmodule Eirinchan.Runtime.Config do
     "searchMaxTerms" => :search_max_terms,
     "searchQueriesPerMinutes" => :search_queries_per_minutes,
     "searchQueriesPerMinutesAll" => :search_queries_per_minutes_all,
+    "statisticsSnapshots" => :statistics_snapshots,
     "watcherMaxThreads" => :watcher_max_threads,
     "searchAllowedBoards" => :search_allowed_boards,
     "searchDisallowedBoards" => :search_disallowed_boards,
@@ -519,6 +521,7 @@ defmodule Eirinchan.Runtime.Config do
     |> Map.put(:upload_by_url_enabled, false)
     |> Map.put_new(:global_message, false)
     |> Map.put_new(:global_message_refresh_seconds, 30)
+    |> Map.put_new(:statistics_snapshots, true)
     |> Map.put_new(:news_blotter_entries, [])
     |> Map.put_new(:news_blotter_limit, 100)
     |> Map.put_new(:noticeboard_page, 50)
