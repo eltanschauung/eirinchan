@@ -6,6 +6,8 @@ defmodule Eirinchan.Tf2PlayerCount do
   @default_cache_seconds 60
   @maximum_response_bytes 64 * 1_024
 
+  alias Eirinchan.Settings
+
   @type stats :: %{
           display: String.t(),
           player_count: non_neg_integer(),
@@ -17,7 +19,12 @@ defmodule Eirinchan.Tf2PlayerCount do
     result =
       case Keyword.get(opts, :fetcher) do
         fetcher when is_function(fetcher, 0) -> fetcher.()
-        _ -> request(config(:url, @default_url), config(:timeout_ms, @default_timeout_ms))
+        _ ->
+          request(
+            config(:tf2_player_count_url, :url, @default_url),
+            config(:tf2_player_count_timeout_ms, :timeout_ms, @default_timeout_ms)
+            |> bounded_positive(@default_timeout_ms, 60_000)
+          )
       end
 
     normalize_result(result)
@@ -43,8 +50,12 @@ defmodule Eirinchan.Tf2PlayerCount do
 
   @spec cache_seconds() :: pos_integer()
   def cache_seconds do
-    case config(:cache_seconds, @default_cache_seconds) do
-      value when is_integer(value) and value > 0 -> value
+    case config(
+           :tf2_player_count_cache_seconds,
+           :cache_seconds,
+           @default_cache_seconds
+         ) do
+      value when is_integer(value) and value > 0 -> min(value, 3_600)
       _ -> @default_cache_seconds
     end
   end
@@ -108,11 +119,22 @@ defmodule Eirinchan.Tf2PlayerCount do
       not Regex.match?(~r/[\x00-\x1F\x7F]/u, display)
   end
 
-  defp config(key, default) do
-    case Application.get_env(:eirinchan, :tf2_player_count, []) do
-      settings when is_list(settings) -> Keyword.get(settings, key, default)
-      settings when is_map(settings) -> Map.get(settings, key, default)
-      _ -> default
+  defp config(instance_key, legacy_key, default) do
+    instance = Settings.current_instance_config()
+
+    if Map.has_key?(instance, instance_key) do
+      Map.get(instance, instance_key)
+    else
+      case Application.get_env(:eirinchan, :tf2_player_count, []) do
+        settings when is_list(settings) -> Keyword.get(settings, legacy_key, default)
+        settings when is_map(settings) -> Map.get(settings, legacy_key, default)
+        _ -> default
+      end
     end
   end
+
+  defp bounded_positive(value, _default, maximum) when is_integer(value) and value > 0,
+    do: min(value, maximum)
+
+  defp bounded_positive(_value, default, _maximum), do: default
 end

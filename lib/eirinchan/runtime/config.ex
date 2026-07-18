@@ -46,7 +46,9 @@ defmodule Eirinchan.Runtime.Config do
     moderation_recent_posts_max: {100, 500},
     moderation_log_page_size: {15, 500},
     ip_history_log_limit: {50, 500},
-    legacy_ip_log_scan_limit: {1_000, 100_000}
+    legacy_ip_log_scan_limit: {1_000, 100_000},
+    tf2_player_count_timeout_ms: {2_000, 60_000},
+    tf2_player_count_cache_seconds: {60, 3_600}
   }
 
   @default_config %{
@@ -384,6 +386,9 @@ defmodule Eirinchan.Runtime.Config do
     analytics_html: nil,
     hide_email: false,
     hide_sage: false,
+    tf2_player_count_url: "https://kogasa.tf/api/playercount",
+    tf2_player_count_timeout_ms: 2_000,
+    tf2_player_count_cache_seconds: 60,
     dir: %{
       img: "src/",
       thumb: "thumb/",

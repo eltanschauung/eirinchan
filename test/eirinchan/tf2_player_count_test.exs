@@ -1,5 +1,5 @@
 defmodule Eirinchan.Tf2PlayerCountTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Eirinchan.Tf2PlayerCount
 
@@ -38,5 +38,22 @@ defmodule Eirinchan.Tf2PlayerCountTest do
              Tf2PlayerCount.parse_response(
                ~S|{"display":"16\nplayers","success":true,"player_count":16}|
              )
+  end
+
+  test "reads and bounds the Bant instance cache interval" do
+    previous_path = Application.get_env(:eirinchan, :instance_config_path)
+    path = Path.join(System.tmp_dir!(), "eirinchan-tf2-config-#{System.unique_integer([:positive])}.json")
+    File.write!(path, Jason.encode!(%{tf2_player_count_cache_seconds: 9_000}))
+
+    on_exit(fn ->
+      if is_nil(previous_path),
+        do: Application.delete_env(:eirinchan, :instance_config_path),
+        else: Application.put_env(:eirinchan, :instance_config_path, previous_path)
+
+      File.rm(path)
+    end)
+
+    Application.put_env(:eirinchan, :instance_config_path, path)
+    assert Tf2PlayerCount.cache_seconds() == 3_600
   end
 end
