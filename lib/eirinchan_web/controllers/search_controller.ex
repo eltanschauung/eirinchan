@@ -32,45 +32,52 @@ defmodule EirinchanWeb.SearchController do
       query == "" or is_nil(board) ->
         render_search(conn, query, board, boards, [], nil, config)
 
-      Antispam.configured_public_activity_rate_limited?(request, "search", config) ->
-        EventLog.log(conn, "search.rejected", %{
-          board: board.uri,
-          outcome: "rate_limited",
-          query_length: String.length(query)
-        })
-
-        render_search(
-          conn,
-          query,
-          board,
-          boards,
-          [],
-          "Wait a while before searching again, please.",
-          config
-        )
-
       true ->
-        _ = Antispam.log_public_activity("search", request, board_id: board.id)
+        case Antispam.reserve_configured_public_activity("search", request, config,
+               board_id: board.id
+             ) do
+          {:ok, _entry} ->
+            run_bounded_search(conn, query, board, boards, config, instance_overrides)
 
-        if String.length(query) > search_max_query_length(config) do
-          EventLog.log(conn, "search.rejected", %{
-            board: board.uri,
-            outcome: "query_too_long",
-            query_length: String.length(query)
-          })
+          {:error, _reason} ->
+            EventLog.log(conn, "search.rejected", %{
+              board: board.uri,
+              outcome: "rate_limited",
+              query_length: String.length(query)
+            })
 
-          render_search(
-            conn,
-            query,
-            board,
-            boards,
-            [],
-            "Search queries are limited to #{search_max_query_length(config)} characters.",
-            config
-          )
-        else
-          run_search(conn, query, board, boards, config, instance_overrides)
+            render_search(
+              conn,
+              query,
+              board,
+              boards,
+              [],
+              "Wait a while before searching again, please.",
+              config
+            )
         end
+    end
+  end
+
+  defp run_bounded_search(conn, query, board, boards, config, instance_overrides) do
+    if String.length(query) > search_max_query_length(config) do
+      EventLog.log(conn, "search.rejected", %{
+        board: board.uri,
+        outcome: "query_too_long",
+        query_length: String.length(query)
+      })
+
+      render_search(
+        conn,
+        query,
+        board,
+        boards,
+        [],
+        "Search queries are limited to #{search_max_query_length(config)} characters.",
+        config
+      )
+    else
+      run_search(conn, query, board, boards, config, instance_overrides)
     end
   end
 
