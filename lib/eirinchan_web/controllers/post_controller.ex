@@ -52,12 +52,11 @@ defmodule EirinchanWeb.PostController do
 
     case branch(params) do
       :report ->
-        with :ok <- Antispam.check_public_action(board, :report, params, request, config),
+        with :ok <- Antispam.reserve_public_action(board, :report, params, request, config),
              {:ok, report} <-
                Reports.create_report(board, params,
                  remote_ip: RequestMeta.effective_remote_ip(conn)
                ) do
-          _ = Antispam.log_public_action(board, :report, params, request)
           respond_reported(conn, board, report, params)
         else
           {:error, reason} when is_atom(reason) ->
@@ -76,7 +75,7 @@ defmodule EirinchanWeb.PostController do
       :delete ->
         delete_file_only = delete_file_only?(params)
 
-        with :ok <- Antispam.check_public_action(board, :delete, params, request, config) do
+        with :ok <- Antispam.reserve_public_action(board, :delete, params, request, config) do
           delete_action =
             if delete_file_only do
               Posts.public_delete_post_files(
@@ -93,12 +92,10 @@ defmodule EirinchanWeb.PostController do
 
           case delete_action do
             {:ok, result} when delete_file_only ->
-              _ = Antispam.log_public_action(board, :delete, params, request)
               _ = log_public_delete_action(conn, board, result, :delete_file)
               respond_deleted_file(conn, board, result, params)
 
             {:ok, result} ->
-              _ = Antispam.log_public_action(board, :delete, params, request)
               _ = log_public_delete_action(conn, board, result, :delete_post)
               respond_deleted(conn, board, result, params)
 
