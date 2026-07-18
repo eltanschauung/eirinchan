@@ -99,10 +99,8 @@ defmodule EirinchanWeb.ProxyRequestControllerTest do
       board_fixture(%{
         uri: "proxy#{System.unique_integer([:positive])}",
         config_overrides: %{
-          search_query_limit_window: 60,
-          search_query_limit_count: 1,
-          search_query_global_limit_window: 60,
-          search_query_global_limit_count: 0
+          search_queries_per_minutes: [1, 1],
+          search_queries_per_minutes_all: [0, 1]
         }
       })
 
@@ -135,8 +133,8 @@ defmodule EirinchanWeb.ProxyRequestControllerTest do
     assert html_response(search_conn, 200) =~ "No results."
 
     assert Enum.any?(
-             Antispam.list_search_queries("198.51.100.55", repo: Repo),
-             &(&1.query == "proxied" and &1.board_id == board.id)
+             Antispam.list_public_activity_entries("198.51.100.55", repo: Repo),
+             &(&1.activity == "search" and &1.board_id == board.id)
            )
   end
 

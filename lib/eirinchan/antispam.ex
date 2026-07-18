@@ -1,6 +1,6 @@
 defmodule Eirinchan.Antispam do
   @moduledoc """
-  Minimal flood/search tracking compatible with vichan-style posting throttles.
+  Shared flood and public-activity tracking for posting throttles.
   """
 
   import Ecto.Query, only: [from: 2]
@@ -102,7 +102,7 @@ defmodule Eirinchan.Antispam do
     |> repo.insert()
   end
 
-  def log_search_query(query, request, opts \\ []) do
+  def log_public_activity(activity, request, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
     board_id = Keyword.get(opts, :board_id)
     dimensions = request_dimensions(request)
@@ -113,15 +113,32 @@ defmodule Eirinchan.Antispam do
       ip_subnet: dimensions.ip_subnet,
       browser_ref: dimensions.browser_ref,
       client_key: dimensions.client_key,
-      query: normalize_query(query)
+      activity: normalize_activity(activity)
     })
     |> repo.insert()
   end
 
-  def public_search_rate_limited?(request, opts \\ []) do
+  def configured_public_activity_rate_limited?(request, activity, config, opts \\ []) do
+    {per_identity_count, per_identity_minutes} =
+      rate_limit_tuple(config, :search_queries_per_minutes, 15, 2)
+
+    {global_count, global_minutes} =
+      rate_limit_tuple(config, :search_queries_per_minutes_all, 50, 2)
+
+    defaults = [
+      per_ip_count: per_identity_count,
+      per_ip_window_seconds: per_identity_minutes * 60,
+      global_count: global_count,
+      global_window_seconds: global_minutes * 60
+    ]
+
+    public_activity_rate_limited?(request, activity, Keyword.merge(defaults, opts))
+  end
+
+  def public_activity_rate_limited?(request, activity, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
     dimensions = request_dimensions(request)
-    query = Keyword.get(opts, :query) |> normalize_query()
+    activity = normalize_activity(activity)
     per_ip_count = Keyword.get(opts, :per_ip_count, 15)
     per_ip_window_seconds = Keyword.get(opts, :per_ip_window_seconds, 120)
     per_browser_count = Keyword.get(opts, :per_browser_count, per_ip_count)
@@ -136,7 +153,7 @@ defmodule Eirinchan.Antispam do
 
     global_count = Keyword.get(opts, :global_count, 50)
     global_window_seconds = Keyword.get(opts, :global_window_seconds, 120)
-    base_query = maybe_query_by_query(SearchQuery, query)
+    base_query = from(entry in SearchQuery, where: entry.activity == ^activity)
 
     limited? =
       search_dimension_limited?(
@@ -172,61 +189,8 @@ defmodule Eirinchan.Antispam do
           global_window_seconds
         )
 
-    if limited?, do: BrowserAbuse.record(dimensions, :search_rate_limit, repo: repo)
+    if limited?, do: BrowserAbuse.record(dimensions, "#{activity}_rate_limit", repo: repo)
     limited?
-  end
-
-  def search_rate_limited?(query, request, config, opts \\ []) do
-    repo = Keyword.get(opts, :repo, Repo)
-    board_id = Keyword.get(opts, :board_id)
-    dimensions = request_dimensions(request)
-    normalized_query = normalize_query(query)
-
-    if is_nil(normalized_query) do
-      false
-    else
-      base_query =
-        SearchQuery
-        |> query_by_query(normalized_query)
-        |> maybe_scope_search_query(board_id)
-
-      limited? =
-        search_dimension_limited?(
-          repo,
-          base_query,
-          :ip_subnet,
-          dimensions.ip_subnet,
-          config.search_query_limit_count,
-          config.search_query_limit_window
-        ) or
-          search_dimension_limited?(
-            repo,
-            base_query,
-            :browser_ref,
-            dimensions.browser_ref,
-            config.search_query_limit_count,
-            config.search_query_limit_window
-          ) or
-          search_dimension_limited?(
-            repo,
-            base_query,
-            :client_key,
-            dimensions.client_key,
-            config.search_query_limit_count,
-            config.search_query_limit_window
-          ) or
-          search_dimension_limited?(
-            repo,
-            base_query,
-            nil,
-            :global,
-            config.search_query_global_limit_count,
-            config.search_query_global_limit_window
-          )
-
-      if limited?, do: BrowserAbuse.record(dimensions, :search_rate_limit, repo: repo)
-      limited?
-    end
   end
 
   def list_flood_entries(ip_subnet, opts \\ []) do
@@ -239,7 +203,7 @@ defmodule Eirinchan.Antispam do
     |> repo.all()
   end
 
-  def list_search_queries(ip_subnet, opts \\ []) do
+  def list_public_activity_entries(ip_subnet, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
 
     from(entry in SearchQuery,
@@ -257,10 +221,10 @@ defmodule Eirinchan.Antispam do
     {flood_count, _} =
       repo.delete_all(from entry in FloodEntry, where: entry.inserted_at < ^cutoff)
 
-    {search_count, _} =
+    {activity_count, _} =
       repo.delete_all(from entry in SearchQuery, where: entry.inserted_at < ^cutoff)
 
-    flood_count + search_count
+    flood_count + activity_count
   end
 
   defp search_dimension_limited?(_repo, _queryable, _field, nil, _count, _window), do: false
@@ -283,12 +247,13 @@ defmodule Eirinchan.Antispam do
     |> Kernel.>=(count)
   end
 
-  defp query_by_query(queryable, query) do
-    from(entry in queryable, where: entry.query == ^query)
+  defp rate_limit_tuple(config, key, default_count, default_minutes) do
+    case Map.get(config, key) do
+      [count, minutes] when is_integer(count) and is_integer(minutes) -> {count, minutes}
+      {count, minutes} when is_integer(count) and is_integer(minutes) -> {count, minutes}
+      _ -> {default_count, default_minutes}
+    end
   end
-
-  defp maybe_query_by_query(queryable, nil), do: queryable
-  defp maybe_query_by_query(queryable, query), do: query_by_query(queryable, query)
 
   defp maybe_query_by_dimension(queryable, nil, _value), do: queryable
 
@@ -298,12 +263,6 @@ defmodule Eirinchan.Antispam do
 
   defp query_since(queryable, cutoff) do
     from(entry in queryable, where: entry.inserted_at >= ^cutoff)
-  end
-
-  defp maybe_scope_search_query(queryable, nil), do: queryable
-
-  defp maybe_scope_search_query(queryable, board_id) do
-    from(entry in queryable, where: entry.board_id == ^board_id)
   end
 
   defp evaluate_filters(repo, board, post, config, now) do
@@ -699,6 +658,13 @@ defmodule Eirinchan.Antispam do
   end
 
   defp normalize_query(query), do: to_string(query)
+
+  defp normalize_activity(activity) do
+    activity
+    |> to_string()
+    |> String.trim()
+    |> String.downcase()
+  end
 
   defp blank_to_nil(nil), do: nil
 

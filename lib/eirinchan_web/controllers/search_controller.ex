@@ -32,7 +32,7 @@ defmodule EirinchanWeb.SearchController do
       query == "" or is_nil(board) ->
         render_search(conn, query, board, boards, [], nil, config)
 
-      public_search_rate_limited?(request, config) ->
+      Antispam.configured_public_activity_rate_limited?(request, "search", config) ->
         EventLog.log(conn, "search.rejected", %{
           board: board.uri,
           outcome: "rate_limited",
@@ -50,7 +50,7 @@ defmodule EirinchanWeb.SearchController do
         )
 
       true ->
-        _ = Antispam.log_search_query(query, request, board_id: board.id)
+        _ = Antispam.log_public_activity("search", request, board_id: board.id)
 
         case Posts.search_posts(board, query, limit: search_limit(config)) do
           {:query_too_broad, _posts} ->
@@ -164,27 +164,4 @@ defmodule EirinchanWeb.SearchController do
 
   defp search_limit(config), do: max(Map.get(config, :search_limit, 100), 1)
 
-  defp public_search_rate_limited?(request, config) do
-    {per_ip_count, per_ip_minutes} =
-      search_limit_tuple(config, :search_queries_per_minutes, 15, 2)
-
-    {global_count, global_minutes} =
-      search_limit_tuple(config, :search_queries_per_minutes_all, 50, 2)
-
-    Antispam.public_search_rate_limited?(
-      request,
-      per_ip_count: per_ip_count,
-      per_ip_window_seconds: per_ip_minutes * 60,
-      global_count: global_count,
-      global_window_seconds: global_minutes * 60
-    )
-  end
-
-  defp search_limit_tuple(config, key, default_count, default_minutes) do
-    case Map.get(config, key) do
-      [count, minutes] when is_integer(count) and is_integer(minutes) -> {count, minutes}
-      {count, minutes} when is_integer(count) and is_integer(minutes) -> {count, minutes}
-      _ -> {default_count, default_minutes}
-    end
-  end
 end

@@ -5,68 +5,34 @@ defmodule Eirinchan.AntispamTest do
   alias Eirinchan.BrowserAbuse
   alias Eirinchan.BrowserIdentity
 
-  test "search query entries are stored and rate-limited per ip and board" do
+  test "public activities are stored without payloads and rate-limited independently" do
     board = board_fixture()
     request = %{remote_ip: {198, 51, 100, 44}}
 
-    config = %{
-      search_query_limit_window: 60,
-      search_query_limit_count: 2,
-      search_query_global_limit_window: 60,
-      search_query_global_limit_count: 0
-    }
-
     assert {:ok, _entry} =
-             Antispam.log_search_query("tripcode", request, repo: Repo, board_id: board.id)
+             Antispam.log_public_activity("search", request, repo: Repo, board_id: board.id)
 
-    refute Antispam.search_rate_limited?("tripcode", request, config,
+    assert {:ok, feedback_entry} =
+             Antispam.log_public_activity("feedback", request, repo: Repo)
+
+    refute Map.has_key?(feedback_entry, :query)
+
+    assert Antispam.public_activity_rate_limited?(request, "search",
              repo: Repo,
-             board_id: board.id
+             per_ip_count: 1,
+             global_count: 0
            )
 
-    assert {:ok, _entry} =
-             Antispam.log_search_query("tripcode", request, repo: Repo, board_id: board.id)
-
-    assert Antispam.search_rate_limited?("tripcode", request, config,
+    refute Antispam.public_activity_rate_limited?(request, "feedback",
              repo: Repo,
-             board_id: board.id
+             per_ip_count: 2,
+             global_count: 0
            )
 
-    assert [%{query: "tripcode"}, %{query: "tripcode"}] =
-             Antispam.list_search_queries("198.51.100.44", repo: Repo)
-  end
+    assert [%{activity: "search", board_id: board_id}, %{activity: "feedback", board_id: nil}] =
+             Antispam.list_public_activity_entries("198.51.100.44", repo: Repo)
 
-  test "search queries can be rate-limited globally per board" do
-    board = board_fixture()
-
-    config = %{
-      search_query_limit_window: 60,
-      search_query_limit_count: 0,
-      search_query_global_limit_window: 60,
-      search_query_global_limit_count: 2
-    }
-
-    assert {:ok, _entry} =
-             Antispam.log_search_query("tripcode", %{remote_ip: {198, 51, 100, 44}},
-               repo: Repo,
-               board_id: board.id
-             )
-
-    refute Antispam.search_rate_limited?("tripcode", %{remote_ip: {198, 51, 100, 55}}, config,
-             repo: Repo,
-             board_id: board.id
-           )
-
-    assert {:ok, _entry} =
-             Antispam.log_search_query("tripcode", %{remote_ip: {198, 51, 100, 45}},
-               repo: Repo,
-               board_id: board.id
-             )
-
-    assert Antispam.search_rate_limited?("tripcode", %{remote_ip: {198, 51, 100, 56}}, config,
-             repo: Repo,
-             board_id: board.id
-           )
+    assert board_id == board.id
   end
 
   test "public actions reuse the flood table rate limits" do
@@ -102,14 +68,13 @@ defmodule Eirinchan.AntispamTest do
     first = %{remote_ip: {198, 51, 100, 44}, browser_ref: browser_ref}
     other_ip = %{remote_ip: {198, 51, 100, 45}, browser_ref: browser_ref}
 
-    assert {:ok, entry} = Antispam.log_search_query("feedback", first, repo: Repo)
+    assert {:ok, entry} = Antispam.log_public_activity("feedback", first, repo: Repo)
     assert entry.browser_ref == browser_ref
     assert is_binary(entry.client_key)
     refute String.contains?(entry.client_key, "198.51.100.44")
 
-    assert Antispam.public_search_rate_limited?(other_ip,
+    assert Antispam.public_activity_rate_limited?(other_ip, "feedback",
              repo: Repo,
-             query: "feedback",
              per_ip_count: 0,
              per_browser_count: 1,
              per_client_count: 0,
@@ -118,27 +83,24 @@ defmodule Eirinchan.AntispamTest do
 
     assert BrowserAbuse.signaled?(other_ip, repo: Repo)
 
-    refute Antispam.public_search_rate_limited?(other_ip,
+    refute Antispam.public_activity_rate_limited?(other_ip, "feedback",
              repo: Repo,
-             query: "feedback",
              per_ip_count: 0,
              per_browser_count: 0,
              per_client_count: 1,
              global_count: 0
            )
 
-    assert Antispam.public_search_rate_limited?(first,
+    assert Antispam.public_activity_rate_limited?(first, "feedback",
              repo: Repo,
-             query: "feedback",
              per_ip_count: 0,
              per_browser_count: 0,
              per_client_count: 1,
              global_count: 0
            )
 
-    assert Antispam.public_search_rate_limited?(other_ip,
+    assert Antispam.public_activity_rate_limited?(other_ip, "feedback",
              repo: Repo,
-             query: "feedback",
              per_ip_count: 0,
              per_browser_count: 0,
              per_client_count: 0,

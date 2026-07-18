@@ -32,7 +32,7 @@ defmodule EirinchanWeb.FeedbackController do
         reject_feedback(conn, params, message, :too_many_requests)
 
       true ->
-        _ = Antispam.log_search_query("feedback", request)
+        _ = Antispam.log_public_activity("feedback", request)
 
         case Feedback.create_feedback(params, remote_ip: RequestMeta.effective_remote_ip(conn)) do
           {:ok, entry} ->
@@ -75,39 +75,18 @@ defmodule EirinchanWeb.FeedbackController do
   defp invalid_feedback_body?(_body), do: false
 
   defp feedback_rate_limited?(request, config) do
-    {per_ip_count, per_ip_minutes} =
-      search_limit_tuple(config, :search_queries_per_minutes, 15, 2)
-
-    {global_count, global_minutes} =
-      search_limit_tuple(config, :search_queries_per_minutes_all, 50, 2)
-
     daily_feedback_limit_reached?(request) or
-      Antispam.public_search_rate_limited?(
-        request,
-        query: "feedback",
-        per_ip_count: per_ip_count,
-        per_ip_window_seconds: per_ip_minutes * 60,
-        global_count: global_count,
-        global_window_seconds: global_minutes * 60
-      )
+      Antispam.configured_public_activity_rate_limited?(request, "feedback", config)
   end
 
   defp daily_feedback_limit_reached?(request) do
-    Antispam.public_search_rate_limited?(
+    Antispam.public_activity_rate_limited?(
       request,
-      query: "feedback",
+      "feedback",
       per_ip_count: @feedback_daily_limit,
       per_ip_window_seconds: @feedback_daily_window_seconds,
       global_count: 0
     )
-  end
-
-  defp search_limit_tuple(config, key, default_count, default_minutes) do
-    case Map.get(config, key) do
-      [count, minutes] when is_integer(count) and is_integer(minutes) -> {count, minutes}
-      {count, minutes} when is_integer(count) and is_integer(minutes) -> {count, minutes}
-      _ -> {default_count, default_minutes}
-    end
   end
 
   defp render_feedback_page(conn, opts) do

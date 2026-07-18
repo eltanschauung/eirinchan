@@ -207,8 +207,6 @@ defmodule Eirinchan.Runtime.ConfigTest do
     assert config.ip_access_auth.grant_ttl_hours == 168
     assert config.search_allowed_boards == nil
     assert config.search_disallowed_boards == []
-    assert config.search_query_global_limit_window == 60
-    assert config.search_query_global_limit_count == 0
   end
 
   test "defaults cycle_limit to the vichan value" do
