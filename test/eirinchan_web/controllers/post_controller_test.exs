@@ -1774,6 +1774,35 @@ defmodule EirinchanWeb.PostControllerTest do
     assert %{"error" => "Incorrect password."} = json_response(conn, 403)
   end
 
+  test "failed public deletions still consume the action flood allowance", %{conn: conn} do
+    board = board_fixture(%{config_overrides: %{flood_time: 60}})
+    thread = thread_fixture(board, %{password: "threadpw"})
+    post_id = Integer.to_string(PublicIds.public_id(thread))
+
+    first_conn =
+      conn
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post("/#{board.uri}/post", %{
+        "delete_post_id" => post_id,
+        "password" => "wrong",
+        "json_response" => "1"
+      })
+
+    assert %{"error" => "Incorrect password."} = json_response(first_conn, 403)
+
+    second_conn =
+      conn
+      |> recycle()
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post("/#{board.uri}/post", %{
+        "delete_post_id" => post_id,
+        "password" => "wrong-again",
+        "json_response" => "1"
+      })
+
+    assert %{"error_code" => "antispam"} = json_response(second_conn, 422)
+  end
+
   test "delete branch rejects otherwise valid deletion after configured age", %{conn: conn} do
     board = board_fixture(%{config_overrides: %{delete_post_max_age_minutes: 3}})
     thread = thread_fixture(board, %{password: "threadpw"})

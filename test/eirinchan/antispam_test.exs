@@ -51,13 +51,10 @@ defmodule Eirinchan.AntispamTest do
 
     attrs = %{"report_post_id" => "123", "reason" => "spam"}
 
-    refute match?(
-             {:error, _},
-             Antispam.check_public_action(board, :report, attrs, request, config, repo: Repo)
-           )
-
-    assert {:ok, _entry} =
-             Antispam.log_public_action(board, :report, attrs, request, repo: Repo)
+    assert :ok =
+             Antispam.reserve_public_action(board, :report, attrs, request, config,
+               repo: Repo
+             )
 
     assert {:error, :antispam} =
              Antispam.check_public_action(board, :report, attrs, request, config, repo: Repo)

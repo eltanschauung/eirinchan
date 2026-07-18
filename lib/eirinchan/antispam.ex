@@ -118,6 +118,20 @@ defmodule Eirinchan.Antispam do
     |> repo.insert()
   end
 
+  def reserve_public_action(%BoardRecord{} = board, action, attrs, request, config, opts \\ []) do
+    if moderated_request?(request) do
+      :ok
+    else
+      with :ok <- check_public_action(board, action, attrs, request, config, opts),
+           {:ok, _entry} <- log_public_action(board, action, attrs, request, opts) do
+        :ok
+      else
+        {:error, %Ecto.Changeset{}} -> {:error, :antispam}
+        error -> error
+      end
+    end
+  end
+
   def configured_public_activity_rate_limited?(request, activity, config, opts \\ []) do
     {per_identity_count, per_identity_minutes} =
       rate_limit_tuple(config, :search_queries_per_minutes, 15, 2)
