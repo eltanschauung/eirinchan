@@ -2,6 +2,7 @@ defmodule EirinchanWeb.FeedbackController do
   use EirinchanWeb, :controller
 
   alias Eirinchan.Antispam
+  alias Eirinchan.Antispam.PublicActivityPolicy
   alias Eirinchan.EventLog
   alias Eirinchan.Feedback
   alias Eirinchan.PublicPages
@@ -9,15 +10,12 @@ defmodule EirinchanWeb.FeedbackController do
   alias Eirinchan.Settings
   alias EirinchanWeb.RequestMeta
 
-  @feedback_daily_limit 5
-  @feedback_daily_window_seconds 24 * 60 * 60
-
   def create(conn, params) do
     request = RequestMeta.public_identity(conn)
 
     config =
       Settings.current_instance_config()
-      |> Config.deep_merge(Application.get_env(:eirinchan, :search_overrides, %{}))
+      |> Config.deep_merge(Application.get_env(:eirinchan, :feedback_overrides, %{}))
       |> then(&Config.compose(nil, &1, %{}))
 
     cond do
@@ -26,23 +24,14 @@ defmodule EirinchanWeb.FeedbackController do
         reject_feedback(conn, params, config.error.antispam, :unprocessable_entity)
 
       true ->
-        daily_limits = [
-          per_ip_count: @feedback_daily_limit,
-          per_ip_window_seconds: @feedback_daily_window_seconds,
-          global_count: 0
-        ]
-
-        case Antispam.reserve_configured_public_activity("feedback", request, config,
-               additional_limits: [daily_limits]
-             ) do
+        case Antispam.reserve_configured_public_activity("feedback", request, config) do
           {:ok, _entry} ->
             create_feedback(conn, params)
 
           {:error, _reason} ->
             EventLog.log(conn, "feedback.rejected", %{outcome: "rate_limited"})
 
-            message =
-              "Feedback is limited to five submissions per 24 hours. Please try again later."
+            message = PublicActivityPolicy.rate_limit_message(:feedback, config)
 
             reject_feedback(conn, params, message, :too_many_requests)
         end

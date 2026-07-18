@@ -6,6 +6,7 @@ defmodule Eirinchan.Antispam do
   import Ecto.Query, only: [from: 2]
 
   alias Eirinchan.Antispam.{FloodEntry, SearchQuery}
+  alias Eirinchan.Antispam.PublicActivityPolicy
   alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.BrowserAbuse
   alias Eirinchan.BrowserIdentity
@@ -36,6 +37,7 @@ defmodule Eirinchan.Antispam do
             board_id: board.id,
             body: body,
             body_hash: body_hash(attrs),
+            activity: "post",
             op?: op?
           }
           |> Map.merge(dimensions)
@@ -56,7 +58,8 @@ defmodule Eirinchan.Antispam do
       ip_subnet: dimensions.ip_subnet,
       browser_ref: dimensions.browser_ref,
       client_key: dimensions.client_key,
-      body_hash: body_hash(attrs)
+      body_hash: body_hash(attrs),
+      activity: "post"
     })
     |> repo.insert()
   end
@@ -97,7 +100,8 @@ defmodule Eirinchan.Antispam do
       ip_subnet: entry.ip_subnet,
       browser_ref: entry.browser_ref,
       client_key: entry.client_key,
-      body_hash: entry.body_hash
+      body_hash: entry.body_hash,
+      activity: entry.activity
     })
     |> repo.insert()
   end
@@ -140,12 +144,10 @@ defmodule Eirinchan.Antispam do
   end
 
   def reserve_configured_public_activity(activity, request, config, opts \\ []) do
-    additional_limits = Keyword.get(opts, :additional_limits, [])
-
     reserve_public_activity(
       activity,
       request,
-      [configured_public_activity_limits(config) | additional_limits],
+      PublicActivityPolicy.limit_sets(activity, config),
       opts
     )
   end
@@ -174,8 +176,11 @@ defmodule Eirinchan.Antispam do
   end
 
   def configured_public_activity_rate_limited?(request, activity, config, opts \\ []) do
-    limits = configured_public_activity_limits(config)
-    public_activity_rate_limited?(request, activity, Keyword.merge(limits, opts))
+    activity
+    |> PublicActivityPolicy.limit_sets(config)
+    |> Enum.any?(fn limits ->
+      public_activity_rate_limited?(request, activity, Keyword.merge(limits, opts))
+    end)
   end
 
   def public_activity_rate_limited?(request, activity, opts \\ []) do
@@ -290,29 +295,6 @@ defmodule Eirinchan.Antispam do
     |> Kernel.>=(count)
   end
 
-  defp rate_limit_tuple(config, key, default_count, default_minutes) do
-    case Map.get(config, key) do
-      [count, minutes] when is_integer(count) and is_integer(minutes) -> {count, minutes}
-      {count, minutes} when is_integer(count) and is_integer(minutes) -> {count, minutes}
-      _ -> {default_count, default_minutes}
-    end
-  end
-
-  defp configured_public_activity_limits(config) do
-    {per_identity_count, per_identity_minutes} =
-      rate_limit_tuple(config, :search_queries_per_minutes, 15, 2)
-
-    {global_count, global_minutes} =
-      rate_limit_tuple(config, :search_queries_per_minutes_all, 50, 2)
-
-    [
-      per_ip_count: per_identity_count,
-      per_ip_window_seconds: per_identity_minutes * 60,
-      global_count: global_count,
-      global_window_seconds: global_minutes * 60
-    ]
-  end
-
   defp lock_antispam_scope(repo, scope) do
     repo.query!("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [scope])
     :ok
@@ -370,7 +352,15 @@ defmodule Eirinchan.Antispam do
     ]
 
     case Enum.find(limits, fn {field_name, value, count, window} ->
-           flood_dimension_limited?(repo, field_name, value, count, window, now)
+           flood_dimension_limited?(
+             repo,
+             post.activity,
+             field_name,
+             value,
+             count,
+             window,
+             now
+           )
          end) do
       {field_name, _value, _count, _window} ->
         record_browser_signal(post, "rate_limit:#{field_name || :global}", config, repo)
@@ -381,20 +371,21 @@ defmodule Eirinchan.Antispam do
     end
   end
 
-  defp flood_dimension_limited?(_repo, _field, nil, _count, _window, _now), do: false
+  defp flood_dimension_limited?(_repo, _activity, _field, nil, _count, _window, _now),
+    do: false
 
-  defp flood_dimension_limited?(_repo, _field, _value, count, _window, _now)
+  defp flood_dimension_limited?(_repo, _activity, _field, _value, count, _window, _now)
        when not is_integer(count) or count <= 0,
        do: false
 
-  defp flood_dimension_limited?(_repo, _field, _value, _count, window, _now)
+  defp flood_dimension_limited?(_repo, _activity, _field, _value, _count, window, _now)
        when not is_integer(window) or window <= 0,
        do: false
 
-  defp flood_dimension_limited?(repo, field_name, value, count, window, now) do
+  defp flood_dimension_limited?(repo, activity, field_name, value, count, window, now) do
     cutoff = DateTime.add(now, -window, :second)
 
-    FloodEntry
+    from(entry in FloodEntry, where: entry.activity == ^activity)
     |> maybe_query_by_dimension(field_name, value)
     |> query_since(cutoff)
     |> repo.aggregate(:count, :id)
@@ -448,7 +439,11 @@ defmodule Eirinchan.Antispam do
   defp recent_matching_posts(repo, board_id, post, fields, now, window_seconds) do
     cutoff = DateTime.add(now, -window_seconds, :second)
 
-    from(entry in FloodEntry, where: entry.board_id == ^board_id and entry.inserted_at >= ^cutoff)
+    from(entry in FloodEntry,
+      where:
+        entry.board_id == ^board_id and entry.activity == ^post.activity and
+          entry.inserted_at >= ^cutoff
+    )
     |> maybe_match_ip(post, fields)
     |> maybe_match_browser(post, fields)
     |> maybe_match_client(post, fields)
@@ -634,6 +629,7 @@ defmodule Eirinchan.Antispam do
     %{
       body: body,
       body_hash: body_hash(%{"body" => body}),
+      activity: normalize_activity(action),
       op?: false
     }
     |> Map.merge(request_dimensions(request))

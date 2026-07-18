@@ -205,6 +205,9 @@ defmodule Eirinchan.Runtime.ConfigTest do
     assert config.search_max_terms == 12
     assert config.search_queries_per_minutes == [15, 2]
     assert config.search_queries_per_minutes_all == [50, 2]
+    assert config.feedback_submissions_per_minutes == [5, 1440]
+    assert config.feedback_submissions_per_minutes_all == [50, 2]
+    assert config.auto_updater_poll_interval_seconds == 5
     assert config.watcher_max_threads == 500
     assert config.ip_access_auth.max_attempts == 5
     assert config.ip_access_auth.global_max_attempts == 100
