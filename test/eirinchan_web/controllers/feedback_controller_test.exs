@@ -101,12 +101,12 @@ defmodule EirinchanWeb.FeedbackControllerTest do
 
     assert %{
              "error" =>
-               "Feedback is limited to three submissions per 24 hours. Please try again later."
+               "Feedback is limited to five submissions per 24 hours. Please try again later."
            } =
              json_response(second_conn, 429)
   end
 
-  test "feedback submission is limited to three attempts per IP in 24 hours", %{conn: conn} do
+  test "feedback submission is limited to five attempts per IP in 24 hours", %{conn: conn} do
     previous = Application.get_env(:eirinchan, :search_overrides, %{})
 
     Application.put_env(:eirinchan, :search_overrides, %{
@@ -116,7 +116,7 @@ defmodule EirinchanWeb.FeedbackControllerTest do
 
     on_exit(fn -> Application.put_env(:eirinchan, :search_overrides, previous) end)
 
-    Enum.each(1..3, fn attempt ->
+    Enum.each(1..5, fn attempt ->
       response =
         conn
         |> recycle()
@@ -135,7 +135,7 @@ defmodule EirinchanWeb.FeedbackControllerTest do
 
     assert %{
              "error" =>
-               "Feedback is limited to three submissions per 24 hours. Please try again later."
+               "Feedback is limited to five submissions per 24 hours. Please try again later."
            } =
              json_response(response, 429)
   end
