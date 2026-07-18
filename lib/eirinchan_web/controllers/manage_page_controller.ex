@@ -42,7 +42,11 @@ defmodule EirinchanWeb.ManagePageController do
         redirect(conn, to: ~p"/manage")
 
       true ->
-        render(conn, :login, error: nil, username: nil)
+        render(conn, :login,
+          error: nil,
+          username: nil,
+          credential_limits: moderation_credential_limits()
+        )
     end
   end
 
@@ -68,7 +72,11 @@ defmodule EirinchanWeb.ManagePageController do
       {:error, _retry_after} ->
         conn
         |> put_status(:too_many_requests)
-        |> render(:login, error: "Too many login attempts. Try again later.", username: username)
+        |> render(:login,
+          error: "Too many login attempts. Try again later.",
+          username: username,
+          credential_limits: moderation_credential_limits()
+        )
     end
   end
 
@@ -182,7 +190,7 @@ defmodule EirinchanWeb.ManagePageController do
       page = positive_integer_param(params["page"], 1)
       username = normalize_filter(params["username"])
       board_uri = normalize_filter(params["board"])
-      page_size = ModerationLog.default_page_size()
+      page_size = ModerationLog.default_page_size(Settings.effective_instance_config())
 
       total_entries =
         ModerationLog.count_entries(username: username, board_uri: board_uri)
@@ -820,7 +828,7 @@ defmodule EirinchanWeb.ManagePageController do
              password: Map.get(params, "password"),
              role: Map.get(params, "role"),
              all_boards: allboards_param?(params)
-           }),
+           }, config: moderation_runtime_config()),
          {:ok, _user} <- sync_user_board_accesses(user, params) do
       ModerationAudit.log(conn, "Created user #{user.username}", moderator: moderator)
 
@@ -911,7 +919,7 @@ defmodule EirinchanWeb.ManagePageController do
                    password: Map.get(params, "password"),
                    role: user.role,
                    all_boards: allboards_param?(params)
-                 }),
+                 }, config: moderation_runtime_config()),
                {:ok, _updated} <- sync_user_board_accesses(updated, params) do
             log_user_update(conn, moderator, user, updated, params)
 
@@ -936,7 +944,7 @@ defmodule EirinchanWeb.ManagePageController do
                    password: Map.get(params, "password"),
                    role: user.role,
                    all_boards: user.all_boards
-                 }) do
+                 }, config: moderation_runtime_config()) do
             if String.trim(to_string(Map.get(params, "password", ""))) != "" do
               ModerationAudit.log(conn, "Changed own password", moderator: moderator)
             end
@@ -1235,7 +1243,10 @@ defmodule EirinchanWeb.ManagePageController do
           uri -> boards |> Enum.filter(&(&1.uri == uri)) |> Enum.map(& &1.id)
         end
 
-      limit = EirinchanWeb.Param.bounded_integer(params["limit"], 25, max: 100)
+      config = moderation_runtime_config()
+      maximum = positive_integer_param(config.moderation_recent_posts_max, 100) |> min(500)
+      default = positive_integer_param(config.moderation_recent_posts_default, 25) |> min(maximum)
+      limit = EirinchanWeb.Param.bounded_integer(params["limit"], default, max: maximum)
 
       inserted_before = recent_posts_cutoff(params["last"])
 
@@ -2085,6 +2096,7 @@ defmodule EirinchanWeb.ManagePageController do
         moderator: moderator,
         board: board,
         post: post,
+        config: effective_board_config(board, conn),
         error: nil
       )
     else
@@ -2538,12 +2550,20 @@ defmodule EirinchanWeb.ManagePageController do
       {:error, _retry_after} ->
         conn
         |> put_status(:too_many_requests)
-        |> render(:login, error: "Too many login attempts. Try again later.", username: username)
+        |> render(:login,
+          error: "Too many login attempts. Try again later.",
+          username: username,
+          credential_limits: moderation_credential_limits()
+        )
 
       :ok ->
         conn
         |> put_status(:unauthorized)
-        |> render(:login, error: "Invalid credentials.", username: username)
+        |> render(:login,
+          error: "Invalid credentials.",
+          username: username,
+          credential_limits: moderation_credential_limits()
+        )
     end
   end
 
@@ -3191,8 +3211,11 @@ defmodule EirinchanWeb.ManagePageController do
   end
 
   defp ip_history_logs(decoded_ip, board_ids, board_uri \\ nil) do
+    config = moderation_runtime_config()
+    limit = positive_integer_param(config.ip_history_log_limit, 50) |> min(500)
+
     decoded_ip
-    |> ModerationLog.list_recent_entries_by_ip(limit: 50, board_uri: board_uri)
+    |> ModerationLog.list_recent_entries_by_ip(limit: limit, board_uri: board_uri, config: config)
     |> Enum.filter(fn entry ->
       not is_binary(entry.board_uri) or entry.board_uri == "" or board_uri != nil or
         accessible_log_board?(board_ids, entry.board_uri)
@@ -3619,6 +3642,7 @@ defmodule EirinchanWeb.ManagePageController do
       moderator: conn.assigns[:current_moderator],
       board: board,
       post: post,
+      config: effective_board_config(board, conn),
       error: message
     )
   end
@@ -3645,7 +3669,8 @@ defmodule EirinchanWeb.ManagePageController do
       %{
         logs: [],
         error: nil,
-        selected_boards: %{}
+        selected_boards: %{},
+        credential_limits: moderation_credential_limits()
       },
       assigns
     )
@@ -3671,7 +3696,9 @@ defmodule EirinchanWeb.ManagePageController do
     with {:ok, moderator} <- ensure_permission(conn, :promoteusers),
          %Moderation.ModUser{} = user <- Moderation.get_user(id),
          {:ok, updated} <-
-           Moderation.update_user(user, %{role: next_user_role(user.role, direction)}) do
+           Moderation.update_user(user, %{role: next_user_role(user.role, direction)},
+             config: moderation_runtime_config()
+           ) do
       ModerationAudit.log(conn, role_change_log_text(direction, updated.username),
         moderator: moderator
       )
@@ -3692,6 +3719,14 @@ defmodule EirinchanWeb.ManagePageController do
       {:error, %Ecto.Changeset{} = changeset} ->
         render_users_error(conn, format_changeset(changeset), :unprocessable_entity)
     end
+  end
+
+  defp moderation_runtime_config do
+    Settings.effective_instance_config()
+  end
+
+  defp moderation_credential_limits do
+    Moderation.ModUser.credential_limits(moderation_runtime_config())
   end
 
   defp role_change_log_text(:promote, username), do: "Promoted user #{username}"

@@ -4,6 +4,7 @@ defmodule EirinchanWeb.Announcements do
   alias Eirinchan.AprilFoolsTeams
   alias Eirinchan.GlobalMessageRefreshWorker
   alias Eirinchan.NewsBlotter
+  alias Eirinchan.Settings
   alias Eirinchan.Stats
   alias Eirinchan.Tf2PlayerCount
   alias EirinchanWeb.FragmentCache
@@ -270,6 +271,17 @@ defmodule EirinchanWeb.Announcements do
   defp aggregate_cache_seconds(opts) do
     case opts[:aggregate_cache_seconds] do
       seconds when is_integer(seconds) and seconds > 0 -> seconds
+      _other -> configured_aggregate_cache_seconds()
+    end
+  end
+
+  defp configured_aggregate_cache_seconds do
+    case Map.get(
+           Settings.effective_instance_config(),
+           :announcement_cache_seconds,
+           @default_aggregate_cache_seconds
+         ) do
+      seconds when is_integer(seconds) and seconds > 0 -> min(seconds, 3_600)
       _other -> @default_aggregate_cache_seconds
     end
   end

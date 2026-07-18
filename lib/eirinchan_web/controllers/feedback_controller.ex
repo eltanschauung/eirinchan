@@ -26,7 +26,7 @@ defmodule EirinchanWeb.FeedbackController do
       true ->
         case Antispam.reserve_configured_public_activity("feedback", request, config) do
           {:ok, _entry} ->
-            create_feedback(conn, params)
+            create_feedback(conn, params, config)
 
           {:error, _reason} ->
             EventLog.log(conn, "feedback.rejected", %{outcome: "rate_limited"})
@@ -38,8 +38,11 @@ defmodule EirinchanWeb.FeedbackController do
     end
   end
 
-  defp create_feedback(conn, params) do
-    case Feedback.create_feedback(params, remote_ip: RequestMeta.effective_remote_ip(conn)) do
+  defp create_feedback(conn, params, config) do
+    case Feedback.create_feedback(params,
+           remote_ip: RequestMeta.effective_remote_ip(conn),
+           config: config
+         ) do
       {:ok, entry} ->
         if params["json_response"] == "1" do
           json(conn, %{feedback_id: entry.id, status: "ok"})
@@ -94,7 +97,8 @@ defmodule EirinchanWeb.FeedbackController do
         page_subtitle: PublicPages.page_subtitle("feedback"),
         show_global_message: show_global_message,
         params: Keyword.get(opts, :params, %{}),
-        errors: Keyword.get(opts, :errors)
+        errors: Keyword.get(opts, :errors),
+        config: Settings.effective_instance_config()
       )
 
     conn

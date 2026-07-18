@@ -39,6 +39,22 @@ defmodule Eirinchan.Statistics.ReportTest do
     assert report.traffic_comparison.suggested_challenge_increment == 0
   end
 
+  test "uses the configured traffic increase per challenge step" do
+    now = ~U[2026-07-18 12:30:00Z]
+    insert_snapshot(~U[2026-07-18 10:00:00Z], 100, 1, 1, 4)
+    insert_snapshot(~U[2026-07-18 11:00:00Z], 150, 1, 1, 4)
+
+    report =
+      Report.build(1,
+        repo: Repo,
+        now: now,
+        config: %{statistics_challenge_step_percent: 25}
+      )
+
+    assert report.traffic_comparison.challenge_step_percent == 25
+    assert report.traffic_comparison.suggested_challenge_increment == 2
+  end
+
   defp insert_snapshot(period_start, requests, posts, threads, visitors) do
     period_end = DateTime.add(period_start, 3_600, :second)
 

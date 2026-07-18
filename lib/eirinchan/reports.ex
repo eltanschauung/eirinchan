@@ -9,11 +9,13 @@ defmodule Eirinchan.Reports do
   alias Eirinchan.Posts.Post
   alias Eirinchan.Repo
   alias Eirinchan.Reports.Report
+  alias Eirinchan.Runtime.Config
 
   @spec create_report(BoardRecord.t(), map(), keyword()) ::
           {:ok, Report.t()} | {:error, :post_not_found | Ecto.Changeset.t()}
   def create_report(%BoardRecord{} = board, attrs, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
+    config = Keyword.get(opts, :config, Config.default_config())
 
     attrs =
       attrs
@@ -24,13 +26,16 @@ defmodule Eirinchan.Reports do
     with {:ok, target_post, target_thread_id} <- fetch_target_post(board, attrs, repo),
          {:ok, report} <-
            %Report{}
-           |> Report.changeset(%{
-             "board_id" => board.id,
-             "post_id" => target_post.id,
-             "thread_id" => target_thread_id,
-             "reason" => Map.get(attrs, "reason"),
-             "ip" => Map.get(attrs, "ip")
-           })
+           |> Report.changeset(
+             %{
+               "board_id" => board.id,
+               "post_id" => target_post.id,
+               "thread_id" => target_thread_id,
+               "reason" => Map.get(attrs, "reason"),
+               "ip" => Map.get(attrs, "ip")
+             },
+             config
+           )
            |> repo.insert() do
       {:ok, report}
     else
@@ -138,10 +143,8 @@ defmodule Eirinchan.Reports do
   defp fetch_target_post(board, attrs, repo) do
     post_id = normalize_id(Map.get(attrs, "post_id"))
 
-    case (
-           repo.get_by(Post, public_id: post_id, board_id: board.id) ||
-             repo.get_by(Post, id: post_id, board_id: board.id)
-         ) do
+    case repo.get_by(Post, public_id: post_id, board_id: board.id) ||
+           repo.get_by(Post, id: post_id, board_id: board.id) do
       nil ->
         {:error, :post_not_found}
 

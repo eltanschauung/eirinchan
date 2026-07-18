@@ -7,10 +7,12 @@ defmodule Eirinchan.Feedback do
 
   alias Eirinchan.Feedback.{Comment, Entry}
   alias Eirinchan.Repo
+  alias Eirinchan.Runtime.Config
 
   @spec create_feedback(map(), keyword()) :: {:ok, Entry.t()} | {:error, Ecto.Changeset.t()}
   def create_feedback(attrs, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
+    config = Keyword.get(opts, :config, Config.default_config())
     attrs = normalize_attrs(attrs)
     remote_ip = Keyword.get(opts, :remote_ip)
 
@@ -18,7 +20,7 @@ defmodule Eirinchan.Feedback do
       Keyword.get(opts, :store_ip, Application.get_env(:eirinchan, :feedback_store_ip, false))
 
     %Entry{}
-    |> Entry.changeset(Map.put(attrs, "ip_subnet", feedback_ip(remote_ip, store_ip)))
+    |> Entry.changeset(Map.put(attrs, "ip_subnet", feedback_ip(remote_ip, store_ip)), config)
     |> repo.insert()
   end
 
@@ -90,6 +92,7 @@ defmodule Eirinchan.Feedback do
           {:ok, Comment.t()} | {:error, :not_found | Ecto.Changeset.t()}
   def add_comment(feedback_id, attrs, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
+    config = Keyword.get(opts, :config, Config.default_config())
 
     case get_entry(repo, feedback_id) do
       nil ->
@@ -97,10 +100,13 @@ defmodule Eirinchan.Feedback do
 
       entry ->
         %Comment{}
-        |> Comment.changeset(%{
-          "feedback_id" => entry.id,
-          "body" => Map.get(normalize_attrs(attrs), "body")
-        })
+        |> Comment.changeset(
+          %{
+            "feedback_id" => entry.id,
+            "body" => Map.get(normalize_attrs(attrs), "body")
+          },
+          config
+        )
         |> repo.insert()
     end
   end
@@ -109,6 +115,7 @@ defmodule Eirinchan.Feedback do
           {:ok, %{imported: non_neg_integer()}} | {:error, :invalid_format | term()}
   def import_legacy_file(path, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
+    config = Keyword.get(opts, :config, Config.default_config())
 
     with {:ok, body} <- File.read(path),
          {:ok, entries} <- parse_legacy_feedback(body) do
@@ -116,7 +123,7 @@ defmodule Eirinchan.Feedback do
         Enum.reduce(entries, 0, fn attrs, imported ->
           {:ok, _entry} =
             %Entry{}
-            |> Entry.changeset(attrs)
+            |> Entry.changeset(attrs, config)
             |> repo.insert()
 
           imported + 1
@@ -151,6 +158,7 @@ defmodule Eirinchan.Feedback do
   end
 
   defp normalize_id(value) when is_integer(value) and value > 0, do: value
+
   defp normalize_id(value) when is_binary(value) do
     case Integer.parse(String.trim(value)) do
       {parsed, ""} when parsed > 0 -> parsed

@@ -31,7 +31,7 @@ defmodule EirinchanWeb.PageController do
       config = Settings.current_instance_config()
       started_at = System.monotonic_time(:microsecond)
       boards = Boards.list_boards()
-      news_entries = NewsBlotter.entries(config, limit: 5)
+      news_entries = NewsBlotter.preview_entries(config)
 
       conn =
         conn
@@ -65,7 +65,7 @@ defmodule EirinchanWeb.PageController do
 
   def news(conn, _params) do
     config = Settings.current_instance_config()
-    news_entries = NewsBlotter.entries(config, limit: 100)
+    news_entries = NewsBlotter.entries(config)
 
     conn
     |> put_public_document_etag({:news, news_entries})
@@ -384,6 +384,7 @@ defmodule EirinchanWeb.PageController do
         show_global_message: show_global_message,
         params: %{},
         errors: nil,
+        config: Settings.effective_instance_config(),
         contact_email: contact_email
       )
 
@@ -522,7 +523,7 @@ defmodule EirinchanWeb.PageController do
       :recent_theme_content,
       :erlang.phash2(settings),
       board_ids,
-      div(System.system_time(:second), @recent_theme_cache_bucket_seconds)
+      div(System.system_time(:second), recent_theme_cache_seconds())
     }
   end
 
@@ -530,8 +531,19 @@ defmodule EirinchanWeb.PageController do
     {
       :recent_theme_stats,
       board_ids,
-      div(System.system_time(:second), @recent_theme_cache_bucket_seconds)
+      div(System.system_time(:second), recent_theme_cache_seconds())
     }
+  end
+
+  defp recent_theme_cache_seconds do
+    case Map.get(
+           Settings.effective_instance_config(),
+           :recent_theme_cache_seconds,
+           @recent_theme_cache_bucket_seconds
+         ) do
+      value when is_integer(value) and value > 0 -> min(value, 3_600)
+      _other -> @recent_theme_cache_bucket_seconds
+    end
   end
 
   defp global_catalog_threads do

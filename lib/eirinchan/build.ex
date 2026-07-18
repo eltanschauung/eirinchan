@@ -127,7 +127,7 @@ defmodule Eirinchan.Build do
             %{acc | processed: acc.processed + 1}
 
           error ->
-            _ = BuildQueue.mark_failed(running_job, error, repo: repo)
+            _ = BuildQueue.mark_failed(running_job, error, repo: repo, config: config)
             %{acc | failed: acc.failed + 1}
         end
       end

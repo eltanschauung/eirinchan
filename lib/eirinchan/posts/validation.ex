@@ -29,7 +29,8 @@ defmodule Eirinchan.Posts.Validation do
     uploads = UploadPreparation.uploads(attrs)
     embed? = present_embed?(attrs)
 
-    sticker_op? = op? and config.allow_sticker_op and WhaleStickers.contains_sticker?(attrs["body"], config)
+    sticker_op? =
+      op? and config.allow_sticker_op and WhaleStickers.contains_sticker?(attrs["body"], config)
 
     cond do
       UploadPreparation.remote_upload_requested?(attrs) and uploads == [] ->
@@ -54,6 +55,21 @@ defmodule Eirinchan.Posts.Validation do
     body = attrs["body"] || ""
 
     cond do
+      field_too_long?(attrs, "name", config.max_name_length) ->
+        {:error, :name_too_long}
+
+      field_too_long?(attrs, "email", config.max_email_length) ->
+        {:error, :email_too_long}
+
+      field_too_long?(attrs, "subject", config.max_subject_length) ->
+        {:error, :subject_too_long}
+
+      field_too_long?(attrs, "embed", config.max_embed_length) ->
+        {:error, :embed_too_long}
+
+      field_too_long?(attrs, "password", config.post_password_max_length) ->
+        {:error, :password_too_long}
+
       is_integer(config.max_body) and config.max_body > 0 and
           String.length(body) > config.max_body ->
         {:error, :body_too_long}
@@ -66,6 +82,15 @@ defmodule Eirinchan.Posts.Validation do
         :ok
     end
   end
+
+  defp field_too_long?(attrs, field, limit) when is_integer(limit) and limit > 0 do
+    case Map.get(attrs, field) do
+      value when is_binary(value) -> String.length(value) > limit
+      _other -> false
+    end
+  end
+
+  defp field_too_long?(_attrs, _field, _limit), do: false
 
   def validate_upload(op?, attrs, config, request) do
     entries = Map.get(attrs, "__upload_entries__", [])
@@ -273,9 +298,7 @@ defmodule Eirinchan.Posts.Validation do
   end
 
   defp duplicate_md5_exists?(md5s, nil, repo) do
-    repo.exists?(
-      from(post in Post, where: post.file_md5 in ^md5s and not is_nil(post.file_md5))
-    ) or
+    repo.exists?(from(post in Post, where: post.file_md5 in ^md5s and not is_nil(post.file_md5))) or
       repo.exists?(
         from(post_file in PostFile,
           where: post_file.file_md5 in ^md5s and not is_nil(post_file.file_md5)

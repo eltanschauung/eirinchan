@@ -5,6 +5,7 @@ defmodule EirinchanWeb.Plugs.GoAwayApi do
 
   alias Eirinchan.AccessList
   alias Eirinchan.Statistics.Report
+  alias Eirinchan.Settings
   alias EirinchanWeb.Plugs.PrivateLoopback
   alias EirinchanWeb.RequestMeta
 
@@ -29,10 +30,12 @@ defmodule EirinchanWeb.Plugs.GoAwayApi do
   defp serve_statistics(conn, opts) do
     conn = fetch_query_params(conn)
 
-    case timeframe_hours(conn.query_params["hours"]) do
+    config = Settings.effective_instance_config()
+
+    case timeframe_hours(conn.query_params["hours"], config) do
       {:ok, hours} ->
         fetcher = Keyword.get(opts, :report_fetcher, &Report.build/1)
-        send_json(conn, 200, fetcher.(hours))
+        send_json(conn, 200, fetch_report(fetcher, hours, config))
 
       {:error, message} ->
         send_json(conn, 400, %{error: message})
@@ -50,13 +53,38 @@ defmodule EirinchanWeb.Plugs.GoAwayApi do
     _error -> send_empty(conn, 503)
   end
 
-  defp timeframe_hours(nil), do: {:ok, @default_hours}
-  defp timeframe_hours(""), do: {:ok, @default_hours}
+  defp timeframe_hours(nil, config), do: {:ok, default_hours(config)}
+  defp timeframe_hours("", config), do: {:ok, default_hours(config)}
 
-  defp timeframe_hours(value) when is_binary(value) do
+  defp timeframe_hours(value, config) when is_binary(value) do
+    maximum = max_hours(config)
+
     case Integer.parse(value) do
-      {hours, ""} when hours in 1..@max_hours -> {:ok, hours}
-      _other -> {:error, "hours must be an integer from 1 through #{@max_hours}"}
+      {hours, ""} when hours >= 1 and hours <= maximum -> {:ok, hours}
+      _other -> {:error, "hours must be an integer from 1 through #{maximum}"}
+    end
+  end
+
+  defp fetch_report(fetcher, hours, config) when is_function(fetcher, 2),
+    do: fetcher.(hours, config: config)
+
+  defp fetch_report(fetcher, hours, _config), do: fetcher.(hours)
+
+  defp default_hours(config) do
+    configured = positive_integer(config, :statistics_api_default_hours, @default_hours)
+    min(configured, max_hours(config))
+  end
+
+  defp max_hours(config) do
+    config
+    |> positive_integer(:statistics_api_max_hours, @max_hours)
+    |> min(8_760)
+  end
+
+  defp positive_integer(config, key, default) do
+    case Map.get(config, key, default) do
+      value when is_integer(value) and value > 0 -> value
+      _other -> default
     end
   end
 

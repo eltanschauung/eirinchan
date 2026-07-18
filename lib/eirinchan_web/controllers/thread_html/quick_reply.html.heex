@@ -23,7 +23,7 @@
     </tr>
     <tr :if={!@config.field_disable_name}>
       <td colspan="2">
-        <input type="text" name="name" maxlength="35" autocomplete="off" placeholder="Name" />
+        <input type="text" name="name" maxlength={@config.max_name_length} autocomplete="off" placeholder="Name" />
       </td>
     </tr>
     <tr :if={!@config.field_disable_email}>
@@ -40,7 +40,7 @@
               class="quick-reply-grow-control"
               type="text"
               name="email"
-              maxlength="40"
+              maxlength={@config.max_email_length}
               autocomplete="off"
               placeholder="Email"
             />
@@ -63,7 +63,7 @@
             class="quick-reply-grow-control"
             type="text"
             name="subject"
-            maxlength="100"
+            maxlength={@config.max_subject_length}
             autocomplete="off"
             placeholder="Subject"
           />
@@ -170,7 +170,7 @@
           type="text"
           name="embed"
           value=""
-          maxlength="120"
+          maxlength={@config.max_embed_length}
           autocomplete="off"
           placeholder="Embed"
         />

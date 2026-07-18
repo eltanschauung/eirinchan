@@ -2,6 +2,7 @@ defmodule EirinchanWeb.YouMarkersController do
   use EirinchanWeb, :controller
 
   alias Eirinchan.Boards
+  alias Eirinchan.Settings
   alias EirinchanWeb.ShowYous
 
   @max_post_ids 500
@@ -15,7 +16,7 @@ defmodule EirinchanWeb.YouMarkersController do
         post_ids =
           params
           |> Map.get("post_ids", [])
-          |> normalize_post_ids()
+          |> normalize_post_ids(max_post_ids())
 
         owned_post_ids =
           conn
@@ -27,10 +28,12 @@ defmodule EirinchanWeb.YouMarkersController do
     end
   end
 
-  defp normalize_post_ids(post_ids) when is_list(post_ids) do
+  defp normalize_post_ids(post_ids, limit) when is_list(post_ids) do
     post_ids
     |> Enum.map(fn
-      value when is_integer(value) -> value
+      value when is_integer(value) ->
+        value
+
       value when is_binary(value) ->
         case Integer.parse(value) do
           {parsed, ""} -> parsed
@@ -42,8 +45,15 @@ defmodule EirinchanWeb.YouMarkersController do
     end)
     |> Enum.reject(&is_nil/1)
     |> Enum.uniq()
-    |> Enum.take(@max_post_ids)
+    |> Enum.take(limit)
   end
 
-  defp normalize_post_ids(_post_ids), do: []
+  defp normalize_post_ids(_post_ids, _limit), do: []
+
+  defp max_post_ids do
+    case Map.get(Settings.effective_instance_config(), :you_markers_max_post_ids, @max_post_ids) do
+      value when is_integer(value) and value > 0 -> min(value, 5_000)
+      _other -> @max_post_ids
+    end
+  end
 end

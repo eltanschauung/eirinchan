@@ -5,6 +5,8 @@ defmodule EirinchanWeb.ModDashboardController do
   alias Eirinchan.Moderation
   alias Eirinchan.Posts
   alias Eirinchan.Reports
+  alias Eirinchan.Runtime.Config
+  alias Eirinchan.Settings
   alias EirinchanWeb.Param
 
   @max_recent_posts 100
@@ -28,7 +30,10 @@ defmodule EirinchanWeb.ModDashboardController do
   def recent(conn, params) do
     boards = Moderation.list_accessible_boards(conn.assigns.current_moderator)
     board_ids = Enum.map(boards, & &1.id)
-    limit = Param.bounded_integer(Map.get(params, "limit"), 25, max: @max_recent_posts)
+    config = Config.compose(nil, Settings.current_instance_config(), %{})
+    maximum = positive_limit(config.moderation_recent_posts_max, @max_recent_posts, 500)
+    default = positive_limit(config.moderation_recent_posts_default, 25, maximum)
+    limit = Param.bounded_integer(Map.get(params, "limit"), default, max: maximum)
 
     posts = Posts.list_recent_posts(limit: limit, board_ids: board_ids)
     render(conn, :recent, posts: posts)
@@ -38,4 +43,9 @@ defmodule EirinchanWeb.ModDashboardController do
 
   defp count_reports(_moderator, boards),
     do: Enum.reduce(boards, 0, &(&2 + length(Reports.list_reports(&1))))
+
+  defp positive_limit(value, _default, maximum) when is_integer(value) and value > 0,
+    do: min(value, maximum)
+
+  defp positive_limit(_value, default, maximum), do: min(default, maximum)
 end

@@ -14,7 +14,7 @@
       <th>Username</th>
       <td>
         <%= if @can_manage_user? do %>
-          <input size="20" maxlength="64" type="text" name="username" value={@form["username"]} autocomplete="off" />
+          <input size="20" maxlength={@credential_limits.username_max} type="text" name="username" value={@form["username"]} autocomplete="off" />
         <% else %>
           <%= @form["username"] %>
         <% end %>
@@ -24,7 +24,7 @@
       <th>Password <%= unless @new do %><small style="font-weight:normal">(new; optional)</small><% end %></th>
       <td>
         <%= if @can_edit_password? do %>
-          <input size="20" maxlength="255" type="password" name="password" value="" autocomplete="off" />
+          <input size="20" minlength={@credential_limits.password_min} maxlength={@credential_limits.password_max} type="password" name="password" value="" autocomplete="off" />
         <% else %>
           -
         <% end %>

@@ -45,7 +45,7 @@
           type="text"
           name="name"
           size="25"
-          maxlength="35"
+          maxlength={@config.max_name_length}
           autocomplete="off"
           placeholder={@config.anonymous}
         />
@@ -83,11 +83,11 @@
           :if={
             !(Map.get(@config, :field_email_selectbox, false) ||
                 Map.get(@config, :hide_email, false))
-          }
-          type="text"
-          name="email"
-          size="25"
-          maxlength="40"
+            }
+            type="text"
+            name="email"
+            size="25"
+            maxlength={@config.max_email_length}
           autocomplete="off"
         />
         <%= if @config.field_disable_reply_subject do %>
@@ -110,7 +110,7 @@
       <th>Subject</th>
 
       <td>
-        <input type="text" name="subject" size="25" maxlength="100" autocomplete="off" />
+        <input type="text" name="subject" size="25" maxlength={@config.max_subject_length} autocomplete="off" />
         <input
           accesskey="s"
           style="margin-left:2px;"
@@ -228,7 +228,7 @@
       <th>Embed</th>
 
       <td>
-        <input type="text" name="embed" value="" size="30" maxlength="120" autocomplete="off" />
+        <input type="text" name="embed" value="" size="30" maxlength={@config.max_embed_length} autocomplete="off" />
       </td>
     </tr>
 
@@ -236,7 +236,7 @@
       <th>Password</th>
 
       <td>
-        <input type="text" name="password" value="" size="12" maxlength="18" autocomplete="off" />
+        <input type="text" name="password" value="" size="12" maxlength={@config.post_password_max_length} autocomplete="off" />
         <span class="unimportant">(For file deletion.)</span>
       </td>
     </tr>
@@ -462,14 +462,14 @@
           type="password"
           name="password"
           size="12"
-          maxlength="18"
+          maxlength={@config.post_password_max_length}
           autocomplete="off"
         /> <input type="submit" name="delete" value="Delete" data-post-action="delete" />
       </div>
 
       <div id="report-fields">
         <label for="reason">Reason</label>
-        <input id="reason" type="text" name="reason" size="20" maxlength="30" />
+        <input id="reason" type="text" name="reason" size="20" maxlength={@config.report_reason_max_length} />
         <input type="submit" name="report" value="Report" data-post-action="report" />
       </div>
     </div>

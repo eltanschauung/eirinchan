@@ -14,6 +14,39 @@ defmodule Eirinchan.Runtime.ConfigTest do
     refute Config.compose(%{}, %{statistics_snapshots: false}).statistics_snapshots
   end
 
+  test "normalizes configurable limits and their cross-field invariants" do
+    config =
+      Config.compose(nil, %{
+        max_name_length: "70",
+        max_subject_length: 999,
+        feedback_name_max_length: 999,
+        feedback_body_max_length: -1,
+        thumbnail_jpeg_quality: 500,
+        statistics_api_default_hours: 48,
+        statistics_api_max_hours: 24,
+        mod_password_min_length: 100,
+        mod_password_max_length: 20,
+        moderation_recent_posts_default: 200,
+        moderation_recent_posts_max: 30,
+        browser_identity_ttl_seconds: 100,
+        browser_identity_rotation_seconds: 200,
+        browser_identity_touch_interval_seconds: 300,
+        queue: %{max_attempts: "9"}
+      })
+
+    assert config.max_name_length == 70
+    assert config.max_subject_length == 255
+    assert config.feedback_name_max_length == 255
+    assert config.feedback_body_max_length == 4_000
+    assert config.thumbnail_jpeg_quality == 100
+    assert config.statistics_api_default_hours == 24
+    assert config.mod_password_min_length == 20
+    assert config.moderation_recent_posts_default == 30
+    assert config.browser_identity_rotation_seconds == 100
+    assert config.browser_identity_touch_interval_seconds == 100
+    assert config.queue.max_attempts == 9
+  end
+
   test "merges default, instance, and board config before applying computed defaults" do
     defaults = %{
       root: "/",

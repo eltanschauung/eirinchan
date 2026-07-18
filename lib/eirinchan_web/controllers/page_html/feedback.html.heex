@@ -6,7 +6,10 @@
   board_chrome={@board_chrome}
   show_global_message={@show_global_message}
 >
-  <section :if={@sanitized_body && @sanitized_body != ""} class="public-panel static-page-panel feedback-copy">
+  <section
+    :if={@sanitized_body && @sanitized_body != ""}
+    class="public-panel static-page-panel feedback-copy"
+  >
     <article><%= raw(@sanitized_body) %></article>
   </section>
 
@@ -22,16 +25,35 @@
       <table class="mod-form-table">
         <tr>
           <th>Name</th>
-          <td><input type="text" name="name" value={get_in(assigns, [:params, "name"])} /></td>
+          <td>
+            <input
+              type="text"
+              name="name"
+              maxlength={@config.feedback_name_max_length}
+              value={get_in(assigns, [:params, "name"])}
+            />
+          </td>
         </tr>
         <tr>
           <th>Email</th>
-          <td><input type="text" name="email" value={get_in(assigns, [:params, "email"])} /></td>
+          <td>
+            <input
+              type="text"
+              name="email"
+              maxlength={@config.feedback_email_max_length}
+              value={get_in(assigns, [:params, "email"])}
+            />
+          </td>
         </tr>
         <tr>
           <th>Feedback</th>
           <td>
-            <textarea name="body" rows="10" class="feedback-textarea"><%= get_in(assigns, [:params, "body"]) %></textarea>
+            <textarea
+              name="body"
+              rows="10"
+              maxlength={@config.feedback_body_max_length}
+              class="feedback-textarea"
+            ><%= get_in(assigns, [:params, "body"]) %></textarea>
           </td>
         </tr>
         <tr>

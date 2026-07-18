@@ -50,6 +50,23 @@ defmodule EirinchanWeb.Plugs.GoAwayApiTest do
     assert Jason.decode!(conn.resp_body)["hours"] == 24
   end
 
+  test "passes normalized statistics configuration to two-arity report fetchers" do
+    test_pid = self()
+
+    conn =
+      @statistics_path
+      |> private_conn()
+      |> GoAwayApi.call(
+        report_fetcher: fn hours, opts ->
+          send(test_pid, {:report_options, hours, opts[:config]})
+          %{hours: hours}
+        end
+      )
+
+    assert conn.status == 200
+    assert_received {:report_options, 1, %{statistics_api_max_hours: 168}}
+  end
+
   test "rejects unbounded or malformed timeframes without running a query" do
     conn =
       private_conn(@statistics_path <> "?hours=999999", "::1", {0, 0, 0, 0, 0, 0, 0, 1})

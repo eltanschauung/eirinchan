@@ -6,6 +6,7 @@ defmodule Eirinchan.Statistics.Report do
   alias Eirinchan.Repo
   alias Eirinchan.Statistics
   alias Eirinchan.Statistics.Snapshot
+  alias Eirinchan.Settings
 
   @challenge_step_percent 80
 
@@ -39,7 +40,7 @@ defmodule Eirinchan.Statistics.Report do
       as_of: DateTime.to_iso8601(as_of),
       current: current_window,
       previous: previous_window,
-      traffic_comparison: traffic_comparison(current_window, previous_window, hours),
+      traffic_comparison: traffic_comparison(current_window, previous_window, hours, opts),
       current_hour: current_hour(repo, as_of, now)
     }
   end
@@ -64,17 +65,19 @@ defmodule Eirinchan.Statistics.Report do
     }
   end
 
-  defp traffic_comparison(current, previous, hours) do
+  defp traffic_comparison(current, previous, hours, opts) do
     current_requests = current.requests
     previous_requests = previous.requests
     complete = current.complete and previous.complete
     change_percent = percentage_change(current_requests, previous_requests)
 
+    challenge_step_percent = challenge_step_percent(opts)
+
     challenge_increment =
       if complete and previous_requests > 0 and current_requests > previous_requests do
         div(
           (current_requests - previous_requests) * 100,
-          previous_requests * @challenge_step_percent
+          previous_requests * challenge_step_percent
         )
       else
         0
@@ -87,9 +90,18 @@ defmodule Eirinchan.Statistics.Report do
       current_requests: current_requests,
       previous_requests: previous_requests,
       change_percent: change_percent,
-      challenge_step_percent: @challenge_step_percent,
+      challenge_step_percent: challenge_step_percent,
       suggested_challenge_increment: challenge_increment
     }
+  end
+
+  defp challenge_step_percent(opts) do
+    config = Keyword.get(opts, :config, Settings.effective_instance_config())
+
+    case Map.get(config, :statistics_challenge_step_percent, @challenge_step_percent) do
+      value when is_integer(value) and value > 0 -> min(value, 10_000)
+      _other -> @challenge_step_percent
+    end
   end
 
   defp current_hour(repo, as_of, now) do
