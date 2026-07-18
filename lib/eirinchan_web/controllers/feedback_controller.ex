@@ -25,36 +25,51 @@ defmodule EirinchanWeb.FeedbackController do
         EventLog.log(conn, "feedback.rejected", %{outcome: "body_shape"})
         reject_feedback(conn, params, config.error.antispam, :unprocessable_entity)
 
-      feedback_rate_limited?(request, config) ->
-        EventLog.log(conn, "feedback.rejected", %{outcome: "rate_limited"})
-        message = "Feedback is limited to five submissions per 24 hours. Please try again later."
-
-        reject_feedback(conn, params, message, :too_many_requests)
-
       true ->
-        _ = Antispam.log_public_activity("feedback", request)
+        daily_limits = [
+          per_ip_count: @feedback_daily_limit,
+          per_ip_window_seconds: @feedback_daily_window_seconds,
+          global_count: 0
+        ]
 
-        case Feedback.create_feedback(params, remote_ip: RequestMeta.effective_remote_ip(conn)) do
-          {:ok, entry} ->
-            if params["json_response"] == "1" do
-              json(conn, %{feedback_id: entry.id, status: "ok"})
-            else
-              redirect(conn, to: "/feedback")
-            end
+        case Antispam.reserve_configured_public_activity("feedback", request, config,
+               additional_limits: [daily_limits]
+             ) do
+          {:ok, _entry} ->
+            create_feedback(conn, params)
 
-          {:error, %Ecto.Changeset{} = changeset} ->
-            if params["json_response"] == "1" do
-              conn
-              |> put_status(:unprocessable_entity)
-              |> json(%{errors: EirinchanWeb.ChangesetErrors.translate(changeset)})
-            else
-              conn
-              |> put_status(:unprocessable_entity)
-              |> render_feedback_page(
-                params: params,
-                errors: EirinchanWeb.ChangesetErrors.translate(changeset)
-              )
-            end
+          {:error, _reason} ->
+            EventLog.log(conn, "feedback.rejected", %{outcome: "rate_limited"})
+
+            message =
+              "Feedback is limited to five submissions per 24 hours. Please try again later."
+
+            reject_feedback(conn, params, message, :too_many_requests)
+        end
+    end
+  end
+
+  defp create_feedback(conn, params) do
+    case Feedback.create_feedback(params, remote_ip: RequestMeta.effective_remote_ip(conn)) do
+      {:ok, entry} ->
+        if params["json_response"] == "1" do
+          json(conn, %{feedback_id: entry.id, status: "ok"})
+        else
+          redirect(conn, to: "/feedback")
+        end
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        if params["json_response"] == "1" do
+          conn
+          |> put_status(:unprocessable_entity)
+          |> json(%{errors: EirinchanWeb.ChangesetErrors.translate(changeset)})
+        else
+          conn
+          |> put_status(:unprocessable_entity)
+          |> render_feedback_page(
+            params: params,
+            errors: EirinchanWeb.ChangesetErrors.translate(changeset)
+          )
         end
     end
   end
@@ -73,21 +88,6 @@ defmodule EirinchanWeb.FeedbackController do
 
   defp invalid_feedback_body?(body) when is_binary(body), do: not String.contains?(body, " ")
   defp invalid_feedback_body?(_body), do: false
-
-  defp feedback_rate_limited?(request, config) do
-    daily_feedback_limit_reached?(request) or
-      Antispam.configured_public_activity_rate_limited?(request, "feedback", config)
-  end
-
-  defp daily_feedback_limit_reached?(request) do
-    Antispam.public_activity_rate_limited?(
-      request,
-      "feedback",
-      per_ip_count: @feedback_daily_limit,
-      per_ip_window_seconds: @feedback_daily_window_seconds,
-      global_count: 0
-    )
-  end
 
   defp render_feedback_page(conn, opts) do
     page = PublicPages.fetch_named_page("feedback")

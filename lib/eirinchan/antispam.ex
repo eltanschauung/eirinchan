@@ -122,31 +122,60 @@ defmodule Eirinchan.Antispam do
     if moderated_request?(request) do
       :ok
     else
-      with :ok <- check_public_action(board, action, attrs, request, config, opts),
-           {:ok, _entry} <- log_public_action(board, action, attrs, request, opts) do
-        :ok
-      else
-        {:error, %Ecto.Changeset{}} -> {:error, :antispam}
-        error -> error
-      end
+      repo = Keyword.get(opts, :repo, Repo)
+
+      repo.transaction(fn ->
+        lock_antispam_scope(repo, "public-action:#{board.id}:#{action}")
+
+        with :ok <- check_public_action(board, action, attrs, request, config, opts),
+             {:ok, _entry} <- log_public_action(board, action, attrs, request, opts) do
+          :ok
+        else
+          {:error, %Ecto.Changeset{}} -> {:error, :antispam}
+          error -> error
+        end
+      end)
+      |> unwrap_transaction()
     end
   end
 
+  def reserve_configured_public_activity(activity, request, config, opts \\ []) do
+    additional_limits = Keyword.get(opts, :additional_limits, [])
+
+    reserve_public_activity(
+      activity,
+      request,
+      [configured_public_activity_limits(config) | additional_limits],
+      opts
+    )
+  end
+
+  def reserve_public_activity(activity, request, limit_sets, opts \\ [])
+      when is_list(limit_sets) do
+    repo = Keyword.get(opts, :repo, Repo)
+    activity = normalize_activity(activity)
+
+    repo.transaction(fn ->
+      lock_antispam_scope(repo, "public-activity:#{activity}")
+
+      if Enum.any?(limit_sets, fn limits ->
+           public_activity_rate_limited?(
+             request,
+             activity,
+             Keyword.merge(limits, repo: repo)
+           )
+         end) do
+        {:error, :rate_limited}
+      else
+        log_public_activity(activity, request, opts)
+      end
+    end)
+    |> unwrap_transaction()
+  end
+
   def configured_public_activity_rate_limited?(request, activity, config, opts \\ []) do
-    {per_identity_count, per_identity_minutes} =
-      rate_limit_tuple(config, :search_queries_per_minutes, 15, 2)
-
-    {global_count, global_minutes} =
-      rate_limit_tuple(config, :search_queries_per_minutes_all, 50, 2)
-
-    defaults = [
-      per_ip_count: per_identity_count,
-      per_ip_window_seconds: per_identity_minutes * 60,
-      global_count: global_count,
-      global_window_seconds: global_minutes * 60
-    ]
-
-    public_activity_rate_limited?(request, activity, Keyword.merge(defaults, opts))
+    limits = configured_public_activity_limits(config)
+    public_activity_rate_limited?(request, activity, Keyword.merge(limits, opts))
   end
 
   def public_activity_rate_limited?(request, activity, opts \\ []) do
@@ -268,6 +297,29 @@ defmodule Eirinchan.Antispam do
       _ -> {default_count, default_minutes}
     end
   end
+
+  defp configured_public_activity_limits(config) do
+    {per_identity_count, per_identity_minutes} =
+      rate_limit_tuple(config, :search_queries_per_minutes, 15, 2)
+
+    {global_count, global_minutes} =
+      rate_limit_tuple(config, :search_queries_per_minutes_all, 50, 2)
+
+    [
+      per_ip_count: per_identity_count,
+      per_ip_window_seconds: per_identity_minutes * 60,
+      global_count: global_count,
+      global_window_seconds: global_minutes * 60
+    ]
+  end
+
+  defp lock_antispam_scope(repo, scope) do
+    repo.query!("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [scope])
+    :ok
+  end
+
+  defp unwrap_transaction({:ok, result}), do: result
+  defp unwrap_transaction({:error, _reason} = error), do: error
 
   defp maybe_query_by_dimension(queryable, nil, _value), do: queryable
 

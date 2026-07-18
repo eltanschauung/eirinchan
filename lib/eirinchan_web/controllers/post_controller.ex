@@ -324,7 +324,9 @@ defmodule EirinchanWeb.PostController do
             %{
               last_seen_post_id: post.id,
               activated: false
-            }, max_threads: conn.assigns.current_board_config.watcher_max_threads)
+            },
+            max_threads: conn.assigns.current_board_config.watcher_max_threads
+          )
 
         ThreadWatcher.watch_metrics(token)
 
