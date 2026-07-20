@@ -4,15 +4,24 @@ defmodule Eirinchan.EmojiShortcodesTest do
   alias Eirinchan.EmojiShortcodes
 
   test "ships the complete built-in shortcode set" do
-    assert map_size(EmojiShortcodes.entries()) == 100
+    assert map_size(EmojiShortcodes.entries()) == 112
 
     assert EmojiShortcodes.entries()
-           |> Map.take(["sob", "heart_on_fire", "eyes", "v", "bicep", "zap"]) == %{
+           |> Map.take([
+             "sob",
+             "heart_on_fire",
+             "eyes",
+             "v",
+             "bicep",
+             "gemini",
+             "zap"
+           ]) == %{
              "sob" => "😭",
              "heart_on_fire" => "❤️‍🔥",
              "eyes" => "👀",
              "v" => "✌️",
              "bicep" => "💪",
+             "gemini" => "♊",
              "zap" => "⚡"
            }
   end
@@ -32,6 +41,12 @@ defmodule Eirinchan.EmojiShortcodesTest do
     expected = Enum.map_join(entries, " ", fn {_name, emoji} -> emoji end)
 
     assert EmojiShortcodes.replace(body) == expected
+  end
+
+  test "replaces all zodiac shortcodes" do
+    assert EmojiShortcodes.replace(
+             ":aries: :taurus: :gemini: :cancer: :leo: :virgo: :libra: :scorpio: :sagittarius: :capricorn: :aquarius: :pisces:"
+           ) == "♈ ♉ ♊ ♋ ♌ ♍ ♎ ♏ ♐ ♑ ♒ ♓"
   end
 
   test "does not replace post bodies when emojis is false" do

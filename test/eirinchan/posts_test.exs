@@ -2071,14 +2071,14 @@ defmodule Eirinchan.PostsTest do
              Posts.create_post(
                board,
                %{
-                 "body" => "look :eyes: :v: :bicep: :heart_on_fire: :unknown:",
+                 "body" => "look :eyes: :v: :bicep: :heart_on_fire: :gemini: :unknown:",
                  "post" => "New Topic"
                },
                config: post_config(board.config_overrides),
                request: post_request(board.uri)
              )
 
-    assert thread.body == "look 👀 ✌️ 💪 ❤️‍🔥 :unknown:"
+    assert thread.body == "look 👀 ✌️ 💪 ❤️‍🔥 ♊ :unknown:"
   end
 
   test "create_post preserves emoji shortcodes when emojis is false" do
