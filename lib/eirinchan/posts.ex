@@ -8,6 +8,7 @@ defmodule Eirinchan.Posts do
   alias Eirinchan.Antispam
   alias Eirinchan.Build
   alias Eirinchan.Boards.BoardRecord
+  alias Eirinchan.EmojiShortcodes
   alias Eirinchan.Posts.Cite
   alias Eirinchan.Posts.Email, as: PostsEmail
   alias Eirinchan.Posts.Flags, as: PostsFlags
@@ -1396,6 +1397,7 @@ defmodule Eirinchan.Posts do
   defp normalize_post_text(attrs, config) do
     attrs
     |> maybe_strip_combining_chars(config)
+    |> EmojiShortcodes.replace_body(config)
     |> apply_wordfilters(config)
     |> escape_markup_modifiers()
   end

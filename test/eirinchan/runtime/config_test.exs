@@ -484,6 +484,12 @@ defmodule Eirinchan.Runtime.ConfigTest do
     refute config.captcha.refresh_on_error
   end
 
+  test "enables emoji shortcode conversion by default and accepts overrides" do
+    assert Config.compose().emojis
+    refute Config.compose(nil, %{"emojis" => false}).emojis
+    assert Config.compose(nil, %{"emojis" => false}, %{"emojis" => true}).emojis
+  end
+
   test "defaults ip_nulling to false and accepts instance override" do
     default_config =
       Config.compose(

@@ -117,6 +117,7 @@ defmodule Eirinchan.Runtime.Config do
     try_smarter: false,
     board_locked: false,
     strip_combining_chars: false,
+    emojis: true,
     wordfilters: [],
     hidden_input_name: "hash",
     hidden_input_hash: nil,
