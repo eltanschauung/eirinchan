@@ -2133,6 +2133,37 @@ defmodule Eirinchan.PostsTest do
     assert thread.subject == "badword"
   end
 
+  test "create_post converts built-in emoji shortcodes before storing post text" do
+    board = board_fixture()
+
+    assert {:ok, thread, _meta} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "look :eyes: :v: :bicep: :heart_on_fire: :unknown:",
+                 "post" => "New Topic"
+               },
+               config: post_config(board.config_overrides),
+               request: post_request(board.uri)
+             )
+
+    assert thread.body == "look 👀 ✌️ 💪 ❤️‍🔥 :unknown:"
+  end
+
+  test "create_post preserves emoji shortcodes when emojis is false" do
+    board = board_fixture(%{config_overrides: %{emojis: false}})
+
+    assert {:ok, thread, _meta} =
+             Posts.create_post(
+               board,
+               %{"body" => "look :eyes: :v: :bicep:", "post" => "New Topic"},
+               config: post_config(board.config_overrides),
+               request: post_request(board.uri)
+             )
+
+    assert thread.body == "look :eyes: :v: :bicep:"
+  end
+
   test "create_post strips combining characters when configured" do
     board = board_fixture(%{config_overrides: %{strip_combining_chars: true}})
 
