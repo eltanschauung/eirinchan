@@ -32,6 +32,10 @@ defmodule Eirinchan.EmojiShortcodesTest do
            ) == "look 👀 ❤️ ❤️‍🔥 💯 ✌️ :unknown: :EYES:"
   end
 
+  test "uses prayer rather than pray for the folded-hands emoji" do
+    assert EmojiShortcodes.replace(":prayer: :pray:") == "🙏 :pray:"
+  end
+
   test "replaces every configured shortcode" do
     entries =
       EmojiShortcodes.entries()

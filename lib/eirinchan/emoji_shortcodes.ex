@@ -67,7 +67,7 @@ defmodule Eirinchan.EmojiShortcodes do
     "point_right" => "👉",
     "point_up" => "👆",
     "poop" => "💩",
-    "pray" => "🙏",
+    "prayer" => "🙏",
     "purple_heart" => "💜",
     "question" => "❓",
     "rage" => "😡",
