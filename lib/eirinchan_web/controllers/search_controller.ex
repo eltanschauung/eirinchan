@@ -9,6 +9,7 @@ defmodule EirinchanWeb.SearchController do
   alias Eirinchan.Runtime.Config
   alias Eirinchan.Settings
   alias Eirinchan.Statistics
+  alias Eirinchan.Statistics.SearchTelemetry
   alias EirinchanWeb.BrowserEntries
   alias EirinchanWeb.PublicControllerHelpers
   alias EirinchanWeb.RequestMeta
@@ -43,26 +44,39 @@ defmodule EirinchanWeb.SearchController do
 
     cond do
       not search_enabled?(config) ->
-        render_search(conn, context, empty_page(), "Post search is disabled")
+        track_and_render(conn, context, empty_page(), "Post search is disabled", :disabled)
 
       not context.searched? ->
         render_search(conn, context, empty_page(), nil)
 
       selected_boards == [] ->
-        render_search(conn, context, empty_page(), "Select at least one board to search.")
+        track_and_render(
+          conn,
+          context,
+          empty_page(),
+          "Select at least one board to search.",
+          :invalid_board
+        )
 
       not Search.meaningful?(criteria) ->
-        render_search(conn, context, empty_page(), "Enter a search term or filter.")
+        track_and_render(
+          conn,
+          context,
+          empty_page(),
+          "Enter a search term or filter.",
+          :empty
+        )
 
       criteria_length(criteria) > search_max_query_length(config) ->
         reject_too_long(conn, context)
 
       Search.term_count(criteria) > search_max_terms(config) ->
-        render_search(
+        track_and_render(
           conn,
           context,
           empty_page(),
-          "Search queries are limited to #{search_max_terms(config)} terms."
+          "Search queries are limited to #{search_max_terms(config)} terms.",
+          :invalid_terms
         )
 
       true ->
@@ -87,11 +101,13 @@ defmodule EirinchanWeb.SearchController do
           query_length: criteria_length(context.criteria)
         })
 
-        render_search(
-          Statistics.mark_rate_limited(conn, :search),
+        conn
+        |> Statistics.mark_rate_limited(:search)
+        |> track_and_render(
           context,
           empty_page(),
-          "Wait a while before searching again, please."
+          "Wait a while before searching again, please.",
+          :rate_limited
         )
     end
   end
@@ -111,7 +127,7 @@ defmodule EirinchanWeb.SearchController do
             instance_config: context.instance_overrides
           )
 
-        render_search(conn, context, Map.put(page, :results, results), nil)
+        track_and_render(conn, context, Map.put(page, :results, results), nil, :results)
 
       {:error, :unavailable} ->
         EventLog.log(conn, "search.failed", %{
@@ -119,11 +135,12 @@ defmodule EirinchanWeb.SearchController do
           outcome: "database_unavailable"
         })
 
-        render_search(
+        track_and_render(
           conn,
           context,
           empty_page(),
-          "Search is temporarily unavailable. Try again shortly."
+          "Search is temporarily unavailable. Try again shortly.",
+          :unavailable
         )
     end
   end
@@ -135,12 +152,26 @@ defmodule EirinchanWeb.SearchController do
       query_length: criteria_length(context.criteria)
     })
 
-    render_search(
+    track_and_render(
       conn,
       context,
       empty_page(),
-      "Search queries are limited to #{search_max_query_length(context.config)} characters."
+      "Search queries are limited to #{search_max_query_length(context.config)} characters.",
+      :invalid_query
     )
+  end
+
+  defp track_and_render(conn, context, page, error, outcome) do
+    if context.searched? do
+      SearchTelemetry.record(conn, context.criteria, context.selected_boards, outcome,
+        scope: conn.params["scope"],
+        page: positive_param(conn.params["page"], 1),
+        result_count: page.total,
+        capped?: page.capped?
+      )
+    end
+
+    render_search(conn, context, page, error)
   end
 
   defp render_search(conn, context, page, error) do

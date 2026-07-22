@@ -6,6 +6,12 @@ defmodule EirinchanWeb.SearchControllerTest do
   alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Repo
 
+  setup do
+    Eirinchan.Statistics.create_counter_table()
+    :ets.delete_all_objects(Eirinchan.Statistics.counter_table())
+    :ok
+  end
+
   test "public search returns matching posts only for the selected board", %{conn: conn} do
     board =
       board_fixture(%{uri: "tea#{System.unique_integer([:positive, :monotonic])}", title: "Tea"})
@@ -575,5 +581,51 @@ defmodule EirinchanWeb.SearchControllerTest do
       |> html_response(200)
 
     assert grouped =~ "1 result"
+  end
+
+  test "search statistics record filters and pseudonymous client dimensions", %{conn: _conn} do
+    board = board_fixture(%{uri: "stats#{System.unique_integer([:positive, :monotonic])}"})
+
+    conn =
+      %{build_conn() | remote_ip: {198, 51, 100, 77}}
+      |> put_req_header("user-agent", "Search Statistics Test Agent/1.0")
+
+    conn
+    |> get("/search.php", %{
+      "board" => board.uri,
+      "text" => "privacy marker",
+      "subject" => "subject marker",
+      "image" => "with",
+      "results" => "threads",
+      "highlight" => "1"
+    })
+    |> html_response(200)
+
+    counters =
+      Eirinchan.Statistics.drain_counters()
+      |> Map.values()
+      |> Enum.reduce(%{}, &Map.merge(&2, &1, fn _key, left, right -> left + right end))
+
+    assert counters["search.attempts"] == 1
+    assert counters["search.features.text"] == 1
+    assert counters["search.features.subject"] == 1
+    assert counters["search.features.image_with"] == 1
+    assert counters["search.features.results_threads"] == 1
+    assert counters["search.features.highlight"] == 1
+    assert counters["search.scope.single_board"] == 1
+    assert counters["search.modes.image.with"] == 1
+
+    assert Enum.any?(counters, fn {key, count} ->
+             String.starts_with?(key, "search.clients.network.") and count == 1
+           end)
+
+    assert Enum.any?(counters, fn {key, count} ->
+             String.starts_with?(key, "search.clients.user_agent.") and count == 1
+           end)
+
+    serialized = inspect(counters)
+    refute serialized =~ "198.51.100.77"
+    refute serialized =~ "Search Statistics Test Agent"
+    refute serialized =~ "privacy marker"
   end
 end

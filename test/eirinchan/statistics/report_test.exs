@@ -22,6 +22,17 @@ defmodule Eirinchan.Statistics.ReportTest do
     assert report.current.threads == 4
     assert report.current.visitors_10minutes == %{latest: 14, average: 13.0, maximum: 14}
     assert report.current.rate_limits == %{"search" => 2, "total" => 2}
+    assert report.current.search.attempts == 2
+    assert report.current.search.features == %{"text" => 2}
+
+    assert report.current.search.clients.networks == [
+             %{identifier: "network-id", count: 2}
+           ]
+
+    assert report.current.search.clients.network_features == [
+             %{identifier: "network-id", feature: "text", count: 2}
+           ]
+
     assert report.traffic_comparison.change_percent == 80.0
     assert report.traffic_comparison.suggested_challenge_increment == 1
     assert report.traffic_comparison.baseline_complete
@@ -69,7 +80,11 @@ defmodule Eirinchan.Statistics.ReportTest do
       counters: %{
         "requests.total" => requests,
         "rate_limits.search" => 1,
-        "rate_limits.total" => 1
+        "rate_limits.total" => 1,
+        "search.attempts" => 1,
+        "search.features.text" => 1,
+        "search.clients.network.network-id" => 1,
+        "search.client_features.network.network-id.text" => 1
       },
       finalized: true
     })
