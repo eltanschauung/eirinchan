@@ -26,7 +26,9 @@ defmodule Eirinchan.Posts.Search do
       uid: value(params, "uid"),
       country: value(params, "country") |> normalize_country(),
       filename: value(params, "filename"),
-      image_hash: first_present(value(params, "image_hash"), value(params, "imagehash")),
+      image_hash:
+        first_present(value(params, "image_hash"), value(params, "imagehash"))
+        |> normalize_image_hash(),
       width: positive_integer(value(params, "width")),
       height: positive_integer(value(params, "height")),
       start_date: date(value(params, "start")),
@@ -387,6 +389,18 @@ defmodule Eirinchan.Posts.Search do
   defp date(_), do: nil
   defp normalize_country(nil), do: nil
   defp normalize_country(value), do: String.downcase(value)
+
+  defp normalize_image_hash(hash) when is_binary(hash) and byte_size(hash) == 24 do
+    with {:ok, decoded} <- Base.decode64(hash),
+         true <- byte_size(decoded) == 16,
+         true <- Base.encode64(decoded) == hash do
+      hash
+    else
+      _ -> nil
+    end
+  end
+
+  defp normalize_image_hash(_hash), do: nil
   defp allowed(value, allowed, default), do: if(value in allowed, do: value, else: default)
   defp truthy?(value), do: value in [true, "true", "1", "on", "yes"]
   defp ceil_div(0, _denominator), do: 0
