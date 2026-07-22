@@ -1,29 +1,27 @@
 <.flash_group flash={@flash} />
-<section>
+<section class="mod-action-shell">
   <h1>Move thread #<%= EirinchanWeb.PostView.public_post_id(@thread) %> from /<%= @board.uri %>/</h1>
-  <p><a href={~p"/manage"}>Back to Manage</a></p>
+  <p class="mod-action-back"><a href={~p"/manage"}>&larr; Back to Manage</a></p>
   <p :if={@error} class="error"><%= @error %></p>
-</section>
 
-<section>
-  <form action={"/manage/boards/#{@board.uri}/threads/#{EirinchanWeb.PostView.public_post_id(@thread)}/browser/move"} method="post">
+  <form
+    class="mod-action-form"
+    action={"/manage/boards/#{@board.uri}/threads/#{EirinchanWeb.PostView.public_post_id(@thread)}/browser/move"}
+    method="post"
+  >
     <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
     <input type="hidden" name="_method" value="patch" />
-    <table class="mod-form-table">
-      <tr>
-        <th>Target Board</th>
-        <td>
-          <select name="target_board_uri">
-            <%= for board <- @boards do %>
-              <option value={board.uri}>/<%= board.uri %>/</option>
-            <% end %>
-          </select>
-        </td>
-      </tr>
-      <tr>
-        <td></td>
-        <td><input type="submit" value="Move Thread" /></td>
-      </tr>
-    </table>
+    <fieldset>
+      <legend>Destination</legend>
+      <label for="target_board_uri">Target board</label>
+      <select id="target_board_uri" name="target_board_uri" required>
+        <%= for board <- @boards do %>
+          <option value={board.uri}>/<%= board.uri %>/</option>
+        <% end %>
+      </select>
+      <div class="mod-form-actions">
+        <button type="submit">Move Thread</button>
+      </div>
+    </fieldset>
   </form>
 </section>

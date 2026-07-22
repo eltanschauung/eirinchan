@@ -2054,6 +2054,19 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     target_thread = thread_fixture(target_board, %{body: "Reply target"})
     movable_reply = reply_fixture(source_board, reply_source_thread, %{body: "Reply to move"})
 
+    move_thread_page =
+      conn
+      |> login_moderator(moderator)
+      |> get(
+        "/manage/boards/#{source_board.uri}/threads/#{PublicIds.public_id(source_thread)}/move/browser"
+      )
+      |> html_response(200)
+
+    assert move_thread_page =~ ~s(class="mod-action-shell")
+    assert move_thread_page =~ ~s(class="mod-action-form")
+    assert move_thread_page =~ ~s(id="target_board_uri")
+    refute move_thread_page =~ ~s(class="mod-form-table")
+
     move_thread_conn =
       conn
       |> login_moderator(moderator)
