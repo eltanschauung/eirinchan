@@ -7,6 +7,7 @@ Shoot me a question on Telegram if you need help: @eltanschauung
 # Unique Features
 - Lightning fast speeds with Phoenix and PostgreSQL
 - Modernization to catalog and other page templates
+- Replacement for the Vichan search system based on the popular FoolFukua archive search format
 - Catalog pagination, updated catalog search js
 - New themes from the bantculture community + Tomorrow
 - Default theme for devices set to prefer dark styles can be set such as "default_theme_dark": "tomorrow"
