@@ -60,6 +60,7 @@ defmodule Eirinchan.Statistics.Report do
       visitors_10minutes: visitor_summary(visitors),
       requests: Map.get(counters, "requests.total", 0),
       rate_limits: prefixed_counters(counters, "rate_limits."),
+      search: search_summary(counters),
       counters: counters,
       snapshots: Enum.map(snapshots, &serialize_snapshot/1)
     }
@@ -111,6 +112,7 @@ defmodule Eirinchan.Statistics.Report do
       period_start: DateTime.to_iso8601(as_of),
       elapsed_seconds: max(DateTime.diff(now, as_of, :second), 0),
       requests: if(snapshot, do: Map.get(snapshot.counters || %{}, "requests.total", 0), else: 0),
+      search: search_summary(if(snapshot, do: snapshot.counters || %{}, else: %{})),
       counters: if(snapshot, do: snapshot.counters || %{}, else: %{})
     }
   end
@@ -125,6 +127,48 @@ defmodule Eirinchan.Statistics.Report do
     counters
     |> Enum.filter(fn {key, _value} -> String.starts_with?(key, prefix) end)
     |> Map.new(fn {key, value} -> {String.replace_prefix(key, prefix, ""), value} end)
+  end
+
+  defp search_summary(counters) do
+    %{
+      attempts: Map.get(counters, "search.attempts", 0),
+      outcomes: prefixed_counters(counters, "search.outcomes."),
+      features: prefixed_counters(counters, "search.features."),
+      scopes: prefixed_counters(counters, "search.scope."),
+      boards: prefixed_counters(counters, "search.boards."),
+      modes: prefixed_counters(counters, "search.modes."),
+      result_buckets: prefixed_counters(counters, "search.results."),
+      clients: %{
+        networks: ranked_counters(counters, "search.clients.network."),
+        user_agents: ranked_counters(counters, "search.clients.user_agent."),
+        combined: ranked_counters(counters, "search.clients.combined."),
+        network_features: ranked_client_features(counters, "search.client_features.network."),
+        user_agent_features:
+          ranked_client_features(counters, "search.client_features.user_agent."),
+        combined_features: ranked_client_features(counters, "search.client_features.combined.")
+      }
+    }
+  end
+
+  defp ranked_counters(counters, prefix) do
+    counters
+    |> Enum.filter(fn {key, _value} -> String.starts_with?(key, prefix) end)
+    |> Enum.map(fn {key, count} ->
+      %{identifier: String.replace_prefix(key, prefix, ""), count: count}
+    end)
+    |> Enum.sort_by(&{-&1.count, &1.identifier})
+  end
+
+  defp ranked_client_features(counters, prefix) do
+    counters
+    |> Enum.filter(fn {key, _value} -> String.starts_with?(key, prefix) end)
+    |> Enum.map(fn {key, count} ->
+      case key |> String.replace_prefix(prefix, "") |> String.split(".", parts: 2) do
+        [identifier, feature] -> %{identifier: identifier, feature: feature, count: count}
+        [identifier] -> %{identifier: identifier, feature: nil, count: count}
+      end
+    end)
+    |> Enum.sort_by(&{-&1.count, &1.identifier, &1.feature || ""})
   end
 
   defp visitor_summary([]), do: %{latest: 0, average: 0.0, maximum: 0}

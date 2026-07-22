@@ -7,6 +7,7 @@ defmodule Eirinchan.Statistics.WorkerTest do
   alias Eirinchan.Repo
   alias Eirinchan.Statistics
   alias Eirinchan.Statistics.Snapshot
+  alias Eirinchan.Statistics.Store
   alias Eirinchan.Statistics.Worker
 
   setup do
@@ -73,6 +74,29 @@ defmodule Eirinchan.Statistics.WorkerTest do
 
     Statistics.restore_counters(bucket, drained[bucket])
     assert Statistics.drain_counters() == drained
+  end
+
+  test "bounds persisted pseudonymous search identities" do
+    period_start = ~U[2026-07-18 12:00:00Z]
+    bucket = DateTime.to_unix(period_start, :second)
+
+    counters =
+      Map.new(1..60, fn number ->
+        {"search.clients.network.client#{number}", number}
+      end)
+
+    assert {:ok, :ok} = Store.add_counters(bucket, counters, repo: Repo)
+
+    snapshot = Repo.get_by!(Snapshot, period_start: period_start)
+
+    retained =
+      Enum.filter(snapshot.counters, fn {key, _count} ->
+        String.starts_with?(key, "search.clients.network.")
+      end)
+
+    assert length(retained) == 51
+    assert snapshot.counters["search.clients.network.client60"] == 60
+    assert snapshot.counters["search.clients.network.other"] == Enum.sum(1..10)
   end
 
   defp identity_fixture(now) do
