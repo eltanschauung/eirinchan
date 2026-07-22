@@ -220,8 +220,7 @@ defmodule Eirinchan.Posts.RequestGuards do
   defp ip_nulling_flag_bypass?(attrs, config) do
     threshold = Map.get(config, :ip_nulling_flags, 0)
 
-    Map.get(config, :ip_nulling, false) and
-      Map.get(config, :user_flag, false) and
+    Map.get(config, :user_flag, false) and
       is_integer(threshold) and threshold > 0 and
       submitted_flag_length(attrs) >= threshold
   end

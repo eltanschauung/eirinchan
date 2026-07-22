@@ -3121,17 +3121,21 @@ defmodule Eirinchan.PostsTest do
     refute_received :upload_preparation_called
   end
 
-  test "ip nulling flag threshold alone does not bypass ipaccess" do
+  test "flag threshold bypasses ipaccess without nulling the stored IP" do
     board = board_fixture()
     Repo.insert!(%Eirinchan.IpAccessEntry{ip: "198.51.100.0/24"})
 
     config =
       post_config(%{
         ipaccess: true,
-        ip_nulling_flags: 8
+        ip_nulling: false,
+        ip_nulling_flags: 8,
+        user_flag: true,
+        multiple_flags: true,
+        user_flags: %{"mokou" => "Mokou"}
       })
 
-    assert {:error, :ipaccess} =
+    assert {:ok, post, _meta} =
              Posts.create_post(
                board,
                %{
@@ -3145,6 +3149,8 @@ defmodule Eirinchan.PostsTest do
                  remote_ip: {203, 0, 113, 9}
                }
              )
+
+    assert post.ip_subnet == "203.0.113.9"
   end
 
   test "enabled IP nulling flags allow an unverified image reply through ipaccess" do
