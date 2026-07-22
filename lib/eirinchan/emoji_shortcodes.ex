@@ -99,7 +99,6 @@ defmodule Eirinchan.EmojiShortcodes do
     "sweat" => "😓",
     "sweat_smile" => "😅",
     "taurus" => "♉",
-    "thinking" => "🤔",
     "thumbsdown" => "👎",
     "thumbsup" => "👍",
     "two_hearts" => "💕",
