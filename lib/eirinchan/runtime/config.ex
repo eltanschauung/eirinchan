@@ -192,6 +192,8 @@ defmodule Eirinchan.Runtime.Config do
     early_404_gap_warning: 3,
     early_404_gap_deletion: 1,
     early_404_gap_max: 100,
+    archive_board: "none",
+    archive_min_replies: 0,
     noko50_count: 50,
     noko50_min: 100,
     force_body: false,
@@ -513,6 +515,8 @@ defmodule Eirinchan.Runtime.Config do
     "early404GapWarning" => :early_404_gap_warning,
     "early404GapDeletion" => :early_404_gap_deletion,
     "early404GapMax" => :early_404_gap_max,
+    "archiveBoard" => :archive_board,
+    "archiveMinReplies" => :archive_min_replies,
     "uploadByUrlEnabled" => :upload_by_url_enabled,
     "generationStrategy" => :generation_strategy,
     "replyHardLimit" => :reply_hard_limit,
@@ -635,6 +639,7 @@ defmodule Eirinchan.Runtime.Config do
     identity_rotation = min(config.browser_identity_rotation_seconds, identity_ttl)
 
     config
+    |> Map.update(:archive_min_replies, 0, &bounded_non_negative_integer(&1, 0, 1_000_000))
     |> Map.put(:statistics_api_default_hours, min(config.statistics_api_default_hours, statistics_max))
     |> Map.put(:mod_password_min_length, min(config.mod_password_min_length, moderator_password_max))
     |> Map.put(:moderation_recent_posts_default, min(config.moderation_recent_posts_default, recent_posts_max))
@@ -654,6 +659,19 @@ defmodule Eirinchan.Runtime.Config do
     |> positive_integer(default)
     |> min(maximum)
   end
+
+  defp bounded_non_negative_integer(value, _default, maximum)
+       when is_integer(value) and value >= 0,
+       do: min(value, maximum)
+
+  defp bounded_non_negative_integer(value, default, maximum) when is_binary(value) do
+    case Integer.parse(value) do
+      {parsed, ""} when parsed >= 0 -> min(parsed, maximum)
+      _ -> default
+    end
+  end
+
+  defp bounded_non_negative_integer(_value, default, _maximum), do: default
 
   defp ensure_web_assets(config) do
     config
