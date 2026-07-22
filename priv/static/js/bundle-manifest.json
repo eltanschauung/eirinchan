@@ -134,10 +134,10 @@
     {
       "label": "bundle:search",
       "output": "priv/static/js/bundle-public-search.js",
-      "output_bytes": 20219,
+      "output_bytes": 20817,
       "public_path": "/js/bundle-public-search.js",
-      "sha256": "ded3fd80b6936b109518a5c79bcb9d46d1507dad72b2ae31b44c135ea6347a71",
-      "source_bytes": 28826,
+      "sha256": "dac035393bf5b32ab6bc969645a92812d5324d2d9c05a03a50107bf2d8efdb03",
+      "source_bytes": 30187,
       "sources": [
         "assets/js/search.js",
         "priv/static/js/inline-expanding.js",
@@ -265,10 +265,10 @@
     {
       "label": "maintained:js/search.js",
       "output": "priv/static/js/search.js",
-      "output_bytes": 4738,
+      "output_bytes": 5336,
       "public_path": "/js/search.js",
-      "sha256": "cb4114dbb8171329f53f82a786ff889a4be25561f75faf4b308712e49df88891",
-      "source_bytes": 9461,
+      "sha256": "826bd57dc9f63d514d3a826952ddab144ed6c1b546cd292ac5781c464a02f6cf",
+      "source_bytes": 10822,
       "sources": [
         "assets/js/search.js"
       ]
