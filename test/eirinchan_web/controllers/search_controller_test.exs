@@ -502,6 +502,24 @@ defmodule EirinchanWeb.SearchControllerTest do
     assert no_match =~ "(No results.)"
   end
 
+  test "advanced search rejects non-canonical image hashes before querying", %{conn: conn} do
+    board = board_fixture(%{uri: "hash#{System.unique_integer([:positive, :monotonic])}"})
+
+    page =
+      conn
+      |> get("/search.php", %{
+        "board" => board.uri,
+        "image_hash" => "not-a-base64-md5-value"
+      })
+      |> html_response(200)
+
+    assert page =~ "Enter a search term or filter."
+
+    {:ok, document} = Floki.parse_document(page)
+    assert Floki.attribute(document, "#search-image-hash", "maxlength") == ["24"]
+    assert Floki.attribute(document, "#search-image-file", "name") == []
+  end
+
   test "advanced search paginates bounded results and groups matching posts by thread", %{
     conn: conn
   } do
