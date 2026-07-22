@@ -76,7 +76,6 @@ defmodule Eirinchan.EmojiShortcodes do
     "revolving_hearts" => "💞",
     "robot" => "🤖",
     "rock_on" => "🤘",
-    "rofl" => "🤣",
     "rose" => "🌹",
     "running" => "🏃",
     "sagittarius" => "♐",

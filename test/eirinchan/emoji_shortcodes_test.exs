@@ -4,7 +4,7 @@ defmodule Eirinchan.EmojiShortcodesTest do
   alias Eirinchan.EmojiShortcodes
 
   test "ships the complete built-in shortcode set" do
-    assert map_size(EmojiShortcodes.entries()) == 112
+    assert map_size(EmojiShortcodes.entries()) == 111
 
     assert EmojiShortcodes.entries()
            |> Map.take([
@@ -38,6 +38,10 @@ defmodule Eirinchan.EmojiShortcodesTest do
 
   test "uses cross rather than angry for the angry-face emoji" do
     assert EmojiShortcodes.replace(":cross: :angry:") == "😠 :angry:"
+  end
+
+  test "does not include the rolling-on-the-floor-laughing emoji" do
+    assert EmojiShortcodes.replace(":rofl:") == ":rofl:"
   end
 
   test "replaces every configured shortcode" do
