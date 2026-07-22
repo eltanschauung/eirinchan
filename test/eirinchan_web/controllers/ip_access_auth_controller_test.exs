@@ -2,6 +2,7 @@ defmodule EirinchanWeb.IpAccessAuthControllerTest do
   use EirinchanWeb.ConnCase, async: false
   import ExUnit.CaptureLog
 
+  alias Eirinchan.EventLog
   alias Eirinchan.IpAccessEntry
   alias Eirinchan.Settings
 
@@ -93,7 +94,44 @@ defmodule EirinchanWeb.IpAccessAuthControllerTest do
     assert html_response(conn, 422) =~ "Invalid password."
     assert log =~ ~s|"event":"auth.ip_access.rejected"|
     assert log =~ ~s|"outcome":"invalid_password"|
+    assert log =~ ~s|"status":"failed"|
+    assert log =~ ~s|"credential_valid":false|
+    assert log =~ EventLog.subject_id("wrong", :ip_access_attempt)
+    assert log =~ conn.assigns.browser_token
     refute log =~ "wrong"
+  end
+
+  test "successful attempts log correlatable audit metadata without plaintext credentials", %{
+    conn: conn
+  } do
+    logger_level = Logger.level()
+    Logger.configure(level: :info)
+    on_exit(fn -> Logger.configure(level: logger_level) end)
+    configured_password("door")
+
+    {conn, log} = with_log([level: :info], fn -> post(conn, "/auth", %{"password" => "DOOR"}) end)
+
+    assert html_response(conn, 200) =~ "Access granted."
+    assert log =~ ~s|"event":"auth.ip_access.granted"|
+    assert log =~ ~s|"outcome":"granted"|
+    assert log =~ ~s|"status":"passed"|
+    assert log =~ ~s|"credential_slot":1|
+    assert log =~ ~s|"credential_valid":true|
+    assert log =~ EventLog.subject_id("door", :ip_access_attempt)
+    assert log =~ EventLog.subject_id("127.0.0.0/24", :ip_access_audit_subnet)
+    assert log =~ conn.assigns.browser_token
+    refute log =~ "DOOR"
+    refute log =~ ~r/"credential_id":"door"/i
+  end
+
+  test "missing password parameters are audited as failed submissions", %{conn: conn} do
+    {conn, log} = with_log(fn -> post(conn, "/auth", %{}) end)
+
+    assert html_response(conn, 422) =~ "Password is required."
+    assert log =~ ~s|"outcome":"password_required"|
+    assert log =~ ~s|"status":"failed"|
+    assert log =~ ~s|"credential_id":null|
+    assert log =~ ~s|"credential_supplied":false|
   end
 
   test "invalid authentication attempts are throttled per subnet", %{conn: conn} do
@@ -108,9 +146,15 @@ defmodule EirinchanWeb.IpAccessAuthControllerTest do
     first = post(conn, "/auth", %{"password" => "wrong"})
     assert html_response(first, 422) =~ "Invalid password."
 
-    limited = conn |> recycle() |> post("/auth", %{"password" => "still-wrong"})
+    {limited, log} =
+      with_log(fn -> conn |> recycle() |> post("/auth", %{"password" => "still-wrong"}) end)
+
     assert html_response(limited, 429) =~ "Too many attempts."
     assert get_resp_header(limited, "retry-after") == ["60"]
+    assert log =~ ~s|"outcome":"rate_limited"|
+    assert log =~ ~s|"status":"failed"|
+    assert log =~ EventLog.subject_id("still-wrong", :ip_access_attempt)
+    refute log =~ "still-wrong"
   end
 
   test "successful authentication normalizes same-origin referrers to local paths", %{conn: conn} do
