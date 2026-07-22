@@ -58,10 +58,11 @@ defmodule Eirinchan.Posts.UploadPreparation do
 
   defp prepare_file_uploads(attrs, config) do
     op? = is_nil(trim_to_nil(Map.get(attrs, "thread")))
+    spoiler? = truthy?(Map.get(attrs, "spoiler"))
 
     with {:ok, attrs, uploads} <- maybe_add_remote_upload(attrs, config) do
       case Enum.reduce_while(uploads, {:ok, []}, fn upload, {:ok, entries} ->
-             case Uploads.prepare(upload, config, op?: op?) do
+             case Uploads.prepare(upload, config, op?: op?, spoiler?: spoiler?) do
                {:ok, metadata} ->
                  {:cont, {:ok, [%{upload: upload, metadata: metadata} | entries]}}
 

@@ -797,6 +797,40 @@ defmodule EirinchanWeb.PostControllerTest do
     assert hd(op["extra_files"])["spoiler"] == 1
   end
 
+  test "spoiler thumbnails preserve their served image format and collapse animation", %{
+    conn: conn
+  } do
+    board = board_fixture()
+
+    create_conn =
+      conn
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post(~p"/#{board.uri}/post", %{
+        "body" => "format-correct spoiler thumbnails",
+        "files" => [
+          upload_fixture("first.jpg", "spoiler-jpeg"),
+          animated_gif_upload_fixture("animated.gif")
+        ],
+        "spoiler" => "1",
+        "json_response" => "1",
+        "post" => "New Topic"
+      })
+
+    assert %{"id" => id} = json_response(create_conn, 200)
+    {:ok, [thread | _]} = Eirinchan.Posts.get_thread(board, id)
+    [extra] = thread.extra_files
+
+    assert detected_mime(thread.thumb_path) == "image/jpeg"
+    assert detected_mime(extra.thumb_path) == "image/gif"
+
+    assert {"1", 0} =
+             System.cmd(
+               "identify",
+               ["-format", "%n", Eirinchan.Uploads.filesystem_path(extra.thumb_path)],
+               stderr_to_stdout: true
+             )
+  end
+
   test "posting applies OP-specific extension allowlists", %{conn: conn} do
     board =
       board_fixture(%{
@@ -1953,6 +1987,17 @@ defmodule EirinchanWeb.PostControllerTest do
     assert redirected_to(conn) == "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html"
     [report] = Eirinchan.Reports.list_reports(board)
     assert report.post_id == thread.id
+  end
+
+  defp detected_mime(public_path) do
+    {mime, 0} =
+      System.cmd(
+        "file",
+        ["--mime-type", "-b", Eirinchan.Uploads.filesystem_path(public_path)],
+        stderr_to_stdout: true
+      )
+
+    String.trim(mime)
   end
 
   defp event_payload(log, event) do

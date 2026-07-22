@@ -14,7 +14,7 @@ defmodule Eirinchan.Uploads do
     ".avif" => "av1,libdav1d",
     ".webp" => "webp,libwebp",
     ".webm" => "vp8,vp9,av1,opus,vorbis",
-    ".mp4" => "h264,av1,aac,opus,mp3"
+    ".mp4" => "h264,av1,libdav1d,aac,opus,mp3"
   }
   @spec describe(Plug.Upload.t(), map()) :: {:ok, map()} | {:error, atom()}
   def describe(%Plug.Upload{} = upload, config) do
@@ -47,6 +47,7 @@ defmodule Eirinchan.Uploads do
   @spec prepare(Plug.Upload.t(), map(), keyword()) :: {:ok, map()} | {:error, atom()}
   def prepare(%Plug.Upload{} = upload, config, opts \\ []) do
     op? = Keyword.get(opts, :op?, false)
+    spoiler? = Keyword.get(opts, :spoiler?, false)
     normalized_name = normalized_input_filename(upload.filename)
 
     with :ok <- preflight_upload(upload, config, op?),
@@ -57,6 +58,7 @@ defmodule Eirinchan.Uploads do
            :ok <- normalize_stored_upload(staged_path, config, staged_metadata),
            {:ok, prepared_metadata} <-
              refresh_stored_metadata(staged_path, staged_metadata, config),
+           prepared_metadata <- Map.put(prepared_metadata, :spoiler, spoiler?),
            {:ok, staged_thumb_path} <-
              create_staged_thumbnail_path(thumbnail_extension(prepared_metadata, config)) do
         case generate_thumbnail(staged_path, staged_thumb_path, config, prepared_metadata, op?) do
@@ -991,29 +993,53 @@ defmodule Eirinchan.Uploads do
     Enum.find(candidates, &File.exists?/1)
   end
 
-  defp generate_spoiler_thumbnail(destination, _config) do
-    temp_destination = destination <> ".blur.png"
+  defp generate_spoiler_thumbnail(destination, config) do
+    extension = destination |> Path.extname() |> String.downcase()
 
-    case Command.run(
-           "convert",
-           [destination, "-blur", "0x8", temp_destination],
-           stderr_to_stdout: true
-         ) do
-      {_output, 0} ->
-        case File.rename(temp_destination, destination) do
-          :ok ->
-            :ok
+    with {:ok, format} <- spoiler_thumbnail_format(extension) do
+      temp_destination = destination <> ".blur#{extension}"
 
-          {:error, _reason} ->
-            _ = File.rm(temp_destination)
-            {:error, :upload_failed}
-        end
+      args =
+        spoiler_thumbnail_input_args(destination, extension) ++
+          ["-blur", "0x8", "-strip"] ++
+          spoiler_thumbnail_quality_args(extension, config) ++
+          ["#{format}:#{temp_destination}"]
 
-      _ ->
-        _ = File.rm(temp_destination)
-        {:error, :upload_failed}
+      case Command.run("convert", args, stderr_to_stdout: true) do
+        {_output, 0} ->
+          case File.rename(temp_destination, destination) do
+            :ok ->
+              :ok
+
+            {:error, _reason} ->
+              _ = File.rm(temp_destination)
+              {:error, :upload_failed}
+          end
+
+        _ ->
+          _ = File.rm(temp_destination)
+          {:error, :upload_failed}
+      end
     end
   end
+
+  defp spoiler_thumbnail_format(extension) when extension in [".jpg", ".jpeg"], do: {:ok, "JPEG"}
+  defp spoiler_thumbnail_format(".png"), do: {:ok, "PNG"}
+  defp spoiler_thumbnail_format(".gif"), do: {:ok, "GIF"}
+  defp spoiler_thumbnail_format(_extension), do: {:error, :upload_failed}
+
+  defp spoiler_thumbnail_input_args(destination, ".gif"),
+    do: [destination, "-coalesce", "-delete", "1--1"]
+
+  defp spoiler_thumbnail_input_args(destination, _extension), do: [first_frame_path(destination)]
+
+  defp spoiler_thumbnail_quality_args(extension, config)
+       when extension in [".jpg", ".jpeg"] do
+    quality = positive_integer(Map.get(config, :thumbnail_jpeg_quality), 85) |> min(100)
+    ["-quality", Integer.to_string(quality)]
+  end
+
+  defp spoiler_thumbnail_quality_args(_extension, _config), do: []
 
   defp maybe_compress_jpeg_thumbnail(destination, config) do
     case String.downcase(Path.extname(destination)) do
