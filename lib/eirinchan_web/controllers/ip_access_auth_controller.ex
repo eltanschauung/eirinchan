@@ -2,6 +2,7 @@ defmodule EirinchanWeb.IpAccessAuthController do
   use EirinchanWeb, :controller
 
   alias Eirinchan.EventLog
+  alias Eirinchan.CredentialHash
   alias Eirinchan.IpAccessAuth
   alias Eirinchan.IpAccessAuthThrottle
   alias Eirinchan.Settings
@@ -29,7 +30,8 @@ defmodule EirinchanWeb.IpAccessAuthController do
     )
   end
 
-  def create(conn, %{"password" => password}) do
+  def create(conn, params) do
+    password = submitted_password(params)
     config = effective_config()
     ip = RequestMeta.effective_remote_ip(conn)
 
@@ -38,7 +40,7 @@ defmodule EirinchanWeb.IpAccessAuthController do
       handle_authorization(conn, result, config, ip, password)
     else
       {:error, retry_after} when is_integer(retry_after) ->
-        EventLog.log(conn, "auth.ip_access.rejected", %{outcome: "rate_limited"})
+        log_attempt(conn, "auth.ip_access.rejected", "rate_limited", password, config)
 
         conn
         |> put_resp_header("retry-after", Integer.to_string(retry_after))
@@ -50,7 +52,7 @@ defmodule EirinchanWeb.IpAccessAuthController do
     case result do
       {:ok, _result} ->
         IpAccessAuthThrottle.clear(ip)
-        EventLog.log(conn, "auth.ip_access.granted", %{}, :info)
+        log_attempt(conn, "auth.ip_access.granted", "granted", password, config, :info)
 
         conn
         |> put_root_layout(false)
@@ -69,17 +71,17 @@ defmodule EirinchanWeb.IpAccessAuthController do
         )
 
       {:error, :password_required} ->
-        EventLog.log(conn, "auth.ip_access.rejected", %{outcome: "password_required"})
+        log_attempt(conn, "auth.ip_access.rejected", "password_required", password, config)
         render_error(conn, config, "Password is required.", password)
 
       {:error, :invalid_password} ->
         case IpAccessAuthThrottle.record_failure(ip, config) do
           :ok ->
-            EventLog.log(conn, "auth.ip_access.rejected", %{outcome: "invalid_password"})
+            log_attempt(conn, "auth.ip_access.rejected", "invalid_password", password, config)
             render_error(conn, config, "Invalid password.", password)
 
           {:error, retry_after} ->
-            EventLog.log(conn, "auth.ip_access.rejected", %{outcome: "rate_limited"})
+            log_attempt(conn, "auth.ip_access.rejected", "rate_limited", password, config)
 
             conn
             |> put_resp_header("retry-after", Integer.to_string(retry_after))
@@ -92,14 +94,74 @@ defmodule EirinchanWeb.IpAccessAuthController do
         end
 
       {:error, :invalid_ip} ->
-        EventLog.log(conn, "auth.ip_access.failed", %{outcome: "invalid_ip"}, :error)
+        log_attempt(conn, "auth.ip_access.failed", "invalid_ip", password, config, :error)
         render_error(conn, config, "Unable to determine network range.", password)
 
       {:error, reason} ->
-        EventLog.log(conn, "auth.ip_access.failed", %{outcome: reason}, :error)
+        log_attempt(conn, "auth.ip_access.failed", reason, password, config, :error)
         render_error(conn, config, "Unable to update access list.", password)
     end
   end
+
+  defp log_attempt(conn, event, outcome, password, config, level \\ :warning) do
+    normalized = normalize_credential(password)
+    credential_slot = credential_slot(normalized, config)
+
+    EventLog.log(
+      conn,
+      event,
+      %{
+        browser_id: RequestMeta.browser_ref(conn),
+        browser_present: is_binary(RequestMeta.browser_ref(conn)),
+        credential_id: credential_id(normalized),
+        credential_slot: credential_slot,
+        credential_supplied: normalized != "",
+        credential_valid: is_integer(credential_slot),
+        network_id: network_id(conn),
+        outcome: outcome,
+        status: if(outcome == "granted", do: "passed", else: "failed")
+      },
+      level
+    )
+  end
+
+  defp credential_slot("", _config), do: nil
+
+  defp credential_slot(credential, config) do
+    config.passwords
+    |> Enum.with_index(1)
+    |> Enum.find_value(fn {stored, index} ->
+      if CredentialHash.verify(credential, stored, :ip_access), do: index
+    end)
+  end
+
+  defp credential_id(""), do: nil
+  defp credential_id(credential), do: EventLog.subject_id(credential, :ip_access_attempt)
+
+  defp network_id(conn) do
+    conn
+    |> RequestMeta.effective_remote_ip()
+    |> IpAccessAuth.subnet_for_ip()
+    |> case do
+      {:ok, subnet} -> EventLog.subject_id(subnet, :ip_access_audit_subnet)
+      _error -> nil
+    end
+  end
+
+  defp normalize_credential(value) when is_binary(value) do
+    value |> String.trim() |> String.downcase()
+  end
+
+  defp normalize_credential(_value), do: ""
+
+  defp submitted_password(params) when is_map(params) do
+    case Map.get(params, "password") do
+      value when is_binary(value) -> value
+      _other -> ""
+    end
+  end
+
+  defp submitted_password(_params), do: ""
 
   defp render_error(conn, config, message, password, status \\ :unprocessable_entity) do
     conn
