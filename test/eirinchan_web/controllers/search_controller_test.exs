@@ -455,6 +455,36 @@ defmodule EirinchanWeb.SearchControllerTest do
            ]
   end
 
+  test "short search route redirects through the primary board without losing filters", %{conn: conn} do
+    board =
+      board_fixture(%{
+        uri: "bant",
+        config_overrides: %{default_theme: "yotsuba", default_theme_dark: "tomorrow"}
+      })
+
+    redirect_conn =
+      conn
+      |> put_req_cookie("eirinchan_color_scheme", "dark")
+      |> get("/search", %{"country" => "germany"})
+
+    target = redirected_to(redirect_conn, 302)
+    assert target =~ "/search.php?"
+
+    params = target |> URI.parse() |> Map.fetch!(:query) |> URI.decode_query()
+    assert params == %{"board" => board.uri, "country" => "germany"}
+
+    page =
+      build_conn()
+      |> put_req_cookie("eirinchan_color_scheme", "dark")
+      |> get(target)
+      |> html_response(200)
+
+    {:ok, document} = Floki.parse_document(page)
+
+    assert Floki.attribute(document, "link#stylesheet", "href")
+           |> Enum.any?(&String.contains?(&1, "/stylesheets/tomorrow.css"))
+  end
+
   test "all-board search preserves the originating board's automatic dark style", %{conn: conn} do
     board =
       board_fixture(%{
