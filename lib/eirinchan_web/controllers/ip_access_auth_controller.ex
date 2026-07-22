@@ -106,6 +106,7 @@ defmodule EirinchanWeb.IpAccessAuthController do
   defp log_attempt(conn, event, outcome, password, config, level \\ :warning) do
     normalized = normalize_credential(password)
     credential_slot = credential_slot(normalized, config)
+    {ip_subnet, network_id} = network_metadata(conn)
 
     EventLog.log(
       conn,
@@ -117,7 +118,8 @@ defmodule EirinchanWeb.IpAccessAuthController do
         credential_slot: credential_slot,
         credential_supplied: normalized != "",
         credential_valid: is_integer(credential_slot),
-        network_id: network_id(conn),
+        ip_subnet: ip_subnet,
+        network_id: network_id,
         outcome: outcome,
         status: if(outcome == "granted", do: "passed", else: "failed")
       },
@@ -138,13 +140,13 @@ defmodule EirinchanWeb.IpAccessAuthController do
   defp credential_id(""), do: nil
   defp credential_id(credential), do: EventLog.subject_id(credential, :ip_access_attempt)
 
-  defp network_id(conn) do
+  defp network_metadata(conn) do
     conn
     |> RequestMeta.effective_remote_ip()
     |> IpAccessAuth.subnet_for_ip()
     |> case do
-      {:ok, subnet} -> EventLog.subject_id(subnet, :ip_access_audit_subnet)
-      _error -> nil
+      {:ok, subnet} -> {subnet, EventLog.subject_id(subnet, :ip_access_audit_subnet)}
+      _error -> {nil, nil}
     end
   end
 
