@@ -239,6 +239,7 @@ defmodule EirinchanWeb.SearchController do
       PublicControllerHelpers.public_shell_assigns(conn, :search,
         extra_stylesheets:
           PublicControllerHelpers.extra_stylesheets() ++ ["/stylesheets/search.css"],
+        head_meta_opts: [board_name: conn.assigns[:theme_board_uri]],
         show_nav_arrows_page: false
       )
 

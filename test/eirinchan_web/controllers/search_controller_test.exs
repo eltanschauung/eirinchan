@@ -402,6 +402,52 @@ defmodule EirinchanWeb.SearchControllerTest do
     assert page =~ "across 2 boards"
   end
 
+  test "advanced search uses the selected board's saved style", %{conn: conn} do
+    board =
+      board_fixture(%{uri: "style#{System.unique_integer([:positive, :monotonic])}"})
+
+    page =
+      conn
+      |> put_req_cookie(
+        "board_themes",
+        Jason.encode!(%{board.uri => "tomorrow", "bant" => "yotsuba"})
+      )
+      |> get("/search.php", %{"board" => board.uri})
+      |> html_response(200)
+
+    {:ok, document} = Floki.parse_document(page)
+
+    assert Floki.attribute(document, "link#stylesheet", "href")
+           |> Enum.any?(&String.contains?(&1, "/stylesheets/tomorrow.css"))
+
+    assert Floki.attribute(document, ~s(meta[name="eirinchan:board-name"]), "content") == [
+             board.uri
+           ]
+  end
+
+  test "advanced search applies the selected board's dark default before paint", %{conn: conn} do
+    board =
+      board_fixture(%{
+        uri: "darkstyle#{System.unique_integer([:positive, :monotonic])}",
+        config_overrides: %{default_theme: "yotsuba", default_theme_dark: "tomorrow"}
+      })
+
+    page =
+      conn
+      |> put_req_cookie("eirinchan_color_scheme", "dark")
+      |> get("/search.php", %{"board" => board.uri})
+      |> html_response(200)
+
+    {:ok, document} = Floki.parse_document(page)
+
+    assert Floki.attribute(document, "link#stylesheet", "href")
+           |> Enum.any?(&String.contains?(&1, "/stylesheets/tomorrow.css"))
+
+    assert Floki.attribute(document, "link#stylesheet", "data-auto-theme-dark-name") == [
+             "tomorrow"
+           ]
+  end
+
   test "advanced search applies stored identity, media, country, and date filters", %{conn: conn} do
     board = board_fixture(%{uri: "fields#{System.unique_integer([:positive, :monotonic])}"})
 

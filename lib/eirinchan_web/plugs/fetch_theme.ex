@@ -18,7 +18,10 @@ defmodule EirinchanWeb.Plugs.FetchTheme do
     forced_theme_identifier = forced_theme(board, instance_config)
     saved_theme_identifier = saved_theme_identifier(conn, board, stylesheets_board)
     light_theme_identifier = board_default_theme(board) || global_default_theme(instance_config)
-    dark_theme_identifier = board_default_dark_theme(board) || global_default_dark_theme(instance_config)
+
+    dark_theme_identifier =
+      board_default_dark_theme(board) || global_default_dark_theme(instance_config)
+
     light_theme = theme_entry(light_theme_identifier) || default_theme_entry()
     dark_theme = theme_entry(dark_theme_identifier)
 
@@ -38,6 +41,7 @@ defmodule EirinchanWeb.Plugs.FetchTheme do
     |> assign(:theme_name, theme.name)
     |> assign(:theme_label, theme.label)
     |> assign(:theme_stylesheet, theme.stylesheet)
+    |> assign(:theme_board_uri, board && board.uri)
     |> assign(:theme_preload_assets, ThemeRegistry.preload_assets(theme.name))
     |> assign(:theme_options, theme_options)
     |> assign(:auto_theme_light, if(auto_theme?, do: light_theme))
@@ -195,6 +199,9 @@ defmodule EirinchanWeb.Plugs.FetchTheme do
 
   defp board_for_request(conn) do
     case String.split(conn.request_path || "", "/", trim: true) do
+      ["search.php"] ->
+        search_board_for_request(conn)
+
       [segment | _rest] ->
         if reserved_path_segment?(segment) do
           nil
@@ -205,6 +212,31 @@ defmodule EirinchanWeb.Plugs.FetchTheme do
       _ ->
         nil
     end
+  end
+
+  defp search_board_for_request(conn) do
+    params = fetch_query_params(conn).query_params
+
+    requested_uris =
+      cond do
+        params["scope"] == "all" -> []
+        is_binary(params["board"]) -> [params["board"]]
+        is_list(params["boards"]) -> params["boards"]
+        is_binary(params["boards"]) -> [params["boards"]]
+        true -> []
+      end
+
+    case requested_uris |> Enum.map(&normalize_board_uri/1) |> Enum.uniq() do
+      [uri] when uri != "" -> Boards.get_board_by_uri(uri)
+      _ -> nil
+    end
+  end
+
+  defp normalize_board_uri(uri) do
+    uri
+    |> to_string()
+    |> String.trim()
+    |> String.trim("/")
   end
 
   defp reserved_path_segment?(segment) do
