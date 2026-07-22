@@ -596,4 +596,17 @@ defmodule Eirinchan.Runtime.ConfigTest do
 
     assert config.early_404_gap_max == 25
   end
+
+  test "normalizes archive pruning settings" do
+    assert Config.default_config().archive_board == "none"
+    assert Config.default_config().archive_min_replies == 0
+
+    config = Config.compose(nil, %{"archiveBoard" => "archive", "archiveMinReplies" => "20"})
+
+    assert config.archive_board == "archive"
+    assert config.archive_min_replies == 20
+    assert Config.compose(nil, %{archive_min_replies: -1}).archive_min_replies == 0
+    assert Config.compose(nil, %{archive_min_replies: "invalid"}).archive_min_replies == 0
+    assert Config.compose(nil, %{archive_min_replies: 2_000_000}).archive_min_replies == 1_000_000
+  end
 end
