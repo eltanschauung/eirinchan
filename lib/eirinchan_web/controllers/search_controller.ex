@@ -259,7 +259,7 @@ defmodule EirinchanWeb.SearchController do
   defp pagination_params(params, selected_uris) do
     params
     |> Map.take(
-      ~w(text search q thread tnum post_id subject username name tripcode email uid country filename image_hash imagehash width height start end image type results order highlight scope)
+      ~w(text search q thread tnum post_id subject username name tripcode email uid country filename image_hash imagehash width height start end image type results order highlight scope theme_board)
     )
     |> Map.put("boards", selected_uris)
     |> Map.put("scope", "selected")

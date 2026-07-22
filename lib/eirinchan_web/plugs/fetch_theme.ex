@@ -209,7 +209,7 @@ defmodule EirinchanWeb.Plugs.FetchTheme do
 
     requested_uris =
       cond do
-        params["scope"] == "all" -> []
+        is_binary(params["theme_board"]) -> [params["theme_board"]]
         is_binary(params["board"]) -> [params["board"]]
         is_list(params["boards"]) -> params["boards"]
         is_binary(params["boards"]) -> [params["boards"]]
