@@ -510,7 +510,7 @@ defmodule EirinchanWeb.SearchControllerTest do
         tripcode: "!trip",
         email: "poster@example.test",
         poster_id: "ABC123",
-        flag_codes: ["ca", "mokou", "thedoors", "thesmiths", "thrembo"],
+        flag_codes: ["ca", "de", "mokou", "thedoors", "thesmiths", "thrembo"],
         file_name: "sample.png",
         file_path: "/media/sample.png",
         file_md5: "kAFQmDzST7DWlj99KOF/cg==",
@@ -543,7 +543,8 @@ defmodule EirinchanWeb.SearchControllerTest do
     for flags <- [
           "canada,mokou,thedoors,thesmiths,thrembo",
           "ca",
-          "canada"
+          "canada",
+          "germany"
         ] do
       alias_page =
         build_conn()
