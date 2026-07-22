@@ -86,6 +86,7 @@ defmodule EirinchanWeb.JsBundles do
     ],
     ukko: ["js/overboard.js"],
     search: [
+      "js/search.js",
       "js/inline-expanding.js",
       "js/expand.js",
       "js/image-hover.js",
@@ -108,6 +109,7 @@ defmodule EirinchanWeb.JsBundles do
     "js/options/user-css.js" => "assets/js/options/user-css.js",
     "js/options/user-js.js" => "assets/js/options/user-js.js",
     "js/runtime-config.js" => "assets/js/runtime-config.js",
+    "js/search.js" => "assets/js/search.js",
     "js/youtube.js" => "assets/js/youtube.js"
   }
 
