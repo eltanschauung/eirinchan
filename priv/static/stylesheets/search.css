@@ -12,13 +12,27 @@
 
 .search-console {
   box-sizing: border-box;
-  width: min(100%, 700px);
-  margin: 24px auto 32px;
-  padding: 10px 12px;
-  color: #111;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid #aaa;
-  font: 12px Arial, Helvetica, sans-serif;
+  width: min(calc(100% - 2em), 700px);
+  margin: 1em auto 2em;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+}
+
+.search-console-panel {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 0.85em 1em 1em;
+  color: inherit;
+  background: transparent;
+  border: 1px solid;
+}
+
+.search-console-panel > legend {
+  padding: 0 0.35em;
+  color: inherit;
+  font-weight: bold;
 }
 
 .search-console input,
@@ -32,10 +46,7 @@
   display: block;
   width: 100%;
   min-height: 28px;
-  padding: 4px 12px;
-  border: 1px solid #bbb;
-  border-radius: 16px;
-  background: #fff;
+  padding: 4px 7px;
 }
 
 .search-console-actions {
@@ -44,17 +55,11 @@
   align-items: center;
   margin: 8px 0;
   padding-bottom: 8px;
-  border-bottom: 1px solid #bbb;
+  border-bottom: 1px solid;
 }
 
 .search-console-actions .search-clear {
   margin-left: auto;
-  padding: 2px 6px;
-  border: 1px solid #777;
-  border-radius: 3px;
-  color: #fff !important;
-  background: #555;
-  text-decoration: none;
 }
 
 .search-console-grid {
@@ -66,7 +71,7 @@
 .search-console-fields {
   min-width: 0;
   padding-right: 12px;
-  border-right: 1px solid #bbb;
+  border-right: 1px solid;
 }
 
 .search-field {
@@ -79,14 +84,11 @@
 .search-field > span:first-child {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   min-height: 20px;
-  padding: 1px 4px;
-  border: 1px solid #ccc;
-  border-right: 0;
-  background: #eee;
+  padding: 1px 6px 1px 0;
   font-weight: 600;
-  font-size: 10px;
+  font-size: 0.9em;
 }
 
 .search-field > input,
@@ -95,8 +97,6 @@
   width: 100%;
   height: 20px;
   padding: 1px 6px;
-  border: 1px solid #ccc;
-  background: #fff;
 }
 
 .search-image-hash-controls {
@@ -107,16 +107,11 @@
 .search-image-hash-controls button {
   height: 20px;
   padding: 1px 6px;
-  border: 1px solid #ccc;
-  border-left: 0;
-  color: #999;
-  background: #fff;
   white-space: nowrap;
 }
 
 .search-image-hash-controls button.dragover {
-  color: #111;
-  background: #eee;
+  font-weight: bold;
 }
 
 .search-highlight {
@@ -158,7 +153,7 @@
 
 .search-radio-group {
   padding: 8px 0;
-  border-bottom: 1px solid #ccc;
+  border-bottom: 1px solid;
 }
 
 .search-radio-group:first-child {
@@ -208,13 +203,15 @@
 .search-results mark {
   padding: 0;
   color: inherit;
-  background: #ffeb72;
 }
 
 @media (max-width: 520px) {
   .search-console {
     margin-top: 14px;
-    padding: 8px;
+  }
+
+  .search-console-panel {
+    padding: 0.7em;
   }
 
   .search-console-grid {
@@ -240,7 +237,6 @@
 
   .search-image-hash-controls button {
     border-top: 0;
-    border-left: 1px solid #ccc;
   }
 }
 

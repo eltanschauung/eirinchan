@@ -10,7 +10,7 @@ defmodule EirinchanWeb.SearchController do
   alias Eirinchan.Settings
   alias Eirinchan.Statistics
   alias EirinchanWeb.BrowserEntries
-  alias EirinchanWeb.PublicShell
+  alias EirinchanWeb.PublicControllerHelpers
   alias EirinchanWeb.RequestMeta
 
   plug :assign_search_shell
@@ -235,34 +235,25 @@ defmodule EirinchanWeb.SearchController do
   end
 
   defp assign_search_shell(conn, _opts) do
-    stylesheet = conn.assigns[:theme_stylesheet] || "/stylesheets/yotsuba.css"
-
-    conn
-    |> assign(:page_title, "Search")
-    |> assign(:public_shell, true)
-    |> assign(:base_stylesheet, "/stylesheets/style.css")
-    |> assign(:primary_stylesheet, stylesheet)
-    |> assign(:primary_stylesheet_id, "stylesheet")
-    |> assign(:body_class, "8chan vichan is-not-moderator active-page active-search")
-    |> assign(:body_data_stylesheet, Path.basename(stylesheet))
-    |> assign(:watcher_count, 0)
-    |> assign(:watcher_unread_count, 0)
-    |> assign(:watcher_you_count, 0)
-    |> assign(
-      :head_meta,
-      PublicShell.head_meta("page",
-        resource_version: conn.assigns[:asset_version],
-        theme_label: conn.assigns[:theme_label],
-        theme_options: conn.assigns[:theme_options],
-        browser_timezone: conn.assigns[:browser_timezone],
-        browser_timezone_offset_minutes: conn.assigns[:browser_timezone_offset_minutes]
+    shell_assigns =
+      PublicControllerHelpers.public_shell_assigns(conn, :search,
+        extra_stylesheets:
+          PublicControllerHelpers.extra_stylesheets() ++ ["/stylesheets/search.css"],
+        show_nav_arrows_page: false
       )
-    )
-    |> assign(:javascript_urls, PublicShell.javascript_urls(:search))
-    |> assign(:extra_stylesheets, ["/stylesheets/search.css"])
-    |> assign(:skip_app_stylesheet, true)
-    |> assign(:skip_flash_group, true)
-    |> assign(:hide_theme_switcher, true)
+
+    page_assigns = [
+      page_title: "Search",
+      body_class:
+        PublicControllerHelpers.moderator_body_class(conn, "active-search",
+          extra_classes: ["active-page"]
+        ),
+      skip_flash_group: true
+    ]
+
+    Enum.reduce(shell_assigns ++ page_assigns, conn, fn {key, value}, conn ->
+      assign(conn, key, value)
+    end)
   end
 
   defp search_config(nil, instance_overrides), do: Config.compose(nil, instance_overrides, %{})
