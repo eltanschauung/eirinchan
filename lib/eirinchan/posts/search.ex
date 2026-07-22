@@ -4,12 +4,12 @@ defmodule Eirinchan.Posts.Search do
   import Ecto.Query
 
   alias Eirinchan.Boards.BoardRecord
+  alias Eirinchan.CountryCodes
   alias Eirinchan.Posts.{Post, PostFile}
   alias Eirinchan.Repo
 
   @legacy_filters ~w(id thread subject name)
   @text_fields ~w(text subject username tripcode email uid country filename image_hash)
-  @flag_aliases %{"canada" => "ca", "germany" => "de"}
 
   @spec normalize_criteria(map()) :: map()
   def normalize_criteria(params) when is_map(params) do
@@ -407,7 +407,7 @@ defmodule Eirinchan.Posts.Search do
     value
     |> String.split(",", trim: true)
     |> Enum.map(&(&1 |> String.trim() |> String.downcase()))
-    |> Enum.map(&Map.get(@flag_aliases, &1, &1))
+    |> Enum.map(&(CountryCodes.code_for(&1) || &1))
     |> Enum.reject(&(&1 == ""))
     |> Enum.uniq()
   end
