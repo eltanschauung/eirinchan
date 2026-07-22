@@ -7,7 +7,8 @@ defmodule Eirinchan.Posts do
 
   alias Eirinchan.Antispam
   alias Eirinchan.Build
-  alias Eirinchan.Boards.BoardRecord
+  alias Eirinchan.Boards
+  alias Eirinchan.Boards.{Board, BoardRecord}
   alias Eirinchan.EmojiShortcodes
   alias Eirinchan.Posts.Cite
   alias Eirinchan.Posts.Email, as: PostsEmail
@@ -27,6 +28,7 @@ defmodule Eirinchan.Posts do
   alias Eirinchan.Pagination
   alias Eirinchan.Repo
   alias Eirinchan.Runtime.Config
+  alias Eirinchan.Settings
   alias Eirinchan.ThreadPaths
   alias Eirinchan.Uploads
   alias Eirinchan.LogSystem
@@ -616,12 +618,17 @@ defmodule Eirinchan.Posts do
     end
   end
 
-  defp maybe_prune_threads(board, new_post, config, repo) do
+  defp maybe_prune_threads(_board, %Post{thread_id: thread_id}, _config, _repo)
+       when not is_nil(thread_id),
+       do: :ok
+
+  defp maybe_prune_threads(board, %Post{} = new_post, config, repo) do
+    archive_policy = archive_pruning_policy(board, config, repo)
+
     PostsPruning.prune_after_post(board, new_post, config, repo, fn thread_id, reason ->
       case get_post_by_internal_id(board, thread_id, repo: repo) do
         {:ok, thread} ->
-          _ = maybe_log_early_404(board, thread, new_post, reason)
-          moderate_delete_post(board, PublicIds.public_id(thread), repo: repo, config: config)
+          prune_thread(board, thread, new_post, reason, archive_policy, config, repo)
 
         _ ->
           :ok
@@ -629,23 +636,101 @@ defmodule Eirinchan.Posts do
     end)
   end
 
-  defp maybe_log_early_404(_board, _thread, _new_post, {:early_404, reply_count})
+  defp prune_thread(board, thread, new_post, reason, archive_policy, config, repo) do
+    reply_count = prune_reply_count(reason)
+
+    if archive_eligible?(archive_policy, reply_count) do
+      {:archive, target_board, _min_replies, target_config} = archive_policy
+
+      case move_thread(
+             board,
+             PublicIds.public_id(thread),
+             target_board,
+             repo: repo,
+             source_config: config,
+             target_config: target_config
+           ) do
+        {:ok, _moved_thread} ->
+          maybe_log_automatic_prune(board, thread, new_post, reason, :move)
+
+        {:error, move_error} ->
+          log_archive_move_failure(board, target_board, thread, move_error)
+      end
+    else
+      case moderate_delete_post(board, PublicIds.public_id(thread), repo: repo, config: config) do
+        {:ok, _result} -> maybe_log_automatic_prune(board, thread, new_post, reason, :delete)
+        _error -> :ok
+      end
+    end
+  end
+
+  defp archive_pruning_policy(board, config, repo) do
+    min_replies = Map.get(config, :archive_min_replies, 0)
+
+    with target_uri when is_binary(target_uri) <-
+           archive_board_uri(Map.get(config, :archive_board)),
+         %BoardRecord{} = target_board <- Boards.get_board_by_uri(target_uri, repo: repo),
+         false <- target_board.id == board.id do
+      {:archive, target_board, min_replies, archive_board_config(target_board)}
+    else
+      _ -> :delete
+    end
+  end
+
+  defp archive_board_uri(value) when is_binary(value) do
+    value = value |> String.trim() |> String.trim("/")
+
+    if value == "" or String.downcase(value) == "none", do: nil, else: value
+  end
+
+  defp archive_board_uri(_value), do: nil
+
+  defp archive_board_config(board) do
+    instance_config = Settings.current_instance_config()
+    base_config = Config.compose(nil, instance_config, %{})
+
+    runtime_board =
+      board
+      |> BoardRecord.to_board()
+      |> Board.with_runtime_paths(base_config)
+
+    Config.compose(nil, instance_config, board.config_overrides || %{}, board: runtime_board)
+  end
+
+  defp archive_eligible?({:archive, _target_board, min_replies, _target_config}, reply_count)
+       when is_integer(reply_count) and is_integer(min_replies),
+       do: min_replies == 0 or reply_count > min_replies
+
+  defp archive_eligible?(_policy, _reply_count), do: false
+
+  defp prune_reply_count({:overflow, reply_count}), do: reply_count
+  defp prune_reply_count({:early_404, reply_count}), do: reply_count
+  defp prune_reply_count({:early_404_gap, _score, reply_count}), do: reply_count
+  defp prune_reply_count(_reason), do: 0
+
+  defp maybe_log_automatic_prune(_board, _thread, _new_post, {:early_404, reply_count}, _action)
        when not is_integer(reply_count),
        do: :ok
 
-  defp maybe_log_early_404(board, thread, new_post, {:early_404, reply_count}) do
+  defp maybe_log_automatic_prune(board, thread, new_post, {:early_404, reply_count}, action) do
     if not is_nil(new_post.thread_id) do
       :ok
     else
       ModerationLog.log_action(%{
         board_uri: board.uri,
         text:
-          "Automatically deleting thread ##{PublicIds.public_id(thread)} due to new thread ##{PublicIds.public_id(new_post)} (early 404 is set, ##{PublicIds.public_id(thread)} had #{reply_count} replies)"
+          "Automatically #{prune_action_verb(action)} thread ##{PublicIds.public_id(thread)} due to new thread ##{PublicIds.public_id(new_post)} (early 404 is set, ##{PublicIds.public_id(thread)} had #{reply_count} replies)"
       })
     end
   end
 
-  defp maybe_log_early_404(board, thread, new_post, {:early_404_gap, score})
+  defp maybe_log_automatic_prune(
+         board,
+         thread,
+         new_post,
+         {:early_404_gap, score, _reply_count},
+         action
+       )
        when is_integer(score) do
     if not is_nil(new_post.thread_id) do
       :ok
@@ -653,12 +738,33 @@ defmodule Eirinchan.Posts do
       ModerationLog.log_action(%{
         board_uri: board.uri,
         text:
-          "Automatically deleting thread ##{PublicIds.public_id(thread)} due to new thread ##{PublicIds.public_id(new_post)} (gap pruning is set, ##{PublicIds.public_id(thread)} scored #{score})"
+          "Automatically #{prune_action_verb(action)} thread ##{PublicIds.public_id(thread)} due to new thread ##{PublicIds.public_id(new_post)} (gap pruning is set, ##{PublicIds.public_id(thread)} scored #{score})"
       })
     end
   end
 
-  defp maybe_log_early_404(_board, _thread, _new_post, _reason), do: :ok
+  defp maybe_log_automatic_prune(_board, _thread, _new_post, _reason, _action), do: :ok
+
+  defp prune_action_verb(:move), do: "moving"
+  defp prune_action_verb(:delete), do: "deleting"
+
+  defp log_archive_move_failure(board, target_board, thread, reason) do
+    LogSystem.log(
+      :error,
+      "posts.pruning.archive_move_failed",
+      "posts.pruning.archive_move_failed",
+      %{
+        board: board.uri,
+        target_board: target_board.uri,
+        thread_id: PublicIds.public_id(thread),
+        reason: archive_move_failure_reason(reason)
+      }
+    )
+  end
+
+  defp archive_move_failure_reason(%Ecto.Changeset{}), do: "changeset"
+  defp archive_move_failure_reason(reason) when is_atom(reason), do: Atom.to_string(reason)
+  defp archive_move_failure_reason(_reason), do: "unknown"
 
   @spec update_post(BoardRecord.t(), String.t() | integer(), map(), keyword()) ::
           {:ok, Post.t()} | {:error, :not_found | Ecto.Changeset.t() | :cite_insert_failed}

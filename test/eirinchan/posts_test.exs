@@ -1126,6 +1126,7 @@ defmodule Eirinchan.PostsTest do
     board =
       board_fixture(%{
         config_overrides: %{
+          archive_board: "missing_archive",
           early_404: false,
           threads_per_page: 1,
           max_pages: 1,
@@ -1162,6 +1163,188 @@ defmodule Eirinchan.PostsTest do
              Posts.get_post(board, PublicIds.public_id(old_thread), repo: Repo)
 
     assert {:ok, _thread} = Posts.get_post(board, new_thread.id, repo: Repo)
+  end
+
+  test "create_post moves overflow threads to a configured archive board" do
+    archive_board = board_fixture()
+
+    board =
+      board_fixture(%{
+        config_overrides: %{
+          archive_board: archive_board.uri,
+          archive_min_replies: 0,
+          early_404: false,
+          threads_per_page: 1,
+          max_pages: 1,
+          flood_time: 0,
+          flood_time_ip: 0,
+          flood_time_same: 0
+        }
+      })
+
+    config = post_config(board.config_overrides)
+    request = Map.put(post_request(board.uri), :remote_ip, {203, 0, 113, 45})
+
+    {:ok, old_thread, _meta} =
+      Posts.create_post(
+        board,
+        %{"body" => "old", "post" => "New Topic"},
+        config: config,
+        request: request,
+        repo: Repo
+      )
+
+    Process.sleep(1000)
+
+    {:ok, _new_thread, _meta} =
+      Posts.create_post(
+        board,
+        %{"body" => "new", "post" => "New Topic"},
+        config: config,
+        request: request,
+        repo: Repo
+      )
+
+    assert {:error, :not_found} =
+             Posts.get_post_by_internal_id(board, old_thread.id, repo: Repo)
+
+    assert {:ok, moved_thread} =
+             Posts.get_post_by_internal_id(archive_board, old_thread.id, repo: Repo)
+
+    assert moved_thread.board_id == archive_board.id
+  end
+
+  test "archive pruning requires strictly more than the configured reply threshold" do
+    archive_board = board_fixture()
+
+    create_source = fn min_replies ->
+      board_fixture(%{
+        config_overrides: %{
+          archive_board: archive_board.uri,
+          archive_min_replies: min_replies,
+          early_404: false,
+          threads_per_page: 1,
+          max_pages: 1,
+          flood_time: 0,
+          flood_time_ip: 0,
+          flood_time_same: 0
+        }
+      })
+    end
+
+    create_overflow = fn board, reply_count, last_ip_octet ->
+      config = post_config(board.config_overrides)
+      request = Map.put(post_request(board.uri), :remote_ip, {203, 0, 113, last_ip_octet})
+
+      {:ok, old_thread, _meta} =
+        Posts.create_post(
+          board,
+          %{"body" => "old", "post" => "New Topic"},
+          config: config,
+          request: request,
+          repo: Repo
+        )
+
+      for index <- 1..reply_count do
+        assert {:ok, _reply, _meta} =
+                 Posts.create_post(
+                   board,
+                   %{
+                     "body" => "reply #{index}",
+                     "thread" => Integer.to_string(PublicIds.public_id(old_thread)),
+                     "post" => "Reply"
+                   },
+                   config: config,
+                   request: request,
+                   repo: Repo
+                 )
+      end
+
+      Process.sleep(1000)
+
+      assert {:ok, _new_thread, _meta} =
+               Posts.create_post(
+                 board,
+                 %{"body" => "new", "post" => "New Topic"},
+                 config: config,
+                 request: request,
+                 repo: Repo
+               )
+
+      old_thread
+    end
+
+    exact_threshold_board = create_source.(1)
+    exact_threshold_thread = create_overflow.(exact_threshold_board, 1, 46)
+
+    assert {:error, :not_found} =
+             Posts.get_post_by_internal_id(
+               exact_threshold_board,
+               exact_threshold_thread.id,
+               repo: Repo
+             )
+
+    assert {:error, :not_found} =
+             Posts.get_post_by_internal_id(archive_board, exact_threshold_thread.id, repo: Repo)
+
+    above_threshold_board = create_source.(1)
+    above_threshold_thread = create_overflow.(above_threshold_board, 2, 47)
+
+    assert {:error, :not_found} =
+             Posts.get_post_by_internal_id(
+               above_threshold_board,
+               above_threshold_thread.id,
+               repo: Repo
+             )
+
+    assert {:ok, _moved_thread} =
+             Posts.get_post_by_internal_id(archive_board, above_threshold_thread.id, repo: Repo)
+  end
+
+  test "create_post moves early-404 threads and logs the automatic move" do
+    archive_board = board_fixture()
+
+    board =
+      board_fixture(%{
+        config_overrides: %{
+          archive_board: archive_board.uri,
+          archive_min_replies: 0,
+          early_404: true,
+          early_404_page: 1,
+          early_404_replies: 2,
+          threads_per_page: 1,
+          max_pages: 5
+        }
+      })
+
+    config = post_config(board.config_overrides)
+
+    {:ok, old_thread, _meta} =
+      Posts.create_post(
+        board,
+        %{"body" => "old", "post" => "New Topic"},
+        config: config,
+        request: post_request(board.uri)
+      )
+
+    {:ok, new_thread, _meta} =
+      Posts.create_post(
+        board,
+        %{"body" => "new", "post" => "New Topic"},
+        config: config,
+        request: post_request(board.uri)
+      )
+
+    assert {:ok, _moved_thread} =
+             Posts.get_post_by_internal_id(archive_board, old_thread.id, repo: Repo)
+
+    log_text =
+      "Automatically moving thread ##{PublicIds.public_id(old_thread)} due to new thread ##{PublicIds.public_id(new_thread)} (early 404 is set, ##{PublicIds.public_id(old_thread)} had 0 replies)"
+
+    assert ModerationLog.list_recent_entries_by_text(log_text,
+             board_uri: board.uri,
+             limit: 1
+           ) != []
   end
 
   test "create_post staged early-404 raises thresholds by page" do
@@ -1415,6 +1598,79 @@ defmodule Eirinchan.PostsTest do
 
     assert ModerationLog.list_recent_entries_by_text(
              "Automatically deleting thread ##{PublicIds.public_id(old_thread)} due to new thread ##{PublicIds.public_id(new_thread)}",
+             board_uri: board.uri,
+             limit: 1
+           ) != []
+  end
+
+  test "create_post moves gap-pruned threads and logs the automatic move" do
+    archive_board = board_fixture()
+
+    board =
+      board_fixture(%{
+        config_overrides: %{
+          archive_board: archive_board.uri,
+          archive_min_replies: 0,
+          early_404_gap: true,
+          early_404_gap_warning: 3,
+          early_404_gap_deletion: 1,
+          threads_per_page: 10,
+          max_pages: 10,
+          flood_time: 0,
+          flood_time_ip: 0,
+          flood_time_same: 0
+        }
+      })
+
+    config = post_config(board.config_overrides)
+    request = Map.put(post_request(board.uri), :remote_ip, {203, 0, 113, 48})
+
+    {:ok, old_thread, _meta} =
+      Posts.create_post(
+        board,
+        %{"body" => "old", "post" => "New Topic"},
+        config: config,
+        request: request,
+        repo: Repo
+      )
+
+    {:ok, _reply, _meta} =
+      Posts.create_post(
+        board,
+        %{
+          "body" => "bump",
+          "thread" => Integer.to_string(PublicIds.public_id(old_thread)),
+          "post" => "Reply"
+        },
+        config: config,
+        request: request,
+        repo: Repo
+      )
+
+    old_timestamp =
+      DateTime.add(DateTime.utc_now(), -(200 * 60 * 60), :second) |> DateTime.truncate(:second)
+
+    Repo.update_all(
+      from(post in Post, where: post.id == ^old_thread.id),
+      set: [inserted_at: old_timestamp, bump_at: old_timestamp]
+    )
+
+    {:ok, new_thread, _meta} =
+      Posts.create_post(
+        board,
+        %{"body" => "new", "post" => "New Topic"},
+        config: config,
+        request: request,
+        repo: Repo
+      )
+
+    assert {:ok, _moved_thread} =
+             Posts.get_post_by_internal_id(archive_board, old_thread.id, repo: Repo)
+
+    log_text =
+      "Automatically moving thread ##{PublicIds.public_id(old_thread)} due to new thread ##{PublicIds.public_id(new_thread)} (gap pruning is set, ##{PublicIds.public_id(old_thread)} scored 1)"
+
+    assert ModerationLog.list_recent_entries_by_text(log_text,
              board_uri: board.uri,
              limit: 1
            ) != []
