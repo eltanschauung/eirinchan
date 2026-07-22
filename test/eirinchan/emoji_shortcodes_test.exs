@@ -4,7 +4,7 @@ defmodule Eirinchan.EmojiShortcodesTest do
   alias Eirinchan.EmojiShortcodes
 
   test "ships the complete built-in shortcode set" do
-    assert map_size(EmojiShortcodes.entries()) == 110
+    assert map_size(EmojiShortcodes.entries()) == 111
 
     assert EmojiShortcodes.entries()
            |> Map.take([
@@ -46,6 +46,10 @@ defmodule Eirinchan.EmojiShortcodesTest do
 
   test "does not include the thinking emoji" do
     assert EmojiShortcodes.replace(":thinking: :think:") == ":thinking: :think:"
+  end
+
+  test "replaces the right-facing magnifying glass shortcode" do
+    assert EmojiShortcodes.replace(":mag_right:") == "🔎"
   end
 
   test "replaces every configured shortcode" do
