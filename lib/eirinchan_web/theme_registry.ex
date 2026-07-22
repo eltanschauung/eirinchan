@@ -8,6 +8,7 @@ defmodule EirinchanWeb.ThemeRegistry do
                           "contrast.css",
                           "feedback.css",
                           "ipaccessauth.css",
+                          "search.css",
                           "bluearchive.css",
                           "leiheng.css",
                           "eirinchan-public.css",
@@ -36,12 +37,18 @@ defmodule EirinchanWeb.ThemeRegistry do
     "bluearchive" => %{
       label: "Blue Archive",
       stylesheet: "/stylesheets/bluearchive.css",
-      preload_assets: ["/stylesheets/assets/background_kivotos.jpg", "/stylesheets/assets/yuuka.png"]
+      preload_assets: [
+        "/stylesheets/assets/background_kivotos.jpg",
+        "/stylesheets/assets/yuuka.png"
+      ]
     },
     "leiheng" => %{
       label: "Lei Heng",
       stylesheet: "/stylesheets/leiheng.css",
-      preload_assets: ["/stylesheets/assets/background_tiekan.jpg", "/stylesheets/assets/lei_heng.png"]
+      preload_assets: [
+        "/stylesheets/assets/background_tiekan.jpg",
+        "/stylesheets/assets/lei_heng.png"
+      ]
     },
     "contrast" => %{label: "Contrast", stylesheet: "/stylesheets/contrast.css"},
     "feedback" => %{label: "Feedback", stylesheet: "/stylesheets/feedback.css"},
@@ -51,7 +58,10 @@ defmodule EirinchanWeb.ThemeRegistry do
     "christmas" => %{
       label: "Christmas",
       stylesheet: "/stylesheets/christmas.css",
-      preload_assets: ["/stylesheets/assets/background_christmas.jpg", "/stylesheets/assets/christmas_alice.png"]
+      preload_assets: [
+        "/stylesheets/assets/background_christmas.jpg",
+        "/stylesheets/assets/christmas_alice.png"
+      ]
     },
     "eientei1" => %{
       label: "Eientei1",

@@ -38,7 +38,7 @@
       "output_bytes": 329923,
       "public_path": "/js/bundle-public-thread.js",
       "sha256": "d0304b337a45d8681b852f752630dfd4d381e6987b0b6f16aa830996453d3c67",
-      "source_bytes": 352596,
+      "source_bytes": 352538,
       "sources": [
         "priv/static/js/inline-expanding.js",
         "priv/static/js/thread-stats.js",
@@ -71,7 +71,7 @@
       "output_bytes": 332391,
       "public_path": "/js/bundle-public-index.js",
       "sha256": "4708103d711fb2cbbc17ad651ba58bec5f0ab3f3ae88cb8977f6d6d7b645f2f8",
-      "source_bytes": 358097,
+      "source_bytes": 358039,
       "sources": [
         "priv/static/js/inline-expanding.js",
         "priv/static/js/strftime.min.js",
@@ -134,11 +134,12 @@
     {
       "label": "bundle:search",
       "output": "priv/static/js/bundle-public-search.js",
-      "output_bytes": 15482,
+      "output_bytes": 20219,
       "public_path": "/js/bundle-public-search.js",
-      "sha256": "261e5f845e73ac90e0e6102768bbb20fd0a109178a7ce36a0beb59fb14cb98fd",
-      "source_bytes": 19364,
+      "sha256": "ded3fd80b6936b109518a5c79bcb9d46d1507dad72b2ae31b44c135ea6347a71",
+      "source_bytes": 28826,
       "sources": [
+        "assets/js/search.js",
         "priv/static/js/inline-expanding.js",
         "priv/static/js/expand.js",
         "priv/static/js/image-hover.js",
@@ -256,9 +257,20 @@
       "output_bytes": 7237,
       "public_path": "/js/runtime-config.js",
       "sha256": "eb6e4b72dcff083c4c832ef4169f600cae52b48091ae6711c231ed107d1c9357",
-      "source_bytes": 14343,
+      "source_bytes": 13924,
       "sources": [
         "assets/js/runtime-config.js"
+      ]
+    },
+    {
+      "label": "maintained:js/search.js",
+      "output": "priv/static/js/search.js",
+      "output_bytes": 4738,
+      "public_path": "/js/search.js",
+      "sha256": "cb4114dbb8171329f53f82a786ff889a4be25561f75faf4b308712e49df88891",
+      "source_bytes": 9461,
+      "sources": [
+        "assets/js/search.js"
       ]
     },
     {

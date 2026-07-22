@@ -40,7 +40,7 @@ defmodule EirinchanWeb.SearchControllerTest do
     assert page =~ "Search"
     assert page =~ "green tea leaf"
     assert page =~ "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html"
-    assert page =~ "1 result in"
+    assert page =~ "1 result"
     assert page =~ "/#{board.uri}/ - #{board.title}"
     refute page =~ "meta tea"
   end
@@ -218,7 +218,7 @@ defmodule EirinchanWeb.SearchControllerTest do
 
     assert page =~ "reply body match"
     assert page =~ "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html"
-    assert page =~ "1 result in"
+    assert page =~ "1 result"
   end
 
   test "public search renders visible timestamps using the browser timezone cookie", %{conn: conn} do
@@ -368,5 +368,148 @@ defmodule EirinchanWeb.SearchControllerTest do
 
     refute blocked_page =~ "allowed search result"
     refute blocked_page =~ "blocked search result"
+  end
+
+  test "advanced search renders a server-built console and searches all allowed boards", %{
+    conn: conn
+  } do
+    first = board_fixture(%{uri: "globala#{System.unique_integer([:positive, :monotonic])}"})
+    second = board_fixture(%{uri: "globalb#{System.unique_integer([:positive, :monotonic])}"})
+
+    for {board, marker} <- [{first, "first marker"}, {second, "second marker"}] do
+      {:ok, _post, _meta} =
+        Eirinchan.Posts.create_post(
+          board,
+          %{"body" => "shared phrase #{marker}", "post" => "New Topic"},
+          config: Eirinchan.Runtime.Config.compose(nil, %{}, board.config_overrides),
+          request: %{referer: "http://example.test/#{board.uri}/index.html"}
+        )
+    end
+
+    blank = conn |> get("/search.php", %{"board" => first.uri}) |> html_response(200)
+    assert blank =~ ~s(id="advanced-search")
+    assert blank =~ ~s(class="search-console")
+    refute blank =~ ~s(<div class="ban">)
+
+    page =
+      conn
+      |> get("/search.php", %{"text" => "shared phrase", "scope" => "all"})
+      |> html_response(200)
+
+    assert page =~ "first marker"
+    assert page =~ "second marker"
+    assert page =~ "2 results"
+    assert page =~ "across 2 boards"
+  end
+
+  test "advanced search applies stored identity, media, country, and date filters", %{conn: conn} do
+    board = board_fixture(%{uri: "fields#{System.unique_integer([:positive, :monotonic])}"})
+
+    {:ok, post, _meta} =
+      Eirinchan.Posts.create_post(
+        board,
+        %{"body" => "advanced filter target", "post" => "New Topic"},
+        config: Eirinchan.Runtime.Config.compose(nil, %{}, board.config_overrides),
+        request: %{referer: "http://example.test/#{board.uri}/index.html"}
+      )
+
+    Repo.update_all(from(candidate in Eirinchan.Posts.Post, where: candidate.id == ^post.id),
+      set: [
+        tripcode: "!trip",
+        email: "poster@example.test",
+        poster_id: "ABC123",
+        flag_codes: ["ca"],
+        file_name: "sample.png",
+        file_path: "/media/sample.png",
+        file_md5: "kAFQmDzST7DWlj99KOF/cg==",
+        image_width: 640,
+        image_height: 480,
+        spoiler: true,
+        inserted_at: ~U[2026-04-15 12:00:00Z]
+      ]
+    )
+
+    params = %{
+      "text" => "advanced filter",
+      "board" => board.uri,
+      "tripcode" => "!trip",
+      "email" => "poster@example.test",
+      "uid" => "ABC123",
+      "country" => "CA",
+      "filename" => "sample.png",
+      "image_hash" => "kAFQmDzST7DWlj99KOF/cg==",
+      "width" => "640",
+      "height" => "480",
+      "start" => "2026-04-01",
+      "end" => "2026-04-30",
+      "image" => "spoiler"
+    }
+
+    page = conn |> get("/search.php", params) |> html_response(200)
+    assert page =~ "advanced filter target"
+
+    no_match =
+      build_conn()
+      |> get("/search.php", Map.put(params, "country", "us"))
+      |> html_response(200)
+
+    assert no_match =~ "(No results.)"
+  end
+
+  test "advanced search paginates bounded results and groups matching posts by thread", %{
+    conn: conn
+  } do
+    board =
+      board_fixture(%{
+        uri: "pages#{System.unique_integer([:positive, :monotonic])}",
+        config_overrides: %{search_page_size: 1}
+      })
+
+    {:ok, thread, _meta} =
+      Eirinchan.Posts.create_post(
+        board,
+        %{"body" => "pagination common older", "post" => "New Topic"},
+        config: Eirinchan.Runtime.Config.compose(nil, %{}, board.config_overrides),
+        request: %{referer: "http://example.test/#{board.uri}/index.html"}
+      )
+
+    {:ok, _reply, _meta} =
+      Eirinchan.Posts.create_post(
+        board,
+        %{
+          "thread" => Integer.to_string(PublicIds.public_id(thread)),
+          "body" => "pagination common newer",
+          "post" => "New Reply"
+        },
+        config: Eirinchan.Runtime.Config.compose(nil, %{}, board.config_overrides),
+        request: %{referer: "http://example.test/#{board.uri}/index.html"}
+      )
+
+    first_page =
+      conn
+      |> get("/search.php", %{"text" => "pagination common", "board" => board.uri})
+      |> html_response(200)
+
+    assert first_page =~ "pagination common newer"
+    refute first_page =~ "pagination common older"
+    assert first_page =~ "page=2"
+
+    second_page =
+      build_conn()
+      |> get("/search.php", %{"text" => "pagination common", "board" => board.uri, "page" => "2"})
+      |> html_response(200)
+
+    assert second_page =~ "pagination common older"
+
+    grouped =
+      build_conn()
+      |> get("/search.php", %{
+        "text" => "pagination common",
+        "board" => board.uri,
+        "results" => "threads"
+      })
+      |> html_response(200)
+
+    assert grouped =~ "1 result"
   end
 end
