@@ -509,7 +509,7 @@ defmodule EirinchanWeb.SearchControllerTest do
         tripcode: "!trip",
         email: "poster@example.test",
         poster_id: "ABC123",
-        flag_codes: ["ca"],
+        flag_codes: ["ca", "mokou", "thedoors", "thesmiths", "thrembo"],
         file_name: "sample.png",
         file_path: "/media/sample.png",
         file_md5: "kAFQmDzST7DWlj99KOF/cg==",
@@ -526,7 +526,7 @@ defmodule EirinchanWeb.SearchControllerTest do
       "tripcode" => "!trip",
       "email" => "poster@example.test",
       "uid" => "ABC123",
-      "country" => "CA",
+      "country" => "ca,mokou,thedoors,thesmiths,thrembo",
       "filename" => "sample.png",
       "image_hash" => "kAFQmDzST7DWlj99KOF/cg==",
       "width" => "640",
@@ -538,6 +538,19 @@ defmodule EirinchanWeb.SearchControllerTest do
 
     page = conn |> get("/search.php", params) |> html_response(200)
     assert page =~ "advanced filter target"
+
+    for flags <- [
+          "canada,mokou,thedoors,thesmiths,thrembo",
+          "ca",
+          "canada"
+        ] do
+      alias_page =
+        build_conn()
+        |> get("/search.php", Map.put(params, "country", flags))
+        |> html_response(200)
+
+      assert alias_page =~ "advanced filter target"
+    end
 
     no_match =
       build_conn()
