@@ -19,4 +19,17 @@ defmodule EirinchanWeb.Layouts do
     separator = if String.contains?(path, "?"), do: "&", else: "?"
     "#{path}#{separator}v=#{URI.encode_www_form(to_string(version))}"
   end
+
+  def default_website_description(description, extra_meta_tags) when is_binary(description) do
+    page_has_description? =
+      Enum.any?(List.wrap(extra_meta_tags), fn
+        %{name: "description"} -> true
+        %{"name" => "description"} -> true
+        _entry -> false
+      end)
+
+    if page_has_description?, do: nil, else: description
+  end
+
+  def default_website_description(_description, _extra_meta_tags), do: nil
 end

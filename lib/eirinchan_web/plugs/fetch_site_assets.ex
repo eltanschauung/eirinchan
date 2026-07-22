@@ -11,6 +11,7 @@ defmodule EirinchanWeb.Plugs.FetchSiteAssets do
     custom_javascript: [],
     analytics_html: nil,
     url_favicon: "favicon.ico",
+    website_description: "An imageboard powered by Eirinchan.",
     show_styles_block: true,
     allow_custom_javascript: false,
     allow_remote_script_urls: false,
@@ -43,6 +44,7 @@ defmodule EirinchanWeb.Plugs.FetchSiteAssets do
       )
     )
     |> assign(:favicon_url, normalize_favicon_url(config.url_favicon))
+    |> assign(:website_description, normalize_website_description(config.website_description))
     |> assign(:show_styles_block, config.show_styles_block != false)
   end
 
@@ -90,6 +92,8 @@ defmodule EirinchanWeb.Plugs.FetchSiteAssets do
         Map.get(instance_config, :custom_javascript, site_assets.custom_javascript),
       analytics_html: Map.get(instance_config, :analytics_html, site_assets.analytics_html),
       url_favicon: Map.get(instance_config, :url_favicon, site_assets.url_favicon),
+      website_description:
+        Map.get(instance_config, :website_description, site_assets.website_description),
       show_styles_block:
         Map.get(instance_config, :show_styles_block, site_assets.show_styles_block),
       allow_custom_javascript:
@@ -125,4 +129,13 @@ defmodule EirinchanWeb.Plugs.FetchSiteAssets do
       true -> "/" <> trimmed
     end
   end
+
+  defp normalize_website_description(value) when is_binary(value) do
+    case String.trim(value) do
+      "" -> nil
+      description -> description
+    end
+  end
+
+  defp normalize_website_description(_value), do: nil
 end
