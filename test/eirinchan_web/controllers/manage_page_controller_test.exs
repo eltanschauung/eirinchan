@@ -1024,6 +1024,18 @@ defmodule EirinchanWeb.ManagePageControllerTest do
 
     assert dashboard =~ "Tea Time"
     assert dashboard =~ "Updated"
+    assert dashboard =~ ~s(class="mod-boards-fieldset")
+    assert dashboard =~ ~s(class="mod-link-button">[rebuild]</button>)
+    assert dashboard =~ ~s(class="mod-link-button">[delete board]</button>)
+    refute dashboard =~ "Rebuild board"
+    refute dashboard =~ "Delete board"
+
+    {config_index, _} = :binary.match(dashboard, ">config</a>")
+    {rebuild_index, _} = :binary.match(dashboard, ">[rebuild]</button>")
+    {delete_index, _} = :binary.match(dashboard, ">[delete board]</button>")
+
+    assert config_index < rebuild_index
+    assert rebuild_index < delete_index
 
     delete_conn =
       conn
