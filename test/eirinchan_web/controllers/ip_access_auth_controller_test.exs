@@ -108,6 +108,7 @@ defmodule EirinchanWeb.IpAccessAuthControllerTest do
     Logger.configure(level: :info)
     on_exit(fn -> Logger.configure(level: logger_level) end)
     configured_password("door")
+    conn = %{conn | remote_ip: {192, 0, 2, 10}}
 
     {conn, log} = with_log([level: :info], fn -> post(conn, "/auth", %{"password" => "DOOR"}) end)
 
@@ -118,7 +119,8 @@ defmodule EirinchanWeb.IpAccessAuthControllerTest do
     assert log =~ ~s|"credential_slot":1|
     assert log =~ ~s|"credential_valid":true|
     assert log =~ EventLog.subject_id("door", :ip_access_attempt)
-    assert log =~ EventLog.subject_id("127.0.0.0/24", :ip_access_audit_subnet)
+    assert log =~ ~s|"ip_subnet":"192.0.2.0/24"|
+    assert log =~ EventLog.subject_id("192.0.2.0/24", :ip_access_audit_subnet)
     assert log =~ conn.assigns.browser_token
     refute log =~ "DOOR"
     refute log =~ ~r/"credential_id":"door"/i
