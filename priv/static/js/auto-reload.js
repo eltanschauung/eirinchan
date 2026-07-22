@@ -191,8 +191,16 @@ window.auto_reload_enabled = true;
         "; samesite=lax";
     }
 
-    function enabled() {
+    function livePreferenceEnabled() {
       return statusInput.checked && !statusInput.disabled;
+    }
+
+    function postSelectionActive() {
+      return !!document.querySelector("input.delete:checked");
+    }
+
+    function enabled() {
+      return livePreferenceEnabled() && !postSelectionActive();
     }
 
     function setStatus(value) {
@@ -297,7 +305,8 @@ window.auto_reload_enabled = true;
     }
 
     function requestRefresh(_manual) {
-      if (state.suspended) {
+      if (state.suspended || !enabled()) {
+        syncButtonState();
         return false;
       }
 
@@ -329,6 +338,14 @@ window.auto_reload_enabled = true;
       request.done(function (markup, textStatus, xhr) {
         finishRequest(request);
 
+        // A checked post control represents active user work. Never replace
+        // its fragment (or JS-added controls) with a response already in flight.
+        if (!enabled() || request.eirinchanPostSelectionAbort) {
+          setStatus("");
+          syncButtonState();
+          return;
+        }
+
         if ((xhr && xhr.status === 304) || textStatus === "notmodified") {
           scheduleIfEnabled(minimumDelay);
           return;
@@ -354,7 +371,7 @@ window.auto_reload_enabled = true;
       request.fail(function (xhr, textStatus, errorThrown) {
         finishRequest(request);
 
-        if (request.eirinchanPagehideAbort) {
+        if (request.eirinchanPagehideAbort || request.eirinchanPostSelectionAbort) {
           return;
         }
 
@@ -857,6 +874,23 @@ window.auto_reload_enabled = true;
       } else {
         cancelCountdown();
         setStatus("");
+      }
+
+      syncButtonState();
+    });
+
+    $(document).on("change.eirinchanLiveUpdater", "input.delete", function () {
+      if (postSelectionActive()) {
+        cancelCountdown();
+
+        if (state.request && typeof state.request.abort === "function") {
+          state.request.eirinchanPostSelectionAbort = true;
+          state.request.abort();
+        }
+
+        setStatus("");
+      } else if (livePreferenceEnabled()) {
+        schedule(minimumDelay);
       }
 
       syncButtonState();
