@@ -14,7 +14,14 @@ defmodule EirinchanWeb.SearchController do
   alias EirinchanWeb.PublicControllerHelpers
   alias EirinchanWeb.RequestMeta
 
-  plug :assign_search_shell
+  plug :assign_search_shell when action == :show
+
+  def legacy(conn, params) do
+    params = maybe_put_primary_board(params)
+    query = Plug.Conn.Query.encode(params)
+    target = if query == "", do: "/search.php", else: "/search.php?#{query}"
+    redirect(conn, to: target)
+  end
 
   def show(conn, params) do
     instance_overrides =
@@ -222,6 +229,20 @@ defmodule EirinchanWeb.SearchController do
       |> MapSet.new()
 
     Enum.filter(boards, &MapSet.member?(requested, &1.uri))
+  end
+
+  defp maybe_put_primary_board(params) do
+    if present?(params["theme_board"]) or present?(params["board"]) or
+         present?(params["boards"]) do
+      params
+    else
+      boards = Boards.list_boards()
+
+      case Enum.find(boards, &(&1.uri == "bant")) || List.first(boards) do
+        nil -> params
+        board -> Map.put(params, "board", board.uri)
+      end
+    end
   end
 
   defp search_board_groups(boards, instance_overrides) do
