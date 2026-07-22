@@ -395,6 +395,7 @@ defmodule EirinchanWeb.SearchControllerTest do
     blank = conn |> get("/search.php", %{"board" => first.uri}) |> html_response(200)
     assert blank =~ ~s(id="advanced-search")
     assert blank =~ ~s(class="search-console")
+    assert blank =~ ">Flags</span>"
     refute blank =~ ~s(<div class="ban">)
 
     page =
