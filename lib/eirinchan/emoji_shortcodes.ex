@@ -6,7 +6,7 @@ defmodule Eirinchan.EmojiShortcodes do
   @shortcodes %{
     "100" => "💯",
     "alien" => "👽",
-    "angry" => "😠",
+    "cross" => "😠",
     "aquarius" => "♒",
     "aries" => "♈",
     "bicep" => "💪",
