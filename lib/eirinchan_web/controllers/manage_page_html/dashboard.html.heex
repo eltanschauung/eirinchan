@@ -63,32 +63,43 @@
   </ul>
 </fieldset>
 
-<fieldset>
+<fieldset class="mod-boards-fieldset">
   <legend>Boards</legend>
   <ul>
     <%= if @boards == [] do %>
       <li>No boards yet.</li>
     <% else %>
       <%= for board <- @boards do %>
-        <li>
-          <a href={"/#{board.uri}"}>/<%= board.uri %>/</a>
-          - <%= board.title %>
-          <%= if board.subtitle do %>
-            <small>- <%= board.subtitle %></small>
-          <% end %>
-          <small :if={@can_manage_board?}>
-            [<a href={"/manage/boards/#{board.uri}/config/browser"}>config</a>]
-          </small>
+        <li class="mod-board-row">
+          <div class="mod-board-summary">
+            <span>
+              <a href={"/#{board.uri}"}>/<%= board.uri %>/</a>
+              - <%= board.title %>
+              <%= if board.subtitle do %>
+                <small>- <%= board.subtitle %></small>
+              <% end %>
+            </span>
 
-          <div :if={@can_manage_board?} class="mod-board-actions">
-            <form
-              action={"/manage/boards/#{board.uri}/browser/rebuild"}
-              method="post"
-              class="inline-form"
-            >
-              <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
-              <input type="submit" value="Rebuild board" />
-            </form>
+            <small :if={@can_manage_board?} class="mod-board-inline-actions">
+              <span>[<a href={"/manage/boards/#{board.uri}/config/browser"}>config</a>]</span>
+              <form
+                action={"/manage/boards/#{board.uri}/browser/rebuild"}
+                method="post"
+                class="inline-form"
+              >
+                <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+                <button type="submit" class="mod-link-button">[rebuild]</button>
+              </form>
+              <form
+                action={"/manage/boards/#{board.uri}/browser"}
+                method="post"
+                class="inline-form danger-form"
+              >
+                <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+                <input type="hidden" name="_method" value="delete" />
+                <button type="submit" class="mod-link-button">[delete board]</button>
+              </form>
+            </small>
           </div>
 
           <div :if={@can_manage_board?} class="mod-board-editor">
@@ -113,16 +124,6 @@
                   <td><input type="submit" value="Update board" /></td>
                 </tr>
               </table>
-            </form>
-
-            <form
-              action={"/manage/boards/#{board.uri}/browser"}
-              method="post"
-              class="inline-form danger-form"
-            >
-              <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
-              <input type="hidden" name="_method" value="delete" />
-              <input type="submit" value="Delete board" />
             </form>
           </div>
         </li>

@@ -60,9 +60,50 @@ body.mod-page .inline-form {
   margin: 0;
 }
 
-body.mod-page .mod-board-actions,
 body.mod-page .mod-board-editor {
   margin-top: 0.45em;
+}
+
+body.mod-page .mod-boards-fieldset,
+body.mod-page .mod-boards-fieldset .mod-form-table {
+  text-align: left;
+}
+
+body.mod-page .mod-boards-fieldset .mod-form-table {
+  margin-right: 0;
+  margin-left: 0;
+}
+
+body.mod-page .mod-board-summary,
+body.mod-page .mod-board-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-start;
+}
+
+body.mod-page .mod-board-summary {
+  gap: 0.2em 0.45em;
+}
+
+body.mod-page .mod-board-inline-actions {
+  gap: 0.35em;
+}
+
+body.mod-page .mod-link-button {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: #0000ee;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+}
+
+body.mod-page .mod-link-button:hover,
+body.mod-page .mod-link-button:focus-visible {
+  color: #ff0000;
 }
 
 body.mod-page .mod-form-table {
