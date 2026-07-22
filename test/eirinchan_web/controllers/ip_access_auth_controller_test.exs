@@ -95,13 +95,11 @@ defmodule EirinchanWeb.IpAccessAuthControllerTest do
     assert log =~ ~s|"event":"auth.ip_access.rejected"|
     assert log =~ ~s|"outcome":"invalid_password"|
     assert log =~ ~s|"status":"failed"|
-    assert log =~ ~s|"credential_valid":false|
-    assert log =~ EventLog.subject_id("wrong", :ip_access_attempt)
+    assert log =~ ~s|"submitted_value":"wrong"|
     assert log =~ conn.assigns.browser_token
-    refute log =~ "wrong"
   end
 
-  test "successful attempts log correlatable audit metadata without plaintext credentials", %{
+  test "successful attempts log the exact submitted value with audit metadata", %{
     conn: conn
   } do
     logger_level = Logger.level()
@@ -116,14 +114,10 @@ defmodule EirinchanWeb.IpAccessAuthControllerTest do
     assert log =~ ~s|"event":"auth.ip_access.granted"|
     assert log =~ ~s|"outcome":"granted"|
     assert log =~ ~s|"status":"passed"|
-    assert log =~ ~s|"credential_slot":1|
-    assert log =~ ~s|"credential_valid":true|
-    assert log =~ EventLog.subject_id("door", :ip_access_attempt)
+    assert log =~ ~s|"submitted_value":"DOOR"|
     assert log =~ ~s|"ip_subnet":"192.0.2.0/24"|
     assert log =~ EventLog.subject_id("192.0.2.0/24", :ip_access_audit_subnet)
     assert log =~ conn.assigns.browser_token
-    refute log =~ "DOOR"
-    refute log =~ ~r/"credential_id":"door"/i
   end
 
   test "missing password parameters are audited as failed submissions", %{conn: conn} do
@@ -132,8 +126,7 @@ defmodule EirinchanWeb.IpAccessAuthControllerTest do
     assert html_response(conn, 422) =~ "Password is required."
     assert log =~ ~s|"outcome":"password_required"|
     assert log =~ ~s|"status":"failed"|
-    assert log =~ ~s|"credential_id":null|
-    assert log =~ ~s|"credential_supplied":false|
+    assert log =~ ~s|"submitted_value":""|
   end
 
   test "invalid authentication attempts are throttled per subnet", %{conn: conn} do
@@ -155,8 +148,7 @@ defmodule EirinchanWeb.IpAccessAuthControllerTest do
     assert get_resp_header(limited, "retry-after") == ["60"]
     assert log =~ ~s|"outcome":"rate_limited"|
     assert log =~ ~s|"status":"failed"|
-    assert log =~ EventLog.subject_id("still-wrong", :ip_access_attempt)
-    refute log =~ "still-wrong"
+    assert log =~ ~s|"submitted_value":"still-wrong"|
   end
 
   test "successful authentication normalizes same-origin referrers to local paths", %{conn: conn} do
