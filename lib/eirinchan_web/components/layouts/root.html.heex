@@ -15,7 +15,11 @@
     <link rel="preconnect" href="https://img.youtube.com" crossorigin />
     <link rel="dns-prefetch" href="//www.youtube.com" />
     <link rel="preconnect" href="https://www.youtube.com" crossorigin />
-    <link :if={assigns[:favicon_url]} rel="shortcut icon" href={assigns[:favicon_url]} />
+    <link :if={assigns[:favicon_url]} rel="icon" href={assigns[:favicon_url]} />
+    <%= if description = default_website_description(assigns[:website_description], assigns[:head_extra_meta_tags]) do %>
+      <meta name="description" content={description} />
+      <meta property="og:description" content={description} />
+    <% end %>
     <meta name="csrf-token" content={get_csrf_token()} />
     <link
       :if={assigns[:base_stylesheet]}

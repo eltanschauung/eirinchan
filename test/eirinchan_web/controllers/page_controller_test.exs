@@ -70,6 +70,11 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ ~s(name="eirinchan:board-name" content="")
     assert page =~ ~s(src="/main.js)
     assert page =~ ~s(name="csrf-token" content=")
+    assert page =~ ~s(rel="icon" href="/images/logo.svg")
+
+    assert page =~
+             ~s(name="description" content="An imageboard powered by Eirinchan.")
+
     assert page =~ ~s(id="options_handler")
     assert page =~ ~s(id="style-select")
     assert page =~ "Tinyboard + vichan 5.2.2 +"
@@ -86,6 +91,28 @@ defmodule EirinchanWeb.PageControllerTest do
       )
 
     assert page =~ "Total posts: #{with_delimiters(expected_total_posts)}"
+  end
+
+  test "GET / uses the configured website description", %{conn: conn} do
+    description = "A custom & searchable imageboard description."
+
+    assert {:ok, _config} =
+             Settings.update_instance_config_from_json(
+               Jason.encode!(%{website_description: description})
+             )
+
+    page = conn |> get("/") |> html_response(200)
+
+    assert page =~
+             ~s(name="description" content="A custom &amp; searchable imageboard description.")
+
+    assert page =~
+             ~s(property="og:description" content="A custom &amp; searchable imageboard description.")
+  end
+
+  test "robots.txt permits public crawling", %{conn: conn} do
+    body = conn |> get("/robots.txt") |> response(200)
+    assert body == "User-agent: *\nDisallow:\n"
   end
 
   test "GET / recent links prefer noko50 threads when available", %{conn: conn} do

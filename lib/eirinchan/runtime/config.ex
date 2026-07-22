@@ -63,6 +63,7 @@ defmodule Eirinchan.Runtime.Config do
     catalog_name: "Catalog",
     archive_url: false,
     url_favicon: "images/logo.svg",
+    website_description: "An imageboard powered by Eirinchan.",
     show_styles_block: true,
     stylesheets_board: true,
     default_theme: nil,
