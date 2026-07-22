@@ -51,6 +51,7 @@ defmodule Eirinchan.EmojiShortcodes do
     "leo" => "♌",
     "libra" => "♎",
     "love_you" => "🤟",
+    "mag_right" => "🔎",
     "melting_face" => "🫠",
     "moon" => "🌙",
     "nail_care" => "💅",
