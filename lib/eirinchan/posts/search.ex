@@ -9,6 +9,7 @@ defmodule Eirinchan.Posts.Search do
 
   @legacy_filters ~w(id thread subject name)
   @text_fields ~w(text subject username tripcode email uid country filename image_hash)
+  @flag_aliases %{"canada" => "ca"}
 
   @spec normalize_criteria(map()) :: map()
   def normalize_criteria(params) when is_map(params) do
@@ -52,7 +53,10 @@ defmodule Eirinchan.Posts.Search do
   @spec term_count(map()) :: non_neg_integer()
   def term_count(criteria) do
     @text_fields
-    |> Enum.flat_map(fn field -> tokenize(Map.get(criteria, String.to_existing_atom(field))) end)
+    |> Enum.flat_map(fn
+      "country" -> flag_codes(criteria.country)
+      field -> tokenize(Map.get(criteria, String.to_existing_atom(field)))
+    end)
     |> length()
   end
 
@@ -161,7 +165,10 @@ defmodule Eirinchan.Posts.Search do
   defp apply_country(query, nil), do: query
 
   defp apply_country(query, country) do
-    from post in query, where: fragment("? = ANY(?)", ^country, post.flag_codes)
+    flags = flag_codes(country)
+
+    from post in query,
+      where: fragment("? @> ?", post.flag_codes, type(^flags, {:array, :string}))
   end
 
   defp apply_filename(query, value) do
@@ -388,7 +395,24 @@ defmodule Eirinchan.Posts.Search do
 
   defp date(_), do: nil
   defp normalize_country(nil), do: nil
-  defp normalize_country(value), do: String.downcase(value)
+
+  defp normalize_country(value) do
+    case flag_codes(value) do
+      [] -> nil
+      flags -> Enum.join(flags, ",")
+    end
+  end
+
+  defp flag_codes(value) when is_binary(value) do
+    value
+    |> String.split(",", trim: true)
+    |> Enum.map(&(&1 |> String.trim() |> String.downcase()))
+    |> Enum.map(&Map.get(@flag_aliases, &1, &1))
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.uniq()
+  end
+
+  defp flag_codes(_value), do: []
 
   defp normalize_image_hash(hash) when is_binary(hash) and byte_size(hash) == 24 do
     with {:ok, decoded} <- Base.decode64(hash),
