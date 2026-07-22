@@ -134,16 +134,18 @@ defmodule EirinchanWeb.Announcements do
       message
       |> String.replace("\\n", "\n")
       |> String.split(~r/\r\n|\r|\n/u, trim: false)
-      |> render_tf2_conditional_lines(stats.player_count > 0, [])
+      |> render_tf2_conditional_lines(stats.player_count, [])
       |> Enum.join("\n")
     else
       message
     end
   end
 
-  defp render_tf2_conditional_lines([line, next_line | rest], show?, rendered) do
+  defp render_tf2_conditional_lines([line, next_line | rest], player_count, rendered) do
     case tf2_conditional(line) do
-      {:following_line, prefix} ->
+      {:following_line, prefix, threshold} ->
+        show? = player_count > threshold
+
         emitted_lines =
           case {prefix, show?} do
             {"", true} -> [next_line]
@@ -153,33 +155,35 @@ defmodule EirinchanWeb.Announcements do
           end
 
         rendered = Enum.reduce(emitted_lines, rendered, fn emitted, acc -> [emitted | acc] end)
-        render_tf2_conditional_lines(rest, show?, rendered)
+        render_tf2_conditional_lines(rest, player_count, rendered)
 
-      {:inline, prefix, conditional_text} ->
+      {:inline, prefix, threshold, conditional_text} ->
+        show? = player_count > threshold
+
         rendered =
           prefix
           |> inline_conditional_value(conditional_text, show?)
           |> maybe_prepend_rendered(rendered)
 
-        render_tf2_conditional_lines([next_line | rest], show?, rendered)
+        render_tf2_conditional_lines([next_line | rest], player_count, rendered)
 
       :error ->
-        render_tf2_conditional_lines([next_line | rest], show?, [line | rendered])
+        render_tf2_conditional_lines([next_line | rest], player_count, [line | rendered])
     end
   end
 
-  defp render_tf2_conditional_lines([line], show?, rendered) do
+  defp render_tf2_conditional_lines([line], player_count, rendered) do
     rendered =
       case tf2_conditional(line) do
-        {:following_line, ""} ->
+        {:following_line, "", _threshold} ->
           rendered
 
-        {:following_line, prefix} ->
+        {:following_line, prefix, _threshold} ->
           [prefix | rendered]
 
-        {:inline, prefix, conditional_text} ->
+        {:inline, prefix, threshold, conditional_text} ->
           prefix
-          |> inline_conditional_value(conditional_text, show?)
+          |> inline_conditional_value(conditional_text, player_count > threshold)
           |> maybe_prepend_rendered(rendered)
 
         :error ->
@@ -189,7 +193,7 @@ defmodule EirinchanWeb.Announcements do
     Enum.reverse(rendered)
   end
 
-  defp render_tf2_conditional_lines([], _show?, rendered), do: Enum.reverse(rendered)
+  defp render_tf2_conditional_lines([], _player_count, rendered), do: Enum.reverse(rendered)
 
   defp inline_conditional_value(prefix, conditional_text, true), do: prefix <> conditional_text
 
@@ -201,15 +205,17 @@ defmodule EirinchanWeb.Announcements do
 
   defp tf2_conditional(line) do
     case Regex.run(
-           ~r/^(.*?)\{if\s+tf2_display\s*>\s*0\s*\}(.*)$/u,
+           ~r/^(.*?)\{if\s+tf2_display\s*>\s*(-?\d+)\s*\}(.*)$/u,
            line,
            capture: :all_but_first
          ) do
-      [prefix, suffix] ->
+      [prefix, threshold, suffix] ->
+        threshold = String.to_integer(threshold)
+
         if String.trim(suffix) == "" do
-          {:following_line, String.trim_trailing(prefix)}
+          {:following_line, String.trim_trailing(prefix), threshold}
         else
-          {:inline, prefix, suffix}
+          {:inline, prefix, threshold, suffix}
         end
 
       _ ->

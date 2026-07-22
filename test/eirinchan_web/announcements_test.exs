@@ -141,6 +141,20 @@ defmodule EirinchanWeb.AnnouncementsTest do
            ) == "TF2"
   end
 
+  test "TF2 conditionals accept and independently evaluate arbitrary integer thresholds" do
+    config = %{
+      global_message:
+        "{if tf2_display > 2}More than two\n{if tf2_display > 7}More than seven\nAlways"
+    }
+
+    assert Announcements.global_message(config,
+             tf2_now: 3_700,
+             tf2_fetcher: fn ->
+               {:ok, %{"success" => true, "display" => "5", "player_count" => 5}}
+             end
+           ) == "More than two\nAlways"
+  end
+
   test "malformed parenthesis conditional is not accepted" do
     message =
       Announcements.global_message(
