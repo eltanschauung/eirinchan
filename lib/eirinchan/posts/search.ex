@@ -9,7 +9,7 @@ defmodule Eirinchan.Posts.Search do
 
   @legacy_filters ~w(id thread subject name)
   @text_fields ~w(text subject username tripcode email uid country filename image_hash)
-  @flag_aliases %{"canada" => "ca"}
+  @flag_aliases %{"canada" => "ca", "germany" => "de"}
 
   @spec normalize_criteria(map()) :: map()
   def normalize_criteria(params) when is_map(params) do
