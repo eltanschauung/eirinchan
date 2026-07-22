@@ -2,7 +2,10 @@
   "use strict";
 
   var HISTORY_LIMIT = 8;
+  var HISTORY_URL_LIMIT = 8192;
+  var HISTORY_LABEL_LIMIT = 256;
   var HASH_FILE_LIMIT = 64 * 1024 * 1024;
+  var hashRequestId = 0;
 
   function md5Base64(buffer) {
     var bytes = new Uint8Array(buffer);
@@ -95,10 +98,39 @@
     return window.btoa(binary);
   }
 
+  function normalizeHistoryEntry(entry) {
+    if (
+      !entry ||
+      typeof entry !== "object" ||
+      typeof entry.url !== "string" ||
+      typeof entry.label !== "string" ||
+      entry.url.length > HISTORY_URL_LIMIT
+    ) return null;
+
+    try {
+      var url = new window.URL(entry.url, window.location.origin);
+      if (
+        url.origin !== window.location.origin ||
+        url.pathname !== "/search.php" ||
+        url.hash ||
+        url.username ||
+        url.password
+      ) return null;
+
+      return {
+        url: url.pathname + url.search,
+        label: entry.label.slice(0, HISTORY_LABEL_LIMIT)
+      };
+    } catch (_error) {
+      return null;
+    }
+  }
+
   function readHistory(key) {
     try {
       var parsed = JSON.parse(window.localStorage.getItem(key) || "[]");
-      return Array.isArray(parsed) ? parsed.slice(0, HISTORY_LIMIT) : [];
+      if (!Array.isArray(parsed)) return [];
+      return parsed.map(normalizeHistoryEntry).filter(Boolean).slice(0, HISTORY_LIMIT);
     } catch (_error) {
       return [];
     }
@@ -106,7 +138,8 @@
 
   function writeHistory(key, entries) {
     try {
-      window.localStorage.setItem(key, JSON.stringify(entries.slice(0, HISTORY_LIMIT)));
+      var safeEntries = entries.map(normalizeHistoryEntry).filter(Boolean).slice(0, HISTORY_LIMIT);
+      window.localStorage.setItem(key, JSON.stringify(safeEntries));
     } catch (_error) {
       // Search remains fully functional when local storage is unavailable.
     }
@@ -149,7 +182,11 @@
     var params = new URLSearchParams(new FormData(form));
     params.set("scope", submitter && submitter.value === "all" ? "all" : "selected");
     params.delete("page");
-    var entry = {url: "/search.php?" + params.toString(), label: historyLabel(params)};
+    var entry = normalizeHistoryEntry({
+      url: "/search.php?" + params.toString(),
+      label: historyLabel(params)
+    });
+    if (!entry) return;
     var entries = readHistory(key).filter(function (existing) {
       return existing.url !== entry.url;
     });
@@ -158,6 +195,9 @@
 
   function hashFile(file, hashInput, button) {
     if (!file || !hashInput || !button) return;
+    var requestId = ++hashRequestId;
+    hashInput.value = "";
+
     if (file.size > HASH_FILE_LIMIT) {
       button.textContent = "File too large to hash";
       return;
@@ -165,12 +205,19 @@
 
     button.disabled = true;
     button.textContent = "Hashing…";
-    file.arrayBuffer().then(function (buffer) {
+    Promise.resolve().then(function () {
+      if (typeof file.arrayBuffer !== "function") throw new Error("file is not readable");
+      return file.arrayBuffer();
+    }).then(function (buffer) {
+      if (requestId !== hashRequestId) return;
       hashInput.value = md5Base64(buffer);
       button.textContent = "Image hash ready";
     }).catch(function () {
+      if (requestId !== hashRequestId) return;
+      hashInput.value = "";
       button.textContent = "Could not hash image";
     }).finally(function () {
+      if (requestId !== hashRequestId) return;
       button.disabled = false;
     });
   }
