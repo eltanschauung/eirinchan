@@ -649,11 +649,23 @@ defmodule Eirinchan.Runtime.Config do
 
     config
     |> Map.update(:archive_min_replies, 0, &bounded_non_negative_integer(&1, 0, 1_000_000))
-    |> Map.put(:statistics_api_default_hours, min(config.statistics_api_default_hours, statistics_max))
-    |> Map.put(:mod_password_min_length, min(config.mod_password_min_length, moderator_password_max))
-    |> Map.put(:moderation_recent_posts_default, min(config.moderation_recent_posts_default, recent_posts_max))
+    |> Map.put(
+      :statistics_api_default_hours,
+      min(config.statistics_api_default_hours, statistics_max)
+    )
+    |> Map.put(
+      :mod_password_min_length,
+      min(config.mod_password_min_length, moderator_password_max)
+    )
+    |> Map.put(
+      :moderation_recent_posts_default,
+      min(config.moderation_recent_posts_default, recent_posts_max)
+    )
     |> Map.put(:browser_identity_rotation_seconds, identity_rotation)
-    |> Map.put(:browser_identity_touch_interval_seconds, min(config.browser_identity_touch_interval_seconds, identity_rotation))
+    |> Map.put(
+      :browser_identity_touch_interval_seconds,
+      min(config.browser_identity_touch_interval_seconds, identity_rotation)
+    )
     |> update_in([:queue], &normalize_queue_limits/1)
   end
 
@@ -661,7 +673,8 @@ defmodule Eirinchan.Runtime.Config do
     Map.update(queue, :max_attempts, 3, &bounded_positive_integer(&1, 3, 100))
   end
 
-  defp normalize_queue_limits(_queue), do: %{enabled: "db", path: "tmp/queue/build", max_attempts: 3}
+  defp normalize_queue_limits(_queue),
+    do: %{enabled: "db", path: "tmp/queue/build", max_attempts: 3}
 
   defp bounded_positive_integer(value, default, maximum) do
     value
