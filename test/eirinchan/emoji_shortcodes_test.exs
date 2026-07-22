@@ -36,6 +36,10 @@ defmodule Eirinchan.EmojiShortcodesTest do
     assert EmojiShortcodes.replace(":prayer: :pray:") == "🙏 :pray:"
   end
 
+  test "uses cross rather than angry for the angry-face emoji" do
+    assert EmojiShortcodes.replace(":cross: :angry:") == "😠 :angry:"
+  end
+
   test "replaces every configured shortcode" do
     entries =
       EmojiShortcodes.entries()
