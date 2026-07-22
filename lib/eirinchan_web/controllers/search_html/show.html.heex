@@ -6,141 +6,150 @@
   method="get"
   data-search-history-key="eirinchan.search.history.v1"
 >
-  <label class="search-console-query" for="search-text">
-    <span class="visually-hidden">Search posts</span>
-    <input
-      id="search-text"
-      name="text"
-      type="search"
-      maxlength={@config.search_max_query_length}
-      value={search_value(@criteria.text)}
-      placeholder="Search through the selected boards"
-      autocomplete="off"
-    />
-  </label>
+  <fieldset class="search-console-panel">
+    <legend>Search posts</legend>
 
-  <div class="search-console-actions">
-    <button type="submit" name="scope" value="selected">Search</button>
-    <button type="submit" name="scope" value="all">Search on all boards</button>
-    <a class="search-clear" href="/search.php">Clear</a>
-  </div>
-
-  <div class="search-console-grid">
-    <div class="search-console-fields">
-      <.search_field
-        label="Thread No."
-        name="thread"
-        value={@criteria.thread}
-        inputmode="numeric"
+    <label class="search-console-query" for="search-text">
+      <span class="visually-hidden">Search posts</span>
+      <input
+        id="search-text"
+        name="text"
+        type="search"
+        maxlength={@config.search_max_query_length}
+        value={search_value(@criteria.text)}
+        placeholder="Search through the selected boards"
+        autocomplete="off"
       />
-      <.search_field
-        label="Post No."
-        name="post_id"
-        value={@criteria.post_id}
-        inputmode="numeric"
-      /> <.search_field label="Subject" name="subject" value={@criteria.subject} />
-      <.search_field label="Username" name="username" value={@criteria.username} />
-      <.search_field label="Tripcode" name="tripcode" value={@criteria.tripcode} />
-      <.search_field label="Email" name="email" value={@criteria.email} />
-      <.search_field label="Unique ID" name="uid" value={@criteria.uid} />
-      <.search_field label="Country" name="country" value={@criteria.country} maxlength="2" />
-      <.search_field label="Filename" name="filename" value={@criteria.filename} />
-      <label class="search-field" for="search-image-hash">
-        <span>Image Hash</span>
-        <span class="search-image-hash-controls">
-          <input
-            id="search-image-hash"
-            name="image_hash"
-            type="text"
-            value={search_value(@criteria.image_hash)}
-            autocomplete="off"
-          />
-          <input
-            id="search-image-file"
-            class="visually-hidden"
-            type="file"
-            accept="image/*,video/*"
-          /> <button id="search-image-drop" type="button">Drop image here</button>
-        </span>
-      </label>
+    </label>
 
-      <.search_field label="Image Width" name="width" value={@criteria.width} inputmode="numeric" />
-      <.search_field
-        label="Image Height"
-        name="height"
-        value={@criteria.height}
-        inputmode="numeric"
-      />
-      <.search_field label="Date Start" name="start" value={@criteria.start_date} type="date" />
-      <.search_field label="Date End" name="end" value={@criteria.end_date} type="date" />
-      <label class="search-highlight">
-        <input type="checkbox" name="highlight" value="1" checked={@criteria.highlight} />
-        Highlight Results
-      </label>
-
-      <.board_choices
-        :if={@board_groups.archives != []}
-        title="On these archives"
-        boards={@board_groups.archives}
-        selected={@selected_uris}
-        id="archives"
-      />
-      <.board_choices
-        title="On these boards"
-        boards={@board_groups.boards}
-        selected={@selected_uris}
-        id="boards"
-      />
-      <section class="search-history" aria-labelledby="search-history-title">
-        <div class="search-choice-heading">
-          <strong id="search-history-title">Your latest searches</strong>
-          <button id="search-history-clear" type="button">Clear</button>
-        </div>
-
-        <ol id="search-history-list">
-          <li class="unimportant">Stored only in this browser.</li>
-        </ol>
-      </section>
+    <div class="search-console-actions">
+      <button type="submit" name="scope" value="selected">Search</button>
+      <button type="submit" name="scope" value="all">Search on all boards</button>
+      <a class="search-clear" href="/search.php">Clear</a>
     </div>
 
-    <div class="search-console-options">
-      <.radio_group
-        legend="Images"
-        name="image"
-        selected={@criteria.image}
-        options={[
-          {"all", "All"},
-          {"with", "Only With Images"},
-          {"without", "Only Without Images"},
-          {"spoiler", "Only Spoiler Images"},
-          {"nonspoiler", "Only Non-Spoiler Images"}
-        ]}
-      />
-      <.radio_group
-        legend="Post type"
-        name="type"
-        selected={@criteria.type}
-        options={[
-          {"all", "All"},
-          {"sticky", "Only Sticky Threads"},
-          {"op", "Only Opening Posts"},
-          {"reply", "Only Reply Posts"}
-        ]}
-      />
-      <.radio_group
-        legend="Results"
-        name="results"
-        selected={@criteria.results}
-        options={[{"posts", "All Matching Posts"}, {"threads", "Grouped By Threads"}]}
-      />
-      <.radio_group
-        legend="Order"
-        name="order"
-        selected={@criteria.order}
-        options={[{"latest", "Latest Posts First"}, {"oldest", "Oldest Posts First"}]}
-      />
+    <div class="search-console-grid">
+      <div class="search-console-fields">
+        <.search_field
+          label="Thread No."
+          name="thread"
+          value={@criteria.thread}
+          inputmode="numeric"
+        />
+        <.search_field
+          label="Post No."
+          name="post_id"
+          value={@criteria.post_id}
+          inputmode="numeric"
+        /> <.search_field label="Subject" name="subject" value={@criteria.subject} />
+        <.search_field label="Username" name="username" value={@criteria.username} />
+        <.search_field label="Tripcode" name="tripcode" value={@criteria.tripcode} />
+        <.search_field label="Email" name="email" value={@criteria.email} />
+        <.search_field label="Unique ID" name="uid" value={@criteria.uid} />
+        <.search_field label="Country" name="country" value={@criteria.country} maxlength="2" />
+        <.search_field label="Filename" name="filename" value={@criteria.filename} />
+        <label class="search-field" for="search-image-hash">
+          <span>Image Hash</span>
+          <span class="search-image-hash-controls">
+            <input
+              id="search-image-hash"
+              name="image_hash"
+              type="text"
+              value={search_value(@criteria.image_hash)}
+              autocomplete="off"
+            />
+            <input
+              id="search-image-file"
+              class="visually-hidden"
+              type="file"
+              accept="image/*,video/*"
+            /> <button id="search-image-drop" type="button">Drop image here</button>
+          </span>
+        </label>
+
+        <.search_field
+          label="Image Width"
+          name="width"
+          value={@criteria.width}
+          inputmode="numeric"
+        />
+        <.search_field
+          label="Image Height"
+          name="height"
+          value={@criteria.height}
+          inputmode="numeric"
+        />
+        <.search_field label="Date Start" name="start" value={@criteria.start_date} type="date" />
+        <.search_field label="Date End" name="end" value={@criteria.end_date} type="date" />
+        <label class="search-highlight">
+          <input type="checkbox" name="highlight" value="1" checked={@criteria.highlight} />
+          Highlight Results
+        </label>
+
+        <.board_choices
+          :if={@board_groups.archives != []}
+          title="On these archives"
+          boards={@board_groups.archives}
+          selected={@selected_uris}
+          id="archives"
+        />
+        <.board_choices
+          title="On these boards"
+          boards={@board_groups.boards}
+          selected={@selected_uris}
+          id="boards"
+        />
+        <section class="search-history" aria-labelledby="search-history-title">
+          <div class="search-choice-heading">
+            <strong id="search-history-title">Your latest searches</strong>
+            <button id="search-history-clear" type="button">Clear</button>
+          </div>
+
+          <ol id="search-history-list">
+            <li class="unimportant">Stored only in this browser.</li>
+          </ol>
+        </section>
+      </div>
+
+      <aside class="search-console-options" aria-label="Search options">
+        <.radio_group
+          legend="Images"
+          name="image"
+          selected={@criteria.image}
+          options={[
+            {"all", "All"},
+            {"with", "Only With Images"},
+            {"without", "Only Without Images"},
+            {"spoiler", "Only Spoiler Images"},
+            {"nonspoiler", "Only Non-Spoiler Images"}
+          ]}
+        />
+        <.radio_group
+          legend="Post type"
+          name="type"
+          selected={@criteria.type}
+          options={[
+            {"all", "All"},
+            {"sticky", "Only Sticky Threads"},
+            {"op", "Only Opening Posts"},
+            {"reply", "Only Reply Posts"}
+          ]}
+        />
+        <.radio_group
+          legend="Results"
+          name="results"
+          selected={@criteria.results}
+          options={[{"posts", "All Matching Posts"}, {"threads", "Grouped By Threads"}]}
+        />
+        <.radio_group
+          legend="Order"
+          name="order"
+          selected={@criteria.order}
+          options={[{"latest", "Latest Posts First"}, {"oldest", "Oldest Posts First"}]}
+        />
+      </aside>
     </div>
-  </div>
+  </fieldset>
 </form>
 
 <%= if @error || @searched? do %>
@@ -153,7 +162,8 @@
         <div class="search-results-heading">
           <strong>
             <%= if @result_capped?, do: "First " %><%= @result_count %> result<%= if @result_count !=
-                                                                                       1, do: "s" %>
+                                                                                       1,
+                                                                                     do: "s" %>
             <%= if length(@selected_boards) == 1 do %>
               in
               <a href={"/#{@selected_board.uri}/index.html"}>
@@ -198,5 +208,5 @@
   <%= if !(@error || @searched?) do %>
     <hr />
   <% end %>
-   <EirinchanWeb.PostComponents.site_footer />
+  <EirinchanWeb.PostComponents.site_footer />
 <% end %>
