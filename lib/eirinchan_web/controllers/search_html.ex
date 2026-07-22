@@ -52,8 +52,12 @@ defmodule EirinchanWeb.SearchHTML do
       </legend>
       <div class="search-board-grid">
         <label :for={board <- @boards}>
-          <input type="checkbox" name="boards[]" value={board.uri} checked={MapSet.member?(@selected, board.uri)} />
-          /<%= board.uri %>/
+          <input
+            type="checkbox"
+            name="boards[]"
+            value={board.uri}
+            checked={MapSet.member?(@selected, board.uri)}
+          /> /<%= board.uri %>/
         </label>
       </div>
     </fieldset>
@@ -90,7 +94,9 @@ defmodule EirinchanWeb.SearchHTML do
       <%= for page <- @pages do %>
         <span :if={page == :gap}>&hellip;</span>
         <strong :if={page == @page}><%= page %></strong>
-        <a :if={is_integer(page) && page != @page} href={search_page_url(@params, page)}><%= page %></a>
+        <a :if={is_integer(page) && page != @page} href={search_page_url(@params, page)}>
+          <%= page %>
+        </a>
       <% end %>
       <a :if={@page < @total_pages} href={search_page_url(@params, @page + 1)}>Next</a>
     </nav>
@@ -117,6 +123,7 @@ defmodule EirinchanWeb.SearchHTML do
   attr :board, :map, required: true
   attr :thread, :map, required: true
   attr :config, :map, required: true
+
   def search_post(assigns) do
     ~H"""
     <.browser_post

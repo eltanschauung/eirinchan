@@ -24,7 +24,11 @@ defmodule EirinchanWeb.SearchController do
     criteria = Search.normalize_criteria(params)
     selected_boards = selected_boards(params, boards)
     selected_board = List.first(selected_boards)
-    config = search_config(selected_board, instance_overrides)
+
+    config =
+      if length(selected_boards) == 1,
+        do: search_config(selected_board, instance_overrides),
+        else: search_config(nil, instance_overrides)
 
     context = %{
       criteria: criteria,
@@ -107,7 +111,7 @@ defmodule EirinchanWeb.SearchController do
             instance_config: context.instance_overrides
           )
 
-        render_search(conn, context, %{page | results: results}, nil)
+        render_search(conn, context, Map.put(page, :results, results), nil)
 
       {:error, :unavailable} ->
         EventLog.log(conn, "search.failed", %{
@@ -192,7 +196,9 @@ defmodule EirinchanWeb.SearchController do
   defp search_board_groups(boards, instance_overrides) do
     archive_targets =
       boards
-      |> Enum.map(fn board -> Map.get(search_config(board, instance_overrides), :archive_board) end)
+      |> Enum.map(fn board ->
+        Map.get(search_config(board, instance_overrides), :archive_board)
+      end)
       |> Enum.map(&normalize_uri/1)
       |> Enum.reject(&(&1 in ["", "none"]))
       |> MapSet.new()
@@ -221,7 +227,9 @@ defmodule EirinchanWeb.SearchController do
 
   defp pagination_params(params, selected_uris) do
     params
-    |> Map.take(~w(text search q thread tnum post_id subject username name tripcode email uid country filename image_hash imagehash width height start end image type results order highlight scope))
+    |> Map.take(
+      ~w(text search q thread tnum post_id subject username name tripcode email uid country filename image_hash imagehash width height start end image type results order highlight scope)
+    )
     |> Map.put("boards", selected_uris)
     |> Map.put("scope", "selected")
   end

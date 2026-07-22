@@ -41,7 +41,7 @@ defmodule Eirinchan.Posts.Search do
 
   @spec meaningful?(map()) :: boolean()
   def meaningful?(criteria) do
-    Enum.any?(@text_fields, &(present?(Map.get(criteria, String.to_existing_atom(&1))))) or
+    Enum.any?(@text_fields, &present?(Map.get(criteria, String.to_existing_atom(&1)))) or
       present?(criteria.thread) or present?(criteria.post_id) or criteria.width != nil or
       criteria.height != nil or criteria.start_date != nil or criteria.end_date != nil or
       criteria.image != "all" or criteria.type != "all"
@@ -159,7 +159,7 @@ defmodule Eirinchan.Posts.Search do
   defp apply_country(query, nil), do: query
 
   defp apply_country(query, country) do
-    from post in query, where: fragment("? = ANY(coalesce(?, ARRAY[]::varchar[]))", ^country, post.flag_codes)
+    from post in query, where: fragment("? = ANY(?)", ^country, post.flag_codes)
   end
 
   defp apply_filename(query, value) do
@@ -183,41 +183,41 @@ defmodule Eirinchan.Posts.Search do
 
   defp apply_dimensions(query, nil, nil), do: query
 
-  defp apply_dimensions(query, width, height) do
-    primary = dimension_dynamic(width, height)
-
+  defp apply_dimensions(query, width, nil) do
     extra_ids =
-      from(file in PostFile)
-      |> maybe_dimension_where(:image_width, width)
-      |> maybe_dimension_where(:image_height, height)
-      |> select([file], file.post_id)
+      from file in PostFile, where: file.image_width == ^width, select: file.post_id
 
-    from post in query, where: ^primary or post.id in subquery(extra_ids)
+    from post in query, where: post.image_width == ^width or post.id in subquery(extra_ids)
   end
 
-  defp dimension_dynamic(width, height) do
-    dynamic(true)
-    |> maybe_dimension_dynamic(:image_width, width)
-    |> maybe_dimension_dynamic(:image_height, height)
+  defp apply_dimensions(query, nil, height) do
+    extra_ids =
+      from file in PostFile, where: file.image_height == ^height, select: file.post_id
+
+    from post in query, where: post.image_height == ^height or post.id in subquery(extra_ids)
   end
 
-  defp maybe_dimension_dynamic(dynamic, _field, nil), do: dynamic
+  defp apply_dimensions(query, width, height) do
+    extra_ids =
+      from file in PostFile,
+        where: file.image_width == ^width and file.image_height == ^height,
+        select: file.post_id
 
-  defp maybe_dimension_dynamic(dynamic, field_name, value) do
-    dynamic([post], ^dynamic and field(post, ^field_name) == ^value)
-  end
-
-  defp maybe_dimension_where(query, _field, nil), do: query
-
-  defp maybe_dimension_where(query, field_name, value) do
-    from file in query, where: field(file, ^field_name) == ^value
+    from post in query,
+      where:
+        (post.image_width == ^width and post.image_height == ^height) or
+          post.id in subquery(extra_ids)
   end
 
   defp apply_dates(query, start_date, end_date) do
     query =
       case start_date do
-        %Date{} = date -> from post in query, where: post.inserted_at >= ^DateTime.new!(date, ~T[00:00:00], "Etc/UTC")
-        _ -> query
+        %Date{} = date ->
+          from post in query,
+            where: post.inserted_at >= ^DateTime.new!(date, ~T[00:00:00], "Etc/UTC")
+
+        _ ->
+          query
       end
 
     case end_date do
@@ -275,7 +275,9 @@ defmodule Eirinchan.Posts.Search do
           post.id in subquery(extra_ids)
   end
 
-  defp apply_post_type(query, "sticky"), do: from(post in query, where: is_nil(post.thread_id) and post.sticky == true)
+  defp apply_post_type(query, "sticky"),
+    do: from(post in query, where: is_nil(post.thread_id) and post.sticky == true)
+
   defp apply_post_type(query, "op"), do: from(post in query, where: is_nil(post.thread_id))
   defp apply_post_type(query, "reply"), do: from(post in query, where: not is_nil(post.thread_id))
   defp apply_post_type(query, _), do: query
