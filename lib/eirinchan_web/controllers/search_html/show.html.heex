@@ -6,6 +6,7 @@
   method="get"
   data-search-history-key="eirinchan.search.history.v1"
 >
+  <input :if={@theme_board_uri} type="hidden" name="theme_board" value={@theme_board_uri} />
   <fieldset class="search-console-panel">
     <legend>Search posts</legend>
 

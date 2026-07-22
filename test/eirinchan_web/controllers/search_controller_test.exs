@@ -454,6 +454,45 @@ defmodule EirinchanWeb.SearchControllerTest do
            ]
   end
 
+  test "all-board search preserves the originating board's automatic dark style", %{conn: conn} do
+    board =
+      board_fixture(%{
+        uri: "darkall#{System.unique_integer([:positive, :monotonic])}",
+        config_overrides: %{default_theme: "yotsuba", default_theme_dark: "tomorrow"}
+      })
+
+    initial_page =
+      conn
+      |> put_req_cookie("eirinchan_color_scheme", "dark")
+      |> get("/search.php", %{"board" => board.uri})
+      |> html_response(200)
+
+    {:ok, initial_document} = Floki.parse_document(initial_page)
+
+    assert Floki.attribute(initial_document, ~s(input[name="theme_board"]), "value") == [
+             board.uri
+           ]
+
+    results_page =
+      build_conn()
+      |> put_req_cookie("eirinchan_color_scheme", "dark")
+      |> get("/search.php", %{
+        "text" => "automatic dark style",
+        "scope" => "all",
+        "theme_board" => board.uri
+      })
+      |> html_response(200)
+
+    {:ok, results_document} = Floki.parse_document(results_page)
+
+    assert Floki.attribute(results_document, "link#stylesheet", "href")
+           |> Enum.any?(&String.contains?(&1, "/stylesheets/tomorrow.css"))
+
+    assert Floki.attribute(results_document, ~s(input[name="theme_board"]), "value") == [
+             board.uri
+           ]
+  end
+
   test "advanced search applies stored identity, media, country, and date filters", %{conn: conn} do
     board = board_fixture(%{uri: "fields#{System.unique_integer([:positive, :monotonic])}"})
 
