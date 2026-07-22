@@ -94,6 +94,50 @@ body.mod-page .mod-form-table td textarea {
   width: min(100%, 32rem);
 }
 
+body.mod-page .mod-action-shell {
+  width: min(calc(100% - 2rem), 32rem);
+  margin: 1.5rem auto;
+}
+
+body.mod-page .mod-action-shell h1 {
+  margin-bottom: 0.35rem;
+}
+
+body.mod-page .mod-action-back {
+  margin: 0 0 1rem;
+  text-align: center;
+}
+
+body.mod-page .mod-action-form fieldset {
+  box-sizing: border-box;
+  max-width: none;
+  margin: 0;
+}
+
+body.mod-page .mod-action-form label {
+  display: block;
+  margin-top: 0.75rem;
+  font-weight: bold;
+}
+
+body.mod-page .mod-action-form label:first-of-type {
+  margin-top: 0;
+}
+
+body.mod-page .mod-action-form select,
+body.mod-page .mod-action-form input[type="text"] {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  margin-top: 0.3rem;
+}
+
+body.mod-page .mod-action-form .mod-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.9rem;
+}
+
 .mod-login-error,
 .error {
   color: #d00;
