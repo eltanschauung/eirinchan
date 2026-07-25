@@ -531,6 +531,13 @@
         hidden && (window.active_page === "index" || window.active_page === "ukko")
       );
 
+      if (
+        window.EirinchanThreadHiding &&
+        typeof window.EirinchanThreadHiding.sync === "function"
+      ) {
+        window.EirinchanThreadHiding.sync(thread[0]);
+      }
+
       var hideLink = scope.find("p.intro .hide-thread-link").first();
       if (hideLink.length) hideLink.html("[" + (hidden ? "+" : "&ndash;") + "]");
     }
@@ -599,6 +606,8 @@
       ".mix.post-filter-hidden{display:none!important}" +
       ".post.post-filter-hidden>.body,.post.post-filter-hidden>.files," +
       ".post.post-filter-hidden>.video-container{display:none!important}" +
+      ".thread.thread-filter-hidden>.files," +
+      ".thread.thread-filter-hidden>.video-container{display:none!important}" +
       ".thread.post-filter-collapse-thread>.omitted," +
       ".thread.post-filter-collapse-thread>.reply:not(.hidden)," +
       ".thread.post-filter-collapse-thread>br.clear{display:none!important}";

@@ -185,7 +185,7 @@ $(document).ready(function () {
   function syncThread(thread) {
     bindThreadControls(thread);
 
-    if (isThreadHidden(thread)) {
+    if (isThreadHidden(thread) || threadHasPostFilterHide(thread)) {
       hideThread(thread, {skipStore: true});
     } else {
       if (
@@ -196,6 +196,14 @@ $(document).ready(function () {
       }
     }
   }
+
+  window.EirinchanThreadHiding = {
+    sync: function (thread) {
+      if (thread) {
+        syncThread(thread);
+      }
+    }
+  };
 
   function syncThreads(root) {
     var scope = root ? $(root) : $(document);

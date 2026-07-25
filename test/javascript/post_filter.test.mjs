@@ -8,6 +8,10 @@ import {JSDOM} from "jsdom";
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const jquerySource = await readFile(path.join(projectRoot, "priv/static/js/jquery.min.js"), "utf8");
 const optionsSource = await readFile(path.join(projectRoot, "assets/js/options.js"), "utf8");
+const hideThreadsSource = await readFile(
+  path.join(projectRoot, "priv/static/js/hide-threads.js"),
+  "utf8"
+);
 const postMenuSource = await readFile(path.join(projectRoot, "priv/static/js/post-menu.js"), "utf8");
 const postFilterSource = await readFile(path.join(projectRoot, "assets/js/post-filter.js"), "utf8");
 
@@ -45,6 +49,7 @@ function post({id, name = "Anonymous", subject = "", comment = "", flags = []}) 
         <span class="name">${name}</span>
         ${flagMarkup}
         <a class="post_no" id="post_no_${id}">No.</a><a class="post_no">${id}</a>
+        ${id === 100 ? '<button type="button" class="hide-thread-link js-link-button" title="Hide thread">[–]</button>' : ""}
         <button type="button" class="post-btn">▶</button>
       </p>
       <div class="body">${comment}</div>
@@ -59,6 +64,7 @@ async function filterWindow({storedState, posts} = {}) {
       ${optionsShell()}
       <table><tr><th>Name</th></tr></table>
       <div class="thread" id="thread_100" data-board="bant">
+        <div class="files op-media">opening media</div>
         ${
           posts ||
           post({
@@ -83,6 +89,7 @@ async function filterWindow({storedState, posts} = {}) {
   window.eval(jquerySource);
   window.jQuery.fx.off = true;
   window.eval(optionsSource);
+  window.eval(hideThreadsSource);
   window.eval(postMenuSource);
   window.eval(postFilterSource);
   window.document.dispatchEvent(new window.Event("DOMContentLoaded", {bubbles: true}));
@@ -172,6 +179,42 @@ test("flag filter post menu keeps its label and uses the canonical country name"
 
   assert.equal(directLabel, "Flag");
   assert.equal(flagMenu.querySelector("ul li").textContent, "Filter Turkey");
+  window.close();
+});
+
+test("name and flag filters use the normal non-persistent thread collapse", async () => {
+  const window = await filterWindow();
+  const thread = window.document.getElementById("thread_100");
+
+  addFilter(window, {type: "name", value: "Anonymous"});
+
+  assert.equal(thread.classList.contains("thread-filter-hidden"), true);
+  assert.equal(thread.classList.contains("thread-hidden"), true);
+  assert.ok(thread.querySelector(":scope > .thread-hidden-marker"));
+  assert.deepEqual(JSON.parse(window.localStorage.getItem("hiddenthreads")), {});
+
+  window.EirinchanPostFilter.clearAll();
+  assert.equal(thread.classList.contains("thread-hidden"), false);
+  assert.equal(thread.querySelector(":scope > .thread-hidden-marker"), null);
+
+  addFilter(window, {type: "flag", value: "zero"});
+  assert.equal(thread.classList.contains("thread-hidden"), true);
+  assert.ok(thread.querySelector(":scope > .thread-hidden-marker"));
+  assert.deepEqual(JSON.parse(window.localStorage.getItem("hiddenthreads")), {});
+  window.close();
+});
+
+test("removing a filter preserves a thread that was also manually hidden", async () => {
+  const window = await filterWindow();
+  const thread = window.document.getElementById("thread_100");
+
+  window.document.querySelector(".hide-thread-link").click();
+  addFilter(window, {type: "name", value: "Anonymous"});
+  window.document.querySelector("#filter-list .del-btn").click();
+
+  assert.equal(thread.classList.contains("thread-filter-hidden"), false);
+  assert.equal(thread.classList.contains("thread-hidden"), true);
+  assert.ok(JSON.parse(window.localStorage.getItem("hiddenthreads")).bant["100"]);
   window.close();
 });
 
