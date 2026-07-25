@@ -857,6 +857,7 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     assert page =~ ~s(<span class="name">Alice</span>)
     assert page =~ ~s(<span class="trip">!trip</span>)
     assert page =~ ~s(title="United States")
+    assert page =~ ~s(data-flag-code="country")
     assert page =~ ~s(<span class="subject">Filter Subject</span>)
     assert page =~ ~s(<div class="body">)
     assert page =~ "Filter comment body"

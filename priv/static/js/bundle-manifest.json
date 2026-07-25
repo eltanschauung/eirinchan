@@ -35,10 +35,10 @@
     {
       "label": "bundle:thread",
       "output": "priv/static/js/bundle-public-thread.js",
-      "output_bytes": 329923,
+      "output_bytes": 332058,
       "public_path": "/js/bundle-public-thread.js",
-      "sha256": "d0304b337a45d8681b852f752630dfd4d381e6987b0b6f16aa830996453d3c67",
-      "source_bytes": 352538,
+      "sha256": "1ec0e8543225f762275d6db8ff2fc8eb4a88ef26dd4d0f8928215677da7c393b",
+      "source_bytes": 369540,
       "sources": [
         "priv/static/js/inline-expanding.js",
         "priv/static/js/thread-stats.js",
@@ -51,7 +51,7 @@
         "priv/static/js/jquery-ui.custom.min.js",
         "priv/static/js/quick-reply.js",
         "priv/static/js/post-menu.js",
-        "priv/static/js/post-filter.js",
+        "assets/js/post-filter.js",
         "priv/static/js/local-time.js",
         "priv/static/js/titlebar-notifications.js",
         "priv/static/js/image-hover.js",
@@ -68,10 +68,10 @@
     {
       "label": "bundle:index",
       "output": "priv/static/js/bundle-public-index.js",
-      "output_bytes": 332391,
+      "output_bytes": 334526,
       "public_path": "/js/bundle-public-index.js",
-      "sha256": "4708103d711fb2cbbc17ad651ba58bec5f0ab3f3ae88cb8977f6d6d7b645f2f8",
-      "source_bytes": 358039,
+      "sha256": "be736069e3176ee981ff5c423d0a56c9dc4fde14e2273d2bda44ef1c5fd3f21b",
+      "source_bytes": 375041,
       "sources": [
         "priv/static/js/inline-expanding.js",
         "priv/static/js/strftime.min.js",
@@ -84,7 +84,7 @@
         "priv/static/js/quick-reply.js",
         "priv/static/js/hide-threads.js",
         "priv/static/js/post-menu.js",
-        "priv/static/js/post-filter.js",
+        "assets/js/post-filter.js",
         "priv/static/js/local-time.js",
         "priv/static/js/titlebar-notifications.js",
         "priv/static/js/image-hover.js",
@@ -101,16 +101,16 @@
     {
       "label": "bundle:catalog",
       "output": "priv/static/js/bundle-public-catalog.js",
-      "output_bytes": 47812,
+      "output_bytes": 49947,
       "public_path": "/js/bundle-public-catalog.js",
-      "sha256": "b4fb51af5100fc1a8d1242ab5aeaa8e3da97cf6fe7378621d2c209877539f935",
-      "source_bytes": 69802,
+      "sha256": "dc1dc092efffb9dbd869a747cc7f92def81514bdbca116a26da89421fc8e3841",
+      "source_bytes": 86804,
       "sources": [
         "priv/static/js/ajax.js",
         "priv/static/js/file-selector.js",
         "priv/static/js/upload-selection.js",
         "priv/static/js/post-menu.js",
-        "priv/static/js/post-filter.js",
+        "assets/js/post-filter.js",
         "priv/static/js/image-hover.js",
         "priv/static/js/show-own-posts.js",
         "priv/static/js/show-own-posts-options.js",
@@ -249,6 +249,17 @@
       "source_bytes": 3030,
       "sources": [
         "assets/js/options/user-js.js"
+      ]
+    },
+    {
+      "label": "maintained:js/post-filter.js",
+      "output": "priv/static/js/post-filter.js",
+      "output_bytes": 16811,
+      "public_path": "/js/post-filter.js",
+      "sha256": "35294d710ab51f20faedac7a26e9d1afc8470e320189ec434828f44e2d53d1ae",
+      "source_bytes": 31763,
+      "sources": [
+        "assets/js/post-filter.js"
       ]
     },
     {
