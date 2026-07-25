@@ -9,6 +9,8 @@ defmodule Eirinchan.CountryCodesTest do
     assert CountryCodes.code_for("DEU") == "de"
     assert CountryCodes.code_for("South Korea") == "kr"
     assert CountryCodes.code_for("ca") == "ca"
+    assert CountryCodes.code_for("Turkey") == "tr"
+    assert CountryCodes.code_for("Türkiye") == "tr"
   end
 
   test "leaves unknown custom flag identifiers for the search normalizer" do
