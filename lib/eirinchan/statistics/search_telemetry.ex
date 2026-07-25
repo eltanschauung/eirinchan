@@ -35,10 +35,34 @@ defmodule Eirinchan.Statistics.SearchTelemetry do
           Enum.map(features, &"search.features.#{&1}") ++
           identity_metrics(identities, features)
 
-      Statistics.record_metrics(metrics, Keyword.get(opts, :now, DateTime.utc_now(:second)))
+      now = Keyword.get(opts, :now, DateTime.utc_now(:second))
+      Statistics.record_metrics(metrics, now)
+
+      if outcome == "results" do
+        Statistics.record_search_terms(search_terms(criteria), now)
+      end
     end
 
     :ok
+  end
+
+  defp search_terms(criteria) do
+    Enum.flat_map(@filter_fields, fn
+      :country ->
+        criteria
+        |> Map.get(:country)
+        |> to_string()
+        |> String.split(",", trim: true)
+        |> Enum.map(&{:country, &1})
+
+      field ->
+        case Map.get(criteria, field) do
+          nil -> []
+          "" -> []
+          %Date{} = value -> [{field, Date.to_iso8601(value)}]
+          value -> [{field, to_string(value)}]
+        end
+    end)
   end
 
   defp features(criteria) do

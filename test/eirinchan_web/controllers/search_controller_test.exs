@@ -8,7 +8,9 @@ defmodule EirinchanWeb.SearchControllerTest do
 
   setup do
     Eirinchan.Statistics.create_counter_table()
+    Eirinchan.Statistics.create_search_term_table()
     :ets.delete_all_objects(Eirinchan.Statistics.counter_table())
+    :ets.delete_all_objects(Eirinchan.Statistics.search_term_table())
     :ok
   end
 
@@ -680,6 +682,7 @@ defmodule EirinchanWeb.SearchControllerTest do
       "board" => board.uri,
       "text" => "privacy marker",
       "subject" => "subject marker",
+      "country" => "Spain",
       "image" => "with",
       "results" => "threads",
       "highlight" => "1"
@@ -694,6 +697,7 @@ defmodule EirinchanWeb.SearchControllerTest do
     assert counters["search.attempts"] == 1
     assert counters["search.features.text"] == 1
     assert counters["search.features.subject"] == 1
+    assert counters["search.features.country"] == 1
     assert counters["search.features.image_with"] == 1
     assert counters["search.features.results_threads"] == 1
     assert counters["search.features.highlight"] == 1
@@ -712,5 +716,14 @@ defmodule EirinchanWeb.SearchControllerTest do
     refute serialized =~ "198.51.100.77"
     refute serialized =~ "Search Statistics Test Agent"
     refute serialized =~ "privacy marker"
+
+    search_terms =
+      Eirinchan.Statistics.drain_search_terms()
+      |> Map.values()
+      |> Enum.reduce(%{}, &Map.merge(&2, &1, fn _key, left, right -> left + right end))
+
+    assert search_terms[{"text", "privacy marker"}] == 1
+    assert search_terms[{"subject", "subject marker"}] == 1
+    assert search_terms[{"country", "es"}] == 1
   end
 end

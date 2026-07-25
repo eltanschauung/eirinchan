@@ -5,6 +5,7 @@ defmodule Eirinchan.Statistics.Store do
 
   alias Eirinchan.Boards
   alias Eirinchan.Repo
+  alias Eirinchan.Statistics.SearchTerm
   alias Eirinchan.Statistics.Snapshot
   alias Eirinchan.Stats
 
@@ -19,29 +20,20 @@ defmodule Eirinchan.Statistics.Store do
 
   def add_counters(period_start, counters, opts \\ [])
       when is_integer(period_start) and is_map(counters) do
+    add_batch(period_start, counters, %{}, opts)
+  end
+
+  def add_batch(period_start, counters, search_terms, opts \\ [])
+      when is_integer(period_start) and is_map(counters) and is_map(search_terms) do
     repo = Keyword.get(opts, :repo, Repo)
-    period_start = DateTime.from_unix!(period_start, :second)
+    period_start = DateTime.from_unix!(period_start * 1_000_000, :microsecond)
     period_end = DateTime.add(period_start, 3_600, :second)
 
     repo.transaction(fn ->
       ensure_snapshot(repo, period_start, period_end)
 
-      snapshot =
-        repo.one!(
-          from snapshot in Snapshot,
-            where: snapshot.period_start == ^period_start,
-            lock: "FOR UPDATE"
-        )
-
-      merged =
-        snapshot.counters
-        |> Kernel.||(%{})
-        |> Map.merge(counters, fn _key, left, right -> left + right end)
-        |> bound_search_identity_counters()
-
-      snapshot
-      |> Snapshot.changeset(%{counters: merged})
-      |> repo.update!()
+      persist_counters(repo, period_start, counters)
+      persist_search_terms(repo, period_start, search_terms)
 
       :ok
     end)
@@ -120,6 +112,58 @@ defmodule Eirinchan.Statistics.Store do
       finalized: false
     })
     |> repo.insert!(on_conflict: :nothing, conflict_target: :period_start)
+  end
+
+  defp persist_counters(_repo, _period_start, counters) when map_size(counters) == 0, do: :ok
+
+  defp persist_counters(repo, period_start, counters) do
+    snapshot =
+      repo.one!(
+        from snapshot in Snapshot,
+          where: snapshot.period_start == ^period_start,
+          lock: "FOR UPDATE"
+      )
+
+    merged =
+      snapshot.counters
+      |> Kernel.||(%{})
+      |> Map.merge(counters, fn _key, left, right -> left + right end)
+      |> bound_search_identity_counters()
+
+    snapshot
+    |> Snapshot.changeset(%{counters: merged})
+    |> repo.update!()
+  end
+
+  defp persist_search_terms(_repo, _period_start, search_terms)
+       when map_size(search_terms) == 0,
+       do: :ok
+
+  defp persist_search_terms(repo, period_start, search_terms) do
+    now = DateTime.utc_now(:microsecond)
+
+    Enum.each(search_terms, fn
+      {{field, term}, count}
+      when is_binary(field) and is_binary(term) and is_integer(count) and count > 0 ->
+        repo.insert_all(
+          SearchTerm,
+          [
+            %{
+              period_start: period_start,
+              field: field,
+              term: term,
+              occurrences: count,
+              inserted_at: now,
+              updated_at: now
+            }
+          ],
+          on_conflict: [inc: [occurrences: count], set: [updated_at: now]],
+          conflict_target: [:period_start, :field, :term]
+        )
+
+      _invalid ->
+        :ok
+    end)
   end
 
   defp bound_search_identity_counters(counters) do

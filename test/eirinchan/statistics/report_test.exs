@@ -3,6 +3,7 @@ defmodule Eirinchan.Statistics.ReportTest do
 
   alias Eirinchan.Repo
   alias Eirinchan.Statistics.Report
+  alias Eirinchan.Statistics.SearchTerm
   alias Eirinchan.Statistics.Snapshot
 
   test "returns the selected window, its baseline, and bounded challenge guidance" do
@@ -12,6 +13,9 @@ defmodule Eirinchan.Statistics.ReportTest do
     insert_snapshot(~U[2026-07-18 09:00:00Z], 50, 3, 1, 10)
     insert_snapshot(~U[2026-07-18 10:00:00Z], 90, 4, 2, 12)
     insert_snapshot(~U[2026-07-18 11:00:00Z], 90, 5, 2, 14)
+    insert_search_term(~U[2026-07-18 10:00:00Z], "text", "retained phrase", 1)
+    insert_search_term(~U[2026-07-18 11:00:00Z], "text", "retained phrase", 2)
+    insert_search_term(~U[2026-07-18 11:00:00Z], "country", "es", 1)
 
     report = Report.build(2, repo: Repo, now: now)
 
@@ -24,6 +28,8 @@ defmodule Eirinchan.Statistics.ReportTest do
     assert report.current.rate_limits == %{"search" => 2, "total" => 2}
     assert report.current.search.attempts == 2
     assert report.current.search.features == %{"text" => 2}
+    assert report.current.search.terms["text"] == [%{term: "retained phrase", count: 3}]
+    assert report.current.search.terms["country"] == [%{term: "es", count: 1}]
 
     assert report.current.search.clients.networks == [
              %{identifier: "network-id", count: 2}
@@ -89,5 +95,19 @@ defmodule Eirinchan.Statistics.ReportTest do
       finalized: true
     })
     |> Repo.insert!()
+  end
+
+  defp insert_search_term(period_start, field, term, occurrences) do
+    now = DateTime.utc_now(:microsecond)
+    period_start = DateTime.from_unix!(DateTime.to_unix(period_start, :microsecond), :microsecond)
+
+    Repo.insert!(%SearchTerm{
+      period_start: period_start,
+      field: field,
+      term: term,
+      occurrences: occurrences,
+      inserted_at: now,
+      updated_at: now
+    })
   end
 end
