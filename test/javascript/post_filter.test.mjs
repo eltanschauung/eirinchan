@@ -154,3 +154,25 @@ test("literal punctuation is never interpreted as a regular expression", async (
   assert.equal(window.document.getElementById("op_100").classList.contains("post-filter-hidden"), true);
   window.close();
 });
+
+test("filters are reapplied after updater fragments replace rendered posts", async () => {
+  const window = await filterWindow();
+  addFilter(window, {type: "flag", value: "zero"});
+
+  const thread = window.document.getElementById("thread_100");
+  thread.innerHTML = post({
+    id: 100,
+    flags: [{code: "zero", label: "Zero (Megaman X)"}],
+    comment: "refreshed opening post"
+  });
+
+  const refreshed = window.document.getElementById("op_100");
+  assert.equal(refreshed.classList.contains("post-filter-hidden"), false);
+
+  window.jQuery(window.document).trigger("fragment_init", [thread]);
+  window.jQuery(window.document).trigger("new_post", [refreshed]);
+  await new Promise((resolve) => window.setTimeout(resolve, 0));
+
+  assert.equal(refreshed.classList.contains("post-filter-hidden"), true);
+  window.close();
+});

@@ -553,6 +553,17 @@
     });
   }
 
+  var applyTimer = null;
+
+  function queueApply() {
+    if (applyTimer !== null) return;
+
+    applyTimer = window.setTimeout(function () {
+      applyTimer = null;
+      applyPage();
+    }, 0);
+  }
+
   function installStyles() {
     if (document.getElementById("post-filter-styles")) return;
     var style = document.createElement("style");
@@ -950,7 +961,7 @@
     if (eventsBound) return;
     eventsBound = true;
     $(document).on("filter_page.postFilter", applyPage);
-    $(document).on("new_post.postFilter", applyPage);
+    $(document).on("fragment_init.postFilter new_post.postFilter", queueApply);
   }
 
   function initialize() {
