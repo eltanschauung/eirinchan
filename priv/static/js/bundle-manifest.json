@@ -101,10 +101,10 @@
     {
       "label": "bundle:catalog",
       "output": "priv/static/js/bundle-public-catalog.js",
-      "output_bytes": 49947,
+      "output_bytes": 49728,
       "public_path": "/js/bundle-public-catalog.js",
-      "sha256": "dc1dc092efffb9dbd869a747cc7f92def81514bdbca116a26da89421fc8e3841",
-      "source_bytes": 86804,
+      "sha256": "144a6c7ccc2e572163acc6fd48823c720149dddb498adb4de828d878bb608095",
+      "source_bytes": 86459,
       "sources": [
         "priv/static/js/ajax.js",
         "priv/static/js/file-selector.js",

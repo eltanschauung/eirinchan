@@ -156,16 +156,10 @@
       }
 
       card.classList.add("catalog-thread-hidden");
-      card.style.display = "none";
     }
 
     function showCatalogThread(card) {
       card.classList.remove("catalog-thread-hidden");
-      card.style.removeProperty("display");
-
-      if (!card.getAttribute("style")) {
-        card.removeAttribute("style");
-      }
     }
 
     function syncHiddenThreads(root) {
@@ -226,10 +220,6 @@
       syncHiddenThreads(root);
     });
 
-    $(document).on("filter_page", function () {
-      syncHiddenThreads(document.body);
-    });
-
     $(document).on("clear_hidden_threads", function () {
       hiddenThreads = {};
       writeHiddenThreads(hiddenThreads);
@@ -266,7 +256,4 @@
     }
 
     syncHiddenThreads(document.body);
-    setTimeout(function () {
-      syncHiddenThreads(document.body);
-    }, 0);
   });
