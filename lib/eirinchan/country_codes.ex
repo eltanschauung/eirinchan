@@ -228,7 +228,7 @@ defmodule Eirinchan.CountryCodes do
   tm|tkm|Turkmenistan||
   tn|tun|Tunisia||Republic of Tunisia
   to|ton|Tonga||Kingdom of Tonga
-  tr|tur|Türkiye||Republic of Türkiye
+  tr|tur|Turkey|Türkiye|Republic of Türkiye
   tt|tto|Trinidad and Tobago||Republic of Trinidad and Tobago
   tv|tuv|Tuvalu||
   tw|twn|Taiwan, Province of China|Taiwan|Taiwan, Province of China
