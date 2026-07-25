@@ -170,6 +170,7 @@ defmodule EirinchanWeb.PostViewTest do
     assert identity_html =~ ~s(height="11")
     assert identity_html =~ ~s(loading="eager")
     assert identity_html =~ ~s(decoding="async")
+    assert identity_html =~ ~s(data-flag-code="country")
 
     navigation_html =
       Phoenix.LiveViewTest.render_component(&PostComponents.nav_arrows/1, %{})

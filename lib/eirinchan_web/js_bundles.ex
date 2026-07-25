@@ -108,6 +108,7 @@ defmodule EirinchanWeb.JsBundles do
     "js/options/general.js" => "assets/js/options/general.js",
     "js/options/user-css.js" => "assets/js/options/user-css.js",
     "js/options/user-js.js" => "assets/js/options/user-js.js",
+    "js/post-filter.js" => "assets/js/post-filter.js",
     "js/runtime-config.js" => "assets/js/runtime-config.js",
     "js/search.js" => "assets/js/search.js",
     "js/youtube.js" => "assets/js/youtube.js"
