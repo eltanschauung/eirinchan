@@ -6,7 +6,7 @@ defmodule EirinchanWeb.PostView do
   @local_quote_regex ~r/(^|[\s(])&gt;&gt;(\d+?)((?=[\s,.)?!])|$)/m
   @raw_local_quote_regex ~r/(^|[\s(])>>(\d+?)((?=[\s,.)?!])|$)/m
 
-  alias Eirinchan.{Boardlist, Boards, CredentialHash, PosterIds, Posts}
+  alias Eirinchan.{Boardlist, Boards, CountryCodes, CredentialHash, PosterIds, Posts}
   alias Eirinchan.Moderation
   alias Eirinchan.Posts.Email, as: PostsEmail
   alias Eirinchan.Posts.Post
@@ -237,7 +237,8 @@ defmodule EirinchanWeb.PostView do
       %{
         code: code,
         alt: alt,
-        src: flag_path(code, config)
+        src: flag_path(code, config),
+        search_terms_json: code |> CountryCodes.search_terms_for_code() |> Jason.encode!()
       }
     end)
   end

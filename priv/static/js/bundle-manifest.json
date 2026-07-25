@@ -35,10 +35,10 @@
     {
       "label": "bundle:thread",
       "output": "priv/static/js/bundle-public-thread.js",
-      "output_bytes": 332156,
+      "output_bytes": 332265,
       "public_path": "/js/bundle-public-thread.js",
-      "sha256": "6b63095c398dd3765c8858603d98c21aeae68278daf34dedcbc019d302806ebf",
-      "source_bytes": 369765,
+      "sha256": "1d1a2b8f90c0d9a18dcc2f839c010ee2ec2806e5379d4e6be9ff85fa110c0563",
+      "source_bytes": 370045,
       "sources": [
         "priv/static/js/inline-expanding.js",
         "priv/static/js/thread-stats.js",
@@ -68,10 +68,10 @@
     {
       "label": "bundle:index",
       "output": "priv/static/js/bundle-public-index.js",
-      "output_bytes": 334624,
+      "output_bytes": 334733,
       "public_path": "/js/bundle-public-index.js",
-      "sha256": "77247b23f65ef9dd9fe4f8f8cf3e67b0c8d39914b08ba4fd0f1add6e79bc1136",
-      "source_bytes": 375266,
+      "sha256": "06d15e1a0b5789f1e0f1acf63307cb521181aec2a3383e8818ab26aa130f654e",
+      "source_bytes": 375546,
       "sources": [
         "priv/static/js/inline-expanding.js",
         "priv/static/js/strftime.min.js",
@@ -101,10 +101,10 @@
     {
       "label": "bundle:catalog",
       "output": "priv/static/js/bundle-public-catalog.js",
-      "output_bytes": 49826,
+      "output_bytes": 49935,
       "public_path": "/js/bundle-public-catalog.js",
-      "sha256": "1224d3cc25a3c776392dc0d858741703903b33047acfd95a81c853f69f18aeff",
-      "source_bytes": 86684,
+      "sha256": "c87e57220171222362a7c1dd0c7c439f04dc1ccb47b278db2be2decd8abb7732",
+      "source_bytes": 86964,
       "sources": [
         "priv/static/js/ajax.js",
         "priv/static/js/file-selector.js",
@@ -254,10 +254,10 @@
     {
       "label": "maintained:js/post-filter.js",
       "output": "priv/static/js/post-filter.js",
-      "output_bytes": 16909,
+      "output_bytes": 17018,
       "public_path": "/js/post-filter.js",
-      "sha256": "83b29362124df9b2630eba2ed928ced99ab627124da05e3e466f3b38b52e3f0d",
-      "source_bytes": 31988,
+      "sha256": "f4e4373f33d99fd299ab6d836cae1ee92104961092f34507a75ae9abc0f3f8e6",
+      "source_bytes": 32268,
       "sources": [
         "assets/js/post-filter.js"
       ]

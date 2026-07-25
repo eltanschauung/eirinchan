@@ -184,6 +184,29 @@ defmodule EirinchanWeb.PostViewTest do
     assert length(Regex.scan(~r/fetchpriority="high"/, navigation_html)) == 2
   end
 
+  test "country flags expose the server search aliases to browser filters" do
+    config = Config.compose(%{display_flags: true})
+    board = %BoardRecord{uri: "bant", title: "Bant"}
+
+    post = %Post{
+      flag_codes: ["tr"],
+      flag_alts: ["Türkiye"],
+      inserted_at: ~N[2026-03-31 12:00:00]
+    }
+
+    html = PostComponents.post_identity_html(%{post: post, config: config, board: board})
+    {:ok, fragment} = Floki.parse_fragment(html)
+    [aliases_json] = Floki.attribute(fragment, "img.flag", "data-flag-aliases")
+
+    assert Jason.decode!(aliases_json) == [
+             "tr",
+             "tur",
+             "Turkey",
+             "Türkiye",
+             "Republic of Türkiye"
+           ]
+  end
+
   test "body_html renders inactive OP gap warnings with the public ban styling" do
     config = Config.compose(%{early_404_gap: true})
     post = %Post{body: "waow", inactive: true, thread_id: nil}
