@@ -255,13 +255,17 @@ defmodule Eirinchan.CountryCodes do
   zw|zwe|Zimbabwe||Republic of Zimbabwe
   """
 
-  @aliases @country_data
-           |> String.split("\n", trim: true)
-           |> Enum.flat_map(fn row ->
-             [code | aliases] = String.split(row, "|")
+  @countries @country_data
+             |> String.split("\n", trim: true)
+             |> Enum.map(&String.split(&1, "|"))
 
-             aliases
-             |> Kernel.++([code])
+  @search_terms_by_code Map.new(@countries, fn [code | aliases] ->
+                          {code, [code | Enum.reject(aliases, &(&1 == ""))]}
+                        end)
+
+  @aliases @countries
+           |> Enum.flat_map(fn [code | aliases] ->
+             [code | aliases]
              |> Enum.reject(&(&1 == ""))
              |> Enum.map(&{String.downcase(&1), code})
            end)
@@ -276,4 +280,14 @@ defmodule Eirinchan.CountryCodes do
   end
 
   def code_for(_value), do: nil
+
+  @spec search_terms_for_code(term()) :: [binary()]
+  def search_terms_for_code(value) when is_binary(value) do
+    value
+    |> String.trim()
+    |> String.downcase()
+    |> then(&Map.get(@search_terms_by_code, &1, []))
+  end
+
+  def search_terms_for_code(_value), do: []
 end

@@ -32,8 +32,8 @@ function optionsShell() {
 function post({id, name = "Anonymous", subject = "", comment = "", flags = []}) {
   const flagMarkup = flags
     .map(
-      ({code, label}) =>
-        `<img class="flag" data-flag-code="${code}" alt="${label}" title="${label}">`
+      ({code, label, aliases = []}) =>
+        `<img class="flag" data-flag-code="${code}" data-flag-aliases='${JSON.stringify(aliases)}' alt="${label}" title="${label}">`
     )
     .join("");
 
@@ -117,6 +117,29 @@ test("flag filters match every rendered flag by code or label", async () => {
 
   window.EirinchanPostFilter.clearAll();
   addFilter(window, {type: "flag", value: "Zero (Megaman X)"});
+  assert.equal(window.document.getElementById("op_100").classList.contains("post-filter-hidden"), true);
+  window.close();
+});
+
+test("country flag filters accept both two-letter codes and English names", async () => {
+  const window = await filterWindow({
+    posts: post({
+      id: 100,
+      flags: [
+        {
+          code: "tr",
+          label: "Türkiye",
+          aliases: ["tr", "tur", "Turkey", "Türkiye", "Republic of Türkiye"]
+        }
+      ]
+    })
+  });
+
+  addFilter(window, {type: "flag", value: "tr"});
+  assert.equal(window.document.getElementById("op_100").classList.contains("post-filter-hidden"), true);
+
+  window.EirinchanPostFilter.clearAll();
+  addFilter(window, {type: "flag", value: "turkey"});
   assert.equal(window.document.getElementById("op_100").classList.contains("post-filter-hidden"), true);
   window.close();
 });

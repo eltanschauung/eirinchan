@@ -315,10 +315,21 @@
 
     scope.find(".flag").each(function () {
       var flag = $(this);
-      [flag.attr("data-flag-code"), flag.attr("title"), flag.attr("alt")].forEach(function (value) {
-        var normalized = String(value || "").trim();
-        if (normalized && values.indexOf(normalized) === -1) values.push(normalized);
-      });
+      var aliases = [];
+
+      try {
+        var parsedAliases = JSON.parse(flag.attr("data-flag-aliases") || "[]");
+        if (Array.isArray(parsedAliases)) aliases = parsedAliases;
+      } catch (_error) {
+        aliases = [];
+      }
+
+      [flag.attr("data-flag-code"), flag.attr("title"), flag.attr("alt")]
+        .concat(aliases)
+        .forEach(function (value) {
+          var normalized = String(value || "").trim();
+          if (normalized && values.indexOf(normalized) === -1) values.push(normalized);
+        });
     });
 
     return values;

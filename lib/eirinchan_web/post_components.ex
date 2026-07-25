@@ -345,6 +345,7 @@ defmodule EirinchanWeb.PostComponents do
         alt={flag.alt}
         title={flag.alt}
         data-flag-code={flag.code}
+        data-flag-aliases={flag.search_terms_json}
         width="16"
         height="11"
         loading="eager"

@@ -843,7 +843,7 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
 
     Eirinchan.Repo.update_all(
       from(post in Eirinchan.Posts.Post, where: post.id == ^thread.id),
-      set: [tripcode: "!trip", flag_codes: ["country"], flag_alts: ["United States"]]
+      set: [tripcode: "!trip", flag_codes: ["tr"], flag_alts: ["Turkey"]]
     )
 
     page =
@@ -856,8 +856,13 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     assert page =~ ~s(<div class="catalog-filter-meta" hidden>)
     assert page =~ ~s(<span class="name">Alice</span>)
     assert page =~ ~s(<span class="trip">!trip</span>)
-    assert page =~ ~s(title="United States")
-    assert page =~ ~s(data-flag-code="country")
+    assert page =~ ~s(title="Turkey")
+    assert page =~ ~s(data-flag-code="tr")
+
+    {:ok, document} = Floki.parse_document(page)
+    [aliases_json] = Floki.attribute(document, ".catalog-filter-meta img.flag", "data-flag-aliases")
+    assert "Turkey" in Jason.decode!(aliases_json)
+
     assert page =~ ~s(<span class="subject">Filter Subject</span>)
     assert page =~ ~s(<div class="body">)
     assert page =~ "Filter comment body"
