@@ -10,7 +10,10 @@ defmodule Eirinchan.Statistics do
   alias Eirinchan.Statistics.RequestClassifier
 
   @counter_table :eirinchan_statistics_counters
+  @search_term_table :eirinchan_statistics_search_terms
   @metric_pattern ~r/\A[a-z0-9_.-]{1,160}\z/
+  @search_term_fields ~w(text thread post_id subject username tripcode email uid country filename image_hash width height start_date end_date)
+  @search_term_max_length 256
   @rate_limit_actions ~w(catalog_search delete feedback ip_access_auth manage_login post report search watcher)
 
   def enabled? do
@@ -45,6 +48,23 @@ defmodule Eirinchan.Statistics do
       |> Enum.uniq()
       |> Enum.each(fn metric ->
         :ets.update_counter(@counter_table, {bucket, metric}, {2, 1}, {{bucket, metric}, 0})
+      end)
+    end
+
+    :ok
+  end
+
+  def record_search_terms(terms, %DateTime{} = now) when is_list(terms) do
+    if :ets.whereis(@search_term_table) != :undefined do
+      bucket = hour_start_unix(now)
+
+      terms
+      |> Enum.map(&normalize_search_term/1)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
+      |> Enum.each(fn {field, term} ->
+        key = {bucket, field, term}
+        :ets.update_counter(@search_term_table, key, {2, 1}, {key, 0})
       end)
     end
 
@@ -86,10 +106,64 @@ defmodule Eirinchan.Statistics do
     :ok
   end
 
+  def drain_search_terms do
+    if :ets.whereis(@search_term_table) == :undefined do
+      %{}
+    else
+      @search_term_table
+      |> :ets.tab2list()
+      |> Enum.reduce(%{}, fn {{bucket, field, term} = key, _count}, drained ->
+        case :ets.take(@search_term_table, key) do
+          [{^key, count}] ->
+            update_in(
+              drained,
+              [Access.key(bucket, %{}), Access.key({field, term}, 0)],
+              &(&1 + count)
+            )
+
+          [] ->
+            drained
+        end
+      end)
+    end
+  end
+
+  def restore_search_terms(bucket, terms) when is_integer(bucket) and is_map(terms) do
+    if :ets.whereis(@search_term_table) != :undefined do
+      Enum.each(terms, fn {term_entry, count} ->
+        if normalized = normalize_search_term(term_entry) do
+          if is_integer(count) and count > 0 do
+            {field, term} = normalized
+            key = {bucket, field, term}
+            :ets.update_counter(@search_term_table, key, {2, count}, {key, 0})
+          end
+        end
+      end)
+    end
+
+    :ok
+  end
+
   def create_counter_table do
     case :ets.whereis(@counter_table) do
       :undefined ->
         :ets.new(@counter_table, [
+          :named_table,
+          :public,
+          :set,
+          read_concurrency: true,
+          write_concurrency: true
+        ])
+
+      table ->
+        table
+    end
+  end
+
+  def create_search_term_table do
+    case :ets.whereis(@search_term_table) do
+      :undefined ->
+        :ets.new(@search_term_table, [
           :named_table,
           :public,
           :set,
@@ -115,6 +189,22 @@ defmodule Eirinchan.Statistics do
   end
 
   def counter_table, do: @counter_table
+  def search_term_table, do: @search_term_table
 
   defp valid_metric?(metric), do: is_binary(metric) and Regex.match?(@metric_pattern, metric)
+
+  defp normalize_search_term({field, term}) when is_atom(field),
+    do: normalize_search_term({Atom.to_string(field), term})
+
+  defp normalize_search_term({field, term})
+       when field in @search_term_fields and is_binary(term) do
+    normalized =
+      term
+      |> String.trim()
+      |> String.slice(0, @search_term_max_length)
+
+    if normalized == "", do: nil, else: {field, normalized}
+  end
+
+  defp normalize_search_term(_term), do: nil
 end

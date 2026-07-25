@@ -27,6 +27,7 @@ defmodule Eirinchan.Statistics.Worker do
   @impl true
   def init(opts) do
     Statistics.create_counter_table()
+    Statistics.create_search_term_table()
 
     state = %{
       repo: Keyword.get(opts, :repo, Eirinchan.Repo),
@@ -89,15 +90,28 @@ defmodule Eirinchan.Statistics.Worker do
   end
 
   defp flush_counters(state) do
-    Statistics.drain_counters()
-    |> Enum.reduce_while(:ok, fn {bucket, counters}, :ok ->
-      case Store.add_counters(bucket, counters, repo: state.repo) do
+    counters_by_bucket = Statistics.drain_counters()
+    terms_by_bucket = Statistics.drain_search_terms()
+
+    buckets =
+      counters_by_bucket
+      |> Map.keys()
+      |> Kernel.++(Map.keys(terms_by_bucket))
+      |> Enum.uniq()
+      |> Enum.sort()
+
+    Enum.reduce(buckets, :ok, fn bucket, result ->
+      counters = Map.get(counters_by_bucket, bucket, %{})
+      terms = Map.get(terms_by_bucket, bucket, %{})
+
+      case Store.add_batch(bucket, counters, terms, repo: state.repo) do
         {:ok, :ok} ->
-          {:cont, :ok}
+          result
 
         {:error, reason} ->
           Statistics.restore_counters(bucket, counters)
-          {:halt, {:error, reason}}
+          Statistics.restore_search_terms(bucket, terms)
+          if result == :ok, do: {:error, reason}, else: result
       end
     end)
   end

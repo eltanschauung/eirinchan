@@ -5,6 +5,7 @@ defmodule Eirinchan.Statistics.Report do
 
   alias Eirinchan.Repo
   alias Eirinchan.Statistics
+  alias Eirinchan.Statistics.SearchTerm
   alias Eirinchan.Statistics.Snapshot
   alias Eirinchan.Settings
 
@@ -16,6 +17,7 @@ defmodule Eirinchan.Statistics.Report do
     as_of = Statistics.hour_start(now)
     current_start = DateTime.add(as_of, -hours * 3_600, :second)
     previous_start = DateTime.add(current_start, -hours * 3_600, :second)
+    next_hour = DateTime.add(as_of, 3_600, :second)
 
     snapshots =
       repo.all(
@@ -26,11 +28,29 @@ defmodule Eirinchan.Statistics.Report do
           order_by: [asc: snapshot.period_start]
       )
 
+    search_terms =
+      repo.all(
+        from search_term in SearchTerm,
+          where:
+            search_term.period_start >= ^previous_start and
+              search_term.period_start < ^next_hour,
+          order_by: [asc: search_term.period_start]
+      )
+
     {previous, current} =
       Enum.split_with(snapshots, &DateTime.before?(&1.period_start, current_start))
 
-    current_window = summarize(current, current_start, as_of, hours)
-    previous_window = summarize(previous, previous_start, current_start, hours)
+    {historical_terms, current_hour_terms} =
+      Enum.split_with(search_terms, &DateTime.before?(&1.period_start, as_of))
+
+    {previous_terms, current_terms} =
+      Enum.split_with(
+        historical_terms,
+        &DateTime.before?(&1.period_start, current_start)
+      )
+
+    current_window = summarize(current, current_terms, current_start, as_of, hours)
+    previous_window = summarize(previous, previous_terms, previous_start, current_start, hours)
 
     %{
       version: 1,
@@ -41,11 +61,11 @@ defmodule Eirinchan.Statistics.Report do
       current: current_window,
       previous: previous_window,
       traffic_comparison: traffic_comparison(current_window, previous_window, hours, opts),
-      current_hour: current_hour(repo, as_of, now)
+      current_hour: current_hour(repo, current_hour_terms, as_of, now)
     }
   end
 
-  defp summarize(snapshots, period_start, period_end, expected_snapshots) do
+  defp summarize(snapshots, search_terms, period_start, period_end, expected_snapshots) do
     counters = aggregate_counters(snapshots)
     visitors = Enum.map(snapshots, &(&1.users_10minutes || 0))
 
@@ -60,7 +80,7 @@ defmodule Eirinchan.Statistics.Report do
       visitors_10minutes: visitor_summary(visitors),
       requests: Map.get(counters, "requests.total", 0),
       rate_limits: prefixed_counters(counters, "rate_limits."),
-      search: search_summary(counters),
+      search: search_summary(counters, search_terms),
       counters: counters,
       snapshots: Enum.map(snapshots, &serialize_snapshot/1)
     }
@@ -105,14 +125,14 @@ defmodule Eirinchan.Statistics.Report do
     end
   end
 
-  defp current_hour(repo, as_of, now) do
+  defp current_hour(repo, search_terms, as_of, now) do
     snapshot = repo.get_by(Snapshot, period_start: as_of)
 
     %{
       period_start: DateTime.to_iso8601(as_of),
       elapsed_seconds: max(DateTime.diff(now, as_of, :second), 0),
       requests: if(snapshot, do: Map.get(snapshot.counters || %{}, "requests.total", 0), else: 0),
-      search: search_summary(if(snapshot, do: snapshot.counters || %{}, else: %{})),
+      search: search_summary(if(snapshot, do: snapshot.counters || %{}, else: %{}), search_terms),
       counters: if(snapshot, do: snapshot.counters || %{}, else: %{})
     }
   end
@@ -129,7 +149,7 @@ defmodule Eirinchan.Statistics.Report do
     |> Map.new(fn {key, value} -> {String.replace_prefix(key, prefix, ""), value} end)
   end
 
-  defp search_summary(counters) do
+  defp search_summary(counters, search_terms) do
     %{
       attempts: Map.get(counters, "search.attempts", 0),
       outcomes: prefixed_counters(counters, "search.outcomes."),
@@ -138,6 +158,7 @@ defmodule Eirinchan.Statistics.Report do
       boards: prefixed_counters(counters, "search.boards."),
       modes: prefixed_counters(counters, "search.modes."),
       result_buckets: prefixed_counters(counters, "search.results."),
+      terms: ranked_search_terms(search_terms),
       clients: %{
         networks: ranked_counters(counters, "search.clients.network."),
         user_agents: ranked_counters(counters, "search.clients.user_agent."),
@@ -148,6 +169,22 @@ defmodule Eirinchan.Statistics.Report do
         combined_features: ranked_client_features(counters, "search.client_features.combined.")
       }
     }
+  end
+
+  defp ranked_search_terms(search_terms) do
+    search_terms
+    |> Enum.group_by(& &1.field)
+    |> Map.new(fn {field, entries} ->
+      ranked =
+        entries
+        |> Enum.group_by(& &1.term)
+        |> Enum.map(fn {term, matches} ->
+          %{term: term, count: Enum.reduce(matches, 0, &(&1.occurrences + &2))}
+        end)
+        |> Enum.sort_by(&{-&1.count, &1.term})
+
+      {field, ranked}
+    end)
   end
 
   defp ranked_counters(counters, prefix) do

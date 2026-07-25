@@ -6,6 +6,7 @@ defmodule Eirinchan.Statistics.WorkerTest do
   alias Eirinchan.BrowserIdentity
   alias Eirinchan.Repo
   alias Eirinchan.Statistics
+  alias Eirinchan.Statistics.SearchTerm
   alias Eirinchan.Statistics.Snapshot
   alias Eirinchan.Statistics.Store
   alias Eirinchan.Statistics.Worker
@@ -13,6 +14,10 @@ defmodule Eirinchan.Statistics.WorkerTest do
   setup do
     :ets.delete_all_objects(:eirinchan_browser_presence)
     :ets.delete_all_objects(:eirinchan_browser_presence_dirty)
+    Statistics.create_counter_table()
+    Statistics.create_search_term_table()
+    :ets.delete_all_objects(Statistics.counter_table())
+    :ets.delete_all_objects(Statistics.search_term_table())
 
     worker =
       start_supervised!(
@@ -48,6 +53,18 @@ defmodule Eirinchan.Statistics.WorkerTest do
       request_time
     )
 
+    Statistics.record_search_terms(
+      [{"text", "hourly retained query"}, {"country", "es"}],
+      request_time
+    )
+
+    assert :ok = Worker.flush(worker)
+
+    Statistics.record_search_terms(
+      [{"text", "hourly retained query"}, {"country", "es"}],
+      request_time
+    )
+
     assert :ok = Worker.flush(worker)
     assert :ok = Worker.finalize(worker, period_end)
 
@@ -61,6 +78,18 @@ defmodule Eirinchan.Statistics.WorkerTest do
     assert snapshot.counters["requests.board.test.index.full"] == 1
     assert snapshot.daily_total_requests == 1
     assert snapshot.daily_unique_visitors == 1
+
+    assert Repo.get_by!(SearchTerm,
+             period_start: DateTime.add(period_end, -3_600, :second),
+             field: "text",
+             term: "hourly retained query"
+           ).occurrences == 2
+
+    assert Repo.get_by!(SearchTerm,
+             period_start: DateTime.add(period_end, -3_600, :second),
+             field: "country",
+             term: "es"
+           ).occurrences == 2
   end
 
   test "restores a drained batch after a persistence failure" do
@@ -74,6 +103,14 @@ defmodule Eirinchan.Statistics.WorkerTest do
 
     Statistics.restore_counters(bucket, drained[bucket])
     assert Statistics.drain_counters() == drained
+
+    Statistics.record_search_terms([{"country", "es"}], now)
+    drained_terms = Statistics.drain_search_terms()
+    assert drained_terms == %{bucket => %{{"country", "es"} => 1}}
+    assert Statistics.drain_search_terms() == %{}
+
+    Statistics.restore_search_terms(bucket, drained_terms[bucket])
+    assert Statistics.drain_search_terms() == drained_terms
   end
 
   test "bounds persisted pseudonymous search identities" do
