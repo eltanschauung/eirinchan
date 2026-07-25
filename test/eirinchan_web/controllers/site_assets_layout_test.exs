@@ -40,7 +40,7 @@ defmodule EirinchanWeb.SiteAssetsLayoutTest do
 
     page =
       conn
-      |> get("/search", %{"q" => ""})
+      |> get("/search.php", %{"q" => ""})
       |> html_response(200)
 
     assert page =~ ~s(/stylesheets/style.css?v=build-42)
@@ -60,7 +60,7 @@ defmodule EirinchanWeb.SiteAssetsLayoutTest do
 
     page =
       conn
-      |> get("/search", %{"q" => ""})
+      |> get("/search.php", %{"q" => ""})
       |> html_response(200)
 
     refute page =~ ~s(<script id="analytics-hook">)

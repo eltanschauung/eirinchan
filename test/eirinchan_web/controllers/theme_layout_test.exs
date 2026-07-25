@@ -26,7 +26,7 @@ defmodule EirinchanWeb.ThemeLayoutTest do
     page =
       conn
       |> put_req_cookie("theme", "tomorrow")
-      |> get("/search", %{"q" => ""})
+      |> get("/search.php", %{"q" => ""})
       |> html_response(200)
 
     refute page =~ ~s(action="/theme")
@@ -51,7 +51,7 @@ defmodule EirinchanWeb.ThemeLayoutTest do
     page =
       conn
       |> put_req_cookie("eirinchan_color_scheme", "dark")
-      |> get("/search", %{"q" => ""})
+      |> get("/search.php", %{"q" => ""})
       |> html_response(200)
 
     assert page =~ ~s(id="stylesheet")
