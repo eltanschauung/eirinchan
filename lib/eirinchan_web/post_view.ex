@@ -237,6 +237,7 @@ defmodule EirinchanWeb.PostView do
       %{
         code: code,
         alt: alt,
+        filter_label: CountryCodes.primary_name_for_code(code) || alt,
         src: flag_path(code, config),
         search_terms_json: code |> CountryCodes.search_terms_for_code() |> Jason.encode!()
       }

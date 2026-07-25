@@ -201,6 +201,7 @@ defmodule EirinchanWeb.PostViewTest do
     html = PostComponents.post_identity_html(%{post: post, config: config, board: board})
     {:ok, fragment} = Floki.parse_fragment(html)
     [aliases_json] = Floki.attribute(fragment, "img.flag", "data-flag-aliases")
+    [filter_label] = Floki.attribute(fragment, "img.flag", "data-flag-filter-label")
 
     assert Jason.decode!(aliases_json) == [
              "tr",
@@ -209,6 +210,8 @@ defmodule EirinchanWeb.PostViewTest do
              "Türkiye",
              "Republic of Türkiye"
            ]
+
+    assert filter_label == "Turkey"
   end
 
   test "body_html renders inactive OP gap warnings with the public ban styling" do

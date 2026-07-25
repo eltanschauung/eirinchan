@@ -341,7 +341,9 @@
     scope.find(".flag").each(function () {
       var flag = $(this);
       var code = String(flag.attr("data-flag-code") || "").trim();
-      var label = String(flag.attr("title") || flag.attr("alt") || code).trim();
+      var label = String(
+        flag.attr("data-flag-filter-label") || flag.attr("title") || flag.attr("alt") || code
+      ).trim();
       var value = label || code;
       if (!value) return;
 
@@ -798,7 +800,9 @@
       .removeClass("hidden post-item")
       .addClass("post-submenu")
       .empty()
-      .append(list, $("<span>").addClass("post-menu-arrow").text("»"));
+      .text(translate("Flag"))
+      .prepend(list)
+      .append($("<span>").addClass("post-menu-arrow").text("»"));
   }
 
   function configurePostMenu(event, menu) {

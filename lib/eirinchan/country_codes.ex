@@ -263,6 +263,10 @@ defmodule Eirinchan.CountryCodes do
                           {code, [code | Enum.reject(aliases, &(&1 == ""))]}
                         end)
 
+  @primary_names_by_code Map.new(@countries, fn [code, _alpha3, primary_name | _aliases] ->
+                           {code, primary_name}
+                         end)
+
   @aliases @countries
            |> Enum.flat_map(fn [code | aliases] ->
              [code | aliases]
@@ -290,4 +294,14 @@ defmodule Eirinchan.CountryCodes do
   end
 
   def search_terms_for_code(_value), do: []
+
+  @spec primary_name_for_code(term()) :: binary() | nil
+  def primary_name_for_code(value) when is_binary(value) do
+    value
+    |> String.trim()
+    |> String.downcase()
+    |> then(&Map.get(@primary_names_by_code, &1))
+  end
+
+  def primary_name_for_code(_value), do: nil
 end
