@@ -34,7 +34,15 @@ function optionsShell() {
   `;
 }
 
-function post({id, name = "Anonymous", subject = "", comment = "", flags = []}) {
+function post({
+  id,
+  name = "Anonymous",
+  trip = "",
+  uid = "",
+  subject = "",
+  comment = "",
+  flags = []
+}) {
   const flagMarkup = flags
     .map(
       ({code, label, filterLabel = label, aliases = []}) =>
@@ -47,6 +55,8 @@ function post({id, name = "Anonymous", subject = "", comment = "", flags = []}) 
       <p class="intro">
         <span class="subject">${subject}</span>
         <span class="name">${name}</span>
+        ${trip ? `<span class="trip">${trip}</span>` : ""}
+        ${uid ? `<span class="poster_id">${uid}</span>` : ""}
         ${flagMarkup}
         <a class="post_no" id="post_no_${id}">No.</a><a class="post_no">${id}</a>
         ${id === 100 ? '<button type="button" class="hide-thread-link js-link-button" title="Hide thread">[–]</button>' : ""}
@@ -179,6 +189,36 @@ test("flag filter post menu keeps its label and uses the canonical country name"
 
   assert.equal(directLabel, "Flag");
   assert.equal(flagMenu.querySelector("ul li").textContent, "Filter Turkey");
+  window.close();
+});
+
+test("adding any post-menu filter closes the menu", async () => {
+  const window = await filterWindow({
+    posts: post({
+      id: 100,
+      trip: "!example",
+      uid: "example-id",
+      flags: [{code: "tr", label: "Türkiye", filterLabel: "Turkey"}]
+    })
+  });
+
+  for (const selector of [
+    "#filter-add-name",
+    "#filter-add-trip",
+    "#filter-add-id",
+    "#filter-add-flag ul li"
+  ]) {
+    window.document.querySelector(".post-btn").click();
+    const menu = window.document.getElementById("post-menu-root");
+    assert.equal(menu.hidden, false, `${selector} menu opens`);
+
+    menu.querySelector(selector).click();
+
+    assert.equal(menu.hidden, true, `${selector} closes the menu`);
+    assert.equal(window.document.querySelector(".post-btn-open"), null);
+    window.EirinchanPostFilter.clearAll();
+  }
+
   window.close();
 });
 

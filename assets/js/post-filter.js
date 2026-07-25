@@ -776,7 +776,6 @@
   function bindMenuClick(item, callback) {
     item.removeClass("hidden").off("click.postFilter").on("click.postFilter", function (event) {
       event.preventDefault();
-      event.stopPropagation();
       callback();
     });
   }
@@ -798,7 +797,6 @@
 
       action.on("click.postFilter", function (event) {
         event.preventDefault();
-        event.stopPropagation();
         if (filtered) removeGeneralFilter("flag", flag.value, false);
         else addGeneralFilter("flag", flag.value, false);
       });
