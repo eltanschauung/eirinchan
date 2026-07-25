@@ -128,7 +128,7 @@ defmodule EirinchanWeb.ProxyRequestControllerTest do
       build_conn()
       |> Map.put(:remote_ip, {203, 0, 113, 45})
       |> put_req_header("x-forwarded-for", "198.51.100.55, 203.0.113.45")
-      |> get("/search", %{"q" => "proxied", "board" => board.uri})
+      |> get("/search.php", %{"q" => "proxied", "board" => board.uri})
 
     assert html_response(search_conn, 200) =~ "No results."
 
