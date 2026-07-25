@@ -8,6 +8,7 @@ import {JSDOM} from "jsdom";
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const jquerySource = await readFile(path.join(projectRoot, "priv/static/js/jquery.min.js"), "utf8");
 const optionsSource = await readFile(path.join(projectRoot, "assets/js/options.js"), "utf8");
+const postMenuSource = await readFile(path.join(projectRoot, "priv/static/js/post-menu.js"), "utf8");
 const postFilterSource = await readFile(path.join(projectRoot, "assets/js/post-filter.js"), "utf8");
 
 function optionsShell() {
@@ -32,8 +33,8 @@ function optionsShell() {
 function post({id, name = "Anonymous", subject = "", comment = "", flags = []}) {
   const flagMarkup = flags
     .map(
-      ({code, label, aliases = []}) =>
-        `<img class="flag" data-flag-code="${code}" data-flag-aliases='${JSON.stringify(aliases)}' alt="${label}" title="${label}">`
+      ({code, label, filterLabel = label, aliases = []}) =>
+        `<img class="flag" data-flag-code="${code}" data-flag-filter-label="${filterLabel}" data-flag-aliases='${JSON.stringify(aliases)}' alt="${label}" title="${label}">`
     )
     .join("");
 
@@ -44,6 +45,7 @@ function post({id, name = "Anonymous", subject = "", comment = "", flags = []}) 
         <span class="name">${name}</span>
         ${flagMarkup}
         <a class="post_no" id="post_no_${id}">No.</a><a class="post_no">${id}</a>
+        <button type="button" class="post-btn">▶</button>
       </p>
       <div class="body">${comment}</div>
       <div class="files">media</div>
@@ -81,6 +83,7 @@ async function filterWindow({storedState, posts} = {}) {
   window.eval(jquerySource);
   window.jQuery.fx.off = true;
   window.eval(optionsSource);
+  window.eval(postMenuSource);
   window.eval(postFilterSource);
   window.document.dispatchEvent(new window.Event("DOMContentLoaded", {bubbles: true}));
   await new Promise((resolve) => window.setTimeout(resolve, 0));
@@ -141,6 +144,34 @@ test("country flag filters accept both two-letter codes and English names", asyn
   window.EirinchanPostFilter.clearAll();
   addFilter(window, {type: "flag", value: "turkey"});
   assert.equal(window.document.getElementById("op_100").classList.contains("post-filter-hidden"), true);
+  window.close();
+});
+
+test("flag filter post menu keeps its label and uses the canonical country name", async () => {
+  const window = await filterWindow({
+    posts: post({
+      id: 100,
+      flags: [
+        {
+          code: "tr",
+          label: "Türkiye",
+          filterLabel: "Turkey",
+          aliases: ["tr", "tur", "Turkey", "Türkiye", "Republic of Türkiye"]
+        }
+      ]
+    })
+  });
+
+  window.document.querySelector(".post-btn").click();
+
+  const flagMenu = window.document.getElementById("filter-add-flag");
+  const directLabel = Array.from(flagMenu.childNodes)
+    .filter((node) => node.nodeType === window.Node.TEXT_NODE)
+    .map((node) => node.nodeValue.trim())
+    .join(" ");
+
+  assert.equal(directLabel, "Flag");
+  assert.equal(flagMenu.querySelector("ul li").textContent, "Filter Turkey");
   window.close();
 });
 

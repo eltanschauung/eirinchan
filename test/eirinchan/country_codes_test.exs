@@ -28,4 +28,10 @@ defmodule Eirinchan.CountryCodesTest do
 
     assert CountryCodes.search_terms_for_code("mokou") == []
   end
+
+  test "exposes the primary English name for country flag menus" do
+    assert CountryCodes.primary_name_for_code("TR") == "Turkey"
+    assert CountryCodes.primary_name_for_code("mokou") == nil
+    assert CountryCodes.primary_name_for_code(nil) == nil
+  end
 end
