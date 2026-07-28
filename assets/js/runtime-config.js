@@ -403,6 +403,10 @@
     window.stylesheets_board = parseBoolean(metaContent("eirinchan:stylesheets-board"), true);
   }
   if (window.genpassword_chars === undefined) window.genpassword_chars = metaContent("eirinchan:genpassword-chars") || "";
+  runtime.inlineExpandMax = Math.max(
+    0,
+    parseInteger(metaContent("eirinchan:inline-expand-max"), 10)
+  );
   if (window.post_success_cookie_name === undefined) {
     window.post_success_cookie_name = metaContent("eirinchan:post-success-cookie-name") || "eirinchan_posted";
   }

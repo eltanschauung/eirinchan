@@ -31,6 +31,7 @@ defmodule Eirinchan.Runtime.ConfigTest do
         browser_identity_ttl_seconds: 100,
         browser_identity_rotation_seconds: 200,
         browser_identity_touch_interval_seconds: 300,
+        inline_expand_max: "12",
         queue: %{max_attempts: "9"}
       })
 
@@ -44,7 +45,16 @@ defmodule Eirinchan.Runtime.ConfigTest do
     assert config.moderation_recent_posts_default == 30
     assert config.browser_identity_rotation_seconds == 100
     assert config.browser_identity_touch_interval_seconds == 100
+    assert config.inline_expand_max == 12
     assert config.queue.max_attempts == 9
+  end
+
+  test "defaults and bounds the server-controlled inline image download limit" do
+    assert Config.default_config().inline_expand_max == 10
+    assert Config.compose(nil, %{}, %{}).inline_expand_max == 10
+    assert Config.compose(nil, %{inline_expand_max: 0}, %{}).inline_expand_max == 0
+    assert Config.compose(nil, %{inline_expand_max: -1}, %{}).inline_expand_max == 10
+    assert Config.compose(nil, %{inline_expand_max: 50_000}, %{}).inline_expand_max == 10_000
   end
 
   test "merges default, instance, and board config before applying computed defaults" do

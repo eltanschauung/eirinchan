@@ -19,4 +19,10 @@ defmodule EirinchanWeb.JavaScriptRuntimeMetaTest do
   test "custom code is enabled in the default runtime config" do
     assert Eirinchan.Runtime.Config.default_config().allow_user_custom_code
   end
+
+  test "inline image download concurrency is explicit in runtime metadata" do
+    config = Eirinchan.Runtime.Config.compose(nil, %{inline_expand_max: 24}, %{})
+
+    assert PublicShell.head_meta(:index, config: config)["eirinchan:inline-expand-max"] == "24"
+  end
 end
