@@ -49,6 +49,28 @@ defmodule EirinchanWeb.JsBundlesTest do
     assert options_index < watcher_index
   end
 
+  test "every page bundle shares the complete index Options menu" do
+    options_sources =
+      MapSet.new([
+        "js/options.js",
+        "js/options/general.js",
+        "js/thread-watcher.js",
+        "js/navarrows2.js",
+        "js/post-filter.js",
+        "js/image-hover.js",
+        "js/show-own-posts-options.js",
+        "js/webm-settings.js"
+      ])
+
+    assert options_sources
+           |> MapSet.difference(MapSet.new(JsBundles.sources_for(:core)))
+           |> MapSet.size() == 0
+
+    Enum.each([:default, :thread, :index, :catalog, :ukko, :search], fn bundle_key ->
+      assert MapSet.disjoint?(options_sources, MapSet.new(JsBundles.sources_for(bundle_key)))
+    end)
+  end
+
   test "maintained minified outputs resolve to readable non-static sources" do
     outputs = JsBundles.maintained_outputs()
 

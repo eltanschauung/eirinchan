@@ -3,7 +3,8 @@
 
   var $ = window.jQuery;
   var supportedPages = {thread: true, index: true, catalog: true, ukko: true};
-  if (!$ || !supportedPages[window.active_page]) return;
+  var pageSupportsFiltering = !!supportedPages[window.active_page];
+  if (!$) return;
 
   var storageKey = "postFilter";
   var filterTypes = {name: true, trip: true, sub: true, com: true, flag: true};
@@ -989,11 +990,13 @@
   function initialize() {
     if (initialized) return;
     initialized = true;
+    readState();
+    initializeOptions();
+    if (!pageSupportsFiltering) return;
+
     runtime.hasUID = document.getElementsByClassName("poster_id").length > 0;
     runtime.forcedAnon = $("th:contains(Name)").length === 0;
     installStyles();
-    readState();
-    initializeOptions();
     bindEvents();
     attachMenu(window.Menu);
     applyPage();
@@ -1006,9 +1009,11 @@
     readState: readState
   };
 
-  $(document).on("menu_ready.postFilterBootstrap", function () {
-    attachMenu(window.Menu);
-  });
+  if (pageSupportsFiltering) {
+    $(document).on("menu_ready.postFilterBootstrap", function () {
+      attachMenu(window.Menu);
+    });
+  }
   $(initialize);
-  if (window.Menu) attachMenu(window.Menu);
+  if (pageSupportsFiltering && window.Menu) attachMenu(window.Menu);
 })(window, document);

@@ -11,12 +11,16 @@ defmodule EirinchanWeb.JsBundles do
       "js/thread-watcher.js",
       "js/blotter.js",
       "js/youtube.js",
-      "js/mobile-style.js"
+      "js/mobile-style.js",
+      "js/navarrows2.js",
+      "js/post-filter.js",
+      "js/image-hover.js",
+      "js/show-own-posts-options.js",
+      "js/webm-settings.js"
     ],
     default: [
       "js/inline-expanding.js",
       "js/expand.js",
-      "js/image-hover.js",
       "js/post-hover.js",
       "js/local-time.js"
     ],
@@ -25,31 +29,25 @@ defmodule EirinchanWeb.JsBundles do
       "js/thread-stats.js",
       "js/strftime.min.js",
       "js/ajax.js",
-      "js/navarrows2.js",
       "js/file-selector.js",
       "js/upload-selection.js",
       "js/expand.js",
       "js/jquery-ui.custom.min.js",
       "js/quick-reply.js",
       "js/post-menu.js",
-      "js/post-filter.js",
       "js/local-time.js",
       "js/titlebar-notifications.js",
-      "js/image-hover.js",
       "js/post-hover.js",
       "js/show-own-posts.js",
-      "js/show-own-posts-options.js",
       "js/legacy-mod-actions.js",
       "js/fix-report-delete-submit.js",
       "js/quick-post-controls.js",
-      "js/webm-settings.js",
       "js/expand-video.js"
     ],
     index: [
       "js/inline-expanding.js",
       "js/strftime.min.js",
       "js/ajax.js",
-      "js/navarrows2.js",
       "js/file-selector.js",
       "js/upload-selection.js",
       "js/expand.js",
@@ -57,17 +55,13 @@ defmodule EirinchanWeb.JsBundles do
       "js/quick-reply.js",
       "js/hide-threads.js",
       "js/post-menu.js",
-      "js/post-filter.js",
       "js/local-time.js",
       "js/titlebar-notifications.js",
-      "js/image-hover.js",
       "js/post-hover.js",
       "js/show-own-posts.js",
-      "js/show-own-posts-options.js",
       "js/legacy-mod-actions.js",
       "js/fix-report-delete-submit.js",
       "js/quick-post-controls.js",
-      "js/webm-settings.js",
       "js/expand-video.js"
     ],
     catalog: [
@@ -75,10 +69,7 @@ defmodule EirinchanWeb.JsBundles do
       "js/file-selector.js",
       "js/upload-selection.js",
       "js/post-menu.js",
-      "js/post-filter.js",
-      "js/image-hover.js",
       "js/show-own-posts.js",
-      "js/show-own-posts-options.js",
       "js/legacy-mod-actions.js",
       "js/fix-report-delete-submit.js",
       "js/catalog.js",
@@ -89,10 +80,8 @@ defmodule EirinchanWeb.JsBundles do
       "js/search.js",
       "js/inline-expanding.js",
       "js/expand.js",
-      "js/image-hover.js",
       "js/local-time.js",
-      "js/show-own-posts.js",
-      "js/show-own-posts-options.js"
+      "js/show-own-posts.js"
     ]
   }
 
@@ -103,8 +92,10 @@ defmodule EirinchanWeb.JsBundles do
     "js/auth-redirect.js" => "assets/js/auth-redirect.js",
     "js/blotter.js" => "assets/js/blotter.js",
     "js/inline-expanding.js" => "assets/js/inline-expanding.js",
+    "js/image-hover.js" => "assets/js/image-hover.js",
     "js/manage-forms.js" => "assets/js/manage-forms.js",
     "js/mobile-style.js" => "assets/js/mobile-style.js",
+    "js/navarrows2.js" => "assets/js/navarrows2.js",
     "js/options.js" => "assets/js/options.js",
     "js/options/general.js" => "assets/js/options/general.js",
     "js/options/user-css.js" => "assets/js/options/user-css.js",
@@ -112,6 +103,8 @@ defmodule EirinchanWeb.JsBundles do
     "js/post-filter.js" => "assets/js/post-filter.js",
     "js/runtime-config.js" => "assets/js/runtime-config.js",
     "js/search.js" => "assets/js/search.js",
+    "js/show-own-posts-options.js" => "assets/js/show-own-posts-options.js",
+    "js/webm-settings.js" => "assets/js/webm-settings.js",
     "js/youtube.js" => "assets/js/youtube.js"
   }
 
