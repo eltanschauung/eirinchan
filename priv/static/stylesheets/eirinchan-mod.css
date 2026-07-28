@@ -1,8 +1,3 @@
-body.mod-page {
-  background: #ffe url('/stylesheets/assets/fade-yotsuba.png') repeat-x 50% 0% !important;
-  color: #800000;
-}
-
 body.mod-page,
 body.mod-page input,
 body.mod-page textarea,
@@ -21,14 +16,12 @@ body.mod-page header {
 }
 
 body.mod-page h1 {
-  color: #800;
   text-align: center;
   font-family: tahoma, arial, helvetica, sans-serif;
   letter-spacing: -2px;
 }
 
 body.mod-page .subtitle {
-  color: #b86;
   text-align: center;
   font-size: 8pt;
 }
@@ -36,13 +29,11 @@ body.mod-page .subtitle {
 body.mod-page fieldset {
   max-width: 980px;
   margin: 0.9em auto;
-  border: 1px solid #d9bfb7;
-  background: rgba(240, 224, 214, 0.62);
+  border: 1px solid currentColor;
   padding: 0.85em 1em;
 }
 
 body.mod-page legend {
-  color: #800;
   font-weight: bold;
 }
 
@@ -94,16 +85,11 @@ body.mod-page .mod-link-button {
   appearance: none;
   border: 0;
   background: none;
-  color: #0000ee;
+  color: inherit;
   cursor: pointer;
   font: inherit;
   padding: 0;
   text-decoration: underline;
-}
-
-body.mod-page .mod-link-button:hover,
-body.mod-page .mod-link-button:focus-visible {
-  color: #ff0000;
 }
 
 body.mod-page .mod-form-table {
@@ -122,9 +108,6 @@ body.mod-page .mod-form-table.compact {
 
 body.mod-page .mod-form-table th,
 body.mod-page .mod-login-form th {
-  background-color: #ea8;
-  color: #800;
-  border: 1px solid #800;
   padding: 0 5px;
   text-align: left;
 }
@@ -193,7 +176,6 @@ body.mod-page .board_image {
 }
 
 body.mod-page h2 {
-  color: #d00;
   text-align: center;
   font-size: 1.2em;
   margin: 1em auto 0.5em auto;
