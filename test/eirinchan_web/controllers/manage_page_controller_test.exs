@@ -50,6 +50,41 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert dashboard =~ ~s(class="boardlist")
   end
 
+  test "manage pages use the resolved automatic browser theme", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+
+    board_fixture(%{
+      uri: "bant",
+      title: "International Random",
+      config_overrides: %{default_theme: "yotsuba", default_theme_dark: "tomorrow"}
+    })
+
+    for {path, authenticated?} <- [
+          {"/manage/login", false},
+          {"/manage", true},
+          {"/manage/feedback/browser", true}
+        ] do
+      request_conn =
+        conn
+        |> recycle()
+        |> put_req_cookie("eirinchan_color_scheme", "dark")
+
+      request_conn =
+        if authenticated?, do: login_moderator(request_conn, moderator), else: request_conn
+
+      page =
+        request_conn
+        |> get(path)
+        |> html_response(200)
+
+      assert page =~ ~s(id="stylesheet" href="/stylesheets/tomorrow.css)
+      assert page =~ ~s(data-stylesheet="tomorrow.css")
+      assert page =~ ~s(data-auto-theme-light-name="yotsuba")
+      assert page =~ ~s(data-auto-theme-dark-name="tomorrow")
+      assert page =~ ~s(href="/stylesheets/eirinchan-mod.css)
+    end
+  end
+
   test "feedback browser page renders the moderation queue", %{conn: conn} do
     moderator = moderator_fixture(%{role: "admin"})
 

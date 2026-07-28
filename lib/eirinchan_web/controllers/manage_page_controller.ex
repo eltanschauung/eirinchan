@@ -28,6 +28,7 @@ defmodule EirinchanWeb.ManagePageController do
     ModerationAudit,
     ModeratorPermissions,
     PostView,
+    PublicControllerHelpers,
     RequestMeta
   }
 
@@ -1070,10 +1071,10 @@ defmodule EirinchanWeb.ManagePageController do
     |> assign(:global_boardlist_groups, shell_boardlist_groups(conn))
     |> assign(:javascript_urls, ["/main.js", "/js/jquery.min.js", "/js/options.js"])
     |> assign(:base_stylesheet, "/stylesheets/style.css")
-    |> assign(:primary_stylesheet, "/stylesheets/yotsuba.css")
+    |> assign(:primary_stylesheet, PublicControllerHelpers.primary_stylesheet(conn))
     |> assign(:primary_stylesheet_id, "stylesheet")
     |> assign(:body_class, "8chan vichan is-not-moderator mod-page")
-    |> assign(:body_data_stylesheet, "yotsuba.css")
+    |> assign(:body_data_stylesheet, PublicControllerHelpers.data_stylesheet(conn))
     |> assign(:extra_stylesheets, ["/stylesheets/eirinchan-mod.css"])
     |> assign(:skip_app_stylesheet, true)
     |> assign(:skip_flash_group, true)
