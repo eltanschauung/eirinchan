@@ -368,6 +368,36 @@ defmodule EirinchanWeb.PublicShellTest do
            ]
   end
 
+  test "page filtering preserves configured Options menu contributors" do
+    config = %{
+      root: "/",
+      url_javascript: "/main.js",
+      additional_javascript: [
+        "js/jquery.min.js",
+        "js/navarrows2.js",
+        "js/post-filter.js",
+        "js/image-hover.js",
+        "js/show-own-posts-options.js",
+        "js/webm-settings.js"
+      ],
+      additional_javascript_url: "/",
+      additional_javascript_compile: false
+    }
+
+    expected_menu_urls = [
+      "/js/navarrows2.js",
+      "/js/post-filter.js",
+      "/js/image-hover.js",
+      "/js/show-own-posts-options.js",
+      "/js/webm-settings.js"
+    ]
+
+    Enum.each([:index, :catalog, :search, "recent"], fn active_page ->
+      urls = PublicShell.javascript_urls(active_page, config)
+      assert Enum.all?(expected_menu_urls, &(&1 in urls))
+    end)
+  end
+
   test "filters legacy style select script from additional javascript" do
     config = %{
       root: "/",

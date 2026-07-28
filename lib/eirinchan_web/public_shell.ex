@@ -15,33 +15,27 @@ defmodule EirinchanWeb.PublicShell do
                              "js/jquery.mixitup.min.js",
                              "js/thread-stats.js",
                              "js/strftime.min.js",
-                             "js/navarrows2.js",
                              "js/quick-reply.js",
                              "js/local-time.js",
                              "js/titlebar-notifications.js",
                              "js/post-hover.js",
-                             "js/show-own-posts-options.js",
                              "js/archive.js",
                              "js/quick-post-controls.js",
                              "js/ruffle.js",
                              "js/expand-swf.js",
-                             "js/webm-settings.js",
                              "js/expand-video.js"
                            ])
 
   @search_blocked_scripts MapSet.new([
                             "js/thread-stats.js",
                             "js/thread-watcher.js",
-                            "js/navarrows2.js",
                             "js/quick-reply.js",
                             "js/titlebar-notifications.js",
                             "js/post-hover.js",
-                            "js/show-own-posts-options.js",
                             "js/archive.js",
                             "js/quick-post-controls.js",
                             "js/filters.js",
                             "js/hide-threads.js",
-                            "js/post-filter.js",
                             "js/fix-report-delete-submit.js",
                             "js/jquery.mixitup.min.js",
                             "js/catalog.js",
@@ -50,8 +44,7 @@ defmodule EirinchanWeb.PublicShell do
                             "js/upload-selection.js",
                             "js/ajax.js",
                             "js/auto-reload.js",
-                            "js/expand-video.js",
-                            "js/webm-settings.js"
+                            "js/expand-video.js"
                           ])
 
   def head_meta(active_page, opts \\ []) do
