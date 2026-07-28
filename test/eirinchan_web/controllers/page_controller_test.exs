@@ -852,6 +852,41 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ ~s(href="/recent.css)
   end
 
+  test "home and recent inherit the primary board automatic dark default", %{conn: conn} do
+    moderator_fixture()
+
+    board_fixture(%{
+      uri: "bant",
+      title: "International Random",
+      config_overrides: %{default_theme: "yotsuba", default_theme_dark: "tomorrow"}
+    })
+
+    for path <- ["/", "/recent"] do
+      light_page =
+        conn
+        |> recycle()
+        |> get(path)
+        |> html_response(200)
+
+      assert light_page =~ ~s(id="stylesheet" href="/stylesheets/yotsuba.css)
+      assert light_page =~ ~s(data-auto-theme-light-name="yotsuba")
+      assert light_page =~ ~s(data-auto-theme-dark-name="tomorrow")
+      assert light_page =~ ~s(src="/js/theme-bootstrap.js)
+
+      dark_page =
+        conn
+        |> recycle()
+        |> put_req_cookie("eirinchan_color_scheme", "dark")
+        |> get(path)
+        |> html_response(200)
+
+      assert dark_page =~ ~s(id="stylesheet" href="/stylesheets/tomorrow.css)
+      assert dark_page =~ ~s(data-stylesheet="tomorrow.css")
+      assert dark_page =~ ~s(data-auto-theme-light-name="yotsuba")
+      assert dark_page =~ ~s(data-auto-theme-dark-name="tomorrow")
+    end
+  end
+
   test "GET / recent images include video posts with thumbnails", %{conn: conn} do
     moderator_fixture()
 

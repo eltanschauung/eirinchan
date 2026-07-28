@@ -8,6 +8,7 @@ defmodule EirinchanWeb.Plugs.FetchTheme do
   alias EirinchanWeb.ThemeRegistry
 
   @color_scheme_cookie "eirinchan_color_scheme"
+  @primary_public_board_uri "bant"
 
   def init(opts), do: opts
 
@@ -15,12 +16,15 @@ defmodule EirinchanWeb.Plugs.FetchTheme do
     instance_config = Settings.effective_instance_config()
     stylesheets_board = Map.get(instance_config, :stylesheets_board, true)
     board = board_for_request(conn)
+    defaults_board = board || primary_public_board()
     forced_theme_identifier = forced_theme(board, instance_config)
     saved_theme_identifier = saved_theme_identifier(conn, board, stylesheets_board)
-    light_theme_identifier = board_default_theme(board) || global_default_theme(instance_config)
+
+    light_theme_identifier =
+      board_default_theme(defaults_board) || global_default_theme(instance_config)
 
     dark_theme_identifier =
-      board_default_dark_theme(board) || global_default_dark_theme(instance_config)
+      board_default_dark_theme(defaults_board) || global_default_dark_theme(instance_config)
 
     light_theme = theme_entry(light_theme_identifier) || default_theme_entry()
     dark_theme = theme_entry(dark_theme_identifier)
@@ -68,6 +72,8 @@ defmodule EirinchanWeb.Plugs.FetchTheme do
     |> Map.get(board.uri)
     |> normalize_theme_identifier()
   end
+
+  defp primary_public_board, do: Boards.get_board_by_uri(@primary_public_board_uri)
 
   defp decode_board_themes_cookie(value) when is_binary(value) do
     decoded_value =
