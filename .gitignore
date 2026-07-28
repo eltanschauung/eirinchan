@@ -48,3 +48,6 @@ GeoIP.conf
 /node_modules/
 /var/javascript-audit.md
 /var/javascript-audit.json
+
+# Local archive.ph thread recovery research, fixtures, and downloaded snapshots
+/archive_ph_thread_imports_plan/
