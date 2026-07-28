@@ -20,7 +20,7 @@ const generatedPatterns = [
   /^priv\/static\/js\/bundle-public-[^/]+\.js$/,
   /^priv\/static\/js\/runtime-config\.js$/,
   /^priv\/static\/assets\/app\.js$/,
-  /^priv\/static\/js\/(?:auth-redirect|blotter|manage-forms|mobile-style|options|youtube)\.js$/,
+  /^priv\/static\/js\/(?:auth-redirect|blotter|inline-expanding|manage-forms|mobile-style|options|youtube)\.js$/,
   /^priv\/static\/js\/options\/(?:general|user-css|user-js)\.js$/
 ];
 const vendorPatterns = [

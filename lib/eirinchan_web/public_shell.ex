@@ -108,6 +108,7 @@ defmodule EirinchanWeb.PublicShell do
       "eirinchan:genpassword-chars" => to_string(Map.get(config, :genpassword_chars) || ""),
       "eirinchan:allow-user-custom-code" =>
         if(Map.get(config, :allow_user_custom_code, false), do: "true", else: "false"),
+      "eirinchan:inline-expand-max" => to_string(Map.get(config, :inline_expand_max, 10)),
       "eirinchan:post-success-cookie-name" => "eirinchan_posted",
       "eirinchan:preference-cookie-max-age" =>
         to_string(Map.get(config, :preference_cookie_max_age_seconds, 31_536_000)),

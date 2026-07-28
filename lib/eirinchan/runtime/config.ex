@@ -102,6 +102,7 @@ defmodule Eirinchan.Runtime.Config do
     announcement_cache_seconds: 30,
     recent_theme_cache_seconds: 30,
     auto_updater_poll_interval_seconds: 5,
+    inline_expand_max: 10,
     statistics_snapshots: true,
     statistics_challenge_step_percent: 80,
     statistics_api_default_hours: 1,
@@ -655,6 +656,7 @@ defmodule Eirinchan.Runtime.Config do
     identity_rotation = min(config.browser_identity_rotation_seconds, identity_ttl)
 
     config
+    |> Map.update(:inline_expand_max, 10, &bounded_non_negative_integer(&1, 10, 10_000))
     |> Map.update(:archive_min_replies, 0, &bounded_non_negative_integer(&1, 0, 1_000_000))
     |> Map.put(
       :statistics_api_default_hours,

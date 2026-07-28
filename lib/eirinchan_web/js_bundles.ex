@@ -102,6 +102,7 @@ defmodule EirinchanWeb.JsBundles do
     "assets/app.js" => "assets/js/app.js",
     "js/auth-redirect.js" => "assets/js/auth-redirect.js",
     "js/blotter.js" => "assets/js/blotter.js",
+    "js/inline-expanding.js" => "assets/js/inline-expanding.js",
     "js/manage-forms.js" => "assets/js/manage-forms.js",
     "js/mobile-style.js" => "assets/js/mobile-style.js",
     "js/options.js" => "assets/js/options.js",

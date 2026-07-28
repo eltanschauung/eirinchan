@@ -8,13 +8,21 @@ import vm from "node:vm";
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const source = await readFile(path.join(projectRoot, "assets/js/runtime-config.js"), "utf8");
 
-function runtimeContext() {
+function runtimeContext(meta = {}) {
   const document = {
     cookie: "",
     readyState: "complete",
     body: {},
-    getElementsByTagName() {
-      return [];
+    getElementsByTagName(tagName) {
+      if (tagName !== "meta") return [];
+
+      return Object.entries(meta).map(([name, content]) => ({
+        getAttribute(attribute) {
+          if (attribute === "name") return name;
+          if (attribute === "content") return String(content);
+          return null;
+        }
+      }));
     },
     querySelector() {
       return null;
@@ -72,4 +80,13 @@ test("malformed cookies fail closed", () => {
 
   assert.equal(runtime.readCookie("broken", "fallback"), "fallback");
   assert.equal(runtime.writeCookie("bad cookie", "value"), false);
+});
+
+test("inline image concurrency comes from runtime metadata and defaults to ten", () => {
+  assert.equal(runtimeContext().runtime.inlineExpandMax, 10);
+  assert.equal(
+    runtimeContext({"eirinchan:inline-expand-max": "17"}).runtime.inlineExpandMax,
+    17
+  );
+  assert.equal(runtimeContext({"eirinchan:inline-expand-max": "0"}).runtime.inlineExpandMax, 0);
 });
