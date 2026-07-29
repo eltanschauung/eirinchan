@@ -1,4 +1,5 @@
 alias Eirinchan.Boards.BoardRecord
+alias Eirinchan.Posts.GapScore
 alias Eirinchan.Posts.Post
 alias Eirinchan.Repo
 alias Eirinchan.Runtime.Config
@@ -24,7 +25,8 @@ run = fn board_uri, thread_id ->
     Repo.one!(
       from post in Post,
         where:
-          post.board_id == ^board.id and is_nil(post.thread_id) and post.public_id == ^parse_id.(thread_id)
+          post.board_id == ^board.id and is_nil(post.thread_id) and
+            post.public_id == ^parse_id.(thread_id)
     )
 
   metrics =
@@ -37,19 +39,12 @@ run = fn board_uri, thread_id ->
         }
     ) || %{reply_count: 0, image_count: 0}
 
-  age_seconds =
-    thread.inserted_at
-    |> DateTime.diff(DateTime.utc_now(), :second)
-    |> Kernel.abs()
-    |> max(1)
-
-  eligible =
-    (metrics.reply_count > 0 or metrics.image_count > 0) and
-      metrics.reply_count < config.early_404_gap_max
+  age_seconds = abs(DateTime.diff(thread.inserted_at, DateTime.utc_now(), :second))
+  eligible = GapScore.eligible?(metrics.reply_count, config.early_404_gap_max)
 
   score =
     if eligible do
-      ceil((2 * (metrics.reply_count + metrics.image_count * 3)) / (age_seconds / 3600) * 100)
+      GapScore.calculate(thread.inserted_at, metrics.reply_count, metrics.image_count)
     end
 
   IO.inspect(%{

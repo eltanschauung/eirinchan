@@ -1672,6 +1672,84 @@ defmodule Eirinchan.PostsTest do
            ) != []
   end
 
+  test "create_post gap pruning deletes zero-reply threads before one-reply threads" do
+    board =
+      board_fixture(%{
+        config_overrides: %{
+          early_404_gap: true,
+          early_404_gap_warning: 4,
+          early_404_gap_deletion: 2,
+          threads_per_page: 10,
+          max_pages: 10,
+          flood_time: 0,
+          flood_time_ip: 0,
+          flood_time_same: 0
+        }
+      })
+
+    config = post_config(board.config_overrides)
+    request = Map.put(post_request(board.uri), :remote_ip, {203, 0, 113, 143})
+
+    {:ok, zero_reply_thread, _meta} =
+      Posts.create_post(
+        board,
+        %{"body" => "zero replies", "post" => "New Topic"},
+        config: config,
+        request: request,
+        repo: Repo
+      )
+
+    {:ok, one_reply_thread, _meta} =
+      Posts.create_post(
+        board,
+        %{"body" => "one reply", "post" => "New Topic"},
+        config: config,
+        request: request,
+        repo: Repo
+      )
+
+    {:ok, _reply, _meta} =
+      Posts.create_post(
+        board,
+        %{
+          "body" => "reply",
+          "thread" => Integer.to_string(PublicIds.public_id(one_reply_thread)),
+          "post" => "Reply"
+        },
+        config: config,
+        request: request,
+        repo: Repo
+      )
+
+    old_timestamp =
+      DateTime.add(DateTime.utc_now(), -(60 * 60 * 60), :second) |> DateTime.truncate(:second)
+
+    Repo.update_all(
+      from(
+        post in Post,
+        where: post.id in ^[zero_reply_thread.id, one_reply_thread.id]
+      ),
+      set: [inserted_at: old_timestamp, bump_at: old_timestamp]
+    )
+
+    {:ok, _new_thread, _meta} =
+      Posts.create_post(
+        board,
+        %{"body" => "trigger pruning", "post" => "New Topic"},
+        config: config,
+        request: request,
+        repo: Repo
+      )
+
+    assert {:error, :not_found} =
+             Posts.get_post(board, PublicIds.public_id(zero_reply_thread), repo: Repo)
+
+    assert {:ok, surviving_thread} =
+             Posts.get_post(board, PublicIds.public_id(one_reply_thread), repo: Repo)
+
+    assert surviving_thread.inactive
+  end
+
   test "create_post moves gap-pruned threads and logs the automatic move" do
     archive_board = board_fixture()
 
