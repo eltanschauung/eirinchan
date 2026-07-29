@@ -4,6 +4,7 @@ defmodule Eirinchan.Posts.Pruning do
   import Ecto.Query, only: [from: 2]
 
   alias Eirinchan.Boards.BoardRecord
+  alias Eirinchan.Posts.GapScore
   alias Eirinchan.Posts.Post
 
   @spec prune(BoardRecord.t(), map(), module(), function()) :: :ok
@@ -125,8 +126,8 @@ defmodule Eirinchan.Posts.Pruning do
         }
     )
     |> Enum.each(fn row ->
-      if gap_eligible?(row, config) do
-        score = gap_score(row.inserted_at, row.reply_count, row.image_count)
+      if GapScore.eligible?(row.reply_count, config.early_404_gap_max) do
+        score = GapScore.calculate(row.inserted_at, row.reply_count, row.image_count)
         warning? = score <= config.early_404_gap_warning
         deletion? = score <= config.early_404_gap_deletion
 
@@ -156,20 +157,6 @@ defmodule Eirinchan.Posts.Pruning do
       group_by: reply.thread_id,
       select: %{thread_id: reply.thread_id, reply_count: count(reply.id)}
     )
-  end
-
-  defp gap_eligible?(row, config) do
-    (row.reply_count > 0 or row.image_count > 0) and row.reply_count < config.early_404_gap_max
-  end
-
-  defp gap_score(inserted_at, reply_count, image_count) do
-    age_seconds =
-      inserted_at
-      |> DateTime.diff(DateTime.utc_now(), :second)
-      |> Kernel.abs()
-      |> max(1)
-
-    ceil(2 * (reply_count + image_count * 3) / (age_seconds / 3600) * 100)
   end
 
   defp invoke_prune(prune_thread_fun, thread_id, reason) do
