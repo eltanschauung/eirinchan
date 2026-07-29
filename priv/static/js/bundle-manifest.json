@@ -25,24 +25,24 @@
     {
       "label": "bundle:default",
       "output": "priv/static/js/bundle-public-default.js",
-      "output_bytes": 11212,
+      "output_bytes": 12032,
       "public_path": "/js/bundle-public-default.js",
-      "sha256": "08360a17f7c9fc56a43d30f58ef84437d93100555139209773d4cf94400b9f36",
-      "source_bytes": 15589,
+      "sha256": "1e4b0a6ac02063aefb59a21ed24f18917755732c022a43c9a8930e891ce958a7",
+      "source_bytes": 22300,
       "sources": [
         "assets/js/inline-expanding.js",
         "priv/static/js/expand.js",
-        "priv/static/js/post-hover.js",
+        "assets/js/post-hover.js",
         "priv/static/js/local-time.js"
       ]
     },
     {
       "label": "bundle:thread",
       "output": "priv/static/js/bundle-public-thread.js",
-      "output_bytes": 306746,
+      "output_bytes": 307566,
       "public_path": "/js/bundle-public-thread.js",
-      "sha256": "f67e228ebd26194a98928199026d92b934fe9dceb63b3ab89010e2953d130813",
-      "source_bytes": 332344,
+      "sha256": "b174ebfd9ae7bde917b35c5fc2fb44b3e14a5321ce0000eb3eef7e10e20d1011",
+      "source_bytes": 339055,
       "sources": [
         "assets/js/inline-expanding.js",
         "priv/static/js/thread-stats.js",
@@ -56,7 +56,7 @@
         "priv/static/js/post-menu.js",
         "priv/static/js/local-time.js",
         "priv/static/js/titlebar-notifications.js",
-        "priv/static/js/post-hover.js",
+        "assets/js/post-hover.js",
         "priv/static/js/show-own-posts.js",
         "priv/static/js/legacy-mod-actions.js",
         "priv/static/js/fix-report-delete-submit.js",
@@ -67,10 +67,10 @@
     {
       "label": "bundle:index",
       "output": "priv/static/js/bundle-public-index.js",
-      "output_bytes": 309287,
+      "output_bytes": 310107,
       "public_path": "/js/bundle-public-index.js",
-      "sha256": "6a794cf66128ce5da8a47fe32e71d041ad3d3e7e1a9d991740d8cb38be4a4ba7",
-      "source_bytes": 338013,
+      "sha256": "4ba573672b0310bfc037ae19559785af3f6a3c8bde3b642a3ad4c1ccd3665dbc",
+      "source_bytes": 344724,
       "sources": [
         "assets/js/inline-expanding.js",
         "priv/static/js/strftime.min.js",
@@ -84,7 +84,7 @@
         "priv/static/js/post-menu.js",
         "priv/static/js/local-time.js",
         "priv/static/js/titlebar-notifications.js",
-        "priv/static/js/post-hover.js",
+        "assets/js/post-hover.js",
         "priv/static/js/show-own-posts.js",
         "priv/static/js/legacy-mod-actions.js",
         "priv/static/js/fix-report-delete-submit.js",
@@ -282,6 +282,17 @@
       "source_bytes": 32756,
       "sources": [
         "assets/js/post-filter.js"
+      ]
+    },
+    {
+      "label": "maintained:js/post-hover.js",
+      "output": "priv/static/js/post-hover.js",
+      "output_bytes": 4795,
+      "public_path": "/js/post-hover.js",
+      "sha256": "97f8d6df7a94871cc308d3fe50a5b7a0986c304aa529283ca096dd5fca2517f6",
+      "source_bytes": 10726,
+      "sources": [
+        "assets/js/post-hover.js"
       ]
     },
     {
