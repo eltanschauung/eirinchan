@@ -51,3 +51,6 @@ GeoIP.conf
 
 # Local archive.ph thread recovery research, fixtures, and downloaded snapshots
 /archive_ph_thread_imports_plan/
+
+# Local research for adapting 4chan X's Pixiv Sauce behavior to Eirinchan
+/eirinchan_pixiv_sauce/
