@@ -259,11 +259,12 @@ defmodule EirinchanWeb.PostControllerTest do
     refute thread_page =~ ~s(value="nonoko")
   end
 
-  test "json reply html renders server-side (You) markers without client ownership storage", %{
+  test "json cross-thread reply html renders one canonically ordered server-side (You) marker", %{
     conn: conn
   } do
     board = board_fixture(%{title: "Technology"})
-    thread = thread_fixture(board, %{body: "thread body", subject: "thread subject"})
+    target_thread = thread_fixture(board, %{body: "target body", subject: "target subject"})
+    quoting_thread = thread_fixture(board, %{body: "quoting body", subject: "quoting subject"})
     referer = "http://www.example.com/#{board.uri}/index.html"
     token = browser_token("show-yous-ajax")
 
@@ -273,7 +274,7 @@ defmodule EirinchanWeb.PostControllerTest do
       |> put_req_cookie("show_yous", "true")
       |> put_req_header("referer", referer)
       |> post(~p"/#{board.uri}/post", %{
-        "thread" => Integer.to_string(thread.id),
+        "thread" => Integer.to_string(target_thread.id),
         "body" => "first owned reply",
         "json_response" => "1",
         "post" => "New Reply"
@@ -288,7 +289,7 @@ defmodule EirinchanWeb.PostControllerTest do
       |> put_req_cookie("show_yous", "true")
       |> put_req_header("referer", referer)
       |> post(~p"/#{board.uri}/post", %{
-        "thread" => Integer.to_string(thread.id),
+        "thread" => Integer.to_string(quoting_thread.id),
         "body" => ">>#{first_reply_id}",
         "json_response" => "1",
         "post" => "New Reply"
@@ -296,7 +297,9 @@ defmodule EirinchanWeb.PostControllerTest do
 
     assert %{"html" => html} = json_response(second_reply_conn, 200)
     assert html =~ ~s|<span class="own_post">(You)</span>|
-    assert html =~ ~s|&gt;&gt;#{first_reply_id}</a> <small>(You)</small>|
+
+    assert html =~
+             ~s|&gt;&gt;#{first_reply_id}</a> <span class="quote-annotations" data-quote-annotations><small data-quote-annotation="you">(You)</small> <small data-quote-annotation="cross-thread">(Cross-Thread)</small></span>|
   end
 
   test "posting accepts legacy regist payloads and old field aliases", %{conn: conn} do

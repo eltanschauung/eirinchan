@@ -440,7 +440,7 @@ defmodule EirinchanWeb.ThreadControllerTest do
     assert page =~
              ~s(href="#{ThreadPaths.thread_path(board, target_thread, config, noko50: true)}##{PublicIds.public_id(tail_reply)}")
 
-    assert page =~ "<small>(Cross-Thread)</small>"
+    assert page =~ ~s|data-quote-annotation="cross-thread">(Cross-Thread)</small>|
     assert page =~ "&gt;&gt;#{PublicIds.public_id(tail_reply)}"
     assert page =~ "#{PublicIds.public_id(quoting_reply)}"
   end
@@ -476,7 +476,7 @@ defmodule EirinchanWeb.ThreadControllerTest do
     refute page =~
              ~s(href="#{ThreadPaths.thread_path(board, target_thread, config, noko50: true)}##{PublicIds.public_id(old_reply)}")
 
-    assert page =~ "<small>(Cross-Thread)</small>"
+    assert page =~ ~s|data-quote-annotation="cross-thread">(Cross-Thread)</small>|
   end
 
   test "thread pages hide rendered flags when display_flags is disabled", %{conn: conn} do
@@ -809,7 +809,7 @@ defmodule EirinchanWeb.ThreadControllerTest do
       |> html_response(200)
 
     refute page =~ ~s|<span class="own_post">(You)</span>|
-    refute page =~ ~s|<small>(You)</small>|
+    refute page =~ ~s|data-quote-annotation="you">(You)</small>|
   end
 
   test "thread updater fragments preserve server-known (You) markers", %{conn: conn} do
@@ -905,7 +905,9 @@ defmodule EirinchanWeb.ThreadControllerTest do
     assert page =~
              ~s(href="/#{board.uri}/res/#{PublicIds.public_id(thread)}.html##{PublicIds.public_id(thread)}")
 
-    assert page =~ "&gt;&gt;#{PublicIds.public_id(thread)}</a> <small>(OP)</small>"
+    assert page =~
+             ~s|&gt;&gt;#{PublicIds.public_id(thread)}</a> <span class="quote-annotations" data-quote-annotations><small data-quote-annotation="op">(OP)</small></span>|
+
     assert page =~ ~s(class="quote")
     assert page =~ Integer.to_string(PublicIds.public_id(reply))
   end

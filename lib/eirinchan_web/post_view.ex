@@ -1205,29 +1205,44 @@ defmodule EirinchanWeb.PostView do
 
       case Map.get(local_quote_hrefs, post_id) do
         %{href: href} ->
-          op =
-            if op_public_id == post_id,
-              do: " <small>(OP)</small>",
-              else: ""
-
-          cross_thread =
-            if local_cross_thread_quote?(local_quote_hrefs, post_id, current_thread_public_id),
-              do: " <small>(Cross-Thread)</small>",
-              else: ""
-
-          you =
-            if show_yous and MapSet.member?(own_post_ids, post_id),
-              do: " <small>(You)</small>",
-              else: ""
+          annotations =
+            [
+              if(op_public_id == post_id, do: {:op, "(OP)"}),
+              if(show_yous and MapSet.member?(own_post_ids, post_id), do: {:you, "(You)"}),
+              if(
+                local_cross_thread_quote?(
+                  local_quote_hrefs,
+                  post_id,
+                  current_thread_public_id
+                ),
+                do: {:cross_thread, "(Cross-Thread)"}
+              )
+            ]
+            |> render_quote_annotations()
 
           prefix <>
-            "<a data-highlight-reply=\"#{id}\" href=\"#{href}\">&gt;&gt;#{id}</a>#{op}#{cross_thread}#{you}" <>
+            "<a data-highlight-reply=\"#{id}\" href=\"#{href}\">&gt;&gt;#{id}</a>#{annotations}" <>
             suffix
 
         _ ->
           match
       end
     end)
+  end
+
+  defp render_quote_annotations(annotations) do
+    markers =
+      annotations
+      |> Enum.reject(&is_nil/1)
+      |> Enum.map_join(" ", fn {kind, label} ->
+        ~s(<small data-quote-annotation="#{String.replace(to_string(kind), "_", "-")}">#{label}</small>)
+      end)
+
+    if markers == "" do
+      ""
+    else
+      ~s( <span class="quote-annotations" data-quote-annotations>#{markers}</span>)
+    end
   end
 
   defp local_quote_hrefs(%{body: body}, board, thread, config),
