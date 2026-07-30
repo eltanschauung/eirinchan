@@ -544,21 +544,38 @@
     }
   }
 
-  function pageElements() {
-    if (window.active_page === "catalog") return $(".mix").toArray();
+  function pageElements(root) {
+    var scope = root ? $(root) : $(document);
+
+    if (window.active_page === "catalog") {
+      return scope.filter(".mix").add(scope.find(".mix")).toArray();
+    }
 
     var result = [];
-    $(".thread").each(function () {
+    var threads = scope.filter(".thread").add(scope.find(".thread"));
+    var containingThread = scope.closest(".thread");
+    if (containingThread.length) threads = threads.add(containingThread);
+
+    threads.each(function () {
       var op = $(this).children(".op")[0];
       if (op) result.push(op);
       $(this).find(".reply").not(".hidden").each(function () { result.push(this); });
     });
+
+    if (!threads.length) {
+      scope
+        .filter(".post.op, .post.reply")
+        .add(scope.find(".post.op, .post.reply"))
+        .not(".hidden")
+        .each(function () { result.push(this); });
+    }
+
     return result;
   }
 
-  function applyPage() {
+  function applyPage(root) {
     var state = readState();
-    var records = pageElements().map(function (element) {
+    var records = pageElements(root).map(function (element) {
       return evaluateRecord(element, state);
     });
     var hiddenReplyIds = records
@@ -574,15 +591,8 @@
     });
   }
 
-  var applyTimer = null;
-
-  function queueApply() {
-    if (applyTimer !== null) return;
-
-    applyTimer = window.setTimeout(function () {
-      applyTimer = null;
-      applyPage();
-    }, 0);
+  function prepareReplacement(_current, replacement) {
+    applyPage(replacement);
   }
 
   function installStyles() {
@@ -825,6 +835,21 @@
     var name = runtime.forcedAnon ? "" : extractName(post.find(".name").first()[0]);
     var trip = runtime.forcedAnon ? "" : post.find(".trip").first().text();
 
+    function liveThread() {
+      var candidates = document.querySelectorAll(".thread[data-thread-id]");
+
+      for (var index = 0; index < candidates.length; index += 1) {
+        if (
+          String(candidates[index].dataset.threadId || "") === threadValue &&
+          String(candidates[index].dataset.board || "") === board
+        ) {
+          return candidates[index];
+        }
+      }
+
+      return thread[0];
+    }
+
     menu.find(".post-item,.post-submenu").removeClass("hidden");
 
     var hiddenByStoredPost = post.data("hiddenByPost") === true;
@@ -832,27 +857,47 @@
     var hide = menu.find("#filter-menu-hide");
     var hidePlus = menu.find("#filter-menu-hide-plus");
     var unhide = menu.find("#filter-menu-unhide");
+    var threadHiding = window.EirinchanThreadHiding;
+    var manuallyHiddenThread =
+      threadHiding &&
+      typeof threadHiding.isManuallyHidden === "function" &&
+      threadHiding.isManuallyHidden(liveThread());
 
-    if (hiddenByStoredPost || hiddenByUid) {
+    if (hiddenByStoredPost || hiddenByUid || manuallyHiddenThread) {
       hide.addClass("hidden");
       hidePlus.addClass("hidden");
       bindMenuClick(unhide, function () {
         if (hiddenByStoredPost) removePostFilter(board, threadValue, "post", postValue);
         if (hiddenByUid) removePostFilter(board, threadValue, "uid", uid);
+        if (
+          manuallyHiddenThread &&
+          threadHiding &&
+          typeof threadHiding.unhide === "function"
+        ) {
+          threadHiding.unhide(liveThread());
+        }
       });
     } else {
       unhide.addClass("hidden");
       bindMenuClick(hide, function () {
         if (post.hasClass("op")) {
-          var hideThread = post.find("p.intro .hide-thread-link").first();
-          if (hideThread.length) return hideThread.trigger("click");
+          if (threadHiding && typeof threadHiding.hide === "function") {
+            return threadHiding.hide(liveThread());
+          }
+
+          var hideThreadLink = post.find("p.intro .hide-thread-link").first();
+          if (hideThreadLink.length) return hideThreadLink.trigger("click");
         }
         addPostFilter(board, threadValue, "post", postValue, false);
       });
       bindMenuClick(hidePlus, function () {
         if (post.hasClass("op")) {
-          var hideThread = post.find("p.intro .hide-thread-link").first();
-          if (hideThread.length) return hideThread.trigger("click");
+          if (threadHiding && typeof threadHiding.hide === "function") {
+            return threadHiding.hide(liveThread());
+          }
+
+          var hideThreadLink = post.find("p.intro .hide-thread-link").first();
+          if (hideThreadLink.length) return hideThreadLink.trigger("click");
         }
         addPostFilter(board, threadValue, "post", postValue, true);
       });
@@ -983,8 +1028,12 @@
   function bindEvents() {
     if (eventsBound) return;
     eventsBound = true;
-    $(document).on("filter_page.postFilter", applyPage);
-    $(document).on("fragment_init.postFilter new_post.postFilter", queueApply);
+    $(document).on("filter_page.postFilter", function () {
+      applyPage();
+    });
+    $(document).on("fragment_init.postFilter new_post.postFilter", function (_event, root) {
+      applyPage(root);
+    });
   }
 
   function initialize() {
@@ -1006,6 +1055,7 @@
   window.EirinchanPostFilter = {
     apply: applyPage,
     clearAll: clearAll,
+    prepareReplacement: prepareReplacement,
     readState: readState
   };
 

@@ -73,7 +73,7 @@ async function filterWindow({storedState, posts} = {}) {
     `<!doctype html><html><head></head><body class="active-index">
       ${optionsShell()}
       <table><tr><th>Name</th></tr></table>
-      <div class="thread" id="thread_100" data-board="bant">
+      <div class="thread" id="thread_100" data-board="bant" data-thread-id="100">
         <div class="files op-media">opening media</div>
         ${
           posts ||
@@ -311,5 +311,92 @@ test("filters are reapplied after updater fragments replace rendered posts", asy
   await new Promise((resolve) => window.setTimeout(resolve, 0));
 
   assert.equal(refreshed.classList.contains("post-filter-hidden"), true);
+  window.close();
+});
+
+test("updater replacements are filtered before they enter the document and can be unhidden", async () => {
+  const posts =
+    post({id: 100, comment: "opening post"}) +
+    post({id: 101, comment: "hidden reply"});
+  const window = await filterWindow({posts});
+
+  window.document.querySelector("#reply_101 .post-btn").click();
+  window.document.querySelector("#filter-menu-hide").click();
+  assert.equal(
+    window.document.getElementById("reply_101").classList.contains("post-filter-hidden"),
+    true
+  );
+
+  const container = window.document.createElement("div");
+  container.innerHTML = `
+    <div class="thread" id="thread_100" data-board="bant" data-thread-id="100">
+      ${posts}
+    </div>
+  `;
+  const current = window.document.getElementById("thread_100");
+  const replacement = container.firstElementChild;
+
+  window.EirinchanPostFilter.prepareReplacement(current, replacement);
+
+  assert.equal(replacement.isConnected, false);
+  assert.equal(
+    replacement.querySelector("#reply_101").classList.contains("post-filter-hidden"),
+    true
+  );
+
+  current.replaceWith(replacement);
+  replacement.querySelector("#reply_101 .post-btn").click();
+  window.document.querySelector("#filter-menu-unhide").click();
+
+  assert.equal(
+    replacement.querySelector("#reply_101").classList.contains("post-filter-hidden"),
+    false
+  );
+  assert.deepEqual(
+    JSON.parse(window.localStorage.getItem("postFilter")).postFilter,
+    {}
+  );
+  window.close();
+});
+
+test("thread hiding owns persistence and prepares updater replacements atomically", async () => {
+  const posts = post({id: 100, comment: "opening post"});
+  const window = await filterWindow({posts});
+  const current = window.document.getElementById("thread_100");
+
+  const container = window.document.createElement("div");
+  container.innerHTML = `
+    <div class="thread" id="thread_100" data-board="bant" data-thread-id="100">
+      ${posts}
+    </div>
+  `;
+  const replacement = container.firstElementChild;
+
+  current.querySelector(".post-btn").click();
+  current.replaceWith(replacement);
+  window.document.querySelector("#filter-menu-hide").click();
+
+  assert.equal(window.EirinchanThreadHiding.isManuallyHidden(replacement), true);
+  assert.equal(replacement.classList.contains("thread-hidden"), true);
+
+  const nextContainer = window.document.createElement("div");
+  nextContainer.innerHTML = `
+    <div class="thread" id="thread_100" data-board="bant" data-thread-id="100">
+      ${posts}
+    </div>
+  `;
+  const nextReplacement = nextContainer.firstElementChild;
+
+  window.EirinchanThreadHiding.prepareReplacement(replacement, nextReplacement);
+
+  assert.equal(nextReplacement.isConnected, false);
+  assert.equal(nextReplacement.classList.contains("thread-hidden"), true);
+  assert.ok(nextReplacement.querySelector(":scope > .thread-hidden-marker"));
+
+  replacement.replaceWith(nextReplacement);
+  nextReplacement.querySelector(".unhide-thread-link").click();
+
+  assert.equal(nextReplacement.classList.contains("thread-hidden"), false);
+  assert.equal(window.EirinchanThreadHiding.isManuallyHidden(nextReplacement), false);
   window.close();
 });

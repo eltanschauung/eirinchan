@@ -569,8 +569,6 @@ window.auto_reload_enabled = true;
 
       Array.prototype.forEach.call(threads.querySelectorAll(".thread[id]"), function (thread) {
         result.threads[thread.id] = {
-          hidden: thread.classList.contains("thread-hidden"),
-          display: thread.style.display || "",
           watched: thread.dataset ? thread.dataset.watched : null
         };
       });
@@ -591,12 +589,6 @@ window.auto_reload_enabled = true;
             return;
           }
 
-          if (prior.hidden) {
-            thread.classList.add("thread-hidden");
-          }
-          if (prior.display) {
-            thread.style.display = prior.display;
-          }
           if (prior.watched !== null && thread.dataset) {
             thread.dataset.watched = prior.watched;
           }
@@ -613,6 +605,18 @@ window.auto_reload_enabled = true;
       );
     }
 
+    function prepareBoardReplacement(current, replacement) {
+      [
+        window.EirinchanShowOwnPosts,
+        window.EirinchanPostFilter,
+        window.EirinchanThreadHiding
+      ].forEach(function (feature) {
+        if (feature && typeof feature.prepareReplacement === "function") {
+          feature.prepareReplacement(current, replacement);
+        }
+      });
+    }
+
     function applyBoardFragment(fragmentDocument) {
       var replacement = fragmentDocument.getElementById("board-refresh-target");
       var current = document.getElementById("board-refresh-target");
@@ -627,13 +631,7 @@ window.auto_reload_enabled = true;
       var newPostIds = [];
 
       restoreBoardState(replacement, saved);
-
-      if (
-        window.EirinchanShowOwnPosts &&
-        typeof window.EirinchanShowOwnPosts.prepareReplacement === "function"
-      ) {
-        window.EirinchanShowOwnPosts.prepareReplacement(current, replacement);
-      }
+      prepareBoardReplacement(current, replacement);
 
       Array.prototype.forEach.call(replacement.querySelectorAll(".post[id]"), function (post) {
         if (numericSuffix(post.id) > saved.maximumPostId) {

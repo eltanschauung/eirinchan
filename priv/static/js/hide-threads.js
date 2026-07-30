@@ -197,14 +197,6 @@ $(document).ready(function () {
     }
   }
 
-  window.EirinchanThreadHiding = {
-    sync: function (thread) {
-      if (thread) {
-        syncThread(thread);
-      }
-    }
-  };
-
   function syncThreads(root) {
     var scope = root ? $(root) : $(document);
 
@@ -215,6 +207,36 @@ $(document).ready(function () {
         syncThread(this);
       });
   }
+
+  window.EirinchanThreadHiding = {
+    hide: function (thread) {
+      if (thread) {
+        hideThread(thread);
+      }
+    },
+    isManuallyHidden: function (thread) {
+      return !!thread && isThreadHidden(thread);
+    },
+    prepareReplacement: function (_current, replacement) {
+      if (replacement) {
+        syncThreads(replacement);
+      }
+    },
+    sync: function (thread) {
+      if (thread) {
+        syncThread(thread);
+      }
+    },
+    syncAll: function (root) {
+      syncThreads(root);
+    },
+    unhide: function (thread) {
+      if (thread) {
+        unhideThread(thread);
+        syncThread(thread);
+      }
+    }
+  };
 
   pruneHiddenThreads();
   syncThreads(document.body);
