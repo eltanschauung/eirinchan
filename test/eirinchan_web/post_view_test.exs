@@ -364,7 +364,7 @@ defmodule EirinchanWeb.PostViewTest do
         show_yous: true
       )
 
-    assert html =~ ~s|<small>(You)</small>|
+    assert html =~ ~s|data-quote-annotation="you">(You)</small>|
   end
 
   test "body_html renders vichan-style inline and line formatting" do
@@ -663,7 +663,7 @@ defmodule EirinchanWeb.PostViewQuoteTest do
 
     assert html =~ ~s(data-highlight-reply="#{PublicIds.public_id(target_reply)}")
     assert html =~ ~s(href="#{expected_href}")
-    assert html =~ ~s|<small>(Cross-Thread)</small>|
+    assert html =~ ~s|data-quote-annotation="cross-thread">(Cross-Thread)</small>|
   end
 
   test "body_html leaves missing local quote ids as plain text" do

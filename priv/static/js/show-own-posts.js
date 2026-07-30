@@ -52,18 +52,131 @@
     writeOwnPosts(ownPosts);
   }
 
-  function addQuoteMarker(link) {
-    var next = link.nextSibling;
+  var quoteAnnotationOrder = {
+    op: 0,
+    you: 1,
+    "cross-thread": 2
+  };
+
+  function nextNonWhitespaceSibling(node) {
+    var next = node.nextSibling;
 
     while (next && next.nodeType === 3 && /^\s*$/.test(next.nodeValue)) {
       next = next.nextSibling;
     }
 
-    if (next && next.nodeType === 1 && next.tagName === "SMALL" && $(next).text() === _("(You)")) {
-      return;
+    return next;
+  }
+
+  function quoteAnnotationKind(marker) {
+    if (!marker || marker.nodeType !== 1 || marker.tagName !== "SMALL") return null;
+
+    var explicitKind = marker.getAttribute("data-quote-annotation");
+    if (explicitKind) return explicitKind;
+
+    var text = $(marker).text();
+
+    if (text === _("(OP)")) return "op";
+    if (text === _("(You)")) return "you";
+    if (text === _("(Cross-Thread)")) return "cross-thread";
+
+    return null;
+  }
+
+  function normalizeQuoteAnnotations(group) {
+    var markers = Array.prototype.slice.call(group.children).filter(function (child) {
+      return child.tagName === "SMALL";
+    });
+    var markersByKind = {};
+
+    markers.forEach(function (marker) {
+      var kind = quoteAnnotationKind(marker);
+
+      if (!kind || markersByKind[kind]) {
+        marker.remove();
+        return;
+      }
+
+      marker.setAttribute("data-quote-annotation", kind);
+      markersByKind[kind] = marker;
+    });
+
+    markers = Object.keys(markersByKind)
+      .sort(function (left, right) {
+        var leftOrder =
+          Object.prototype.hasOwnProperty.call(quoteAnnotationOrder, left)
+            ? quoteAnnotationOrder[left]
+            : Number.MAX_SAFE_INTEGER;
+        var rightOrder =
+          Object.prototype.hasOwnProperty.call(quoteAnnotationOrder, right)
+            ? quoteAnnotationOrder[right]
+            : Number.MAX_SAFE_INTEGER;
+
+        return leftOrder - rightOrder;
+      })
+      .map(function (kind) {
+        return markersByKind[kind];
+      });
+
+    group.textContent = "";
+
+    markers.forEach(function (marker, index) {
+      if (index) group.appendChild(document.createTextNode(" "));
+      group.appendChild(marker);
+    });
+  }
+
+  function quoteAnnotationGroup(link) {
+    var next = nextNonWhitespaceSibling(link);
+
+    if (
+      next &&
+      next.nodeType === 1 &&
+      next.hasAttribute("data-quote-annotations")
+    ) {
+      normalizeQuoteAnnotations(next);
+      return next;
     }
 
-    $(link).after(" <small>" + _("(You)") + "</small>");
+    var group = document.createElement("span");
+    group.className = "quote-annotations";
+    group.setAttribute("data-quote-annotations", "");
+    link.parentNode.insertBefore(group, link.nextSibling);
+    link.parentNode.insertBefore(document.createTextNode(" "), group);
+
+    var legacyNode = group.nextSibling;
+
+    while (legacyNode) {
+      var followingNode = legacyNode.nextSibling;
+
+      if (legacyNode.nodeType === 3 && /^\s*$/.test(legacyNode.nodeValue)) {
+        legacyNode.remove();
+      } else {
+        var kind = quoteAnnotationKind(legacyNode);
+        if (!kind) break;
+
+        legacyNode.setAttribute("data-quote-annotation", kind);
+        group.appendChild(legacyNode);
+      }
+
+      legacyNode = followingNode;
+    }
+
+    normalizeQuoteAnnotations(group);
+    return group;
+  }
+
+  function addQuoteMarker(link) {
+    var group = quoteAnnotationGroup(link);
+
+    if (!group.querySelector('[data-quote-annotation="you"]')) {
+      var marker = document.createElement("small");
+      marker.setAttribute("data-quote-annotation", "you");
+      marker.textContent = _("(You)");
+      group.appendChild(marker);
+    }
+
+    normalizeQuoteAnnotations(group);
   }
 
   function markQuoteLinks(links, ownedByPostId) {

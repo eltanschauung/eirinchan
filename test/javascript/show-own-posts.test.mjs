@@ -83,7 +83,10 @@ test("quote markers survive a changed-reply replacement", () => {
     <div class="thread" data-board="bant">
       <div class="post reply" id="reply_3">
         <span class="mentioned">
-          <a data-highlight-reply="456">&gt;&gt;456</a> <small>(You)</small>
+          <a data-highlight-reply="456">&gt;&gt;456</a>
+          <span class="quote-annotations" data-quote-annotations>
+            <small data-quote-annotation="you">(You)</small>
+          </span>
         </span>
       </div>
     </div>
@@ -101,5 +104,55 @@ test("quote markers survive a changed-reply replacement", () => {
 
   dom.window.EirinchanShowOwnPosts.prepareReplacement(current, replacement);
 
-  assert.equal(replacement.querySelector(".mentioned small").textContent, "(You)");
+  assert.equal(
+    replacement.querySelector('[data-quote-annotation="you"]').textContent,
+    "(You)"
+  );
+});
+
+test("server and client ownership reconciliation produces one canonically ordered marker", () => {
+  const dom = setup(`
+    <div class="thread" data-board="bant">
+      <div class="post reply" id="reply_789">
+        <div class="body">
+          <a data-highlight-reply="456">&gt;&gt;456</a>
+          <span class="quote-annotations" data-quote-annotations>
+            <small data-quote-annotation="you">(You)</small>
+            <small data-quote-annotation="cross-thread">(Cross-Thread)</small>
+          </span>
+        </div>
+      </div>
+    </div>
+  `);
+  dom.window.localStorage.own_posts = JSON.stringify({bant: ["456"]});
+  const post = dom.window.document.getElementById("reply_789");
+
+  dom.window.jQuery(dom.window.document).trigger("new_post", [post]);
+  dom.window.jQuery(dom.window.document).trigger("fragment_init", [post]);
+
+  const group = post.querySelector("[data-quote-annotations]");
+  assert.equal(group.querySelectorAll('[data-quote-annotation="you"]').length, 1);
+  assert.equal(group.textContent.replace(/\s+/g, " ").trim(), "(You) (Cross-Thread)");
+});
+
+test("legacy positional quote markers are migrated without duplication", () => {
+  const dom = setup(`
+    <div class="thread" data-board="bant">
+      <div class="post reply" id="reply_790">
+        <div class="body">
+          <a data-highlight-reply="456">&gt;&gt;456</a>
+          <small>(Cross-Thread)</small>
+          <small>(You)</small>
+        </div>
+      </div>
+    </div>
+  `);
+  dom.window.localStorage.own_posts = JSON.stringify({bant: ["456"]});
+  const post = dom.window.document.getElementById("reply_790");
+
+  dom.window.jQuery(dom.window.document).trigger("new_post", [post]);
+
+  const group = post.querySelector("[data-quote-annotations]");
+  assert.equal(group.querySelectorAll('[data-quote-annotation="you"]').length, 1);
+  assert.equal(group.textContent.replace(/\s+/g, " ").trim(), "(You) (Cross-Thread)");
 });
