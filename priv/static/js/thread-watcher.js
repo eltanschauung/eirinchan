@@ -619,6 +619,62 @@
       );
   }
 
+  function attachMenuIntegration(Menu) {
+    if (!Menu || Menu.__watchThreadMenuInstalled) {
+      return;
+    }
+
+    Menu.__watchThreadMenuInstalled = true;
+    Menu.add_item("watch_thread_menu", translate("Watch"));
+    Menu.onclick(function (event, buffer) {
+      var post = event.target.closest && event.target.closest(".post");
+      var thread = post && post.closest && post.closest(".thread[data-thread-id]");
+      var item = buffer.find("#watch_thread_menu");
+
+      if (!thread) {
+        item.addClass("hidden");
+        return;
+      }
+
+      var threadId = thread.dataset.threadId;
+      var boardUri = thread.dataset.board || "";
+      var control = thread.querySelector("[data-thread-watch]");
+      var watched = control
+        ? control.dataset.watched === "true"
+        : thread.dataset.watched === "true";
+
+      item
+        .removeClass("hidden")
+        .text(watched ? translate("Unwatch") : translate("Watch"))
+        .off("click.eirinchanWatcher")
+        .on("click.eirinchanWatcher", function (clickEvent) {
+          clickEvent.preventDefault();
+
+          var liveThread = null;
+          var candidates = document.querySelectorAll(".thread[data-thread-id]");
+
+          for (var index = 0; index < candidates.length; index += 1) {
+            if (
+              candidates[index].dataset.threadId === threadId &&
+              (candidates[index].dataset.board || "") === boardUri
+            ) {
+              liveThread = candidates[index];
+              break;
+            }
+          }
+
+          var liveControl =
+            liveThread && liveThread.querySelector
+              ? liveThread.querySelector("[data-thread-watch]")
+              : null;
+
+          if (liveControl) {
+            toggleWatch(liveControl).catch(function () {});
+          }
+        });
+    });
+  }
+
   function installMenuIntegration() {
     if (!window.jQuery) {
       return;
@@ -627,42 +683,10 @@
     window.jQuery(document)
       .off("menu_ready.eirinchanWatcher")
       .on("menu_ready.eirinchanWatcher", function () {
-        var Menu = window.Menu;
-
-        if (!Menu || Menu.__watchThreadMenuInstalled) {
-          return;
-        }
-
-        Menu.__watchThreadMenuInstalled = true;
-        Menu.add_item("watch_thread_menu", translate("Watch"));
-        Menu.onclick(function (event, buffer) {
-          var post = event.target.closest && event.target.closest(".post");
-          var thread = post && post.closest && post.closest(".thread[data-thread-id]");
-          var item = buffer.find("#watch_thread_menu");
-
-          if (!thread) {
-            item.addClass("hidden");
-            return;
-          }
-
-          var control = thread.querySelector("[data-thread-watch]");
-          var watched = control
-            ? control.dataset.watched === "true"
-            : thread.dataset.watched === "true";
-
-          item
-            .removeClass("hidden")
-            .text(watched ? translate("Unwatch") : translate("Watch"))
-            .off("click.eirinchanWatcher")
-            .on("click.eirinchanWatcher", function (clickEvent) {
-              clickEvent.preventDefault();
-
-              if (control) {
-                toggleWatch(control).catch(function () {});
-              }
-            });
-        });
+        attachMenuIntegration(window.Menu);
       });
+
+    attachMenuIntegration(window.Menu);
   }
 
   function unmodifiedPrimaryClick(event) {

@@ -3,10 +3,10 @@
     {
       "label": "bundle:core",
       "output": "priv/static/js/bundle-public-core.js",
-      "output_bytes": 131779,
+      "output_bytes": 132769,
       "public_path": "/js/bundle-public-core.js",
-      "sha256": "6cb87ddc9706e6db91564e22d54b5900cb8733719b62c2af583db5b6aec51ffe",
-      "source_bytes": 172347,
+      "sha256": "ca7b60f4e7419deca3f51d59153af58f8fee1457b07694ad44870f58310bb6f2",
+      "source_bytes": 174729,
       "sources": [
         "priv/static/js/jquery.min.js",
         "assets/js/options.js",
@@ -67,10 +67,10 @@
     {
       "label": "bundle:index",
       "output": "priv/static/js/bundle-public-index.js",
-      "output_bytes": 310107,
+      "output_bytes": 310285,
       "public_path": "/js/bundle-public-index.js",
-      "sha256": "4ba573672b0310bfc037ae19559785af3f6a3c8bde3b642a3ad4c1ccd3665dbc",
-      "source_bytes": 344724,
+      "sha256": "043cb82333cb6226a0214082f15edc3e4d31f04f804f9b12c5ec61950684bc43",
+      "source_bytes": 345236,
       "sources": [
         "assets/js/inline-expanding.js",
         "priv/static/js/strftime.min.js",
@@ -276,10 +276,10 @@
     {
       "label": "maintained:js/post-filter.js",
       "output": "priv/static/js/post-filter.js",
-      "output_bytes": 17265,
+      "output_bytes": 17952,
       "public_path": "/js/post-filter.js",
-      "sha256": "7dc5870b6b4968927d0ea6a95897e9bdce5cee80e767c50192dfbeb3e9dd9216",
-      "source_bytes": 32756,
+      "sha256": "ce8fe9cf16d3d7ebd2ae76e4c03ccf0029014562273ba890cd4c605eeaf2faee",
+      "source_bytes": 34438,
       "sources": [
         "assets/js/post-filter.js"
       ]
