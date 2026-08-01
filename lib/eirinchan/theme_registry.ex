@@ -48,7 +48,8 @@ defmodule Eirinchan.ThemeRegistry do
           max: 100_000,
           trim: false,
           rows: 30,
-          comment: "Sanitized before it is shown above the live recent-post panels."
+          comment:
+            "Sanitized before display. Insert {{public_boards}} where the live Public Boards table should appear; without it, the table appears after this HTML."
         },
         @exclude,
         %{

@@ -3,6 +3,8 @@ defmodule Eirinchan.HomePage do
 
   import Phoenix.Template, only: [render_to_string: 4]
 
+  @public_boards_token "{{public_boards}}"
+
   def default_body(contact_email \\ "example@example.com") do
     render_to_string(EirinchanWeb.PageHTML, "home_body", "html", contact_email: contact_email)
   end
@@ -12,4 +14,16 @@ defmodule Eirinchan.HomePage do
   def normalize_body(html, _contact_email) when is_binary(html), do: html
 
   def normalize_body(_html, contact_email), do: default_body(contact_email)
+
+  def split_around_public_boards(html) when is_binary(html) do
+    case String.split(html, @public_boards_token, parts: 2) do
+      [before_boards, after_boards] ->
+        {before_boards, String.replace(after_boards, @public_boards_token, "")}
+
+      [body] ->
+        {body, ""}
+    end
+  end
+
+  def split_around_public_boards(_html), do: {"", ""}
 end
