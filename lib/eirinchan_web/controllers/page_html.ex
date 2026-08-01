@@ -93,6 +93,7 @@ defmodule EirinchanWeb.PageHTML do
   attr :recent_images, :list, required: true
   attr :recent_posts, :list, required: true
   attr :stats, :map, required: true
+  attr :use_board_subtitle, :boolean, default: true
 
   def recent_panels(assigns) do
     ~H"""
@@ -121,7 +122,8 @@ defmodule EirinchanWeb.PageHTML do
 
         <ul>
           <li :for={post <- @recent_posts}>
-            <strong><%= post.board_name %></strong>: <a href={post.link}><%= raw(post.snippet) %></a>
+            <strong><%= recent_post_board_label(post, @use_board_subtitle) %></strong>:
+            <a href={post.link}><%= raw(post.snippet) %></a>
           </li>
         </ul>
       </section>
@@ -170,6 +172,16 @@ defmodule EirinchanWeb.PageHTML do
 
   defp present_text?(value) when is_binary(value), do: String.trim(value) != ""
   defp present_text?(_value), do: false
+
+  defp recent_post_board_label(post, true) do
+    if present_text?(post.board_subtitle),
+      do: post.board_subtitle,
+      else: recent_post_board_uri_label(post)
+  end
+
+  defp recent_post_board_label(post, false), do: recent_post_board_uri_label(post)
+
+  defp recent_post_board_uri_label(post), do: "/#{post.board_uri}/"
 
   embed_templates "page_html/*"
 end

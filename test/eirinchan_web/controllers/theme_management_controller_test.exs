@@ -67,9 +67,45 @@ defmodule EirinchanWeb.ThemeManagementControllerTest do
     assert theme_page =~ "where the live Public Boards table should appear"
     assert theme_page =~ ~s(name="body")
     assert theme_page =~ ~s(rows="30")
+
+    document = Floki.parse_document!(theme_page)
+
+    assert document
+           |> Floki.find("form .field > label")
+           |> Enum.map(&(&1 |> Floki.text() |> String.trim()))
+           |> Enum.take(-3) ==
+             ["Recent images", "Recent posts", "Use Board Subtitle for Latest Posts"]
+
+    assert document
+           |> Floki.find(~s(input[type="hidden"][name="use_board_subtitle"][value="false"]))
+           |> length() == 1
+
+    assert document
+           |> Floki.find("#theme-recent-use_board_subtitle")
+           |> Floki.attribute("checked") != []
+
     refute theme_page =~ ~s(name="body_title")
     refute theme_page =~ "HTML file"
     refute theme_page =~ "CSS file"
+  end
+
+  test "recent reconfigure persists an unchecked Latest Posts subtitle option", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+
+    response =
+      conn
+      |> login_moderator(moderator)
+      |> post("/manage/themes/browser/recent", %{
+        "title" => "Recent Posts",
+        "body" => "<div class=\"box middle\">Managed home</div>",
+        "exclude" => "",
+        "limit_images" => "3",
+        "limit_posts" => "30",
+        "use_board_subtitle" => "false"
+      })
+
+    assert redirected_to(response) == "/manage/themes/browser/recent"
+    refute Themes.theme_settings("recent")["use_board_subtitle"]
   end
 
   test "legacy Recent settings migrate the managed home page instead of the placeholder body" do

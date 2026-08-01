@@ -67,6 +67,13 @@ defmodule Eirinchan.ThemeRegistry do
           default: "30",
           min: 0,
           max: 100
+        },
+        %{
+          name: "use_board_subtitle",
+          title: "Use Board Subtitle for Latest Posts",
+          type: "checkbox",
+          default: true,
+          comment: "When disabled, Latest Posts uses /board/ labels."
         }
       ]
     },

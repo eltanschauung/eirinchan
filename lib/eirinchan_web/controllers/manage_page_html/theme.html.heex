@@ -40,10 +40,12 @@
     <div class="field">
       <label for={"theme-#{@theme.name}-#{field.name}"}><%= field.title %></label>
       <%= if field.type == "checkbox" do %>
+        <input type="hidden" name={field.name} value="false" />
         <input
           id={"theme-#{@theme.name}-#{field.name}"}
           type="checkbox"
           name={field.name}
+          value="true"
           checked={Map.get(@theme.settings, field.name, false)}
         />
       <% else %>
