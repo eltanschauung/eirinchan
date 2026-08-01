@@ -76,8 +76,10 @@ defmodule Eirinchan.Statistics.WorkerTest do
     assert snapshot.users_10minutes == 1
     assert snapshot.counters["requests.total"] == 1
     assert snapshot.counters["requests.board.test.index.full"] == 1
+    assert snapshot.daily_board_ppd[Integer.to_string(board.id)] == 2
     assert snapshot.daily_total_requests == 1
     assert snapshot.daily_unique_visitors == 1
+    assert Store.latest_daily_board_ppd(repo: Repo) == snapshot.daily_board_ppd
 
     assert Repo.get_by!(SearchTerm,
              period_start: DateTime.add(period_end, -3_600, :second),

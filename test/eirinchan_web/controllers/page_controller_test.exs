@@ -8,6 +8,7 @@ defmodule EirinchanWeb.PageControllerTest do
   alias Eirinchan.PostOwnership
   alias Eirinchan.Repo
   alias Eirinchan.Settings
+  alias Eirinchan.Statistics.Snapshot
 
   setup do
     original_path = Application.get_env(:eirinchan, :instance_config_path)
@@ -51,6 +52,19 @@ defmodule EirinchanWeb.PageControllerTest do
     Repo.update_all(from(b in BoardRecord, where: b.id == ^board_two.id),
       set: [next_public_post_id: 25]
     )
+
+    period_end = ~U[2026-07-18 04:00:00Z]
+
+    %Snapshot{}
+    |> Snapshot.changeset(%{
+      period_start: DateTime.add(period_end, -3_600, :second),
+      period_end: period_end,
+      captured_at: period_end,
+      counters: %{},
+      daily_board_ppd: %{Integer.to_string(board.id) => 2},
+      finalized: true
+    })
+    |> Repo.insert!()
 
     conn = get(conn, ~p"/")
     page = html_response(conn, 200)

@@ -53,6 +53,33 @@ defmodule Eirinchan.StatsTest do
     assert Stats.threads_perhour(board.id, now: now) == 1
   end
 
+  test "posts_perday_by_board returns bounded per-board counts at the snapshot time" do
+    now = ~U[2026-07-18 12:00:00Z]
+    first_board = board_fixture()
+    second_board = board_fixture()
+    first_thread = thread_fixture(first_board)
+    first_reply = reply_fixture(first_board, first_thread)
+    second_thread = thread_fixture(second_board)
+    old_reply = reply_fixture(second_board, second_thread)
+
+    Repo.update_all(
+      Ecto.Query.from(post in Eirinchan.Posts.Post,
+        where: post.id in ^[first_thread.id, first_reply.id, second_thread.id]
+      ),
+      set: [inserted_at: DateTime.add(now, -60, :second)]
+    )
+
+    Repo.update_all(
+      Ecto.Query.from(post in Eirinchan.Posts.Post, where: post.id == ^old_reply.id),
+      set: [inserted_at: DateTime.add(now, -(24 * 60 * 60 + 1), :second)]
+    )
+
+    assert Stats.posts_perday_by_board([first_board.id, second_board.id], now: now) == %{
+             first_board.id => 2,
+             second_board.id => 1
+           }
+  end
+
   test "users_10minutes counts tracked browser presence" do
     first = identity_fixture()
     second = identity_fixture()

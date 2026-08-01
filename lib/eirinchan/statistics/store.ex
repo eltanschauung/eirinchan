@@ -61,6 +61,10 @@ defmodule Eirinchan.Statistics.Store do
     attrs =
       if daily? do
         Map.merge(attrs, %{
+          daily_board_ppd:
+            board_ids
+            |> Stats.posts_perday_by_board(now: period_end, repo: repo)
+            |> stringify_keys(),
           daily_total_requests: requests_in_previous_24_hours(repo, period_end),
           daily_unique_visitors:
             Stats.users_24hours(
@@ -90,6 +94,18 @@ defmodule Eirinchan.Statistics.Store do
     |> transaction_result()
   end
 
+  def latest_daily_board_ppd(opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+
+    repo.one(
+      from snapshot in Snapshot,
+        where: snapshot.finalized and not is_nil(snapshot.daily_board_ppd),
+        order_by: [desc: snapshot.period_end],
+        limit: 1,
+        select: snapshot.daily_board_ppd
+    ) || %{}
+  end
+
   defp requests_in_previous_24_hours(repo, period_end) do
     cutoff = DateTime.add(period_end, -24 * 3_600, :second)
 
@@ -101,6 +117,10 @@ defmodule Eirinchan.Statistics.Store do
     |> Enum.reduce(0, fn counters, total ->
       total + Map.get(counters || %{}, "requests.total", 0)
     end)
+  end
+
+  defp stringify_keys(map) do
+    Map.new(map, fn {key, value} -> {to_string(key), value} end)
   end
 
   defp ensure_snapshot(repo, period_start, period_end) do

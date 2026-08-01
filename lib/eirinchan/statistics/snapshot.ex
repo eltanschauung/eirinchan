@@ -11,6 +11,7 @@ defmodule Eirinchan.Statistics.Snapshot do
     field :threads_per_hour, :integer
     field :users_10minutes, :integer
     field :counters, :map, default: %{}
+    field :daily_board_ppd, :map
     field :daily_total_requests, :integer
     field :daily_unique_visitors, :integer
     field :finalized, :boolean, default: false
@@ -28,6 +29,7 @@ defmodule Eirinchan.Statistics.Snapshot do
       :threads_per_hour,
       :users_10minutes,
       :counters,
+      :daily_board_ppd,
       :daily_total_requests,
       :daily_unique_visitors,
       :finalized
