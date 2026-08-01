@@ -14,6 +14,7 @@ defmodule EirinchanWeb.PageController do
   alias Eirinchan.Settings
   alias Eirinchan.SiteContact
   alias Eirinchan.StaticImageDimensions
+  alias Eirinchan.Statistics
   alias Eirinchan.Themes
   alias EirinchanWeb.ErrorPages
   alias EirinchanWeb.BoardRuntime
@@ -522,7 +523,9 @@ defmodule EirinchanWeb.PageController do
   defp cached_recent_theme_public_boards(boards, board_ids) do
     FragmentCache.fetch_or_store(
       recent_theme_public_boards_cache_key(boards, board_ids),
-      fn -> LandingPages.public_boards(boards, board_ids) end
+      fn ->
+        LandingPages.public_boards(boards, board_ids, Statistics.latest_daily_board_ppd())
+      end
     )
   end
 

@@ -8,6 +8,7 @@ defmodule Eirinchan.Statistics do
 
   alias Eirinchan.Settings
   alias Eirinchan.Statistics.RequestClassifier
+  alias Eirinchan.Statistics.Store
 
   @counter_table :eirinchan_statistics_counters
   @search_term_table :eirinchan_statistics_search_terms
@@ -19,6 +20,8 @@ defmodule Eirinchan.Statistics do
   def enabled? do
     Map.get(Settings.current_instance_config(), :statistics_snapshots, true) != false
   end
+
+  def latest_daily_board_ppd(opts \\ []), do: Store.latest_daily_board_ppd(opts)
 
   def record_request(%Plug.Conn{} = conn, opts \\ []) do
     if Keyword.get(opts, :enabled?, enabled?()) do

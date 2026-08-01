@@ -19,6 +19,29 @@ defmodule Eirinchan.Stats do
     count_perhour(board_ids, opts, false)
   end
 
+  @spec posts_perday_by_board([integer()], keyword()) :: %{
+          optional(integer()) => non_neg_integer()
+        }
+  def posts_perday_by_board(board_ids, opts \\ []) when is_list(board_ids) do
+    repo = Keyword.get(opts, :repo, Repo)
+    now = Keyword.get(opts, :now, DateTime.utc_now(:second)) |> DateTime.truncate(:second)
+    day_cutoff = DateTime.add(now, -24 * 60 * 60, :second)
+
+    if board_ids == [] do
+      %{}
+    else
+      repo.all(
+        from post in Post,
+          where:
+            post.board_id in ^board_ids and post.inserted_at > ^day_cutoff and
+              post.inserted_at <= ^now,
+          group_by: post.board_id,
+          select: {post.board_id, count(post.id)}
+      )
+      |> Map.new()
+    end
+  end
+
   @spec threads_perhour(BoardRecord.t() | integer() | [integer()], keyword()) :: integer()
   def threads_perhour(target, opts \\ [])
 
