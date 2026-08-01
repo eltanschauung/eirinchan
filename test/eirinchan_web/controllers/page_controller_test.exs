@@ -62,7 +62,7 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ "Public Boards"
     assert page =~ "Whales are learning facts!"
     assert page =~ ~s(src="/site_logo.png")
-    assert page =~ ~s(src="/whales.jpg")
+    assert page =~ ~s(src="/whales.jpg?v=)
     assert page =~ "Technology"
     assert page =~ "Recent reply body"
     assert page =~ ~s(href="/stylesheets/style.css)
@@ -84,6 +84,22 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ ~s(href="https://github.com/eltanschauung/eirinchan-devel")
 
     document = Floki.parse_document!(page)
+
+    [whale_image] = Floki.find(document, "img.home-page-whales")
+
+    whales_digest =
+      :eirinchan
+      |> Application.app_dir("priv/static/whales.jpg")
+      |> File.read!()
+      |> then(&:crypto.hash(:sha256, &1))
+      |> Base.encode16(case: :lower)
+
+    assert Floki.attribute(whale_image, "src") == ["/whales.jpg?v=#{whales_digest}"]
+    assert Floki.attribute(whale_image, "width") == ["1000"]
+    assert Floki.attribute(whale_image, "height") == ["720"]
+    assert Floki.attribute(whale_image, "loading") == ["lazy"]
+    assert Floki.attribute(whale_image, "decoding") == ["async"]
+    assert Floki.attribute(whale_image, "style") == []
 
     assert document
            |> Floki.find(".box-wrap > .box > h2")

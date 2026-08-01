@@ -31,4 +31,11 @@ defmodule EirinchanWeb.RecentStylesheetTest do
     assert stylesheet =~ "--landing-panel-heading-color: #c5c8c6;"
     assert stylesheet =~ "--landing-panel-divider: #3b3d3f;"
   end
+
+  test "the homepage whale reserves its responsive aspect ratio", %{stylesheet: stylesheet} do
+    assert stylesheet =~ ".box img.home-page-whales {"
+    assert stylesheet =~ "aspect-ratio: 25 / 18;"
+    assert stylesheet =~ "height: auto;"
+    assert stylesheet =~ "width: 100%;"
+  end
 end

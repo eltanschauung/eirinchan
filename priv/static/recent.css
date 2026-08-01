@@ -104,6 +104,13 @@ body[data-stylesheet="tomorrow.css"] {
 	float: none;
 	margin: 10px auto;
 }
+.box img.home-page-whales {
+	aspect-ratio: 25 / 18;
+	display: block;
+	height: auto;
+	margin: 0;
+	width: 100%;
+}
 
 .landing-recent-panels {
 	display: grid;
