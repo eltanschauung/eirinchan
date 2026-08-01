@@ -1,3 +1,12 @@
+body[data-stylesheet="tomorrow.css"] {
+	--landing-panel-background: #282a2e;
+	--landing-panel-color: #c5c8c6;
+	--landing-panel-border: #111;
+	--landing-panel-heading-background: #1d1f21;
+	--landing-panel-heading-color: #c5c8c6;
+	--landing-panel-divider: #3b3d3f;
+}
+
 .box-wrap {
 	max-width: 670px;
 	min-width: 332px;
@@ -6,8 +15,9 @@
 	padding: 0;
 }
 .box {
-	background: white;
-	border: 1px solid #98E;
+	background: var(--landing-panel-background, white);
+	border: 1px solid var(--landing-panel-border, #98E);
+	color: var(--landing-panel-color, inherit);
 	width: 330px;
 	margin: 8px 0;
 	padding: 0;
@@ -20,21 +30,20 @@
 	margin: 0;
 }
 .box.middle {
-        width: auto;
-        background: #fff;
-        color: #fff;
-        border: 1px solid black;
-        float: middle;
+	width: auto;
+	background: var(--landing-panel-background, #fff);
+	color: var(--landing-panel-color, #000);
+	border: 1px solid var(--landing-panel-border, black);
 }
 .box.middle p1 {
-	color:black;
-        line-height: 1.5em;
+	color: inherit;
+	line-height: 1.5em;
 }
 .box.middle h2 {
-        background: #800;
-        color: #fff;
-        font-weight:700;
-        font-size:131%;
+	background: var(--landing-panel-heading-background, #800);
+	color: var(--landing-panel-heading-color, #fff);
+	font-weight:700;
+	font-size:131%;
 }
 .box.middle.home-page-links {
 	text-align: center;
@@ -50,12 +59,12 @@
 .public-boards .board-table {
 	border-collapse: collapse;
 	box-sizing: border-box;
-	color: black;
+	color: inherit;
 	width: 100%;
 }
 .public-boards .board-table th,
 .public-boards .board-table td {
-	border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+	border-bottom: 1px solid var(--landing-panel-divider, rgba(0, 0, 0, 0.15));
 	padding: 4px 7px;
 }
 .public-boards .board-table th {
@@ -67,15 +76,15 @@
 	white-space: nowrap;
 }
 .box.left {
-	background: #efe;
-	color: #060;
-	border: 1px solid #060;
+	background: var(--landing-panel-background, #efe);
+	color: var(--landing-panel-color, #060);
+	border: 1px solid var(--landing-panel-border, #060);
 	float: left;
 }
 .box.right {
-	background: #eef;
-	color: #006;
-	border: 1px solid #006;
+	background: var(--landing-panel-background, #eef);
+	color: var(--landing-panel-color, #006);
+	border: 1px solid var(--landing-panel-border, #006);
 	float: right;
 }
 
@@ -84,12 +93,12 @@
 	font-size: 12pt;
 }
 .box.left h2 {
-	background: #9C6;
-	color: #060;
+	background: var(--landing-panel-heading-background, #9C6);
+	color: var(--landing-panel-heading-color, #060);
 }
 .box.right h2 {
-	background: #59A;
-	color: white;
+	background: var(--landing-panel-heading-background, #59A);
+	color: var(--landing-panel-heading-color, white);
 }
 .box img {
 	float: none;
