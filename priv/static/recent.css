@@ -47,6 +47,25 @@
 .home-page-introduction {
 	padding: 2px;
 }
+.public-boards .board-table {
+	border-collapse: collapse;
+	box-sizing: border-box;
+	color: black;
+	width: 100%;
+}
+.public-boards .board-table th,
+.public-boards .board-table td {
+	border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+	padding: 4px 7px;
+}
+.public-boards .board-table th {
+	text-align: left;
+}
+.public-boards .board-table .board-ppd,
+.public-boards .board-table .board-total {
+	text-align: right;
+	white-space: nowrap;
+}
 .box.left {
 	background: #efe;
 	color: #060;

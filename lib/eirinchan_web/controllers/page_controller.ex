@@ -6,6 +6,7 @@ defmodule EirinchanWeb.PageController do
   alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.CustomPages
   alias Eirinchan.FlagsPage
+  alias Eirinchan.HomePage
   alias Eirinchan.PublicPages
   alias Eirinchan.LandingPages
   alias Eirinchan.NewsBlotter
@@ -451,7 +452,17 @@ defmodule EirinchanWeb.PageController do
     board_ids = LandingPages.board_ids(settings, boards)
     content = cached_recent_theme_content(settings, board_ids)
     stats = cached_recent_theme_stats(board_ids)
-    sanitized_home_body = HtmlSanitizer.sanitize_fragment(Map.get(settings, "body", ""))
+    public_boards = cached_recent_theme_public_boards(boards, board_ids)
+
+    {home_body_before_boards, home_body_after_boards} =
+      settings
+      |> Map.get("body", "")
+      |> HomePage.split_around_public_boards()
+
+    sanitized_home_body_before_boards =
+      HtmlSanitizer.sanitize_fragment(home_body_before_boards)
+
+    sanitized_home_body_after_boards = HtmlSanitizer.sanitize_fragment(home_body_after_boards)
 
     conn =
       conn
@@ -460,6 +471,7 @@ defmodule EirinchanWeb.PageController do
         active_page,
         recent_theme_content_cache_key(settings, board_ids),
         recent_theme_stats_cache_key(board_ids),
+        recent_theme_public_boards_cache_key(boards, board_ids),
         settings
       })
       |> render(
@@ -470,8 +482,10 @@ defmodule EirinchanWeb.PageController do
           recent_settings: settings,
           recent_images: content.recent_images,
           recent_posts: content.recent_posts,
+          public_boards: public_boards,
           stats: stats,
-          sanitized_home_body: sanitized_home_body
+          sanitized_home_body_before_boards: sanitized_home_body_before_boards,
+          sanitized_home_body_after_boards: sanitized_home_body_after_boards
         )
       )
 
@@ -484,6 +498,7 @@ defmodule EirinchanWeb.PageController do
         board_ids_count: length(board_ids),
         recent_image_count: length(content.recent_images),
         recent_post_count: length(content.recent_posts),
+        public_board_count: length(public_boards),
         theme: "recent"
       }
     )
@@ -501,6 +516,13 @@ defmodule EirinchanWeb.PageController do
     FragmentCache.fetch_or_store(recent_theme_stats_cache_key(board_ids), fn ->
       LandingPages.stats(board_ids)
     end)
+  end
+
+  defp cached_recent_theme_public_boards(boards, board_ids) do
+    FragmentCache.fetch_or_store(
+      recent_theme_public_boards_cache_key(boards, board_ids),
+      fn -> LandingPages.public_boards(boards, board_ids) end
+    )
   end
 
   defp recent_theme_assigns(conn, active_page, boards, settings) do
@@ -530,6 +552,18 @@ defmodule EirinchanWeb.PageController do
   defp recent_theme_stats_cache_key(board_ids) do
     {
       :recent_theme_stats,
+      board_ids,
+      div(System.system_time(:second), recent_theme_cache_seconds())
+    }
+  end
+
+  defp recent_theme_public_boards_cache_key(boards, board_ids) do
+    board_versions =
+      Enum.map(boards, &{&1.id, &1.uri, &1.title, &1.next_public_post_id})
+
+    {
+      :recent_theme_public_boards,
+      board_versions,
       board_ids,
       div(System.system_time(:second), recent_theme_cache_seconds())
     }

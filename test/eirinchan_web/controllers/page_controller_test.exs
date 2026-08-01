@@ -59,6 +59,7 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ "Latest Posts"
     assert page =~ "Stats"
     assert page =~ "What is bnat?"
+    assert page =~ "Public Boards"
     assert page =~ "Whales are learning facts!"
     assert page =~ ~s(src="/site_logo.png")
     assert page =~ ~s(src="/whales.jpg")
@@ -81,6 +82,24 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ ~s(id="style-select")
     assert page =~ "Tinyboard + vichan 5.2.2 +"
     assert page =~ ~s(href="https://github.com/eltanschauung/eirinchan-devel")
+
+    document = Floki.parse_document!(page)
+
+    assert document
+           |> Floki.find(".box-wrap > .box > h2")
+           |> Enum.map(&(&1 |> Floki.text() |> String.trim())) ==
+             ["What is bnat?", "Public Boards", "Whales are learning facts!"]
+
+    assert document
+           |> Floki.find(".public-boards tbody tr")
+           |> Enum.map(fn row ->
+             row
+             |> Floki.find("td")
+             |> Enum.map(&(&1 |> Floki.text() |> String.replace(~r/\s+/, " ") |> String.trim()))
+           end) == [
+             ["/tech/ - Technology", "2", "336,960"],
+             ["/qa/ - Question & Answer", "0", "24"]
+           ]
 
     expected_total_posts =
       Repo.one(
@@ -156,8 +175,35 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ "Recent Images"
     assert page =~ "Latest Posts"
     assert page =~ "Stats"
+    assert page =~ "Public Boards"
     refute page =~ "alert(1)"
     refute page =~ "What is bnat?"
+  end
+
+  test "GET / Public Boards respects Recent theme exclusions", %{conn: conn} do
+    moderator_fixture()
+    included = board_fixture(%{uri: "included", title: "Included Board"})
+    excluded = board_fixture(%{uri: "excluded", title: "Excluded Board"})
+    thread_fixture(included, %{body: "Included activity"})
+    thread_fixture(excluded, %{body: "Excluded activity"})
+
+    {:ok, _theme} =
+      Eirinchan.Themes.install_theme("recent", %{
+        "body" =>
+          "<div class=\"box middle\"><h2>Before boards</h2></div>{{public_boards}}<div class=\"box middle\"><h2>After boards</h2></div>",
+        "exclude" => excluded.uri
+      })
+
+    page = conn |> get("/") |> html_response(200)
+    document = Floki.parse_document!(page)
+
+    assert document
+           |> Floki.find(".box-wrap > .box > h2")
+           |> Enum.map(&(&1 |> Floki.text() |> String.trim())) ==
+             ["Before boards", "Public Boards", "After boards"]
+
+    assert page =~ "/#{included.uri}/ - #{included.title}"
+    refute page =~ "/#{excluded.uri}/ - #{excluded.title}"
   end
 
   test "GET / renders without a browser installer when no admin exists", %{conn: conn} do

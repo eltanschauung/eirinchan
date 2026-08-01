@@ -139,6 +139,35 @@ defmodule EirinchanWeb.PageHTML do
     """
   end
 
+  attr :boards, :list, required: true
+
+  def public_boards_box(assigns) do
+    ~H"""
+    <section class="box middle public-boards">
+      <h2>Public Boards</h2>
+
+      <table class="board-table">
+        <thead>
+          <tr>
+            <th>Board</th>
+            <th class="board-ppd">PPD</th>
+            <th class="board-total">Total Posts</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr :for={board <- @boards}>
+            <td class="board-name">
+              <a href={board.link}>/<%= board.uri %>/ - <%= board.title %></a>
+            </td>
+            <td class="board-ppd"><%= board.ppd_text %></td>
+            <td class="board-total"><%= board.total_posts_text %></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+    """
+  end
+
   defp present_text?(value) when is_binary(value), do: String.trim(value) != ""
   defp present_text?(_value), do: false
 

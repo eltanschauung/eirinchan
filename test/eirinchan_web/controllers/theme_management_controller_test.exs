@@ -63,6 +63,8 @@ defmodule EirinchanWeb.ThemeManagementControllerTest do
 
     assert theme_page =~ "Configuring theme: RecentPosts"
     assert theme_page =~ "Homepage HTML"
+    assert theme_page =~ "{{public_boards}}"
+    assert theme_page =~ "where the live Public Boards table should appear"
     assert theme_page =~ ~s(name="body")
     assert theme_page =~ ~s(rows="30")
     refute theme_page =~ ~s(name="body_title")

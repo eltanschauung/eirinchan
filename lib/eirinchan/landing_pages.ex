@@ -57,6 +57,42 @@ defmodule Eirinchan.LandingPages do
     Enum.map(posts, &post_summary(&1, noko50_paths))
   end
 
+  def public_boards(boards, board_ids) when is_list(boards) and is_list(board_ids) do
+    included_ids = MapSet.new(board_ids)
+    cutoff = DateTime.utc_now() |> DateTime.add(-24 * 60 * 60, :second)
+
+    posts_per_day =
+      if board_ids == [] do
+        %{}
+      else
+        Repo.all(
+          from post in Post,
+            where: post.board_id in ^board_ids and post.inserted_at > ^cutoff,
+            group_by: post.board_id,
+            select: {post.board_id, count(post.id)}
+        )
+        |> Map.new()
+      end
+
+    boards
+    |> Enum.filter(&MapSet.member?(included_ids, &1.id))
+    |> Enum.map(fn board ->
+      total_posts = max((board.next_public_post_id || 1) - 1, 0)
+      ppd = Map.get(posts_per_day, board.id, 0)
+
+      %{
+        uri: board.uri,
+        title: board.title,
+        link: "/#{board.uri}/",
+        ppd: ppd,
+        ppd_text: number_with_delimiters(ppd),
+        total_posts: total_posts,
+        total_posts_text: number_with_delimiters(total_posts)
+      }
+    end)
+    |> Enum.sort_by(&{-&1.total_posts, &1.uri})
+  end
+
   def stats(board_ids) when is_list(board_ids) do
     week_cutoff = DateTime.utc_now() |> DateTime.add(-7 * 24 * 60 * 60, :second)
 
