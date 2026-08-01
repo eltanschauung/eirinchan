@@ -20,6 +20,14 @@ defmodule EirinchanWeb.RecentStylesheetTest do
 
     assert stylesheet =~ ".box.middle .landing-table {"
     assert stylesheet =~ "color: inherit;"
+
+    assert stylesheet =~ """
+           .public-boards .board-table th.board-ppd,
+           .public-boards .board-table td.board-ppd,
+           .public-boards .board-table th.board-total,
+           .public-boards .board-table td.board-total {
+           \ttext-align: center;
+           """
   end
 
   test "Latest Posts sizes both Recent panels while images fit the shared height", %{
