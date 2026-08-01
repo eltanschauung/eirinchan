@@ -204,6 +204,38 @@ defmodule EirinchanWeb.PageControllerTest do
     refute page =~ "/#{excluded.uri}/ - #{excluded.title}"
   end
 
+  test "Latest Posts uses board subtitles by default and URI labels when disabled", %{conn: conn} do
+    moderator_fixture()
+
+    board =
+      board_fixture(%{
+        uri: "labels#{System.unique_integer([:positive])}",
+        title: "Board title label",
+        subtitle: "Board subtitle label"
+      })
+
+    thread_fixture(board, %{body: "Label setting post"})
+
+    default_page = conn |> get("/") |> html_response(200) |> Floki.parse_document!()
+    default_latest_posts = default_page |> Floki.find(".landing-recent-posts") |> Floki.text()
+
+    assert default_latest_posts =~ "Board subtitle label"
+    refute default_latest_posts =~ "/#{board.uri}/"
+
+    settings =
+      "recent"
+      |> Eirinchan.Themes.theme_settings()
+      |> Map.put("use_board_subtitle", false)
+
+    assert {:ok, _theme} = Eirinchan.Themes.install_theme("recent", settings)
+
+    uri_page = conn |> recycle() |> get("/") |> html_response(200) |> Floki.parse_document!()
+    uri_latest_posts = uri_page |> Floki.find(".landing-recent-posts") |> Floki.text()
+
+    assert uri_latest_posts =~ "/#{board.uri}/"
+    refute uri_latest_posts =~ "Board subtitle label"
+  end
+
   test "GET / renders without a browser installer when no admin exists", %{conn: conn} do
     page = conn |> get(~p"/") |> html_response(200)
     refute page =~ "/setup"

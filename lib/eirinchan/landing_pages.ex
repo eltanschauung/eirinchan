@@ -235,6 +235,8 @@ defmodule Eirinchan.LandingPages do
 
     %{
       board_name: post.board.title,
+      board_subtitle: post.board.subtitle,
+      board_uri: post.board.uri,
       link: post_link(post, noko50_paths),
       snippet: emphasized_snippet(plain_snippet, post.body),
       plain_snippet: if(plain_snippet == "", do: "(no comment)", else: plain_snippet),

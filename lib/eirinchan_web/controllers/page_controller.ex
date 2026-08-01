@@ -419,6 +419,7 @@ defmodule EirinchanWeb.PageController do
           recent_settings: settings,
           recent_images: content.recent_images,
           recent_posts: content.recent_posts,
+          use_board_subtitle: Map.get(settings, "use_board_subtitle", true),
           public_boards: public_boards,
           stats: stats,
           sanitized_home_body_before_boards: sanitized_home_body_before_boards,
