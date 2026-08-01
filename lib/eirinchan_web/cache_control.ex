@@ -5,6 +5,7 @@ defmodule EirinchanWeb.CacheControl do
   @one_minute 60
   @ten_minutes 60 * 10
   @one_year 60 * 60 * 24 * 365
+  @versioned_asset_extensions ~w(.css .gif .ico .jpeg .jpg .js .png .svg .webp)
   @version_pattern ~r/\A[A-Za-z0-9._:-]{1,128}\z/
 
   def static_headers(conn) do
@@ -13,7 +14,7 @@ defmodule EirinchanWeb.CacheControl do
 
   def cache_control_for_request(path, query_string)
       when is_binary(path) and is_binary(query_string) do
-    if versioned_code_asset?(path, query_string) do
+    if versioned_static_asset?(path, query_string) do
       immutable(@one_year)
     else
       cache_control_for_path(path)
@@ -47,8 +48,8 @@ defmodule EirinchanWeb.CacheControl do
   def cache_control_for_upload_bucket("src"), do: public(@one_month)
   def cache_control_for_upload_bucket(_bucket), do: public(@ten_minutes)
 
-  defp versioned_code_asset?(path, query_string) do
-    (path |> Path.extname() |> String.downcase()) in [".css", ".js"] and
+  defp versioned_static_asset?(path, query_string) do
+    (path |> Path.extname() |> String.downcase()) in @versioned_asset_extensions and
       valid_version?(query_string)
   end
 

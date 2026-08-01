@@ -8,11 +8,14 @@ defmodule EirinchanWeb.CacheControlTest do
              "public, max-age=60"
   end
 
-  test "versioned JavaScript and CSS are immutable" do
+  test "versioned static assets are immutable" do
     assert CacheControl.cache_control_for_request("/js/main.js", "v=release-123") ==
              "public, max-age=31536000, immutable"
 
     assert CacheControl.cache_control_for_request("/stylesheets/site.css", "v=abc123") ==
+             "public, max-age=31536000, immutable"
+
+    assert CacheControl.cache_control_for_request("/whales.jpg", "v=content-sha256") ==
              "public, max-age=31536000, immutable"
   end
 
@@ -22,5 +25,8 @@ defmodule EirinchanWeb.CacheControlTest do
 
     assert CacheControl.cache_control_for_request("/js/main.js", "v=%") ==
              "public, max-age=60"
+
+    assert CacheControl.cache_control_for_request("/whales.jpg", "v=%") ==
+             "public, max-age=2592000"
   end
 end
