@@ -18,8 +18,21 @@ defmodule EirinchanWeb.RecentStylesheetTest do
     assert stylesheet =~ "color: var(--landing-panel-heading-color"
     assert stylesheet =~ "var(--landing-panel-divider"
 
-    assert stylesheet =~ ".public-boards .board-table {"
+    assert stylesheet =~ ".box.middle .landing-table {"
     assert stylesheet =~ "color: inherit;"
+  end
+
+  test "Latest Posts sizes both Recent panels while images fit the shared height", %{
+    stylesheet: stylesheet
+  } do
+    assert stylesheet =~ "grid-template-columns: repeat(2, minmax(0, 1fr));"
+    assert stylesheet =~ "grid-auto-rows: 1fr;"
+    assert stylesheet =~ ".landing-recent-images-viewport {"
+    assert stylesheet =~ "position: relative;"
+    assert stylesheet =~ ".landing-recent-images-viewport > ul {"
+    assert stylesheet =~ "position: absolute;"
+    assert stylesheet =~ "max-height: 100%;"
+    assert stylesheet =~ "object-fit: contain;"
   end
 
   test "Tomorrow supplies a dark Recent panel palette", %{stylesheet: stylesheet} do

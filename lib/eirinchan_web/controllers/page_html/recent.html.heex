@@ -5,11 +5,11 @@
 <div class="box-wrap">
   <%= raw(@sanitized_home_body_before_boards) %>
   <.public_boards_box boards={@public_boards} />
+  <.stats_box stats={@stats} />
   <%= raw(@sanitized_home_body_after_boards) %>
   <.recent_panels
     recent_images={@recent_images}
     recent_posts={@recent_posts}
-    stats={@stats}
     use_board_subtitle={@use_board_subtitle}
   />
 </div>

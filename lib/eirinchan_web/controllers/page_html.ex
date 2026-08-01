@@ -92,7 +92,6 @@ defmodule EirinchanWeb.PageHTML do
 
   attr :recent_images, :list, required: true
   attr :recent_posts, :list, required: true
-  attr :stats, :map, required: true
   attr :use_board_subtitle, :boolean, default: true
 
   def recent_panels(assigns) do
@@ -101,20 +100,22 @@ defmodule EirinchanWeb.PageHTML do
       <section class="box left landing-recent-images">
         <h2>Recent Images</h2>
 
-        <ul>
-          <li :for={post <- @recent_images}>
-            <a href={post.link}>
-              <img
-                src={post.src}
-                width={post.thumbwidth}
-                height={post.thumbheight}
-                alt={post.alt}
-                loading="lazy"
-                decoding="async"
-              />
-            </a>
-          </li>
-        </ul>
+        <div class="landing-recent-images-viewport">
+          <ul>
+            <li :for={post <- @recent_images}>
+              <a href={post.link}>
+                <img
+                  src={post.src}
+                  width={post.thumbwidth}
+                  height={post.thumbheight}
+                  alt={post.alt}
+                  loading="lazy"
+                  decoding="async"
+                />
+              </a>
+            </li>
+          </ul>
+        </div>
       </section>
 
       <section class="box right landing-recent-posts">
@@ -125,16 +126,6 @@ defmodule EirinchanWeb.PageHTML do
             <strong><%= recent_post_board_label(post, @use_board_subtitle) %></strong>:
             <a href={post.link}><%= raw(post.snippet) %></a>
           </li>
-        </ul>
-      </section>
-
-      <section class="box right landing-stats">
-        <h2>Stats</h2>
-
-        <ul>
-          <li>Total posts: <%= @stats.total_posts %> | This week: <%= @stats.posts_week %></li>
-
-          <li>Active content: <%= @stats.active_content %></li>
         </ul>
       </section>
     </div>
@@ -148,12 +139,12 @@ defmodule EirinchanWeb.PageHTML do
     <section class="box middle public-boards">
       <h2>Public Boards</h2>
 
-      <table class="board-table">
+      <table class="landing-table board-table">
         <thead>
           <tr>
-            <th>Board</th>
-            <th class="board-ppd">PPD</th>
-            <th class="board-total">Total Posts</th>
+            <th scope="col">Board</th>
+            <th scope="col" class="board-ppd">PPD</th>
+            <th scope="col" class="board-total">Total Posts</th>
           </tr>
         </thead>
         <tbody>
@@ -163,6 +154,33 @@ defmodule EirinchanWeb.PageHTML do
             </td>
             <td class="board-ppd"><%= board.ppd_text %></td>
             <td class="board-total"><%= board.total_posts_text %></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+    """
+  end
+
+  attr :stats, :map, required: true
+
+  def stats_box(assigns) do
+    ~H"""
+    <section class="box middle landing-stats">
+      <h2>Stats</h2>
+
+      <table class="landing-table stats-table">
+        <thead>
+          <tr>
+            <th scope="col">Total Posts</th>
+            <th scope="col">This Week</th>
+            <th scope="col">Active Content</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><%= @stats.total_posts %></td>
+            <td><%= @stats.posts_week %></td>
+            <td><%= @stats.active_content %></td>
           </tr>
         </tbody>
       </table>

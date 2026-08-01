@@ -56,22 +56,26 @@ body[data-stylesheet="tomorrow.css"] {
 .home-page-introduction {
 	padding: 2px;
 }
-.public-boards .board-table {
+.box.middle .landing-table {
 	border-collapse: collapse;
 	box-sizing: border-box;
 	color: inherit;
 	width: 100%;
 }
-.public-boards .board-table th,
-.public-boards .board-table td {
+.box.middle .landing-table th,
+.box.middle .landing-table td {
 	border-bottom: 1px solid var(--landing-panel-divider, rgba(0, 0, 0, 0.15));
 	padding: 4px 7px;
 }
-.public-boards .board-table th {
+.box.middle .landing-table th {
 	text-align: left;
 }
 .public-boards .board-table .board-ppd,
 .public-boards .board-table .board-total {
+	text-align: right;
+	white-space: nowrap;
+}
+.landing-stats .stats-table td {
 	text-align: right;
 	white-space: nowrap;
 }
@@ -113,19 +117,60 @@ body[data-stylesheet="tomorrow.css"] {
 }
 
 .landing-recent-panels {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 8px;
+	align-items: stretch;
 	clear: both;
+	display: grid;
+	gap: 8px;
+	grid-auto-rows: 1fr;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .landing-recent-panels .box {
 	box-sizing: border-box;
 	float: none;
-	width: 100%;
 	margin: 0;
+	min-width: 0;
+	width: 100%;
 }
 .landing-recent-images {
-	grid-row: span 2;
+	display: grid;
+	grid-template-rows: auto minmax(0, 1fr);
+	min-height: 0;
+}
+.landing-recent-images-viewport {
+	min-height: 0;
+	overflow: hidden;
+	position: relative;
+}
+.landing-recent-images-viewport > ul {
+	box-sizing: border-box;
+	display: flex;
+	flex-direction: column;
+	inset: 0;
+	margin: 0;
+	position: absolute;
+}
+.landing-recent-images-viewport > ul > li {
+	display: flex;
+	flex: 1 1 0;
+	min-height: 0;
+	min-width: 0;
+}
+.landing-recent-images-viewport > ul > li > a {
+	align-items: center;
+	display: flex;
+	flex: 1 1 auto;
+	justify-content: center;
+	min-height: 0;
+	min-width: 0;
+}
+.landing-recent-images-viewport img {
+	display: block;
+	height: auto;
+	margin: 0;
+	max-height: 100%;
+	max-width: 100%;
+	object-fit: contain;
+	width: auto;
 }
 @media screen and (max-width: 696px) {
 	.box-wrap {
@@ -139,8 +184,5 @@ body[data-stylesheet="tomorrow.css"] {
 	}
 	.landing-recent-panels {
 		grid-template-columns: 1fr;
-	}
-	.landing-recent-images {
-		grid-row: auto;
 	}
 }
