@@ -70,9 +70,11 @@ body[data-stylesheet="tomorrow.css"] {
 .box.middle .landing-table th {
 	text-align: left;
 }
-.public-boards .board-table .board-ppd,
-.public-boards .board-table .board-total {
-	text-align: right;
+.public-boards .board-table th.board-ppd,
+.public-boards .board-table td.board-ppd,
+.public-boards .board-table th.board-total,
+.public-boards .board-table td.board-total {
+	text-align: center;
 	white-space: nowrap;
 }
 .landing-stats .stats-table td {
