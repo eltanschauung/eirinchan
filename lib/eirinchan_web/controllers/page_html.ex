@@ -169,17 +169,17 @@ defmodule EirinchanWeb.PageHTML do
       <h2>Stats</h2>
 
       <table class="landing-table stats-table">
-        <thead>
-          <tr>
-            <th scope="col">Total Posts</th>
-            <th scope="col">This Week</th>
-            <th scope="col">Active Content</th>
-          </tr>
-        </thead>
         <tbody>
           <tr>
+            <th scope="row">Total Posts</th>
             <td><%= @stats.total_posts %></td>
+          </tr>
+          <tr>
+            <th scope="row">Posts This Week</th>
             <td><%= @stats.posts_week %></td>
+          </tr>
+          <tr>
+            <th scope="row">Active Content</th>
             <td><%= @stats.active_content %></td>
           </tr>
         </tbody>
