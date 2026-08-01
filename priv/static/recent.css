@@ -77,8 +77,17 @@ body[data-stylesheet="tomorrow.css"] {
 	text-align: center;
 	white-space: nowrap;
 }
+.landing-stats .stats-table {
+	table-layout: fixed;
+}
+.landing-stats .stats-label-column {
+	width: 75%;
+}
+.landing-stats .stats-value-column {
+	width: 25%;
+}
 .landing-stats .stats-table td {
-	text-align: right;
+	text-align: center;
 	white-space: nowrap;
 }
 .box.left {
