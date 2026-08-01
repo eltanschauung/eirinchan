@@ -100,7 +100,25 @@ defmodule EirinchanWeb.PageControllerTest do
     assert document
            |> Floki.find(".box-wrap > .box > h2")
            |> Enum.map(&(&1 |> Floki.text() |> String.trim())) ==
-             ["Welcome", "Public Boards"]
+             ["Welcome", "Public Boards", "Stats"]
+
+    assert document
+           |> Floki.find(".landing-stats .stats-table thead th")
+           |> Enum.map(&(&1 |> Floki.text() |> String.trim())) ==
+             ["Total Posts", "This Week", "Active Content"]
+
+    assert document
+           |> Floki.find(".landing-stats .stats-table tbody tr")
+           |> length() == 1
+
+    assert document
+           |> Floki.find(".landing-stats .stats-table tbody td")
+           |> length() == 3
+
+    assert document
+           |> Floki.find(".landing-recent-panels > .box")
+           |> Enum.map(&(&1 |> Floki.find("h2") |> Floki.text() |> String.trim())) ==
+             ["Recent Images", "Latest Posts"]
 
     assert document
            |> Floki.find(".public-boards tbody tr")
@@ -123,7 +141,10 @@ defmodule EirinchanWeb.PageControllerTest do
             )
       )
 
-    assert page =~ "Total posts: #{with_delimiters(expected_total_posts)}"
+    assert document
+           |> Floki.find(".landing-stats .stats-table tbody td")
+           |> Enum.map(&(&1 |> Floki.text() |> String.trim()))
+           |> List.first() == with_delimiters(expected_total_posts)
   end
 
   test "GET / uses the configured website description", %{conn: conn} do
@@ -212,7 +233,7 @@ defmodule EirinchanWeb.PageControllerTest do
     assert document
            |> Floki.find(".box-wrap > .box > h2")
            |> Enum.map(&(&1 |> Floki.text() |> String.trim())) ==
-             ["Before boards", "Public Boards", "After boards"]
+             ["Before boards", "Public Boards", "Stats", "After boards"]
 
     assert page =~ "/#{included.uri}/ - #{included.title}"
     refute page =~ "/#{excluded.uri}/ - #{excluded.title}"
