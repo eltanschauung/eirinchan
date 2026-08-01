@@ -102,18 +102,13 @@ defmodule EirinchanWeb.PageControllerTest do
            |> Enum.map(&(&1 |> Floki.text() |> String.trim())) ==
              ["Welcome", "Public Boards", "Stats"]
 
-    assert document
-           |> Floki.find(".landing-stats .stats-table thead th")
-           |> Enum.map(&(&1 |> Floki.text() |> String.trim())) ==
-             ["Total Posts", "This Week", "Active Content"]
+    stats_rows = Floki.find(document, ".landing-stats .stats-table tbody tr")
 
-    assert document
-           |> Floki.find(".landing-stats .stats-table tbody tr")
-           |> length() == 1
+    assert Enum.map(stats_rows, fn row ->
+             row |> Floki.find("th") |> Floki.text() |> String.trim()
+           end) == ["Total Posts", "Posts This Week", "Active Content"]
 
-    assert document
-           |> Floki.find(".landing-stats .stats-table tbody td")
-           |> length() == 3
+    assert Enum.all?(stats_rows, &(length(Floki.find(&1, "th, td")) == 2))
 
     assert document
            |> Floki.find(".landing-recent-panels > .box")
@@ -141,10 +136,11 @@ defmodule EirinchanWeb.PageControllerTest do
             )
       )
 
-    assert document
-           |> Floki.find(".landing-stats .stats-table tbody td")
-           |> Enum.map(&(&1 |> Floki.text() |> String.trim()))
-           |> List.first() == with_delimiters(expected_total_posts)
+    assert stats_rows
+           |> List.first()
+           |> Floki.find("td")
+           |> Floki.text()
+           |> String.trim() == with_delimiters(expected_total_posts)
   end
 
   test "GET / uses the configured website description", %{conn: conn} do
