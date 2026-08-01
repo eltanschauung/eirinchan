@@ -169,6 +169,10 @@ defmodule EirinchanWeb.PageHTML do
       <h2>Stats</h2>
 
       <table class="landing-table stats-table">
+        <colgroup>
+          <col class="stats-label-column" />
+          <col class="stats-value-column" />
+        </colgroup>
         <tbody>
           <tr>
             <th scope="row">Total Posts</th>

@@ -104,6 +104,11 @@ defmodule EirinchanWeb.PageControllerTest do
 
     stats_rows = Floki.find(document, ".landing-stats .stats-table tbody tr")
 
+    assert document
+           |> Floki.find(".landing-stats .stats-table colgroup col")
+           |> Enum.map(&Floki.attribute(&1, "class")) ==
+             [["stats-label-column"], ["stats-value-column"]]
+
     assert Enum.map(stats_rows, fn row ->
              row |> Floki.find("th") |> Floki.text() |> String.trim()
            end) == ["Total Posts", "Posts This Week", "Active Content"]

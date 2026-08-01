@@ -43,6 +43,13 @@ defmodule EirinchanWeb.RecentStylesheetTest do
     assert stylesheet =~ "object-fit: contain;"
   end
 
+  test "Stats reserves one quarter of its width for centered values", %{stylesheet: stylesheet} do
+    assert stylesheet =~ ".landing-stats .stats-table {\n\ttable-layout: fixed;"
+    assert stylesheet =~ ".landing-stats .stats-label-column {\n\twidth: 75%;"
+    assert stylesheet =~ ".landing-stats .stats-value-column {\n\twidth: 25%;"
+    assert stylesheet =~ ".landing-stats .stats-table td {\n\ttext-align: center;"
+  end
+
   test "Tomorrow supplies a dark Recent panel palette", %{stylesheet: stylesheet} do
     assert stylesheet =~ ~s(body[data-stylesheet="tomorrow.css"])
     assert stylesheet =~ "--landing-panel-background: #282a2e;"
