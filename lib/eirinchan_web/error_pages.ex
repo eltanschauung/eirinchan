@@ -27,16 +27,7 @@ defmodule EirinchanWeb.ErrorPages do
           ),
         body_class: "8chan vichan is-not-moderator active-page"
       ] ++
-        PublicControllerHelpers.public_shell_assigns(conn, "page",
-          base_stylesheet: "/stylesheets/style.css",
-          primary_stylesheet: "/stylesheets/yotsuba.css",
-          body_data_stylesheet: "yotsuba.css",
-          theme_label: "Yotsuba",
-          theme_options: [],
-          show_options_shell: false,
-          hide_theme_switcher: true,
-          show_nav_arrows_page: false
-        )
+        PublicControllerHelpers.public_shell_assigns(conn, "page", show_nav_arrows_page: false)
 
     conn
     |> put_status(:not_found)
