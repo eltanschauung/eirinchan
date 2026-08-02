@@ -259,7 +259,7 @@ defmodule Eirinchan.Statistics.Charts do
       "posts-per-month-#{today.year}",
       "Posts Per Month - #{today.year}",
       points,
-      "Non-July values are retained-post counts increased by 15%; July uses its retained count."
+      nil
     )
   end
 
