@@ -426,10 +426,10 @@ defmodule Eirinchan.Statistics.Charts do
 
     cond do
       MapSet.member?(states, :estimated) and MapSet.member?(states, :reconstructed) ->
-        "Historical columns before tracking began are estimates; other pre-snapshot hours are reconstructed from retained posts."
+        "Data before June 18th 2026 is only approximate, backfilled by analysis of /bant/ post integers and timestamps."
 
       MapSet.member?(states, :estimated) ->
-        "Historical columns before tracking began are estimates based on later site activity."
+        "Data before June 18th 2026 is only approximate, backfilled by analysis of /bant/ post integers and timestamps."
 
       MapSet.member?(states, :reconstructed) ->
         "Hours predating complete snapshots are reconstructed from retained posts; posts deleted before collection are not recoverable."
