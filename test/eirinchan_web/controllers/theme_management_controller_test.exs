@@ -78,7 +78,12 @@ defmodule EirinchanWeb.ThemeManagementControllerTest do
     assert page =~ "Whale Statistics"
     assert page =~ ~s(href="/stats.css)
     assert conn |> recycle() |> get("/stats.css") |> response(200) =~ ".statistics-chart"
-    assert length(Floki.find(document, ".statistics-chart")) == 6
+    today = :calendar.local_time() |> elem(0) |> Date.from_erl!()
+
+    assert length(Floki.find(document, ".statistics-chart")) == 7
+
+    assert length(Floki.find(document, "#posts-per-month-#{today.year} .statistics-chart-column")) ==
+             12
 
     assert length(Floki.find(document, ~s([id^="pph-"] .statistics-chart-column))) == 48
 
@@ -88,8 +93,6 @@ defmodule EirinchanWeb.ThemeManagementControllerTest do
                "#average-visitors-per-hour-last-week .statistics-chart-column"
              )
            ) == 24
-
-    today = :calendar.local_time() |> elem(0) |> Date.from_erl!()
 
     assert length(Floki.find(document, "#visitors-current-month .statistics-chart-column")) ==
              Date.days_in_month(today)

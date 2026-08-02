@@ -25,6 +25,7 @@ defmodule Eirinchan.Statistics.Charts do
     previous_month_start = current_month_start |> Date.add(-1) |> Date.beginning_of_month()
     previous_month_end = Date.add(current_month_start, -1)
     last_week_start = Date.add(today, -@last_week_days)
+    year_start = Date.new!(today.year, 1, 1)
 
     earliest_date =
       Enum.min_by(
@@ -36,6 +37,16 @@ defmodule Eirinchan.Statistics.Charts do
     range_end = start_of_day(Date.add(today, 1), calendar)
 
     retained_posts = retained_posts_by_hour(repo, board_ids, range_start, range_end)
+
+    monthly_posts =
+      retained_posts_by_month(
+        repo,
+        board_ids,
+        start_of_day(year_start, calendar),
+        range_end,
+        calendar
+      )
+
     snapshots = snapshots(repo, range_start, range_end)
     hourly_posts = hourly_posts(retained_posts, snapshots, range_start, range_end, now, calendar)
     daily_visitors = daily_visitors(snapshots, calendar)
@@ -49,6 +60,7 @@ defmodule Eirinchan.Statistics.Charts do
       pph_chart(today, "Posts Per Hour - #{date_title(today)}", hourly_posts, local_now),
       pph_chart(yesterday, "Posts Per Hour - #{date_title(yesterday)}", hourly_posts, local_now),
       ppd_chart(ppd_start, today, hourly_posts),
+      posts_per_month_chart(today, monthly_posts),
       visitors_chart(
         current_month_start,
         Date.end_of_month(today),
@@ -89,6 +101,24 @@ defmodule Eirinchan.Statistics.Charts do
         select: {fragment("date_trunc('hour', ?)", post.inserted_at), count(post.id)}
     )
     |> Map.new(fn {period_start, count} -> {hour_key(period_start), count} end)
+  end
+
+  defp retained_posts_by_month(_repo, [], _range_start, _range_end, _calendar), do: %{}
+
+  defp retained_posts_by_month(repo, board_ids, range_start, range_end, calendar) do
+    repo.all(
+      from post in Post,
+        where:
+          post.board_id in ^board_ids and post.inserted_at >= ^range_start and
+            post.inserted_at < ^range_end,
+        group_by: fragment("date_trunc('hour', ?)", post.inserted_at),
+        select: {fragment("date_trunc('hour', ?)", post.inserted_at), count(post.id)}
+    )
+    |> Enum.reduce(%{}, fn {utc_hour, count}, totals ->
+      local = utc_hour |> utc_datetime() |> calendar.local_naive()
+      date = NaiveDateTime.to_date(local)
+      Map.update(totals, {date.year, date.month}, count, &(&1 + count))
+    end)
   end
 
   defp snapshots(repo, range_start, range_end) do
@@ -170,7 +200,7 @@ defmodule Eirinchan.Statistics.Charts do
           end
 
         point(
-          hour |> Integer.to_string() |> String.pad_leading(2, "0"),
+          hour_label(hour),
           if(state == :future, do: 0, else: total_value(total)),
           state,
           title_label: time_title(hour)
@@ -205,14 +235,41 @@ defmodule Eirinchan.Statistics.Charts do
     )
   end
 
+  defp posts_per_month_chart(today, monthly_posts) do
+    current_month = Date.beginning_of_month(today)
+
+    points =
+      Enum.map(1..12, fn month ->
+        date = Date.new!(today.year, month, 1)
+        retained = Map.get(monthly_posts, {today.year, month}, 0)
+
+        {value, state} =
+          cond do
+            Date.after?(date, current_month) -> {nil, :future}
+            month == 7 -> {retained, :reconstructed}
+            true -> {round(retained * 1.15), :estimated}
+          end
+
+        point(Calendar.strftime(date, "%B"), value, state,
+          title_label: Calendar.strftime(date, "%B")
+        )
+      end)
+
+    chart(
+      "posts-per-month-#{today.year}",
+      "Posts Per Month - #{today.year}",
+      points,
+      "Non-July values are retained-post counts increased by 15%; July uses its retained count."
+    )
+  end
+
   defp daily_visitors(snapshots, calendar) do
     snapshots
     |> Enum.reject(&is_nil(&1.daily_unique_visitors))
     |> Map.new(fn snapshot ->
       local_period_end = calendar.local_naive(snapshot.period_end)
       date = local_period_end |> NaiveDateTime.to_date() |> Date.add(-1)
-      {date,
-       %{value: snapshot.daily_unique_visitors, state: snapshot_source(snapshot)}}
+      {date, %{value: snapshot.daily_unique_visitors, state: snapshot_source(snapshot)}}
     end)
   end
 
@@ -241,24 +298,20 @@ defmodule Eirinchan.Statistics.Charts do
       |> Enum.map(fn date ->
         cond do
           Date.after?(date, today) ->
-            point(Integer.to_string(date.day), nil, :future, title_label: date_title(date))
+            point(ordinal_day(date.day), nil, :future, title_label: date_title(date))
 
           date == today ->
-            point(Integer.to_string(date.day), current_visitors, :partial,
+            point(ordinal_day(date.day), current_visitors, :partial,
               title_label: date_title(date)
             )
 
           Map.has_key?(daily_visitors, date) ->
             total = Map.fetch!(daily_visitors, date)
 
-            point(Integer.to_string(date.day), total.value, total.state,
-              title_label: date_title(date)
-            )
+            point(ordinal_day(date.day), total.value, total.state, title_label: date_title(date))
 
           true ->
-            point(Integer.to_string(date.day), nil, :unavailable,
-              title_label: date_title(date)
-            )
+            point(ordinal_day(date.day), nil, :unavailable, title_label: date_title(date))
         end
       end)
 
@@ -302,6 +355,7 @@ defmodule Eirinchan.Statistics.Charts do
           values ->
             average = values |> Enum.sum() |> Kernel./(length(values)) |> Float.round(1)
             state = if length(values) == @last_week_days, do: :tracked, else: :incomplete
+
             point(hour_label(hour), average, state,
               samples: length(values),
               title_label: time_title(hour)
@@ -432,6 +486,9 @@ defmodule Eirinchan.Statistics.Charts do
     |> hour_key()
   end
 
+  defp utc_datetime(%DateTime{} = datetime), do: datetime
+  defp utc_datetime(%NaiveDateTime{} = datetime), do: DateTime.from_naive!(datetime, "Etc/UTC")
+
   defp shift_month(%Date{} = date, offset) do
     month_index = date.year * 12 + date.month - 1 + offset
     year = div(month_index, 12)
@@ -449,6 +506,8 @@ defmodule Eirinchan.Statistics.Charts do
   defp ordinal_suffix(day) when rem(day, 10) == 2, do: "nd"
   defp ordinal_suffix(day) when rem(day, 10) == 3, do: "rd"
   defp ordinal_suffix(_day), do: "th"
+
+  defp ordinal_day(day), do: "#{day}#{ordinal_suffix(day)}"
 
   defp time_title(hour), do: "#{hour |> Integer.to_string() |> String.pad_leading(2, "0")}:00"
 
