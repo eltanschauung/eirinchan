@@ -11,12 +11,15 @@ defmodule Eirinchan.Statistics.ChartsTest do
     def utc_datetime(datetime), do: DateTime.from_naive!(datetime, "Etc/UTC")
   end
 
-  test "builds all six fixed-shape charts and prefers completed snapshots for post counts" do
+  test "builds all seven fixed-shape charts and prefers completed snapshots for post counts" do
     now = ~U[2026-08-02 15:30:00Z]
     board = board_fixture()
 
     post_at(board, ~U[2026-06-05 08:10:00Z])
     post_at(board, ~U[2026-06-05 08:20:00Z])
+    post_at(board, ~U[2026-06-06 08:10:00Z])
+    post_at(board, ~U[2026-06-06 08:20:00Z])
+    post_at(board, ~U[2026-07-15 08:10:00Z])
     post_at(board, ~U[2026-08-01 10:15:00Z])
     post_at(board, ~U[2026-08-02 15:10:00Z])
 
@@ -49,26 +52,27 @@ defmodule Eirinchan.Statistics.ChartsTest do
         current_visitors: 6
       )
 
-    assert length(result.charts) == 6
+    assert length(result.charts) == 7
 
     current_pph = chart(result, "pph-2026-08-02")
     yesterday_pph = chart(result, "pph-2026-08-01")
     ppd = chart(result, "posts-per-day-past-two-months")
+    monthly_posts = chart(result, "posts-per-month-2026")
     current_visitors = chart(result, "visitors-current-month")
     last_month_visitors = chart(result, "visitors-last-month")
     average_visitors = chart(result, "average-visitors-per-hour-last-week")
 
     assert current_pph.title == "Posts Per Hour - August 2nd 2026"
     assert current_pph.column_count == 24
-    assert point(current_pph, "15").value == 1
-    assert point(current_pph, "15").state == :partial
-    assert point(current_pph, "16").value == 0
-    assert point(current_pph, "16").state == :future
+    assert point(current_pph, "3pm").value == 1
+    assert point(current_pph, "3pm").state == :partial
+    assert point(current_pph, "4pm").value == 0
+    assert point(current_pph, "4pm").state == :future
 
     assert yesterday_pph.title == "Posts Per Hour - August 1st 2026"
     assert yesterday_pph.column_count == 24
-    assert point(yesterday_pph, "10").value == 7
-    assert point(yesterday_pph, "10").state == :tracked
+    assert point(yesterday_pph, "10am").value == 7
+    assert point(yesterday_pph, "10am").state == :tracked
 
     assert ppd.title == "Posts Per Day - Past 2 Months"
     assert ppd.column_count == 62
@@ -77,17 +81,25 @@ defmodule Eirinchan.Statistics.ChartsTest do
     assert point(ppd, "8/1").value == 7
     assert ppd.note =~ "reconstructed from retained posts"
 
+    assert monthly_posts.title == "Posts Per Month - 2026"
+    assert monthly_posts.column_count == 12
+    assert point(monthly_posts, "June").value == 5
+    assert point(monthly_posts, "June").state == :estimated
+    assert point(monthly_posts, "July").value == 1
+    assert point(monthly_posts, "July").state == :reconstructed
+    assert point(monthly_posts, "September").state == :future
+
     assert current_visitors.title == "Visitors Per Day - August"
     assert current_visitors.column_count == 31
-    assert point(current_visitors, "1").value == 31
-    assert point(current_visitors, "1").title_label == "August 1st 2026"
-    assert point(current_visitors, "2").value == 6
-    assert point(current_visitors, "3").state == :future
+    assert point(current_visitors, "1st").value == 31
+    assert point(current_visitors, "1st").title_label == "August 1st 2026"
+    assert point(current_visitors, "2nd").value == 6
+    assert point(current_visitors, "3rd").state == :future
 
     assert last_month_visitors.title == "Visitors Per Day - Last Month"
     assert last_month_visitors.column_count == 31
-    assert point(last_month_visitors, "1").state == :unavailable
-    assert point(last_month_visitors, "31").value == 21
+    assert point(last_month_visitors, "1st").state == :unavailable
+    assert point(last_month_visitors, "31st").value == 21
 
     assert average_visitors.title == "Average Visitors Per Hour - Last Week"
     assert average_visitors.column_count == 24
@@ -112,8 +124,8 @@ defmodule Eirinchan.Statistics.ChartsTest do
     assert chart(result, "pph-2026-08-07").title ==
              "Posts Per Hour - August 7th 2026"
 
-    assert point(chart(result, "pph-2026-08-08"), "00").title_label == "00:00"
-    assert point(chart(result, "pph-2026-08-08"), "15").title_label == "15:00"
+    assert point(chart(result, "pph-2026-08-08"), "12am").title_label == "00:00"
+    assert point(chart(result, "pph-2026-08-08"), "3pm").title_label == "15:00"
   end
 
   test "current-month visitors always reserve every day in a leap February" do
@@ -128,7 +140,7 @@ defmodule Eirinchan.Statistics.ChartsTest do
     chart = chart(result, "visitors-current-month")
 
     assert chart.column_count == 29
-    assert List.last(chart.points).label == "29"
+    assert List.last(chart.points).label == "29th"
     assert List.last(chart.points).state == :future
   end
 
@@ -162,8 +174,8 @@ defmodule Eirinchan.Statistics.ChartsTest do
     assert point(ppd, "6/5").state == :estimated
     assert point(ppd, "6/5").value == 9
     assert ppd.note =~ "estimates"
-    assert point(visitors, "2").state == :estimated
-    assert point(visitors, "2").value == 44
+    assert point(visitors, "2nd").state == :estimated
+    assert point(visitors, "2nd").value == 44
   end
 
   defp post_at(board, inserted_at) do

@@ -35,6 +35,11 @@
 	min-width: calc(var(--statistics-column-count) * 2.75rem);
 }
 
+.statistics-chart[id^="posts-per-month-"] .statistics-chart-columns {
+	grid-template-columns: repeat(12, minmax(5rem, 1fr));
+	min-width: 64rem;
+}
+
 .statistics-chart-column {
 	display: grid;
 	grid-template-rows: 1.35rem 12rem 1.5rem;
