@@ -30,6 +30,7 @@ defmodule EirinchanWeb do
         js
         main.js
         recent.css
+        stats.css
         secret_bfc.png
         site_logo.png
         site_logo2_recent.png

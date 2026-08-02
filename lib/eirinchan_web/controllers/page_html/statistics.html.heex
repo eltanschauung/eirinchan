@@ -1,0 +1,44 @@
+<.page_shell
+  page={@page}
+  subtitle={@page_subtitle}
+  global_message_html={@global_message_html}
+  current_moderator={@current_moderator}
+  board_chrome={@board_chrome}
+  show_global_message={@show_global_message}
+>
+  <main class="statistics-page">
+    <figure
+      :for={chart <- @charts}
+      id={chart.id}
+      class="statistics-chart"
+      aria-labelledby={"#{chart.id}-title"}
+    >
+      <figcaption id={"#{chart.id}-title"}><%= chart.title %></figcaption>
+
+      <div class="statistics-chart-scroll" tabindex="0">
+        <div
+          class="statistics-chart-columns"
+          style={"--statistics-column-count: #{chart.column_count}"}
+        >
+          <div
+            :for={point <- chart.points}
+            class={["statistics-chart-column", "is-#{point.state}"]}
+            title={"#{point.label}: #{point.value_text}"}
+          >
+            <span class="statistics-chart-value"><%= point.value_text %></span>
+            <span class="statistics-chart-track" aria-hidden="true">
+              <span
+                class="statistics-chart-bar"
+                style={"--statistics-bar-height: #{point.bar_percent}%"}
+              >
+              </span>
+            </span>
+            <span class="statistics-chart-label"><%= point.label %></span>
+          </div>
+        </div>
+      </div>
+
+      <p :if={chart.note} class="statistics-chart-note unimportant"><%= chart.note %></p>
+    </figure>
+  </main>
+</.page_shell>

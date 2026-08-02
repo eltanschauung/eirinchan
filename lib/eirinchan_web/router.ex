@@ -311,6 +311,7 @@ defmodule EirinchanWeb.Router do
     get "/recent", PageController, :recent
     get "/recent.xml", PageController, :rss
     get "/sitemap.xml", PageController, :sitemap
+    get "/stats", PageController, :statistics
     get "/search", SearchController, :legacy
     get "/watcher/fragment", PageController, :watcher_fragment
     get "/watcher", PageController, :watcher
