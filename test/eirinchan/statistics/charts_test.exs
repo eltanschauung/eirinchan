@@ -174,8 +174,7 @@ defmodule Eirinchan.Statistics.ChartsTest do
     assert point(ppd, "6/5").state == :estimated
     assert point(ppd, "6/5").value == 9
 
-    assert ppd.note ==
-             "Data before July 19th 2026 is only approximate, backfilled by analysis of /bant/ post integers and timestamps."
+    assert ppd.note == nil
 
     assert point(visitors, "2nd").state == :estimated
     assert point(visitors, "2nd").value == 44
