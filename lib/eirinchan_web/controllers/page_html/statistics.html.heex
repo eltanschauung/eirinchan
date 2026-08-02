@@ -23,7 +23,7 @@
           <div
             :for={point <- chart.points}
             class={["statistics-chart-column", "is-#{point.state}"]}
-            title={"#{point.label}: #{point.value_text}"}
+            title={"#{point.title_label}: #{point.value_text}"}
           >
             <span class="statistics-chart-value"><%= point.value_text %></span>
             <span class="statistics-chart-track" aria-hidden="true">
