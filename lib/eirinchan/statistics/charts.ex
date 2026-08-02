@@ -46,8 +46,8 @@ defmodule Eirinchan.Statistics.Charts do
       end)
 
     charts = [
-      pph_chart(today, "PPH - #{date_title(today)}", hourly_posts, local_now),
-      pph_chart(yesterday, "PPH - Yesterday", hourly_posts, local_now),
+      pph_chart(today, "Posts Per Hour - #{date_title(today)}", hourly_posts, local_now),
+      pph_chart(yesterday, "Posts Per Hour - #{date_title(yesterday)}", hourly_posts, local_now),
       ppd_chart(ppd_start, today, hourly_posts),
       visitors_chart(
         current_month_start,
@@ -103,7 +103,8 @@ defmodule Eirinchan.Statistics.Charts do
           period_end: snapshot.period_end,
           posts_per_hour: snapshot.posts_per_hour,
           users_10minutes: snapshot.users_10minutes,
-          daily_unique_visitors: snapshot.daily_unique_visitors
+          daily_unique_visitors: snapshot.daily_unique_visitors,
+          counters: snapshot.counters
         }
     )
   end
@@ -111,7 +112,8 @@ defmodule Eirinchan.Statistics.Charts do
   defp hourly_posts(retained, snapshots, range_start, range_end, now, calendar) do
     tracked =
       Map.new(snapshots, fn snapshot ->
-        {hour_key(snapshot.period_start), snapshot.posts_per_hour}
+        {hour_key(snapshot.period_start),
+         %{value: snapshot.posts_per_hour, source: snapshot_source(snapshot)}}
       end)
 
     current_hour = Statistics.hour_start(now)
@@ -132,8 +134,9 @@ defmodule Eirinchan.Statistics.Charts do
           utc_key == hour_key(current_hour) ->
             {Map.get(retained, utc_key, 0), :partial}
 
-          is_integer(Map.get(tracked, utc_key)) ->
-            {Map.fetch!(tracked, utc_key), :tracked}
+          is_integer(get_in(tracked, [utc_key, :value])) ->
+            total = Map.fetch!(tracked, utc_key)
+            {total.value, total.source}
 
           true ->
             {Map.get(retained, utc_key, 0), :reconstructed}
@@ -169,7 +172,8 @@ defmodule Eirinchan.Statistics.Charts do
         point(
           hour |> Integer.to_string() |> String.pad_leading(2, "0"),
           if(state == :future, do: 0, else: total_value(total)),
-          state
+          state,
+          title_label: time_title(hour)
         )
       end)
 
@@ -190,7 +194,7 @@ defmodule Eirinchan.Statistics.Charts do
         value = Enum.reduce(totals, 0, &(&1.value + &2))
         state = if totals == [], do: :unavailable, else: source_state(sources)
 
-        point("#{date.month}/#{date.day}", value, state)
+        point("#{date.month}/#{date.day}", value, state, title_label: date_title(date))
       end)
 
     chart(
@@ -207,7 +211,8 @@ defmodule Eirinchan.Statistics.Charts do
     |> Map.new(fn snapshot ->
       local_period_end = calendar.local_naive(snapshot.period_end)
       date = local_period_end |> NaiveDateTime.to_date() |> Date.add(-1)
-      {date, snapshot.daily_unique_visitors}
+      {date,
+       %{value: snapshot.daily_unique_visitors, state: snapshot_source(snapshot)}}
     end)
   end
 
@@ -236,16 +241,24 @@ defmodule Eirinchan.Statistics.Charts do
       |> Enum.map(fn date ->
         cond do
           Date.after?(date, today) ->
-            point(Integer.to_string(date.day), nil, :future)
+            point(Integer.to_string(date.day), nil, :future, title_label: date_title(date))
 
           date == today ->
-            point(Integer.to_string(date.day), current_visitors, :partial)
+            point(Integer.to_string(date.day), current_visitors, :partial,
+              title_label: date_title(date)
+            )
 
           Map.has_key?(daily_visitors, date) ->
-            point(Integer.to_string(date.day), Map.fetch!(daily_visitors, date), :tracked)
+            total = Map.fetch!(daily_visitors, date)
+
+            point(Integer.to_string(date.day), total.value, total.state,
+              title_label: date_title(date)
+            )
 
           true ->
-            point(Integer.to_string(date.day), nil, :unavailable)
+            point(Integer.to_string(date.day), nil, :unavailable,
+              title_label: date_title(date)
+            )
         end
       end)
 
@@ -281,12 +294,18 @@ defmodule Eirinchan.Statistics.Charts do
 
         case samples do
           [] ->
-            point(hour_label(hour), nil, :unavailable, samples: 0)
+            point(hour_label(hour), nil, :unavailable,
+              samples: 0,
+              title_label: time_title(hour)
+            )
 
           values ->
             average = values |> Enum.sum() |> Kernel./(length(values)) |> Float.round(1)
             state = if length(values) == @last_week_days, do: :tracked, else: :incomplete
-            point(hour_label(hour), average, state, samples: length(values))
+            point(hour_label(hour), average, state,
+              samples: length(values),
+              title_label: time_title(hour)
+            )
         end
       end)
 
@@ -323,7 +342,7 @@ defmodule Eirinchan.Statistics.Charts do
     }
   end
 
-  defp point(label, value, state, extra \\ []) do
+  defp point(label, value, state, extra) do
     value_text =
       cond do
         is_nil(value) -> "—"
@@ -333,6 +352,7 @@ defmodule Eirinchan.Statistics.Charts do
 
     %{
       label: label,
+      title_label: Keyword.get(extra, :title_label, label),
       value: value,
       value_text: value_text,
       state: state,
@@ -351,6 +371,12 @@ defmodule Eirinchan.Statistics.Charts do
     states = MapSet.new(points, & &1.state)
 
     cond do
+      MapSet.member?(states, :estimated) and MapSet.member?(states, :reconstructed) ->
+        "Historical columns before tracking began are estimates; other pre-snapshot hours are reconstructed from retained posts."
+
+      MapSet.member?(states, :estimated) ->
+        "Historical columns before tracking began are estimates based on later site activity."
+
       MapSet.member?(states, :reconstructed) ->
         "Hours predating complete snapshots are reconstructed from retained posts; posts deleted before collection are not recoverable."
 
@@ -371,10 +397,14 @@ defmodule Eirinchan.Statistics.Charts do
   defp source_state(sources) do
     cond do
       MapSet.member?(sources, :partial) -> :partial
+      MapSet.member?(sources, :estimated) -> :estimated
       MapSet.member?(sources, :reconstructed) -> :reconstructed
       true -> :tracked
     end
   end
+
+  defp snapshot_source(%{counters: %{"historical_estimate" => true}}), do: :estimated
+  defp snapshot_source(_snapshot), do: :tracked
 
   defp total_value(nil), do: 0
   defp total_value(total), do: total.value
@@ -410,7 +440,17 @@ defmodule Eirinchan.Statistics.Charts do
     Date.new!(year, month, day)
   end
 
-  defp date_title(date), do: "#{date.day}-#{date.month}-#{date.year}"
+  defp date_title(date) do
+    "#{Calendar.strftime(date, "%B")} #{date.day}#{ordinal_suffix(date.day)} #{date.year}"
+  end
+
+  defp ordinal_suffix(day) when rem(day, 100) in 11..13, do: "th"
+  defp ordinal_suffix(day) when rem(day, 10) == 1, do: "st"
+  defp ordinal_suffix(day) when rem(day, 10) == 2, do: "nd"
+  defp ordinal_suffix(day) when rem(day, 10) == 3, do: "rd"
+  defp ordinal_suffix(_day), do: "th"
+
+  defp time_title(hour), do: "#{hour |> Integer.to_string() |> String.pad_leading(2, "0")}:00"
 
   defp hour_label(0), do: "12am"
   defp hour_label(12), do: "12pm"

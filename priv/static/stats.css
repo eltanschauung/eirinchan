@@ -78,6 +78,7 @@
 
 .statistics-chart-column.is-partial .statistics-chart-bar,
 .statistics-chart-column.is-incomplete .statistics-chart-bar,
+.statistics-chart-column.is-estimated .statistics-chart-bar,
 .statistics-chart-column.is-reconstructed .statistics-chart-bar {
 	opacity: 0.48;
 }

@@ -58,14 +58,14 @@ defmodule Eirinchan.Statistics.ChartsTest do
     last_month_visitors = chart(result, "visitors-last-month")
     average_visitors = chart(result, "average-visitors-per-hour-last-week")
 
-    assert current_pph.title == "PPH - 2-8-2026"
+    assert current_pph.title == "Posts Per Hour - August 2nd 2026"
     assert current_pph.column_count == 24
     assert point(current_pph, "15").value == 1
     assert point(current_pph, "15").state == :partial
     assert point(current_pph, "16").value == 0
     assert point(current_pph, "16").state == :future
 
-    assert yesterday_pph.title == "PPH - Yesterday"
+    assert yesterday_pph.title == "Posts Per Hour - August 1st 2026"
     assert yesterday_pph.column_count == 24
     assert point(yesterday_pph, "10").value == 7
     assert point(yesterday_pph, "10").state == :tracked
@@ -73,12 +73,14 @@ defmodule Eirinchan.Statistics.ChartsTest do
     assert ppd.title == "Posts Per Day - Past 2 Months"
     assert ppd.column_count == 62
     assert point(ppd, "6/5").value == 2
+    assert point(ppd, "6/5").title_label == "June 5th 2026"
     assert point(ppd, "8/1").value == 7
     assert ppd.note =~ "reconstructed from retained posts"
 
     assert current_visitors.title == "Visitors Per Day - August"
     assert current_visitors.column_count == 31
     assert point(current_visitors, "1").value == 31
+    assert point(current_visitors, "1").title_label == "August 1st 2026"
     assert point(current_visitors, "2").value == 6
     assert point(current_visitors, "3").state == :future
 
@@ -90,8 +92,28 @@ defmodule Eirinchan.Statistics.ChartsTest do
     assert average_visitors.title == "Average Visitors Per Hour - Last Week"
     assert average_visitors.column_count == 24
     assert point(average_visitors, "5am").value == 4.0
+    assert point(average_visitors, "5am").title_label == "05:00"
     assert point(average_visitors, "5am").samples == 7
     assert point(average_visitors, "6am").state == :unavailable
+  end
+
+  test "uses long current and previous date titles" do
+    result =
+      Charts.build([],
+        repo: Repo,
+        now: ~U[2026-08-08 12:00:00Z],
+        calendar: UTC,
+        current_visitors: 0
+      )
+
+    assert chart(result, "pph-2026-08-08").title ==
+             "Posts Per Hour - August 8th 2026"
+
+    assert chart(result, "pph-2026-08-07").title ==
+             "Posts Per Hour - August 7th 2026"
+
+    assert point(chart(result, "pph-2026-08-08"), "00").title_label == "00:00"
+    assert point(chart(result, "pph-2026-08-08"), "15").title_label == "15:00"
   end
 
   test "current-month visitors always reserve every day in a leap February" do
@@ -108,6 +130,40 @@ defmodule Eirinchan.Statistics.ChartsTest do
     assert chart.column_count == 29
     assert List.last(chart.points).label == "29"
     assert List.last(chart.points).state == :future
+  end
+
+  test "distinguishes estimated historical snapshots from tracked data" do
+    board = board_fixture()
+
+    insert_snapshot(~U[2026-06-05 08:00:00Z],
+      posts: 9,
+      visitors: 4,
+      counters: %{"historical_estimate" => true}
+    )
+
+    insert_snapshot(~U[2026-07-02 23:00:00Z],
+      posts: 0,
+      visitors: 4,
+      daily_visitors: 44,
+      counters: %{"historical_estimate" => true}
+    )
+
+    result =
+      Charts.build([board.id],
+        repo: Repo,
+        now: ~U[2026-08-02 15:30:00Z],
+        calendar: UTC,
+        current_visitors: 0
+      )
+
+    ppd = chart(result, "posts-per-day-past-two-months")
+    visitors = chart(result, "visitors-last-month")
+
+    assert point(ppd, "6/5").state == :estimated
+    assert point(ppd, "6/5").value == 9
+    assert ppd.note =~ "estimates"
+    assert point(visitors, "2").state == :estimated
+    assert point(visitors, "2").value == 44
   end
 
   defp post_at(board, inserted_at) do
@@ -132,7 +188,7 @@ defmodule Eirinchan.Statistics.ChartsTest do
       posts_per_hour: Keyword.fetch!(opts, :posts),
       users_10minutes: Keyword.fetch!(opts, :visitors),
       daily_unique_visitors: Keyword.get(opts, :daily_visitors),
-      counters: %{},
+      counters: Keyword.get(opts, :counters, %{}),
       finalized: true
     })
     |> Repo.insert!()
