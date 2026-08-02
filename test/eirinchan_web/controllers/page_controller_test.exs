@@ -368,13 +368,14 @@ defmodule EirinchanWeb.PageControllerTest do
     refute mobile_page =~ ~s(href="/deskboard/index.html")
   end
 
-  test "unknown public paths render the shared 404 page with fixed yotsuba styling", %{conn: conn} do
+  test "unknown public paths render the shared 404 page with the selected style", %{conn: conn} do
     moderator_fixture()
     board_fixture(%{uri: "bant", title: "International Random"})
     board_fixture(%{uri: "qa", title: "Question & Answer"})
 
     page =
       conn
+      |> put_req_cookie("theme", "tomorrow")
       |> get("/totally/missing/page")
       |> html_response(404)
 
@@ -383,9 +384,29 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ "/error_pages/sanae.png"
     assert page =~ ~s(class="boardlist")
     assert page =~ ~s(href="/stylesheets/style.css)
-    assert page =~ ~s(id="stylesheet" href="/stylesheets/yotsuba.css)
-    assert page =~ ~s(data-stylesheet="yotsuba.css")
-    refute page =~ ~s(id="style-select")
+    assert page =~ ~s(id="stylesheet" href="/stylesheets/tomorrow.css)
+    assert page =~ ~s(data-stylesheet="tomorrow.css")
+    assert page =~ ~s(id="style-select")
+    assert page =~ ~s(name="eirinchan:selected-style" content="Tomorrow")
+  end
+
+  test "unknown public paths apply the automatic dark style before paint", %{conn: conn} do
+    board_fixture(%{
+      uri: "bant",
+      title: "International Random",
+      config_overrides: %{default_theme_dark: "tomorrow"}
+    })
+
+    page =
+      conn
+      |> put_req_cookie("eirinchan_color_scheme", "dark")
+      |> get("/another/missing/page")
+      |> html_response(404)
+
+    assert page =~ ~s(id="stylesheet" href="/stylesheets/tomorrow.css)
+    assert page =~ ~s(data-stylesheet="tomorrow.css")
+    assert page =~ ~s(data-auto-theme-dark-name="tomorrow")
+    assert page =~ ~s(src="/js/theme-bootstrap.js)
   end
 
   test "GET / returns an etag and honors if-none-match", %{conn: conn} do

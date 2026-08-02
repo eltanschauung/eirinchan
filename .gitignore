@@ -26,6 +26,7 @@ erl_crash.dump
 eirinchan-*.tar
 
 AGENTS.md
+/eirinchan_style_selector_spec.md
 /priv/static/stylesheets/assets/secret_bfc.png
 /static/stylesheets/keyedfrog.css
 
