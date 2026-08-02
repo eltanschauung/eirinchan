@@ -141,7 +141,7 @@ defmodule EirinchanWeb.PageController do
           charts: result.charts,
           chart_coverage: result.coverage,
           extra_stylesheets: extra_stylesheets,
-          page_subtitle: "Posting and visitor activity",
+          page_subtitle: nil,
           show_global_message: true
         )
       )
