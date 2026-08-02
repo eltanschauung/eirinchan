@@ -14,6 +14,7 @@ defmodule EirinchanWeb.PageController do
   alias Eirinchan.SiteContact
   alias Eirinchan.StaticImageDimensions
   alias Eirinchan.Statistics
+  alias Eirinchan.Statistics.Charts, as: StatisticsCharts
   alias Eirinchan.Themes
   alias EirinchanWeb.ErrorPages
   alias EirinchanWeb.BoardRuntime
@@ -24,6 +25,7 @@ defmodule EirinchanWeb.PageController do
   alias Eirinchan.ThreadPaths
 
   @recent_theme_cache_bucket_seconds 30
+  @statistics_theme_cache_bucket_seconds 60
 
   def home(conn, _params) do
     if Themes.page_theme_enabled?("recent") do
@@ -109,6 +111,39 @@ defmodule EirinchanWeb.PageController do
   def recent(conn, _params) do
     if Themes.page_theme_enabled?("recent") do
       render_recent_theme(conn, "recent")
+    else
+      ErrorPages.not_found(conn)
+    end
+  end
+
+  def statistics(conn, _params) do
+    if Themes.page_theme_enabled?("stats") do
+      settings = Themes.theme_settings("stats")
+      boards = Boards.list_boards()
+      board_ids = Enum.map(boards, & &1.id)
+      result = cached_statistics_charts(board_ids)
+
+      public_assigns =
+        PublicControllerHelpers.public_page_assigns(conn, "active-page", "stats", boards: boards)
+
+      extra_stylesheets = Keyword.fetch!(public_assigns, :extra_stylesheets) ++ ["/stats.css"]
+
+      conn
+      |> put_public_document_etag({:statistics_theme, settings, result})
+      |> render(
+        :statistics,
+        Keyword.merge(
+          public_assigns,
+          layout: false,
+          page: %{title: Map.get(settings, "title", "Statistics")},
+          page_title: Map.get(settings, "title", "Statistics"),
+          charts: result.charts,
+          chart_coverage: result.coverage,
+          extra_stylesheets: extra_stylesheets,
+          page_subtitle: "Posting and visitor activity",
+          show_global_message: true
+        )
+      )
     else
       ErrorPages.not_found(conn)
     end
@@ -464,6 +499,16 @@ defmodule EirinchanWeb.PageController do
         LandingPages.public_boards(boards, board_ids, Statistics.latest_daily_board_ppd())
       end
     )
+  end
+
+  defp cached_statistics_charts(board_ids) do
+    cache_key = {
+      :statistics_theme_charts,
+      board_ids,
+      div(System.system_time(:second), @statistics_theme_cache_bucket_seconds)
+    }
+
+    FragmentCache.fetch_or_store(cache_key, fn -> StatisticsCharts.build(board_ids) end)
   end
 
   defp recent_theme_assigns(conn, active_page, boards, settings) do

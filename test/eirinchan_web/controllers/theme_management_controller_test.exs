@@ -35,6 +35,7 @@ defmodule EirinchanWeb.ThemeManagementControllerTest do
     assert themes_page =~ "Manage Themes"
     assert themes_page =~ "RSS"
     assert themes_page =~ "Sitemap"
+    assert themes_page =~ "Statistics"
     assert themes_page =~ "Overboard (Ukko)"
     refute themes_page =~ ">FAQ<"
     refute themes_page =~ "Categories"
@@ -50,6 +51,48 @@ defmodule EirinchanWeb.ThemeManagementControllerTest do
       |> get("/manage/themes/browser/catalog")
 
     assert html_response(missing_catalog, 404) =~ "Theme not found"
+  end
+
+  test "statistics is disabled by default and renders every chart after installation", %{
+    conn: conn
+  } do
+    moderator = moderator_fixture(%{role: "admin"})
+
+    refute Themes.page_theme_enabled?("stats")
+    assert conn |> get("/stats") |> html_response(404) =~ "Error 404"
+
+    install_conn =
+      conn
+      |> recycle()
+      |> login_moderator(moderator)
+      |> post("/manage/themes/browser/stats", %{
+        "title" => "Whale Statistics"
+      })
+
+    assert redirected_to(install_conn) == "/manage/themes/browser/stats"
+    assert Themes.page_theme_enabled?("stats")
+
+    page = conn |> recycle() |> get("/stats") |> html_response(200)
+    document = Floki.parse_document!(page)
+
+    assert page =~ "Whale Statistics"
+    assert page =~ ~s(href="/stats.css)
+    assert conn |> recycle() |> get("/stats.css") |> response(200) =~ ".statistics-chart"
+    assert length(Floki.find(document, ".statistics-chart")) == 6
+
+    assert length(Floki.find(document, ~s([id^="pph-"] .statistics-chart-column))) == 48
+
+    assert length(
+             Floki.find(
+               document,
+               "#average-visitors-per-hour-last-week .statistics-chart-column"
+             )
+           ) == 24
+
+    today = :calendar.local_time() |> elem(0) |> Date.from_erl!()
+
+    assert length(Floki.find(document, "#visitors-current-month .statistics-chart-column")) ==
+             Date.days_in_month(today)
   end
 
   test "recent reconfigure owns the editable homepage HTML", %{conn: conn} do

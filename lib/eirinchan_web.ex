@@ -27,6 +27,7 @@ defmodule EirinchanWeb do
         js
         main.js
         recent.css
+        stats.css
         static
         stylesheets
         theme-thumbs

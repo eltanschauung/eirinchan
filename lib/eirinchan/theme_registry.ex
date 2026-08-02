@@ -126,6 +126,18 @@ defmodule Eirinchan.ThemeRegistry do
       ]
     },
     %{
+      name: "stats",
+      title: "Statistics",
+      description: "Public bar charts for posting and visitor activity.",
+      version: "0.1-elixir",
+      page_theme: true,
+      default_installed: false,
+      public_path: "/stats",
+      config_fields: [
+        %{@title | default: "Statistics"}
+      ]
+    },
+    %{
       name: "ukko",
       title: "Overboard (Ukko)",
       description: "Paginated board containing recently bumped threads from selected boards.",
@@ -160,7 +172,7 @@ defmodule Eirinchan.ThemeRegistry do
 
   @reserved_route_segments ~w(
     api auth banners catalog csrf-token faq feedback flag flags formatting manage mod.php news pages
-    post.php recent recent.xml rules search setup sitemap.xml
+    post.php recent recent.xml rules search setup sitemap.xml stats
     theme watcher
   )
 

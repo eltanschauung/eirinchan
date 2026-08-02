@@ -1,0 +1,111 @@
+.statistics-page {
+	box-sizing: border-box;
+	margin: 1.5rem auto;
+	max-width: 96rem;
+	padding: 0 0.75rem;
+	width: 100%;
+}
+
+.statistics-chart {
+	border: 1px solid currentColor;
+	box-sizing: border-box;
+	color: inherit;
+	margin: 0 0 1.25rem;
+	padding: 0.75rem;
+}
+
+.statistics-chart figcaption {
+	font-size: 1.15rem;
+	font-weight: 700;
+	margin-bottom: 0.75rem;
+	text-align: center;
+}
+
+.statistics-chart-scroll {
+	overflow-x: auto;
+	overflow-y: hidden;
+	padding-bottom: 0.25rem;
+}
+
+.statistics-chart-columns {
+	align-items: end;
+	display: grid;
+	gap: 0.3rem;
+	grid-template-columns: repeat(var(--statistics-column-count), minmax(2.25rem, 1fr));
+	min-width: calc(var(--statistics-column-count) * 2.75rem);
+}
+
+.statistics-chart-column {
+	display: grid;
+	grid-template-rows: 1.35rem 12rem 1.5rem;
+	min-width: 0;
+	text-align: center;
+}
+
+.statistics-chart-value,
+.statistics-chart-label {
+	display: block;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.statistics-chart-track {
+	align-items: end;
+	background: color-mix(in srgb, currentColor 8%, transparent);
+	border-bottom: 1px solid currentColor;
+	display: flex;
+	min-height: 12rem;
+}
+
+.statistics-chart-bar {
+	background: currentColor;
+	display: block;
+	height: var(--statistics-bar-height);
+	min-height: 0;
+	opacity: 0.72;
+	width: 100%;
+}
+
+.statistics-chart-column.is-future .statistics-chart-bar,
+.statistics-chart-column.is-unavailable .statistics-chart-bar {
+	background: transparent;
+	border: 1px dashed currentColor;
+	box-sizing: border-box;
+	height: 0.35rem;
+	opacity: 0.35;
+}
+
+.statistics-chart-column.is-partial .statistics-chart-bar,
+.statistics-chart-column.is-incomplete .statistics-chart-bar,
+.statistics-chart-column.is-reconstructed .statistics-chart-bar {
+	opacity: 0.48;
+}
+
+.statistics-chart-label {
+	font-size: 0.85em;
+	padding-top: 0.25rem;
+}
+
+.statistics-chart-note {
+	margin: 0.65rem 0 0;
+	text-align: center;
+}
+
+@media screen and (max-width: 600px) {
+	.statistics-page {
+		padding: 0 0.35rem;
+	}
+
+	.statistics-chart {
+		padding: 0.5rem;
+	}
+
+	.statistics-chart-column {
+		grid-template-rows: 1.35rem 9rem 1.5rem;
+	}
+
+	.statistics-chart-track {
+		min-height: 9rem;
+	}
+}
