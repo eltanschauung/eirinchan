@@ -574,6 +574,8 @@ defmodule EirinchanWeb.PageControllerTest do
     assert flags_page =~ ~s(id="blotter")
     assert flags_page =~ "To rizz your posts"
     assert flags_page =~ "You can click the flags."
+    assert flags_page =~ ~s(class="public-panel flag-page-shell")
+    refute flags_page =~ ~s(class="ban flag-page-shell")
     refute flags_page =~ ~s(class="static-page-panel")
   end
 
