@@ -1,0 +1,140 @@
+body {
+background: #000000;
+color: #fff;
+background-image: url('https://bunbunmaru.ca/suwawa.png');
+background-repeat: no-repeat;
+background-position: right bottom;
+background-attachment: fixed;
+font-family: serif;
+font-size: 14px;
+}
+
+.hide-thread-link {
+color: #ff7200; !important;
+}
+
+.post-btn {
+color: #ff7200; !important;
+}
+
+h1 {
+color: #ffffff; !important;
+}
+
+a:link, a:visited, .intro a.email span.name {
+color: #fe9440;
+}
+a:link:hover {
+color: #fff;
+}
+a.post_no {
+color: #ffffff;
+}
+div.post.reply {
+background-color: #9F2900;
+background-image: -moz-linear-gradient(-135deg, #9F2900, #FF7200);
+background-image: -webkit-gradient(linear, right top, left bottom, from(#9F2900), to(#FF7200));
+border-color: #9F2901;
+}
+div.post.reply.highlighted {
+background-color: #9F2900;
+background-image: -moz-linear-gradient(-135deg, #9F2900, #FF7200);
+background-image: -webkit-gradient(linear, right top, left bottom, from(#9F2900), to(#FF7200));
+border-color: #9F2901;
+
+}
+div.post.reply div.body a {
+color: #fff;
+}
+.intro span.subject {
+color: #ff7200;
+}
+form table tr th {
+background-color: #e04b00;
+color: #ffffff;
+font-weight: 700;
+border: none;
+padding: 0 5px;
+font-size:10pt
+}
+/* options.js */
+#options_div, #alert_div {
+background: #djd;
+}
+
+.desktop-style div.boardlist:nth-child(1) {
+background-color: #000;
+border-color: #fc7001;
+}
+div.boardlist {
+color: #fff;
+}
+div.boardlist a {
+color: #fe9440;
+}
+
+input, input[type="text"], input[type="password"], textarea {
+padding: 2px;
+background-color: #9F2900;
+background-image: -moz-linear-gradient(-45deg, #9F2900, #FF7200);
+background-image: -webkit-gradient(linear, left top, right bottom, from(#9F2900), to(#FF7200));
+color: #FFFFFF;
+border: 1px solid #FF4200;
+}
+.name, .body a {
+color: #ffffff !important;
+}
+div.banner {
+background-color: #eb5515;
+}
+div.banner, div.banner a {
+color: #fff;
+}
+div.title, h1 {
+color: #ff7200;
+font-size: 21pt;
+font-weight: normal;
+text-shadow: 1px 1px 1px rgba(159, 41, 1, 0.8);
+
+}
+header div.subtitle, h1 {
+color: #ff7200;
+}
+h2 {
+color: #ff7200;
+font-size: 12pt;
+font-weight: normal;
+text-shadow: 1px 1px 1px rgba(159, 41, 1, 0.8);
+
+}
+
+div.ban h2 {
+background: #e04b00;
+color: inherit;
+}
+
+div.ban {
+border-color: none;
+}
+div.ban p {
+color: black;
+}
+div.pages {
+background-color: #9F2900;
+background-image: -moz-linear-gradient(-135deg, #9F2900, #FF7200);
+background-image: -webkit-gradient(linear, right top, left bottom, from(#9F2900), to(#FF7200));
+border-color: #9F2901;
+color: #fff !important;
+
+}
+div.pages a.selected {
+color: #fe9440;
+}
+hr {
+border-color: #fc7001;
+
+}
+table.modlog tr th {
+background: #fc7001;
+
+}

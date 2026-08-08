@@ -33,16 +33,37 @@ defmodule EirinchanWeb.ThemeLayoutTest do
     assert page =~ ~s(/stylesheets/style.css)
     assert page =~ "Tomorrow"
     assert page =~ "Blue Archive"
+    assert page =~ "Spooky Suwako"
+    assert page =~ "Nazrin Grey"
+    assert page =~ "Reimu Red"
+    assert page =~ "Marisa Black"
     assert page =~ "Christmas"
     assert page =~ "Eientei1"
     assert page =~ "Yotsuba B"
     assert page =~ "Yotsuba"
     assert page =~ "/stylesheets/tomorrow.css"
     assert page =~ "/stylesheets/bluearchive.css"
+    assert page =~ "/stylesheets/spooky_suwako.css"
+    assert page =~ "/stylesheets/nazrin_grey.css"
+    assert page =~ "/stylesheets/reimu_red.css"
+    assert page =~ "/stylesheets/marisa_black.css"
     assert page =~ "/stylesheets/christmas.css"
     assert page =~ "/stylesheets/eientei1.css"
     assert page =~ "/stylesheets/yotsuba.css"
     refute page =~ "Keyed Frog"
+
+    labels =
+      Regex.scan(~r/<option[^>]*>([^<]+)<\/option>/, page, capture: :all_but_first)
+      |> List.flatten()
+
+    blue_archive_index = Enum.find_index(labels, &(&1 == "Blue Archive"))
+
+    assert Enum.slice(labels, blue_archive_index + 1, 4) == [
+             "Spooky Suwako",
+             "Nazrin Grey",
+             "Reimu Red",
+             "Marisa Black"
+           ]
   end
 
   test "instance default dark theme is selected without a saved theme", %{conn: conn} do
