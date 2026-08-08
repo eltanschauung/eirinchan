@@ -1608,7 +1608,7 @@ defmodule EirinchanWeb.PostControllerTest do
   end
 
   test "report branch is rate limited by public flood controls", %{conn: conn} do
-    board = board_fixture(%{config_overrides: %{flood_time: 60}})
+    board = board_fixture(%{config_overrides: %{flood_time: 60, flood_ip_count: 1}})
     thread = thread_fixture(board, %{body: "Thread body"})
 
     first_conn =
@@ -1812,7 +1812,7 @@ defmodule EirinchanWeb.PostControllerTest do
   end
 
   test "failed public deletions still consume the action flood allowance", %{conn: conn} do
-    board = board_fixture(%{config_overrides: %{flood_time: 60}})
+    board = board_fixture(%{config_overrides: %{flood_time: 60, flood_ip_count: 1}})
     thread = thread_fixture(board, %{password: "threadpw"})
     post_id = Integer.to_string(PublicIds.public_id(thread))
 
@@ -1887,7 +1887,7 @@ defmodule EirinchanWeb.PostControllerTest do
   end
 
   test "delete branch is rate limited by public flood controls", %{conn: conn} do
-    board = board_fixture(%{config_overrides: %{flood_time: 60}})
+    board = board_fixture(%{config_overrides: %{flood_time: 60, flood_ip_count: 1}})
 
     first_thread =
       thread_fixture(board, %{subject: "Delete one", body: "Thread body", password: "threadpw1"})

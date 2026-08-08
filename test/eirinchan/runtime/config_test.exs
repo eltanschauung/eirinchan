@@ -345,7 +345,7 @@ defmodule Eirinchan.Runtime.ConfigTest do
     assert config.noticeboard_dashboard == 5
   end
 
-  test "builds default vichan flood filters when filters are unset" do
+  test "builds the default flood policy when filters are unset" do
     config =
       Config.compose(
         %{
@@ -356,13 +356,19 @@ defmodule Eirinchan.Runtime.ConfigTest do
         %{}
       )
 
-    assert config.flood_time == 0
+    assert config.flood_time == 60
+    assert config.flood_ip_count == 5
     assert config.flood_time_ip == 0
     assert config.flood_time_same == 0
+    assert config.flood_time_browser == 0
+    assert config.flood_time_client == 0
     assert config.max_threads_per_hour == 0
     assert config.max_links == 20
     assert config.markup_urls
-    assert config.filters == []
+    assert [filter] = config.filters
+    assert filter.condition["flood-match"] == ["ip"]
+    assert filter.condition["flood-time"] == 60
+    assert filter.condition["flood-count"] == 5
   end
 
   test "provides post form row defaults" do
