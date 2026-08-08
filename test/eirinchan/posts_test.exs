@@ -3465,7 +3465,14 @@ defmodule Eirinchan.PostsTest do
 
   test "ip nulling flags do not bypass antispam accounting" do
     board =
-      board_fixture(%{config_overrides: %{flood_time: 60, flood_time_ip: 0, flood_time_same: 0}})
+      board_fixture(%{
+        config_overrides: %{
+          flood_time: 60,
+          flood_ip_count: 1,
+          flood_time_ip: 0,
+          flood_time_same: 0
+        }
+      })
 
     config =
       post_config(
@@ -4210,7 +4217,14 @@ defmodule Eirinchan.PostsTest do
 
   test "create_post records flood entries and rejects rapid repeated posts from the same ip" do
     board =
-      board_fixture(%{config_overrides: %{flood_time: 60, flood_time_ip: 0, flood_time_same: 0}})
+      board_fixture(%{
+        config_overrides: %{
+          flood_time: 60,
+          flood_ip_count: 1,
+          flood_time_ip: 0,
+          flood_time_same: 0
+        }
+      })
 
     config = post_config(board.config_overrides)
 
@@ -4266,7 +4280,14 @@ defmodule Eirinchan.PostsTest do
 
   test "failed upload processing is counted before another processor invocation" do
     board =
-      board_fixture(%{config_overrides: %{flood_time: 60, flood_time_ip: 0, flood_time_same: 0}})
+      board_fixture(%{
+        config_overrides: %{
+          flood_time: 60,
+          flood_ip_count: 1,
+          flood_time_ip: 0,
+          flood_time_same: 0
+        }
+      })
 
     config = post_config(board.config_overrides)
 

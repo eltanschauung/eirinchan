@@ -134,6 +134,31 @@ defmodule Eirinchan.AntispamTest do
     assert BrowserAbuse.signaled?(other_ip, repo: Repo)
   end
 
+  test "default post flood limit allows five posts per minute per IP" do
+    board = board_fixture()
+    request = %{remote_ip: {198, 51, 100, 44}}
+    runtime_board = Eirinchan.Boards.BoardRecord.to_board(board)
+    config = Eirinchan.Runtime.Config.compose(nil, %{}, %{}, board: runtime_board)
+
+    for index <- 1..5 do
+      attrs = %{"body" => "post #{index}"}
+      assert :ok = Antispam.check_post(board, attrs, request, config, repo: Repo)
+      assert {:ok, _entry} = Antispam.log_post(board, attrs, request, repo: Repo)
+    end
+
+    assert {:error, :antispam} =
+             Antispam.check_post(board, %{"body" => "sixth"}, request, config, repo: Repo)
+
+    assert :ok =
+             Antispam.check_post(
+               board,
+               %{"body" => "different IP"},
+               %{remote_ip: {198, 51, 100, 45}},
+               config,
+               repo: Repo
+             )
+  end
+
   test "post flood limits enforce the combined client and global counters" do
     board = board_fixture()
     first = %{remote_ip: {198, 51, 100, 44}, browser_ref: BrowserIdentity.reference("one")}

@@ -154,13 +154,13 @@ defmodule Eirinchan.Runtime.Config do
     anti_bump_flood: false,
     max_cites: 45,
     max_cross: 45,
-    flood_time: 0,
-    flood_ip_count: 1,
+    flood_time: 60,
+    flood_ip_count: 5,
     flood_time_ip: 0,
     flood_time_same: 0,
-    flood_time_browser: nil,
+    flood_time_browser: 0,
     flood_browser_count: 1,
-    flood_time_client: nil,
+    flood_time_client: 0,
     flood_client_count: 1,
     flood_global_window: 60,
     flood_global_count: 300,
@@ -732,7 +732,8 @@ defmodule Eirinchan.Runtime.Config do
       %{
         condition: %{
           "flood-match" => ["ip"],
-          "flood-time" => config.flood_time
+          "flood-time" => config.flood_time,
+          "flood-count" => config.flood_ip_count
         },
         action: "reject",
         reason: "antispam",
