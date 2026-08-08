@@ -19,6 +19,10 @@ defmodule EirinchanWeb.ThemeRegistry do
     "default",
     "vichan",
     "bluearchive",
+    "spooky_suwako",
+    "nazrin_grey",
+    "reimu_red",
+    "marisa_black",
     "leiheng",
     "christmas",
     "cirno",
@@ -42,6 +46,16 @@ defmodule EirinchanWeb.ThemeRegistry do
         "/stylesheets/assets/yuuka.png"
       ]
     },
+    "spooky_suwako" => %{
+      label: "Spooky Suwako",
+      stylesheet: "/stylesheets/spooky_suwako.css"
+    },
+    "nazrin_grey" => %{
+      label: "Nazrin Grey",
+      stylesheet: "/stylesheets/nazrin_grey.css"
+    },
+    "reimu_red" => %{label: "Reimu Red", stylesheet: "/stylesheets/reimu_red.css"},
+    "marisa_black" => %{label: "Marisa Black", stylesheet: "/stylesheets/marisa_black.css"},
     "leiheng" => %{
       label: "Lei Heng",
       stylesheet: "/stylesheets/leiheng.css",

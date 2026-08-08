@@ -1,0 +1,92 @@
+body {
+background: #dadada;
+color: #222222;
+font-family: serif;
+font-size: 16px;
+}
+
+.hide-thread-link {
+color: #cc3433 !important;
+}
+
+.post-btn {
+color: #cc3433 !important;
+}
+
+a:link, a:visited, .intro a.email span.name {
+color: #970100;
+}
+a:link:hover {
+color: #cc3433;
+}
+a.post_no {
+color: #222222;
+}
+div.post.reply {
+background: #cacaca;
+border-color: #b7b7b7;
+}
+div.post.reply.highlighted {
+background: #d5c8c8;
+border-color: #b7b7b7;
+}
+div.post.reply div.body a {
+color: #cc3433;
+}
+.intro span.subject {
+color: #aa2222;
+}
+form table tr th {
+background-color: #cacaca;
+color: #770101;
+font-weight: 700;
+border: none;
+padding: 0 5px;
+font-size:10pt
+}
+div.ban h2 {
+background: #222222;
+color: inherit;
+}
+div.ban {
+border-color: #cacaca;
+}
+div.ban p {
+color: black;
+}
+div.pages {
+background: #cacaca;
+border-color: #b7b7b7;
+color: #222222 !important;
+}
+div.pages a.selected {
+color: #aa2222;
+}
+header div.subtitle,h1 {
+color: #cc3433;
+text-align: center;
+}
+hr {
+border: none;
+border-top: 1px solid #bbbbbb;
+height: 0;
+}
+div.boardlist {
+color: #970100;
+}
+div.boardlist a {
+color: #222222;
+}
+table.modlog tr th {
+background: #bbbbbb;
+}
+
+/* options.js */
+#options_div, #alert_div {
+background: #dadada;
+}
+
+.desktop-style div.boardlist:nth-child(1) {
+background-color: #dadada;
+border-color: #b7b7b7;
+}
