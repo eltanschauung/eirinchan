@@ -7,7 +7,12 @@
 
   var runtime = window.EirinchanRuntime || {};
   var tab = Options.add_tab("general", "home", translate("General"));
-  var themeCookieNames = ["theme", "board_themes", "eirinchan_color_scheme"];
+  var preferenceCookieNames = [
+    "theme",
+    "board_themes",
+    "eirinchan_color_scheme",
+    "eirinchan_user_flag"
+  ];
 
   function translate(value) {
     return typeof window._ === "function" ? window._(value) : value;
@@ -94,8 +99,8 @@
       .catch(function () {});
   }
 
-  function clearThemeCookies() {
-    themeCookieNames.forEach(function (name) {
+  function clearPreferenceCookies() {
+    preferenceCookieNames.forEach(function (name) {
       if (typeof runtime.removeCookie === "function") {
         runtime.removeCookie(name, {path: "/"});
         return;
@@ -154,7 +159,7 @@
         window.sessionStorage.clear();
       } catch (_error) {}
 
-      clearThemeCookies();
+      clearPreferenceCookies();
 
       Promise.all([clearWatcher(), clearGoOnyxState()]).finally(function () {
         window.location.reload();

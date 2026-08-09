@@ -5,6 +5,7 @@ defmodule EirinchanWeb.PublicShell do
   alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Settings
   alias EirinchanWeb.JsBundles
+  alias EirinchanWeb.UserFlagPreference
 
   @catalog_required_scripts [
     "js/catalog.js",
@@ -50,6 +51,8 @@ defmodule EirinchanWeb.PublicShell do
   def head_meta(active_page, opts \\ []) do
     config =
       Keyword.get(opts, :config) || Config.compose(nil, Settings.current_instance_config(), %{})
+
+    user_flag_config = Keyword.get(opts, :user_flag_config, config)
 
     board_name =
       case Keyword.get(opts, :board_name) do
@@ -103,6 +106,11 @@ defmodule EirinchanWeb.PublicShell do
         if(Map.get(config, :allow_user_custom_code, false), do: "true", else: "false"),
       "eirinchan:inline-expand-max" => to_string(Map.get(config, :inline_expand_max, 10)),
       "eirinchan:post-success-cookie-name" => "eirinchan_posted",
+      "eirinchan:user-flag-cookie-name" => UserFlagPreference.cookie_name(),
+      "eirinchan:user-flag-allowed-values" =>
+        Jason.encode!(UserFlagPreference.allowed_values(user_flag_config)),
+      "eirinchan:user-flag-mode" =>
+        if(Map.get(user_flag_config, :multiple_flags, false), do: "multi", else: "single"),
       "eirinchan:preference-cookie-max-age" =>
         to_string(Map.get(config, :preference_cookie_max_age_seconds, 31_536_000)),
       "eirinchan:watcher-count" => to_string(watcher_count),

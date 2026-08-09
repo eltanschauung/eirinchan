@@ -563,11 +563,22 @@ defmodule EirinchanWeb.ThreadControllerTest do
   end
 
   test "thread pages embed a server rendered quick reply template", %{conn: conn} do
-    board = board_fixture(%{config_overrides: %{user_flag: true, multiple_flags: true}})
+    board =
+      board_fixture(%{
+        config_overrides: %{
+          user_flag: true,
+          multiple_flags: true,
+          user_flags: %{"meiling" => "Meiling"}
+        }
+      })
+
     thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
 
     page =
-      conn |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html") |> html_response(200)
+      conn
+      |> put_req_cookie("eirinchan_user_flag", "country,meiling")
+      |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html")
+      |> html_response(200)
 
     document = Floki.parse_document!(page)
 
@@ -592,6 +603,16 @@ defmodule EirinchanWeb.ThreadControllerTest do
              document,
              ~s(template#quick-reply-template .quick-reply-split-row input.quick-reply-grow-control[name="user_flag"][type="text"])
            ) != []
+
+    assert Floki.attribute(document, ~s(form#reply-form input[name="user_flag"]), "value") == [
+             "country,meiling"
+           ]
+
+    assert Floki.attribute(
+             document,
+             ~s(template#quick-reply-template input[name="user_flag"]),
+             "value"
+           ) == ["country,meiling"]
 
     assert Floki.find(
              document,

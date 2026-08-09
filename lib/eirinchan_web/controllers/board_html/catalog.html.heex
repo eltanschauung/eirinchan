@@ -151,12 +151,12 @@
           name="user_flag"
           id="user_flag"
           autocomplete="off"
-          value={@config.default_user_flag}
+          value={@user_flag_value}
         />
         <select :if={!@config.multiple_flags} name="user_flag" id="user_flag">
           <option value="">None</option>
           <%= for {flag, text} <- @config.user_flags do %>
-            <option value={flag} selected={@config.default_user_flag == flag}><%= text %></option>
+            <option value={flag} selected={@user_flag_value == flag}><%= text %></option>
           <% end %>
         </select>
       </td>

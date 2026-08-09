@@ -268,6 +268,13 @@ $(window).ready(function () {
     }
 
     function submitAjax(firstAttempt) {
+      if (
+        window.EirinchanUserFlagPreference &&
+        typeof window.EirinchanUserFlagPreference.finalize === "function"
+      ) {
+        window.EirinchanUserFlagPreference.finalize(form);
+      }
+
       var payload = new FormData(form);
       syncEnhancedUploadPayload(payload);
       payload.set("_csrf_token", currentCsrfToken());

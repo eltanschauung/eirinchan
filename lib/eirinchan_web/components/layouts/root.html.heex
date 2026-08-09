@@ -58,6 +58,12 @@
       src={versioned_asset("/js/theme-bootstrap.js", assigns[:asset_version])}
     >
     </script>
+    <script
+      :if={assigns[:public_shell]}
+      type="text/javascript"
+      src={versioned_asset("/js/user-flag-preference.js", assigns[:asset_version])}
+    >
+    </script>
     <link
       :if={!assigns[:public_shell] && !assigns[:primary_stylesheet] && assigns[:theme_stylesheet]}
       phx-track-static
