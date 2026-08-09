@@ -24,9 +24,11 @@ defmodule EirinchanWeb.UserFlagPreference do
 
       case Map.get(conn.req_cookies, @cookie_name) do
         candidate when is_binary(candidate) ->
-          case normalize(candidate, config) do
-            {:ok, normalized} -> normalized
-            :error -> default
+          with {:ok, decoded} <- decode_cookie(candidate),
+               {:ok, normalized} <- normalize(decoded, config) do
+            normalized
+          else
+            _invalid -> default
           end
 
         _missing ->
@@ -68,6 +70,12 @@ defmodule EirinchanWeb.UserFlagPreference do
   end
 
   def normalize(_candidate, _config), do: :error
+
+  defp decode_cookie(value) do
+    {:ok, URI.decode(value)}
+  rescue
+    ArgumentError -> :error
+  end
 
   defp default_value(config) do
     candidate = Map.get(config, :default_user_flag, "country")
