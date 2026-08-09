@@ -952,6 +952,37 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     assert Floki.find(document, ~s(select[name="user_flag"])) == []
   end
 
+  test "board page renders a validated user flag cookie before JavaScript runs", %{conn: conn} do
+    board =
+      board_fixture(%{
+        config_overrides: %{
+          user_flag: true,
+          multiple_flags: true,
+          default_user_flag: "country",
+          user_flags: %{"meiling" => "Meiling", "tenshi" => "Tenshi"}
+        }
+      })
+
+    page =
+      conn
+      |> put_req_cookie("eirinchan_user_flag", "country,meiling")
+      |> get(~p"/#{board.uri}")
+      |> html_response(200)
+
+    document = Floki.parse_document!(page)
+
+    assert Floki.attribute(document, ~s(form#new-thread-form input[name="user_flag"]), "value") ==
+             [
+               "country,meiling"
+             ]
+
+    assert Floki.attribute(
+             document,
+             ~s(meta[name="eirinchan:user-flag-allowed-values"]),
+             "content"
+           ) == [~s(["country","meiling","tenshi","us"])]
+  end
+
   test "board page renders a no_country checkbox when country opt-out is enabled", %{conn: conn} do
     board = board_fixture(%{config_overrides: %{country_flags: true, allow_no_country: true}})
 

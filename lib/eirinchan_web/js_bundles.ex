@@ -105,6 +105,7 @@ defmodule EirinchanWeb.JsBundles do
     "js/runtime-config.js" => "assets/js/runtime-config.js",
     "js/search.js" => "assets/js/search.js",
     "js/show-own-posts-options.js" => "assets/js/show-own-posts-options.js",
+    "js/user-flag-preference.js" => "assets/js/user-flag-preference.js",
     "js/webm-settings.js" => "assets/js/webm-settings.js",
     "js/youtube.js" => "assets/js/youtube.js"
   }

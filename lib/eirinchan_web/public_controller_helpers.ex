@@ -8,6 +8,7 @@ defmodule EirinchanWeb.PublicControllerHelpers do
   alias EirinchanWeb.FragmentHash
   alias EirinchanWeb.PublicShell
   alias EirinchanWeb.RequestMeta
+  alias EirinchanWeb.UserFlagPreference
 
   import Plug.Conn, only: [get_req_header: 2, put_resp_header: 3, send_resp: 3]
 
@@ -181,6 +182,13 @@ defmodule EirinchanWeb.PublicControllerHelpers do
 
     javascript_config = Keyword.get(opts, :javascript_config)
 
+    head_meta_opts =
+      if is_map(javascript_config) do
+        Keyword.put(head_meta_opts, :user_flag_config, javascript_config)
+      else
+        head_meta_opts
+      end
+
     browser_challenge_required? =
       if is_map(javascript_config) do
         browser_challenge_required?(conn, javascript_config)
@@ -198,6 +206,11 @@ defmodule EirinchanWeb.PublicControllerHelpers do
       watcher_unread_count: watcher_unread_count,
       watcher_you_count: watcher_you_count,
       browser_challenge_required?: browser_challenge_required?,
+      user_flag_value:
+        if(is_map(javascript_config),
+          do: UserFlagPreference.value(conn, javascript_config),
+          else: nil
+        ),
       head_meta: PublicShell.head_meta(active_page, head_meta_opts),
       primary_stylesheet: Keyword.get(opts, :primary_stylesheet, primary_stylesheet(conn)),
       primary_stylesheet_id: "stylesheet",

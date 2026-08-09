@@ -62,7 +62,8 @@ test("erasing options storage removes all theme cookies and browser storage", as
     [
       ["theme", "/"],
       ["board_themes", "/"],
-      ["eirinchan_color_scheme", "/"]
+      ["eirinchan_color_scheme", "/"],
+      ["eirinchan_user_flag", "/"]
     ]
   );
   assert.equal(requests.length, 1);
@@ -78,6 +79,7 @@ test("erasing options storage expires theme cookies without the runtime helper",
   window.document.cookie = "theme=tomorrow; path=/";
   window.document.cookie = "board_themes=%7B%7D; path=/";
   window.document.cookie = "eirinchan_color_scheme=dark; path=/";
+  window.document.cookie = "eirinchan_user_flag=country%2Cmeiling; path=/";
   window.document.getElementById("options-storage-erase").click();
 
   assert.equal(window.document.cookie, "");

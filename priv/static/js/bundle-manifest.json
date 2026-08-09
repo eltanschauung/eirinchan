@@ -3,10 +3,10 @@
     {
       "label": "bundle:core",
       "output": "priv/static/js/bundle-public-core.js",
-      "output_bytes": 132769,
+      "output_bytes": 132791,
       "public_path": "/js/bundle-public-core.js",
-      "sha256": "ca7b60f4e7419deca3f51d59153af58f8fee1457b07694ad44870f58310bb6f2",
-      "source_bytes": 174729,
+      "sha256": "83285f223e0d0b0df60f55235e5c165cff8dff60264192784cf58d77cd10e0d2",
+      "source_bytes": 174792,
       "sources": [
         "priv/static/js/jquery.min.js",
         "assets/js/options.js",
@@ -39,10 +39,10 @@
     {
       "label": "bundle:thread",
       "output": "priv/static/js/bundle-public-thread.js",
-      "output_bytes": 309011,
+      "output_bytes": 309158,
       "public_path": "/js/bundle-public-thread.js",
-      "sha256": "2f0917575a4d59c60c159ed030a36a0523e415cfa84e13a8c8605076bf6be76e",
-      "source_bytes": 342119,
+      "sha256": "bc88b4abeb50ceb98822d9ef625287092facedbc1eef75b14a6df4eaf00c35c8",
+      "source_bytes": 342328,
       "sources": [
         "assets/js/inline-expanding.js",
         "priv/static/js/thread-stats.js",
@@ -67,10 +67,10 @@
     {
       "label": "bundle:index",
       "output": "priv/static/js/bundle-public-index.js",
-      "output_bytes": 311730,
+      "output_bytes": 311877,
       "public_path": "/js/bundle-public-index.js",
-      "sha256": "10587f28fdf6fa98b73faccb056363d24d0cfec283eb664550ce1ba1551bbc72",
-      "source_bytes": 348300,
+      "sha256": "e4da7bee7cebe6a994616dd699d2293328e5865a09af920a27b6f5628243a62d",
+      "source_bytes": 348509,
       "sources": [
         "assets/js/inline-expanding.js",
         "priv/static/js/strftime.min.js",
@@ -95,10 +95,10 @@
     {
       "label": "bundle:catalog",
       "output": "priv/static/js/bundle-public-catalog.js",
-      "output_bytes": 29966,
+      "output_bytes": 30113,
       "public_path": "/js/bundle-public-catalog.js",
-      "sha256": "10ba3b57fee4f3cd74d02d88bac34364f332d31d9a0bb489c19644d97a72a798",
-      "source_bytes": 53285,
+      "sha256": "5d8f2b1f129ea98bf0f2d65c83b1398636a894c788b256249f3187263f449c7a",
+      "source_bytes": 53494,
       "sources": [
         "priv/static/js/ajax.js",
         "priv/static/js/file-selector.js",
@@ -243,10 +243,10 @@
     {
       "label": "maintained:js/options/general.js",
       "output": "priv/static/js/options/general.js",
-      "output_bytes": 3652,
+      "output_bytes": 3674,
       "public_path": "/js/options/general.js",
-      "sha256": "784c4b5928b3bd1b3369303b23c3ff50bfa270d3f62cc6df19a011b9a31e6906",
-      "source_bytes": 5943,
+      "sha256": "6d8527525472ba5e69ba77c0121ddc35bd23de2efafd743639ff3454f3abc025",
+      "source_bytes": 6006,
       "sources": [
         "assets/js/options/general.js"
       ]
@@ -326,6 +326,17 @@
       "source_bytes": 1960,
       "sources": [
         "assets/js/show-own-posts-options.js"
+      ]
+    },
+    {
+      "label": "maintained:js/user-flag-preference.js",
+      "output": "priv/static/js/user-flag-preference.js",
+      "output_bytes": 3887,
+      "public_path": "/js/user-flag-preference.js",
+      "sha256": "c3956167965ea41ad24d4032f522bcf92af0046f7d13d428fdf7abed396448fe",
+      "source_bytes": 8017,
+      "sources": [
+        "assets/js/user-flag-preference.js"
       ]
     },
     {
