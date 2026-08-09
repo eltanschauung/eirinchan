@@ -1,6 +1,7 @@
 defmodule EirinchanWeb.UserFlagPreferenceTest do
   use ExUnit.Case, async: true
 
+  import Plug.Conn, only: [put_req_header: 3]
   import Plug.Test
 
   alias EirinchanWeb.UserFlagPreference
@@ -20,6 +21,14 @@ defmodule EirinchanWeb.UserFlagPreferenceTest do
   test "normalizes a valid cookie using the same tokens accepted by posts" do
     conn =
       conn(:get, "/") |> put_req_cookie(UserFlagPreference.cookie_name(), " Country, MEILING ")
+
+    assert UserFlagPreference.value(conn, @config) == "country,meiling"
+  end
+
+  test "decodes the percent-encoded cookie syntax sent by browsers" do
+    conn =
+      conn(:get, "/")
+      |> put_req_header("cookie", "eirinchan_user_flag=country%2Cmeiling")
 
     assert UserFlagPreference.value(conn, @config) == "country,meiling"
   end
