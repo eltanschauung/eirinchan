@@ -1197,6 +1197,38 @@ defmodule EirinchanWeb.PageControllerTest do
            end)
   end
 
+  test "GET /flags uses the enabled Bant user flag policy", %{conn: conn} do
+    board_fixture(%{
+      uri: "bant",
+      config_overrides: %{
+        user_flag: true,
+        multiple_flags: true,
+        user_flags: %{"meiling" => "Meiling", "tenshi" => "Tenshi"}
+      }
+    })
+
+    page = conn |> get("/flags") |> html_response(200)
+    document = Floki.parse_document!(page)
+
+    assert Floki.find(document, ~s(script[src*="/js/user-flag-preference.js"])) != []
+
+    assert Floki.attribute(document, ~s(meta[name="eirinchan:user-flag-mode"]), "content") == [
+             "multi"
+           ]
+
+    [allowed_json] =
+      Floki.attribute(document, ~s(meta[name="eirinchan:user-flag-allowed-values"]), "content")
+
+    assert "meiling" in Jason.decode!(allowed_json)
+    assert "tenshi" in Jason.decode!(allowed_json)
+  end
+
+  test "public pages without a user flag policy do not load the preference client", %{conn: conn} do
+    page = conn |> get("/faq") |> html_response(200)
+
+    refute page =~ "/js/user-flag-preference.js"
+  end
+
   test "GET /pages/feedback uses the feedback page constructor and form", %{conn: conn} do
     author = moderator_fixture(%{username: "feedbackwriter"})
 

@@ -370,6 +370,7 @@ defmodule EirinchanWeb.PageController do
 
   defp render_custom_page(conn, page, opts \\ []) do
     board = Keyword.get(opts, :board)
+    boards = Keyword.get_lazy(opts, :boards, &Boards.list_boards/0)
     current_stickers = sticker_entries(current_sticker_config())
     show_global_message = PublicPages.show_global_message?(page.slug)
 
@@ -392,9 +393,18 @@ defmodule EirinchanWeb.PageController do
         )
       end
 
+    public_page_opts = [
+      boards: boards,
+      include_global_message: show_global_message,
+      user_flag_config: if(page.slug == "flags", do: flag_user_config(boards, conn))
+    ]
+
     public_page_assigns =
-      PublicControllerHelpers.public_page_assigns(conn, "active-page", page.slug,
-        include_global_message: show_global_message
+      PublicControllerHelpers.public_page_assigns(
+        conn,
+        "active-page",
+        page.slug,
+        public_page_opts
       )
 
     extra_stylesheets =
@@ -740,6 +750,19 @@ defmodule EirinchanWeb.PageController do
 
   defp board_config(%BoardRecord{} = board, request_host_or_conn \\ nil) do
     BoardRuntime.board_config(board, request_host_or_conn)
+  end
+
+  defp flag_user_config(boards, conn) do
+    enabled_configs =
+      boards
+      |> Enum.map(fn board -> {board, board_config(board, conn)} end)
+      |> Enum.filter(fn {_board, config} -> Map.get(config, :user_flag, false) end)
+
+    case Enum.find(enabled_configs, fn {board, _config} -> board.uri == "bant" end) ||
+           List.first(enabled_configs) do
+      {_board, config} -> config
+      nil -> nil
+    end
   end
 
   defp overboard_thread_limit(settings) do

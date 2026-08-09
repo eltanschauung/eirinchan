@@ -981,6 +981,16 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
              ~s(meta[name="eirinchan:user-flag-allowed-values"]),
              "content"
            ) == [~s(["country","meiling","tenshi","us"])]
+
+    assert Floki.find(document, ~s(script[src*="/js/user-flag-preference.js"])) != []
+  end
+
+  test "boards without user flags do not load the preference client", %{conn: conn} do
+    board = board_fixture(%{config_overrides: %{user_flag: false}})
+
+    page = conn |> get(~p"/#{board.uri}") |> html_response(200)
+
+    refute page =~ "/js/user-flag-preference.js"
   end
 
   test "board page renders a no_country checkbox when country opt-out is enabled", %{conn: conn} do

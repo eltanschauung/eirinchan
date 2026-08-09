@@ -8,12 +8,18 @@ import {JSDOM} from "jsdom";
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const source = await readFile(path.join(projectRoot, "assets/js/user-flag-preference.js"), "utf8");
 
-function preferenceWindow({cookie, legacy, stored} = {}) {
+function preferenceWindow({
+  allowed = ["country", "meiling", "tenshi", "us"],
+  cookie,
+  legacy,
+  mode = "multi",
+  stored
+} = {}) {
   const dom = new JSDOM(`<!doctype html><html><head>
     <meta name="eirinchan:board-name" content="bant">
     <meta name="eirinchan:user-flag-cookie-name" content="eirinchan_user_flag">
-    <meta name="eirinchan:user-flag-allowed-values" content='["country","meiling","tenshi","us"]'>
-    <meta name="eirinchan:user-flag-mode" content="multi">
+    <meta name="eirinchan:user-flag-allowed-values" content='${JSON.stringify(allowed)}'>
+    <meta name="eirinchan:user-flag-mode" content="${mode}">
     <meta name="eirinchan:preference-cookie-max-age" content="31536000">
   </head><body></body></html>`, {
     runScripts: "outside-only",
@@ -88,4 +94,20 @@ test("stale values removed from configuration cannot override the rendered defau
   assert.equal(form.elements.user_flag.value, "country");
   assert.equal(window.localStorage.getItem("flag_"), "country");
   assert.match(window.document.cookie, /eirinchan_user_flag=country/);
+});
+
+test("an incompatible page policy cannot erase a preference owned by another board", () => {
+  const window = preferenceWindow({
+    allowed: ["country", "us"],
+    cookie: "country,meiling",
+    mode: "single",
+    stored: "country,meiling"
+  });
+  const form = appendPostForm(window, "country");
+
+  window.EirinchanUserFlagPreference.hydrate(form);
+
+  assert.equal(form.elements.user_flag.value, "country");
+  assert.equal(window.localStorage.getItem("flag_"), "country,meiling");
+  assert.match(window.document.cookie, /eirinchan_user_flag=country%2Cmeiling/);
 });

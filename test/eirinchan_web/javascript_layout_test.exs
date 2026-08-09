@@ -8,7 +8,10 @@ defmodule EirinchanWeb.JavaScriptLayoutTest do
     eager_position = :binary.match(template, "assigns[:eager_javascript_urls]") |> elem(0)
 
     assert preference_position < eager_position
-    assert template =~ ~r/:if=\{assigns\[:public_shell\]\}.*?\/js\/user-flag-preference\.js/s
+
+    assert template =~
+             ~r/:if=\{assigns\[:public_shell\] && assigns\[:user_flag_preference_enabled\?\]\}.*?\/js\/user-flag-preference\.js/s
+
     assert template =~ ~r/:for=\{script_url <- assigns\[:eager_javascript_urls\].*?\}\s+defer/s
     assert template =~ ~r/:for=\{\s*script_url <-.*?assigns\[:javascript_urls\].*?\}\s+defer/s
   end
