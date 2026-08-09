@@ -106,8 +106,6 @@
     var stored = normalize(rawStored);
     var legacyKey = legacyStorageKey();
 
-    if (rawStored !== null && stored === null) removeStorage(storageKey);
-
     if (stored === null && legacyKey) {
       var rawLegacy = readStorage(legacyKey);
       stored = normalize(rawLegacy);
@@ -117,7 +115,6 @@
     if (stored === null) {
       var rawCookie = readCookie(cookieName);
       stored = normalize(rawCookie);
-      if (rawCookie !== null && stored === null) removeCookie();
     }
     if (stored !== null) persist(stored);
     return stored;
@@ -145,7 +142,7 @@
     var field = flagField(form);
     if (!field) return null;
 
-    if (currentValue === null) currentValue = setCurrent(field.value);
+    if (currentValue === null) currentValue = normalize(field.value);
 
     if (currentValue !== null && field.dataset.userFlagDirty !== "true") {
       field.value = currentValue;
@@ -176,10 +173,13 @@
       field.value = currentValue;
       field.dataset.userFlagHydratedValue = currentValue;
       field.dataset.userFlagHydrated = "true";
+      persist(currentValue);
       return currentValue;
     }
 
-    return hydrate(form);
+    var hydrated = hydrate(form);
+    if (currentValue !== null) persist(currentValue);
+    return hydrated;
   }
 
   function hydrateWithin(root) {

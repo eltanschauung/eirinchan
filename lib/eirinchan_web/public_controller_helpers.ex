@@ -181,10 +181,11 @@ defmodule EirinchanWeb.PublicControllerHelpers do
       |> Keyword.merge(Keyword.get(opts, :head_meta_opts, []))
 
     javascript_config = Keyword.get(opts, :javascript_config)
+    user_flag_config = Keyword.get(opts, :user_flag_config, javascript_config)
 
     head_meta_opts =
-      if is_map(javascript_config) do
-        Keyword.put(head_meta_opts, :user_flag_config, javascript_config)
+      if is_map(user_flag_config) do
+        Keyword.put(head_meta_opts, :user_flag_config, user_flag_config)
       else
         head_meta_opts
       end
@@ -206,9 +207,11 @@ defmodule EirinchanWeb.PublicControllerHelpers do
       watcher_unread_count: watcher_unread_count,
       watcher_you_count: watcher_you_count,
       browser_challenge_required?: browser_challenge_required?,
+      user_flag_preference_enabled?:
+        is_map(user_flag_config) and Map.get(user_flag_config, :user_flag, false),
       user_flag_value:
-        if(is_map(javascript_config),
-          do: UserFlagPreference.value(conn, javascript_config),
+        if(is_map(user_flag_config),
+          do: UserFlagPreference.value(conn, user_flag_config),
           else: nil
         ),
       head_meta: PublicShell.head_meta(active_page, head_meta_opts),
@@ -244,7 +247,7 @@ defmodule EirinchanWeb.PublicControllerHelpers do
 
     shell_opts =
       [extra_stylesheets: extra_stylesheets()]
-      |> Keyword.merge(Keyword.take(opts, [:watcher_snapshot]))
+      |> Keyword.merge(Keyword.take(opts, [:watcher_snapshot, :user_flag_config]))
 
     common_assigns = public_shell_assigns(conn, active_page, shell_opts)
 

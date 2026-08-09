@@ -331,10 +331,10 @@
     {
       "label": "maintained:js/user-flag-preference.js",
       "output": "priv/static/js/user-flag-preference.js",
-      "output_bytes": 3887,
+      "output_bytes": 3855,
       "public_path": "/js/user-flag-preference.js",
-      "sha256": "c3956167965ea41ad24d4032f522bcf92af0046f7d13d428fdf7abed396448fe",
-      "source_bytes": 8017,
+      "sha256": "876ff9750801a161b99da5b5a713c1fccf4c9cef4546415a7b5cfca4edcf76a8",
+      "source_bytes": 7988,
       "sources": [
         "assets/js/user-flag-preference.js"
       ]

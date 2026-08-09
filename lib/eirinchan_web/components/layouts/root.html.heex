@@ -59,7 +59,7 @@
     >
     </script>
     <script
-      :if={assigns[:public_shell]}
+      :if={assigns[:public_shell] && assigns[:user_flag_preference_enabled?]}
       type="text/javascript"
       src={versioned_asset("/js/user-flag-preference.js", assigns[:asset_version])}
     >

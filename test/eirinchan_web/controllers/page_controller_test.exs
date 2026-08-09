@@ -1090,6 +1090,7 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ "Tell us what broke"
     assert page =~ "Send Feedback"
     assert page =~ ~s(class="feedback-textarea")
+    refute page =~ "/js/user-flag-preference.js"
   end
 
   test "public custom pages carry over the selected theme stylesheet", %{conn: conn} do
