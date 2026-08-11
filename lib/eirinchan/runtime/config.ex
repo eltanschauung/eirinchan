@@ -168,6 +168,7 @@ defmodule Eirinchan.Runtime.Config do
     max_threads_per_hour: 0,
     markup_urls: true,
     max_links: 20,
+    duplicate_thread_window_hours: 24,
     board_search: true,
     search_enabled: true,
     search_limit: 100,
@@ -423,6 +424,7 @@ defmodule Eirinchan.Runtime.Config do
       image_hard_limit: "Thread has reached its maximum image limit.",
       board_locked: "Board is locked.",
       password: "Incorrect password.",
+      duplicate_thread: "An identical thread was posted too recently.",
       duplicate_file: "Duplicate file.",
       file_required: "File required.",
       filetype: "File type not allowed.",
@@ -496,6 +498,7 @@ defmodule Eirinchan.Runtime.Config do
     "browserAbuseChallengeSeconds" => :browser_abuse_challenge_seconds,
     "filters" => :filters,
     "maxThreadsPerHour" => :max_threads_per_hour,
+    "duplicateThreadWindowHours" => :duplicate_thread_window_hours,
     "markupUrls" => :markup_urls,
     "maxLinks" => :max_links,
     "boardSearch" => :board_search,
@@ -647,6 +650,11 @@ defmodule Eirinchan.Runtime.Config do
     identity_rotation = min(config.browser_identity_rotation_seconds, identity_ttl)
 
     config
+    |> Map.update(
+      :duplicate_thread_window_hours,
+      24,
+      &bounded_non_negative_integer(&1, 24, 87_600)
+    )
     |> Map.update(:inline_expand_max, 10, &bounded_non_negative_integer(&1, 10, 10_000))
     |> Map.update(:archive_min_replies, 0, &bounded_non_negative_integer(&1, 0, 1_000_000))
     |> Map.put(

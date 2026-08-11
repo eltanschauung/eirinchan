@@ -57,6 +57,20 @@ defmodule Eirinchan.Runtime.ConfigTest do
     assert Config.compose(nil, %{inline_expand_max: 50_000}, %{}).inline_expand_max == 10_000
   end
 
+  test "defaults, normalizes, and aliases the duplicate thread window" do
+    assert Config.default_config().duplicate_thread_window_hours == 24
+    assert Config.compose().duplicate_thread_window_hours == 24
+
+    assert Config.compose(nil, %{duplicate_thread_window_hours: 0}).duplicate_thread_window_hours ==
+             0
+
+    assert Config.compose(nil, %{"duplicateThreadWindowHours" => "48"}).duplicate_thread_window_hours ==
+             48
+
+    assert Config.compose(nil, %{duplicate_thread_window_hours: -1}).duplicate_thread_window_hours ==
+             24
+  end
+
   test "merges default, instance, and board config before applying computed defaults" do
     defaults = %{
       root: "/",

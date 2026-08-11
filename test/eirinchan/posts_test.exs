@@ -28,6 +28,7 @@ defmodule Eirinchan.TestFailingPostFileRepo do
   def one(queryable), do: Repo.one(queryable)
   def aggregate(queryable, aggregate, field), do: Repo.aggregate(queryable, aggregate, field)
   def exists?(queryable), do: Repo.exists?(queryable)
+  def query!(statement, params), do: Repo.query!(statement, params)
   def preload(struct_or_structs, preloads), do: Repo.preload(struct_or_structs, preloads)
   def get_by(queryable, clauses), do: Repo.get_by(queryable, clauses)
   def delete(struct), do: Repo.delete(struct)
@@ -139,6 +140,79 @@ defmodule Eirinchan.PostsTest do
     assert thread.name == "anon"
     assert thread.subject == "launch"
     assert thread.body == "first post"
+  end
+
+  test "create_post rejects an identical recent OP on the same board" do
+    board = board_fixture()
+    config = post_config(board.config_overrides)
+    request = post_request(board.uri)
+
+    attrs = %{
+      "subject" => "same subject",
+      "body" => "same body",
+      "post" => "New Topic"
+    }
+
+    assert {:ok, first, %{noko: false}} =
+             Posts.create_post(board, attrs, config: config, request: request)
+
+    assert is_binary(first.thread_fingerprint)
+    assert byte_size(first.thread_fingerprint) == 64
+
+    assert {:error, :duplicate_thread} =
+             Posts.create_post(
+               board,
+               %{attrs | "subject" => "  same subject ", "body" => "same body\r\n"},
+               config: config,
+               request: request
+             )
+
+    assert Repo.aggregate(
+             from(post in Post, where: post.board_id == ^board.id and is_nil(post.thread_id)),
+             :count,
+             :id
+           ) == 1
+  end
+
+  test "create_post permits identical OPs when duplicate thread rejection is disabled" do
+    board = board_fixture(%{config_overrides: %{duplicate_thread_window_hours: 0}})
+    config = post_config(board.config_overrides)
+    request = post_request(board.uri)
+
+    attrs = %{"body" => "repeatable OP", "post" => "New Topic"}
+
+    assert {:ok, first, _meta} =
+             Posts.create_post(board, attrs, config: config, request: request)
+
+    assert {:ok, second, _meta} =
+             Posts.create_post(board, attrs, config: config, request: request)
+
+    assert is_nil(first.thread_fingerprint)
+    assert is_nil(second.thread_fingerprint)
+  end
+
+  test "create_post permits an identical OP outside the configured window" do
+    board = board_fixture(%{config_overrides: %{duplicate_thread_window_hours: 1}})
+    config = post_config(board.config_overrides)
+    request = post_request(board.uri)
+    attrs = %{"body" => "repeat after expiry", "post" => "New Topic"}
+
+    assert {:ok, first, _meta} =
+             Posts.create_post(board, attrs, config: config, request: request)
+
+    first
+    |> Ecto.Changeset.change(
+      inserted_at:
+        DateTime.utc_now()
+        |> DateTime.add(-2 * 60 * 60, :second)
+        |> DateTime.truncate(:second)
+    )
+    |> Repo.update!()
+
+    assert {:ok, second, _meta} =
+             Posts.create_post(board, attrs, config: config, request: request)
+
+    assert second.thread_fingerprint == first.thread_fingerprint
   end
 
   test "create_post creates a reply when a valid thread is supplied" do
@@ -701,6 +775,30 @@ defmodule Eirinchan.PostsTest do
 
     assert File.read!(thumb_path) == File.read!(icon_path)
     assert identify_value(thumb_path, "%wx%h") == "24x24"
+  end
+
+  test "create_post uses bundled MP3, WAV, and FLAC thumbnails by default" do
+    for {extension, icon_name} <- [{"mp3", "mp3.png"}, {"wav", "wav.png"}, {"flac", "flac.png"}] do
+      board = board_fixture()
+
+      assert {:ok, thread, _meta} =
+               Posts.create_post(
+                 board,
+                 %{
+                   "body" => "bundled #{extension} icon",
+                   "file" => raw_upload_fixture("track.#{extension}", "audio-#{extension}"),
+                   "post" => "New Topic"
+                 },
+                 config: post_config(board.config_overrides),
+                 request: post_request(board.uri)
+               )
+
+      bundled_icon = Application.app_dir(:eirinchan, "priv/static/static/#{icon_name}")
+      thumb_path = Eirinchan.Uploads.filesystem_path(thread.thumb_path)
+
+      assert File.read!(thumb_path) == File.read!(bundled_icon)
+      assert identify_value(thumb_path, "%wx%h") == "200x200"
+    end
   end
 
   test "create_post stores extra files from a multi-file upload" do
