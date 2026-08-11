@@ -4,13 +4,14 @@ defmodule Eirinchan.EmojiShortcodesTest do
   alias Eirinchan.EmojiShortcodes
 
   test "ships the complete built-in shortcode set" do
-    assert map_size(EmojiShortcodes.entries()) == 113
+    assert map_size(EmojiShortcodes.entries()) == 114
 
     assert EmojiShortcodes.entries()
            |> Map.take([
              "sob",
              "heart_on_fire",
              "eyes",
+             "clinking",
              "v",
              "bicep",
              "gemini",
@@ -19,6 +20,7 @@ defmodule Eirinchan.EmojiShortcodesTest do
              "sob" => "😭",
              "heart_on_fire" => "❤️‍🔥",
              "eyes" => "👀",
+             "clinking" => "🥂",
              "v" => "✌️",
              "bicep" => "💪",
              "gemini" => "♊",
@@ -46,6 +48,10 @@ defmodule Eirinchan.EmojiShortcodesTest do
 
   test "replaces the right-facing magnifying glass shortcode" do
     assert EmojiShortcodes.replace(":mag_right:") == "🔎"
+  end
+
+  test "replaces the clinking glasses shortcode" do
+    assert EmojiShortcodes.replace(":clinking:") == "🥂"
   end
 
   test "replaces every configured shortcode" do
