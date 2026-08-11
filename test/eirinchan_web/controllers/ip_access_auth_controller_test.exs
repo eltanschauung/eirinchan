@@ -96,7 +96,7 @@ defmodule EirinchanWeb.IpAccessAuthControllerTest do
     assert log =~ ~s|"outcome":"invalid_password"|
     assert log =~ ~s|"status":"failed"|
     assert log =~ ~s|"submitted_value":"wrong"|
-    assert log =~ conn.assigns.browser_token
+    assert log =~ conn.assigns.browser_ref
   end
 
   test "successful attempts log the exact submitted value with audit metadata", %{
@@ -117,7 +117,7 @@ defmodule EirinchanWeb.IpAccessAuthControllerTest do
     assert log =~ ~s|"submitted_value":"DOOR"|
     assert log =~ ~s|"ip_subnet":"192.0.2.0/24"|
     assert log =~ EventLog.subject_id("192.0.2.0/24", :ip_access_audit_subnet)
-    assert log =~ conn.assigns.browser_token
+    assert log =~ conn.assigns.browser_ref
   end
 
   test "missing password parameters are audited as failed submissions", %{conn: conn} do

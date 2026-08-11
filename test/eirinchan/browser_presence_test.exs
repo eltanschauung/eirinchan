@@ -44,28 +44,55 @@ defmodule Eirinchan.BrowserPresenceTest do
   end
 
   test "touch updates valid browser references" do
-    assert BrowserPresence.touch("token-1234567890123456") == :ok
+    browser_ref = BrowserIdentity.reference("presence-touch")
+    assert BrowserPresence.touch(browser_ref) == :ok
 
-    assert [{"token-1234567890123456", _seen_at}] =
-             :ets.lookup(:eirinchan_browser_presence, "token-1234567890123456")
+    assert [{^browser_ref, _seen_at}] =
+             :ets.lookup(:eirinchan_browser_presence, browser_ref)
+
+    assert BrowserPresence.touch("not-a-canonical-reference") == :ok
+    assert [] == :ets.lookup(:eirinchan_browser_presence, "not-a-canonical-reference")
   end
 
   test "touch bounds new identities while continuing to refresh known identities" do
     Application.put_env(:eirinchan, :browser_presence_max_entries, 2)
 
-    assert :ok = BrowserPresence.touch("token-1234567890123456")
-    assert :ok = BrowserPresence.touch("token-abcdefghijklmnop")
-    assert :ok = BrowserPresence.touch("token-over-cap-123456789")
+    first_ref = BrowserIdentity.reference("presence-first")
+    second_ref = BrowserIdentity.reference("presence-second")
+    overflow_ref = BrowserIdentity.reference("presence-overflow")
+
+    assert :ok = BrowserPresence.touch(first_ref)
+    assert :ok = BrowserPresence.touch(second_ref)
+    assert :ok = BrowserPresence.touch(overflow_ref)
     assert :ets.info(:eirinchan_browser_presence, :size) == 2
 
     old_seen_at = System.system_time(:second) - 60
-    true = :ets.insert(:eirinchan_browser_presence, {"token-1234567890123456", old_seen_at})
-    assert :ok = BrowserPresence.touch("token-1234567890123456")
+    true = :ets.insert(:eirinchan_browser_presence, {first_ref, old_seen_at})
+    assert :ok = BrowserPresence.touch(first_ref)
 
-    assert [{"token-1234567890123456", refreshed_at}] =
-             :ets.lookup(:eirinchan_browser_presence, "token-1234567890123456")
+    assert [{^first_ref, refreshed_at}] =
+             :ets.lookup(:eirinchan_browser_presence, first_ref)
 
     assert refreshed_at > old_seen_at
+  end
+
+  test "concurrent touches stay within the configured cache bound" do
+    Application.put_env(:eirinchan, :browser_presence_max_entries, 8)
+
+    1..64
+    |> Task.async_stream(
+      fn index ->
+        index
+        |> then(&"concurrent-presence-#{&1}")
+        |> BrowserIdentity.reference()
+        |> BrowserPresence.touch()
+      end,
+      max_concurrency: 32,
+      ordered: false
+    )
+    |> Enum.each(fn result -> assert result == {:ok, :ok} end)
+
+    assert :ets.info(:eirinchan_browser_presence, :size) <= 8
   end
 
   defp identity_fixture(presence_seen_at) do

@@ -28,18 +28,24 @@ defmodule Eirinchan.BrowserAbuse do
         expires_at: DateTime.add(now, ttl_seconds, :second)
       }
 
+      conflict_query =
+        from signal in Signal,
+          where: signal.expires_at < ^attrs.expires_at,
+          update: [
+            set: [
+              client_key: ^attrs.client_key,
+              reason: ^attrs.reason,
+              expires_at: ^attrs.expires_at,
+              updated_at: ^now
+            ]
+          ]
+
       %Signal{}
       |> Signal.changeset(attrs)
       |> repo.insert(
-        on_conflict: [
-          set: [
-            client_key: attrs.client_key,
-            reason: attrs.reason,
-            expires_at: attrs.expires_at,
-            updated_at: now
-          ]
-        ],
-        conflict_target: :browser_ref
+        on_conflict: conflict_query,
+        conflict_target: :browser_ref,
+        allow_stale: true
       )
     else
       _ -> {:ok, :ignored}
@@ -52,10 +58,14 @@ defmodule Eirinchan.BrowserAbuse do
 
     case browser_ref(request) do
       browser_ref when is_binary(browser_ref) ->
-        repo.exists?(
-          from signal in Signal,
-            where: signal.browser_ref == ^browser_ref and signal.expires_at > ^now
-        )
+        if BrowserIdentity.reference?(browser_ref) do
+          repo.exists?(
+            from signal in Signal,
+              where: signal.browser_ref == ^browser_ref and signal.expires_at > ^now
+          )
+        else
+          false
+        end
 
       _ ->
         false

@@ -74,8 +74,8 @@ defmodule EirinchanWeb.PublicControllerHelpers do
   end
 
   def watcher_snapshot(conn, opts \\ []) do
-    case conn.assigns[:browser_token] do
-      token when is_binary(token) -> ThreadWatcher.snapshot(token, opts)
+    case conn.assigns[:browser_ref] do
+      browser_ref when is_binary(browser_ref) -> ThreadWatcher.snapshot(browser_ref, opts)
       _ -> ThreadWatcher.empty_snapshot()
     end
   end

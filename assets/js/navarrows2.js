@@ -15,8 +15,10 @@
         (document.querySelector('meta[name="eirinchan:preference-cookie-max-age"]') || {}).content,
         10
       ) || 31_536_000;
-    document.cookie =
+    var cookie =
       name + "=" + encodeURIComponent(value) + "; path=/; max-age=" + maxAge + "; samesite=lax";
+    if (window.location.protocol === "https:") cookie += "; secure";
+    document.cookie = cookie;
   }
 
   function setArrowVisibility(enabled) {

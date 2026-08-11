@@ -3,6 +3,7 @@ defmodule EirinchanWeb.Plugs.FetchBrowserToken do
 
   alias Eirinchan.BrowserIdentities
   alias Eirinchan.BrowserIdentity
+  alias EirinchanWeb.CookiePolicy
 
   @cookie_name "__Host-eirinchan_browser"
   @legacy_cookie_name "browser_token"
@@ -19,7 +20,7 @@ defmodule EirinchanWeb.Plugs.FetchBrowserToken do
       {:upgrade, token} ->
         conn
         |> resolve_identity(token, System.system_time(:second), true, true)
-        |> delete_resp_cookie(@legacy_cookie_name, path: "/")
+        |> delete_resp_cookie(@legacy_cookie_name, CookiePolicy.browser_identity_delete())
 
       :missing ->
         issue_new_identity(conn)
@@ -46,19 +47,16 @@ defmodule EirinchanWeb.Plugs.FetchBrowserToken do
   end
 
   defp put_browser_cookie(conn, token) do
-    put_resp_cookie(conn, @cookie_name, token,
-      max_age: BrowserIdentities.ttl_seconds(),
-      path: "/",
-      http_only: true,
-      secure: true,
-      same_site: "Lax"
+    put_resp_cookie(
+      conn,
+      @cookie_name,
+      token,
+      CookiePolicy.browser_identity(BrowserIdentities.ttl_seconds())
     )
   end
 
   defp assign_identity(conn, token) do
-    conn
-    |> assign(:browser_token, BrowserIdentity.reference(token))
-    |> assign(:browser_identity_token, token)
+    assign(conn, :browser_ref, BrowserIdentity.reference(token))
   end
 
   defp resolve_identity(conn, token, issued_at, returning?, set_cookie?) do
@@ -66,7 +64,7 @@ defmodule EirinchanWeb.Plugs.FetchBrowserToken do
       {:ok, _reference, options} ->
         conn
         |> assign_identity(token)
-        |> assign(:returning_browser_token, returning?)
+        |> assign(:returning_browser_identity, returning?)
         |> maybe_refresh_cookie(token, set_cookie? or options[:rotate_cookie?])
 
       {:expired, _reference} ->
@@ -80,7 +78,7 @@ defmodule EirinchanWeb.Plugs.FetchBrowserToken do
 
     conn
     |> assign_identity(token)
-    |> assign(:returning_browser_token, false)
+    |> assign(:returning_browser_identity, false)
     |> put_browser_cookie(BrowserIdentity.issue(token, issued_at))
   end
 

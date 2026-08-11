@@ -8,14 +8,14 @@ defmodule EirinchanWeb.Plugs.TrackBrowserPresence do
 
   def call(conn, _opts) do
     if trackable_request?(conn) do
-      BrowserPresence.touch(conn.assigns[:browser_token])
+      BrowserPresence.touch(conn.assigns[:browser_ref])
     end
 
     conn
   end
 
   defp trackable_request?(%Plug.Conn{} = conn) do
-    conn.assigns[:returning_browser_token] == true and
+    conn.assigns[:returning_browser_identity] == true and
       request_trackable_path?(conn) and not crawler_request?(conn)
   end
 

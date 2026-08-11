@@ -8,6 +8,7 @@ defmodule Eirinchan.BrowserPresence do
   require Logger
 
   alias Eirinchan.BrowserIdentities.Identity
+  alias Eirinchan.BrowserIdentity
   alias Eirinchan.Repo
 
   @table :eirinchan_browser_presence
@@ -35,7 +36,14 @@ defmodule Eirinchan.BrowserPresence do
 
   # Request processes update ETS only. The owner periodically persists a
   # de-duplicated batch so presence survives releases without a write per hit.
-  def touch(browser_ref) when is_binary(browser_ref) and byte_size(browser_ref) >= 16 do
+  def touch(browser_ref) when is_binary(browser_ref) do
+    if BrowserIdentity.reference?(browser_ref), do: do_touch(browser_ref)
+    :ok
+  end
+
+  def touch(_browser_ref), do: :ok
+
+  defp do_touch(browser_ref) do
     now = now_seconds()
 
     case :ets.lookup(@table, browser_ref) do
@@ -48,11 +56,7 @@ defmodule Eirinchan.BrowserPresence do
       _other ->
         maybe_insert(browser_ref, now)
     end
-
-    :ok
   end
-
-  def touch(_browser_ref), do: :ok
 
   def flush(server \\ __MODULE__) do
     GenServer.call(server, :flush, 30_000)
@@ -131,13 +135,42 @@ defmodule Eirinchan.BrowserPresence do
   end
 
   defp record_touch(browser_ref, now) do
-    true = :ets.insert(@table, {browser_ref, now})
-    true = :ets.insert(@dirty_table, {browser_ref, now})
+    put_max(@table, browser_ref, now)
+    put_max(@dirty_table, browser_ref, now)
   end
 
   defp maybe_insert(browser_ref, now) do
-    if :ets.info(@table, :size) < max_entries() do
+    if :ets.insert_new(@table, {browser_ref, now}) do
+      if :ets.info(@table, :size) <= max_entries() do
+        put_max(@dirty_table, browser_ref, now)
+      else
+        :ets.delete(@table, browser_ref)
+      end
+    else
       record_touch(browser_ref, now)
+    end
+  end
+
+  defp put_max(table, browser_ref, seen_at) do
+    case :ets.lookup(table, browser_ref) do
+      [] ->
+        if :ets.insert_new(table, {browser_ref, seen_at}) do
+          :ok
+        else
+          put_max(table, browser_ref, seen_at)
+        end
+
+      [{^browser_ref, current_seen_at}] when current_seen_at >= seen_at ->
+        :ok
+
+      [{^browser_ref, current_seen_at}] ->
+        match_spec = [{{browser_ref, current_seen_at}, [], [{{browser_ref, seen_at}}]}]
+
+        if :ets.select_replace(table, match_spec) == 1 do
+          :ok
+        else
+          put_max(table, browser_ref, seen_at)
+        end
     end
   end
 
@@ -177,10 +210,7 @@ defmodule Eirinchan.BrowserPresence do
 
   defp requeue(entries) do
     Enum.each(entries, fn {browser_ref, seen_at} ->
-      case :ets.lookup(@dirty_table, browser_ref) do
-        [{^browser_ref, current_seen_at}] when current_seen_at >= seen_at -> :ok
-        _other -> :ets.insert(@dirty_table, {browser_ref, seen_at})
-      end
+      put_max(@dirty_table, browser_ref, seen_at)
     end)
   end
 

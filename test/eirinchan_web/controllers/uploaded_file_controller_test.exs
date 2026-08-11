@@ -25,7 +25,7 @@ defmodule EirinchanWeb.UploadedFileControllerTest do
 
     assert response(conn, 200) != ""
     assert get_resp_header(conn, "cache-control") == ["public, max-age=31536000, immutable"]
-    refute Map.has_key?(conn.assigns, :browser_token)
+    refute Map.has_key?(conn.assigns, :browser_ref)
     refute Map.has_key?(conn.assigns, :theme_name)
   end
 

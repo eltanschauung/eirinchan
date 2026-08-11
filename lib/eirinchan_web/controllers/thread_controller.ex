@@ -245,14 +245,14 @@ defmodule EirinchanWeb.ThreadController do
   end
 
   defp maybe_mark_thread_seen(conn, board, summary) do
-    case conn.assigns[:browser_token] do
-      token when is_binary(token) ->
+    case conn.assigns[:browser_ref] do
+      browser_ref when is_binary(browser_ref) ->
         last_seen_post_id =
           [summary.thread | summary.replies]
           |> Enum.max_by(& &1.id, fn -> summary.thread end)
           |> Map.fetch!(:id)
 
-        ThreadWatcher.mark_seen(token, board.uri, summary.thread.id, last_seen_post_id)
+        ThreadWatcher.mark_seen(browser_ref, board.uri, summary.thread.id, last_seen_post_id)
 
       _ ->
         :ok

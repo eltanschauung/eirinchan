@@ -32,6 +32,10 @@ defmodule EirinchanWeb.ThemeControllerTest do
 
     assert redirected_to(conn) == "/search"
     assert conn.resp_cookies["theme"].value == "vichan"
+    assert conn.resp_cookies["theme"].path == "/"
+    refute conn.resp_cookies["theme"].http_only
+    refute conn.resp_cookies["theme"].secure
+    assert conn.resp_cookies["theme"].same_site == "Lax"
   end
 
   test "theme update uses the configured preference cookie lifetime", %{conn: conn} do

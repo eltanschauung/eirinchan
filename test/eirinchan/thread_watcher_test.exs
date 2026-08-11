@@ -16,7 +16,7 @@ defmodule Eirinchan.ThreadWatcherTest do
     token = "token-1234567890123456"
 
     assert {:ok, watch} = ThreadWatcher.watch_thread(token, board.uri, first_thread.id)
-    assert watch.browser_token == Eirinchan.BrowserIdentity.reference(token)
+    assert watch.browser_ref == Eirinchan.BrowserIdentity.reference(token)
     assert {:ok, _watch} = ThreadWatcher.watch_thread(token, board.uri, second_thread.id)
     assert {:ok, _watch} = ThreadWatcher.watch_thread(token, board.uri, first_thread.id)
 

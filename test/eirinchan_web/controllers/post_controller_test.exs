@@ -83,15 +83,20 @@ defmodule EirinchanWeb.PostControllerTest do
     assert ThreadWatcher.watched?(token, board.uri, thread.id)
     assert ThreadWatcher.watch_metrics(token).watcher_count == 0
 
-    encoded_cookie =
-      referer
-      |> then(&%{&1 => true})
-      |> Jason.encode!()
+    [{cookie_name, cookie}] =
+      Enum.filter(conn.resp_cookies, fn {name, _cookie} ->
+        String.starts_with?(name, "eirinchan_posted_")
+      end)
 
-    assert Enum.any?(
-             get_resp_header(conn, "set-cookie"),
-             &String.contains?(&1, "eirinchan_posted=#{encoded_cookie}")
-           )
+    assert cookie_name =~ ~r/^eirinchan_posted_[0-9a-f]{16}$/
+
+    assert Jason.decode!(cookie.value) == %{
+             "draft" => "eirinchan:draft:#{board.uri}:#{thread_id}",
+             "url" => referer
+           }
+
+    assert cookie.max_age == 120
+    assert cookie.same_site == "Lax"
   end
 
   test "api posting returns reply metadata without legacy json_response", %{conn: conn} do
@@ -349,15 +354,20 @@ defmodule EirinchanWeb.PostControllerTest do
 
     assert %{"id" => _id} = json_response(conn, 200)
 
-    encoded_cookie =
-      referer
-      |> then(&%{&1 => true})
-      |> Jason.encode!()
+    [{cookie_name, cookie}] =
+      Enum.filter(conn.resp_cookies, fn {name, _cookie} ->
+        String.starts_with?(name, "eirinchan_posted_")
+      end)
 
-    assert Enum.any?(
-             get_resp_header(conn, "set-cookie"),
-             &String.contains?(&1, "eirinchan_posted=#{encoded_cookie}")
-           )
+    assert cookie_name =~ ~r/^eirinchan_posted_[0-9a-f]{16}$/
+
+    assert Jason.decode!(cookie.value) == %{
+             "draft" => "eirinchan:draft:#{board.uri}:new",
+             "url" => referer
+           }
+
+    assert cookie.max_age == 120
+    assert cookie.same_site == "Lax"
   end
 
   test "successful OP posts normalize draft-clear cookie urls", %{conn: conn} do
@@ -377,15 +387,15 @@ defmodule EirinchanWeb.PostControllerTest do
 
     assert %{"id" => _id} = json_response(conn, 200)
 
-    encoded_cookie =
-      "http://www.example.com/#{board.uri}/index.html"
-      |> then(&%{&1 => true})
-      |> Jason.encode!()
+    [{_cookie_name, cookie}] =
+      Enum.filter(conn.resp_cookies, fn {name, _cookie} ->
+        String.starts_with?(name, "eirinchan_posted_")
+      end)
 
-    assert Enum.any?(
-             get_resp_header(conn, "set-cookie"),
-             &String.contains?(&1, "eirinchan_posted=#{encoded_cookie}")
-           )
+    assert Jason.decode!(cookie.value) == %{
+             "draft" => "eirinchan:draft:#{board.uri}:new",
+             "url" => "http://www.example.com/#{board.uri}/index.html"
+           }
   end
 
   test "posting stores uploads and serves them back under board src paths", %{conn: conn} do

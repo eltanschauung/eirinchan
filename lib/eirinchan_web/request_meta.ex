@@ -31,7 +31,7 @@ defmodule EirinchanWeb.RequestMeta do
   end
 
   def browser_ref(conn) do
-    case conn.assigns[:browser_token] do
+    case conn.assigns[:browser_ref] do
       reference when is_binary(reference) ->
         if BrowserIdentity.reference?(reference), do: reference
 
