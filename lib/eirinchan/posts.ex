@@ -70,6 +70,7 @@ defmodule Eirinchan.Posts do
              | :image_hard_limit
              | :invalid_image
              | :image_too_large
+             | :duplicate_thread
              | :duplicate_file
              | :file_required
              | :invalid_file_type

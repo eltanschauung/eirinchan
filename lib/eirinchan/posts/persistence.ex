@@ -10,6 +10,7 @@ defmodule Eirinchan.Posts.Persistence do
   alias Eirinchan.Posts.NntpReference
   alias Eirinchan.Posts.Post
   alias Eirinchan.Posts.PostFile
+  alias Eirinchan.Posts.ThreadFingerprint
   alias Eirinchan.Posts
   alias Eirinchan.Uploads
 
@@ -24,13 +25,15 @@ defmodule Eirinchan.Posts.Persistence do
         ) ::
           {:ok, Post.t()} | {:error, term()}
   def create_post_record(%BoardRecord{} = board, thread, attrs, repo, config, now, after_insert) do
+    attrs = ThreadFingerprint.put(attrs, thread, config)
     upload_entries = Map.get(attrs, "__upload_entries__", [])
     cleanup_key = {__MODULE__, make_ref()}
     Process.put(cleanup_key, [])
 
     try do
       case repo.transaction(fn ->
-             with {:ok, locked_board} <- lock_board(board, repo),
+             with :ok <- reject_recent_duplicate_thread(board, thread, attrs, repo, config, now),
+                  {:ok, locked_board} <- lock_board(board, repo),
                   {:ok, attrs} <- allocate_public_id(locked_board, attrs, repo),
                   {:ok, post} <- insert_post(locked_board, thread, attrs, repo, config, now),
                   {:ok, post} <- maybe_assign_poster_id(post, attrs, repo, config),
@@ -215,6 +218,33 @@ defmodule Eirinchan.Posts.Persistence do
     case repo.one(from board_record in BoardRecord, where: board_record.id == ^board.id, lock: "FOR UPDATE") do
       %BoardRecord{} = locked_board -> {:ok, locked_board}
       _ -> {:error, :board_not_found}
+    end
+  end
+
+  defp reject_recent_duplicate_thread(_board, thread, _attrs, _repo, _config, _now)
+       when not is_nil(thread),
+       do: :ok
+
+  defp reject_recent_duplicate_thread(board, nil, attrs, repo, config, now) do
+    hours = ThreadFingerprint.window_hours(config)
+    fingerprint = Map.get(attrs, "thread_fingerprint")
+
+    if hours > 0 and is_binary(fingerprint) do
+      lock_scope = "duplicate-thread:#{board.id}:#{fingerprint}"
+      repo.query!("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [lock_scope])
+      cutoff = DateTime.add(now, -hours * 60 * 60, :second)
+
+      duplicate? =
+        repo.exists?(
+          from post in Post,
+            where:
+              post.board_id == ^board.id and is_nil(post.thread_id) and
+                post.thread_fingerprint == ^fingerprint and post.inserted_at >= ^cutoff
+        )
+
+      if duplicate?, do: {:error, :duplicate_thread}, else: :ok
+    else
+      :ok
     end
   end
 

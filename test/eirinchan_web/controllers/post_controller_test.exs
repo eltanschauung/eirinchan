@@ -1257,6 +1257,36 @@ defmodule EirinchanWeb.PostControllerTest do
     assert %{"error" => "Duplicate file."} = json_response(duplicate_conn, 422)
   end
 
+  test "posting rejects an identical recent thread", %{conn: conn} do
+    board = board_fixture()
+    referer = "http://www.example.com/#{board.uri}/index.html"
+
+    attrs = %{
+      "subject" => "duplicate subject",
+      "body" => "duplicate body",
+      "json_response" => "1",
+      "post" => "New Topic"
+    }
+
+    first_conn =
+      conn
+      |> put_req_header("referer", referer)
+      |> post(~p"/#{board.uri}/post", attrs)
+
+    assert %{"id" => _id} = json_response(first_conn, 200)
+
+    duplicate_conn =
+      first_conn
+      |> recycle()
+      |> put_req_header("referer", referer)
+      |> post(~p"/#{board.uri}/post", attrs)
+
+    assert %{
+             "error" => "An identical thread was posted too recently.",
+             "error_code" => "duplicate_thread"
+           } = json_response(duplicate_conn, 422)
+  end
+
   test "posting redirects use canonical slug thread paths when slugify is enabled", %{conn: conn} do
     board = board_fixture(%{config_overrides: %{slugify: true}})
 
