@@ -3,10 +3,10 @@
     {
       "label": "bundle:core",
       "output": "priv/static/js/bundle-public-core.js",
-      "output_bytes": 132791,
+      "output_bytes": 132895,
       "public_path": "/js/bundle-public-core.js",
-      "sha256": "83285f223e0d0b0df60f55235e5c165cff8dff60264192784cf58d77cd10e0d2",
-      "source_bytes": 174792,
+      "sha256": "4de5603f17608a46219c68f418c1cd50a83c093507eda808f316257ebb1d70a5",
+      "source_bytes": 174980,
       "sources": [
         "priv/static/js/jquery.min.js",
         "assets/js/options.js",
@@ -144,10 +144,10 @@
     {
       "label": "maintained:assets/app.js",
       "output": "priv/static/assets/app.js",
-      "output_bytes": 6249,
+      "output_bytes": 6377,
       "public_path": "/assets/app.js",
-      "sha256": "655651218a317d064eed610f84ab87212d367ade78ec7fe2ef8afc7c680c108d",
-      "source_bytes": 11508,
+      "sha256": "e535f7434a4dc819263e7228201184bb256c1c8bffa99e6ac58b8bc3ad88c9ba",
+      "source_bytes": 11731,
       "sources": [
         "assets/js/app.js"
       ]
@@ -221,10 +221,10 @@
     {
       "label": "maintained:js/navarrows2.js",
       "output": "priv/static/js/navarrows2.js",
-      "output_bytes": 1306,
+      "output_bytes": 1358,
       "public_path": "/js/navarrows2.js",
-      "sha256": "c8451d9e7de98dc58fd68b012ae76dcb5c680ea0392e403e2cbfa081564d8448",
-      "source_bytes": 2447,
+      "sha256": "e3bee8edfc7ef1d1c656ec9df6caac984257007fbeb5d1e20201dc0d66dabcae",
+      "source_bytes": 2541,
       "sources": [
         "assets/js/navarrows2.js"
       ]
@@ -298,10 +298,10 @@
     {
       "label": "maintained:js/runtime-config.js",
       "output": "priv/static/js/runtime-config.js",
-      "output_bytes": 7306,
+      "output_bytes": 8298,
       "public_path": "/js/runtime-config.js",
-      "sha256": "596a46e8f78297be3c6fc71419749dee4932acca48c758db5ed953ddd988c552",
-      "source_bytes": 14039,
+      "sha256": "c1eeae4999817fc73342d7dcb6ae259d1a5d5687cfd09b4cc841d25bed76c9af",
+      "source_bytes": 16171,
       "sources": [
         "assets/js/runtime-config.js"
       ]
@@ -320,10 +320,10 @@
     {
       "label": "maintained:js/show-own-posts-options.js",
       "output": "priv/static/js/show-own-posts-options.js",
-      "output_bytes": 1064,
+      "output_bytes": 1116,
       "public_path": "/js/show-own-posts-options.js",
-      "sha256": "c6db819c8504d6e9a78cd298ab3cbbd396d082b8e1e098666746b4122a72e9d9",
-      "source_bytes": 1960,
+      "sha256": "68f3483efc1232ce3ad9e72c2aa0212da95c7e35f0665a4cdaa9bfa0d7cfcfa3",
+      "source_bytes": 2054,
       "sources": [
         "assets/js/show-own-posts-options.js"
       ]

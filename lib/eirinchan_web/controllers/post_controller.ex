@@ -19,6 +19,7 @@ defmodule EirinchanWeb.PostController do
   alias Eirinchan.ThreadPaths
   alias EirinchanWeb.Announcements
   alias EirinchanWeb.BoardChrome
+  alias EirinchanWeb.CookiePolicy
   alias EirinchanWeb.PostView
   alias EirinchanWeb.PublicControllerHelpers
   alias EirinchanWeb.RequestMeta
@@ -178,7 +179,8 @@ defmodule EirinchanWeb.PostController do
     config = conn.assigns.current_board_config
     _ = maybe_record_post_ownership(conn, post)
     watcher_metrics = maybe_watch_thread_on_reply(conn, board, post)
-    conn = put_post_success_cookie(conn, board, post)
+    draft_key = if post.thread_id, do: public_thread_id, else: "new"
+    conn = put_post_success_cookie(conn, board, draft_key)
     op? = is_nil(post.thread_id)
 
     redirect_path =
@@ -249,8 +251,8 @@ defmodule EirinchanWeb.PostController do
   end
 
   defp maybe_record_post_ownership(conn, post) do
-    case conn.assigns[:browser_token] do
-      token when is_binary(token) -> PostOwnership.record(token, post.id)
+    case conn.assigns[:browser_ref] do
+      browser_ref when is_binary(browser_ref) -> PostOwnership.record(browser_ref, post.id)
       _ -> :ok
     end
   end
@@ -314,13 +316,13 @@ defmodule EirinchanWeb.PostController do
   defp normalize_log_ip(_), do: nil
 
   defp maybe_watch_thread_on_reply(conn, board, post) do
-    case {conn.assigns[:browser_token], post.thread_id} do
-      {token, thread_id} when is_binary(token) and is_integer(thread_id) ->
-        _ = ThreadWatcher.activate_for_reply(thread_id, token)
+    case {conn.assigns[:browser_ref], post.thread_id} do
+      {browser_ref, thread_id} when is_binary(browser_ref) and is_integer(thread_id) ->
+        _ = ThreadWatcher.activate_for_reply(thread_id, browser_ref)
 
         _ =
           ThreadWatcher.watch_thread(
-            token,
+            browser_ref,
             board.uri,
             thread_id,
             %{
@@ -330,14 +332,14 @@ defmodule EirinchanWeb.PostController do
             max_threads: conn.assigns.current_board_config.watcher_max_threads
           )
 
-        ThreadWatcher.watch_metrics(token)
+        ThreadWatcher.watch_metrics(browser_ref)
 
-      {_token, thread_id} when is_integer(thread_id) ->
+      {_browser_ref, thread_id} when is_integer(thread_id) ->
         _ = ThreadWatcher.activate_for_reply(thread_id)
         %{watcher_count: 0, watcher_unread_count: 0, watcher_you_count: 0}
 
-      {token, _} when is_binary(token) ->
-        ThreadWatcher.watch_metrics(token)
+      {browser_ref, _} when is_binary(browser_ref) ->
+        ThreadWatcher.watch_metrics(browser_ref)
 
       _ ->
         %{watcher_count: 0, watcher_unread_count: 0, watcher_you_count: 0}
@@ -771,6 +773,7 @@ defmodule EirinchanWeb.PostController do
   defp error_status(:invalid_post_mode), do: :forbidden
   defp error_status(:board_locked), do: :forbidden
   defp error_status(:body_too_long), do: :unprocessable_entity
+
   defp error_status(reason)
        when reason in [
               :name_too_long,
@@ -780,6 +783,7 @@ defmodule EirinchanWeb.PostController do
               :password_too_long
             ],
        do: :unprocessable_entity
+
   defp error_status(:too_many_lines), do: :unprocessable_entity
   defp error_status(:invalid_user_flag), do: :unprocessable_entity
   defp error_status(:reply_hard_limit), do: :unprocessable_entity
@@ -829,6 +833,7 @@ defmodule EirinchanWeb.PostController do
   defp error_message(:invalid_post_mode, config), do: config.error.bot
   defp error_message(:board_locked, config), do: config.error.board_locked
   defp error_message(:body_too_long, config), do: config.error.toolong_body
+
   defp error_message(:name_too_long, config),
     do: "Name is limited to #{config.max_name_length} characters."
 
@@ -843,6 +848,7 @@ defmodule EirinchanWeb.PostController do
 
   defp error_message(:password_too_long, config),
     do: "Password is limited to #{config.post_password_max_length} characters."
+
   defp error_message(:too_many_lines, config), do: config.error.toomanylines
   defp error_message(:invalid_user_flag, config), do: config.error.invalid_flag
   defp error_message(:reply_hard_limit, config), do: config.error.reply_hard_limit
@@ -910,7 +916,7 @@ defmodule EirinchanWeb.PostController do
   defp captcha_field("hcaptcha"), do: "h-captcha-response"
   defp captcha_field(_provider), do: "captcha"
 
-  defp put_post_success_cookie(conn, _board, _post) do
+  defp put_post_success_cookie(conn, board, draft_key) do
     referer =
       conn
       |> get_req_header("referer")
@@ -918,33 +924,28 @@ defmodule EirinchanWeb.PostController do
       |> normalize_post_success_url()
 
     if is_binary(referer) and referer != "" do
-      successful =
-        conn.req_cookies
-        |> Map.get("eirinchan_posted")
-        |> decode_post_success_cookie()
-        |> Map.put(referer, true)
+      payload = %{
+        "draft" => "eirinchan:draft:#{board.uri}:#{draft_key}",
+        "url" => referer
+      }
+
+      cookie_name =
+        payload
+        |> Jason.encode!()
+        |> then(&:crypto.hash(:sha256, &1))
+        |> Base.encode16(case: :lower)
+        |> binary_part(0, 16)
+        |> then(&("eirinchan_posted_" <> &1))
 
       put_resp_cookie(
         conn,
-        "eirinchan_posted",
-        Jason.encode!(successful),
-        max_age: 120,
-        path: "/"
+        cookie_name,
+        Jason.encode!(payload),
+        CookiePolicy.transient(120)
       )
     else
       conn
     end
-  end
-
-  defp decode_post_success_cookie(raw_cookie) when is_binary(raw_cookie) do
-    case Jason.decode(raw_cookie) do
-      {:ok, decoded} when is_map(decoded) -> decoded
-      _ -> %{}
-    end
-  end
-
-  defp decode_post_success_cookie(_raw_cookie) do
-    %{}
   end
 
   defp normalize_post_success_url(nil), do: nil
@@ -1017,7 +1018,7 @@ defmodule EirinchanWeb.PostController do
         content_length: List.first(get_req_header(conn, "content-length")),
         branch: branch(conn.params),
         moderator: failure_moderator_metadata(conn.assigns[:current_moderator]),
-        browser_identity_present: is_binary(conn.assigns[:browser_token]),
+        browser_identity_present: is_binary(conn.assigns[:browser_ref]),
         uploads: failure_upload_context(conn.params)
       }
       |> Map.merge(Map.drop(metadata, [:reason, :status, :board]))

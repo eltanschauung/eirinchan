@@ -103,6 +103,73 @@
     });
   }
 
+  function postSuccessCookieEntries(baseName) {
+    var prefix = String(baseName || "eirinchan_posted");
+
+    return String(document.cookie || "")
+      .split(/;\s*/)
+      .map(function (entry) {
+        var separator = entry.indexOf("=");
+        if (separator < 0) return null;
+
+        var name = entry.slice(0, separator);
+        if (name !== prefix && name.indexOf(prefix + "_") !== 0) return null;
+
+        try {
+          return {name: name, value: decodeURIComponent(entry.slice(separator + 1))};
+        } catch (_error) {
+          return {name: name, value: ""};
+        }
+      })
+      .filter(function (entry) { return entry !== null; });
+  }
+
+  function consumePostSuccessCookies(baseName) {
+    var entries = postSuccessCookieEntries(baseName);
+    if (!entries.length) return 0;
+
+    var draftKeys = {};
+    var successfulUrls = {};
+
+    entries.forEach(function (entry) {
+      try {
+        var payload = JSON.parse(entry.value);
+
+        if (payload && typeof payload.draft === "string") draftKeys[payload.draft] = true;
+        if (payload && typeof payload.url === "string") successfulUrls[payload.url] = true;
+
+        if (payload && !payload.draft && !payload.url) {
+          Object.keys(payload).forEach(function (url) {
+            if (payload[url]) successfulUrls[url] = true;
+          });
+        }
+      } catch (_error) {
+        var separator = entry.value.indexOf(":");
+        if (separator > 0) {
+          draftKeys["eirinchan:draft:" + entry.value] = true;
+        }
+      }
+    });
+
+    Object.keys(draftKeys).forEach(function (key) {
+      removeStorage("session", key);
+    });
+
+    if (Object.keys(successfulUrls).length) {
+      var saved = readJsonStorage("session", "body", {});
+      Object.keys(successfulUrls).forEach(function (url) {
+        delete saved[url];
+      });
+      writeJsonStorage("session", "body", saved);
+    }
+
+    entries.forEach(function (entry) {
+      removeCookie(entry.name, {path: "/"});
+    });
+
+    return entries.length;
+  }
+
   function storage(kind) {
     try {
       var candidate = kind === "session" ? window.sessionStorage : window.localStorage;
@@ -371,6 +438,7 @@
   runtime.readCookie = readCookie;
   runtime.writeCookie = writeCookie;
   runtime.removeCookie = removeCookie;
+  runtime.consumePostSuccessCookies = consumePostSuccessCookies;
   runtime.storage = storage;
   runtime.readStorage = readStorage;
   runtime.writeStorage = writeStorage;
@@ -410,6 +478,7 @@
   if (window.post_success_cookie_name === undefined) {
     window.post_success_cookie_name = metaContent("eirinchan:post-success-cookie-name") || "eirinchan_posted";
   }
+  consumePostSuccessCookies(window.post_success_cookie_name);
   if (window.watcher_count === undefined) window.watcher_count = parseInteger(metaContent("eirinchan:watcher-count"), 0);
   if (window.watcher_unread_count === undefined) {
     window.watcher_unread_count = parseInteger(metaContent("eirinchan:watcher-unread-count"), 0);

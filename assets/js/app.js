@@ -177,6 +177,12 @@
 
   function clearPostedDraft() {
     var cookieName = window.post_success_cookie_name || "eirinchan_posted";
+
+    if (runtime.consumePostSuccessCookies) {
+      runtime.consumePostSuccessCookies(cookieName);
+      return;
+    }
+
     var value = runtime.readCookie
       ? runtime.readCookie(cookieName, null)
       : (document.cookie.match(/(?:^|; )eirinchan_posted=([^;]+)/) || [])[1];
@@ -184,16 +190,20 @@
     if (!value) return;
 
     try {
-      var decoded = decodeURIComponent(value).split(":");
-      if (decoded.length === 2) {
-        removeSessionValue("eirinchan:draft:" + decoded[0] + ":" + decoded[1]);
+      var payload = JSON.parse(decodeURIComponent(value));
+      if (payload && typeof payload.draft === "string") {
+        removeSessionValue(payload.draft);
       }
     } catch (_error) {
       // A malformed success cookie should not break page initialization.
     }
 
     if (runtime.removeCookie) runtime.removeCookie(cookieName, {path: "/"});
-    else document.cookie = cookieName + "=; Max-Age=0; path=/; samesite=lax";
+    else {
+      var expired = cookieName + "=; Max-Age=0; path=/; samesite=lax";
+      if (window.location.protocol === "https:") expired += "; secure";
+      document.cookie = expired;
+    }
   }
 
   function bindThreadPostControls(form) {

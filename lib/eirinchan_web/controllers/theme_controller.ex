@@ -4,6 +4,7 @@ defmodule EirinchanWeb.ThemeController do
   alias Eirinchan.Boards
   alias Eirinchan.Runtime.Config
   alias Eirinchan.Settings
+  alias EirinchanWeb.CookiePolicy
   alias EirinchanWeb.ThemeRegistry
 
   def update(conn, %{"theme" => theme} = params) do
@@ -30,12 +31,19 @@ defmodule EirinchanWeb.ThemeController do
             |> decode_board_themes_cookie()
             |> Map.put(board, selected_theme)
 
-          put_resp_cookie(conn, "board_themes", Jason.encode!(board_themes),
-            max_age: cookie_max_age,
-            path: "/"
+          put_resp_cookie(
+            conn,
+            "board_themes",
+            Jason.encode!(board_themes),
+            CookiePolicy.preference(cookie_max_age)
           )
         else
-          put_resp_cookie(conn, "theme", selected_theme, max_age: cookie_max_age, path: "/")
+          put_resp_cookie(
+            conn,
+            "theme",
+            selected_theme,
+            CookiePolicy.preference(cookie_max_age)
+          )
         end
       end
 

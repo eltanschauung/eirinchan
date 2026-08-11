@@ -122,7 +122,7 @@ defmodule EirinchanWeb.BoardControllerTest do
     refute first_conn.resp_body =~ ~s(name="captcha")
 
     assert {:ok, _signal} =
-             BrowserAbuse.record(%{browser_ref: first_conn.assigns.browser_token}, :rate_limit,
+             BrowserAbuse.record(%{browser_ref: first_conn.assigns.browser_ref}, :rate_limit,
                repo: Eirinchan.Repo
              )
 

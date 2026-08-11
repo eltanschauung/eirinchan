@@ -20,9 +20,9 @@ defmodule Eirinchan.ThreadWatcher.Snapshot do
 
   def empty, do: @empty_snapshot
 
-  def build(browser_token, opts \\ []) when is_binary(browser_token) do
+  def build(browser_identity, opts \\ []) when is_binary(browser_identity) do
     repo = Keyword.get(opts, :repo, Repo)
-    browser_ref = BrowserIdentity.reference(browser_token)
+    browser_ref = BrowserIdentity.reference(browser_identity)
     rows = load_watch_rows(repo, browser_ref)
 
     if rows == [] do
@@ -55,7 +55,7 @@ defmodule Eirinchan.ThreadWatcher.Snapshot do
       on:
         unread_post.board_id == thread.board_id and unread_post.thread_id == thread.id and
           unread_post.id > fragment("COALESCE(?, ?)", watch.last_seen_post_id, thread.id),
-      where: watch.browser_token == ^browser_ref and watch.activated,
+      where: watch.browser_ref == ^browser_ref and watch.activated,
       group_by: [
         watch.id,
         watch.last_seen_post_id,
@@ -98,8 +98,8 @@ defmodule Eirinchan.ThreadWatcher.Snapshot do
       join: cite in Cite,
       on: cite.post_id == post.id,
       join: ownership in Ownership,
-      on: ownership.post_id == cite.target_post_id and ownership.browser_token == ^browser_ref,
-      where: watch.browser_token == ^browser_ref,
+      on: ownership.post_id == cite.target_post_id and ownership.browser_ref == ^browser_ref,
+      where: watch.browser_ref == ^browser_ref,
       group_by: watch.id,
       select: {watch.id, count(post.id, :distinct), max(post.public_id)}
     )

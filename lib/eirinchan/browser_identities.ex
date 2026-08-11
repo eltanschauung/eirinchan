@@ -39,7 +39,10 @@ defmodule Eirinchan.BrowserIdentities do
   def touch_interval_seconds,
     do:
       min(
-        configured_positive(:browser_identity_touch_interval_seconds, @default_touch_interval_seconds),
+        configured_positive(
+          :browser_identity_touch_interval_seconds,
+          @default_touch_interval_seconds
+        ),
         rotation_seconds()
       )
 
@@ -95,8 +98,14 @@ defmodule Eirinchan.BrowserIdentities do
 
   defp maybe_touch(identity, now, repo) do
     if DateTime.diff(now, identity.last_seen_at, :second) >= touch_interval_seconds() do
+      cutoff = DateTime.add(now, -touch_interval_seconds(), :second)
+
       repo.update_all(
-        from(stored in Identity, where: stored.browser_ref == ^identity.browser_ref),
+        from(stored in Identity,
+          where:
+            stored.browser_ref == ^identity.browser_ref and stored.last_seen_at <= ^cutoff and
+              stored.last_seen_at < ^now
+        ),
         set: [last_seen_at: now]
       )
     end
@@ -108,8 +117,8 @@ defmodule Eirinchan.BrowserIdentities do
 
   defp expire_references(references, repo) do
     repo.transaction(fn ->
-      repo.delete_all(from ownership in Ownership, where: ownership.browser_token in ^references)
-      repo.delete_all(from watch in Watch, where: watch.browser_token in ^references)
+      repo.delete_all(from ownership in Ownership, where: ownership.browser_ref in ^references)
+      repo.delete_all(from watch in Watch, where: watch.browser_ref in ^references)
       repo.delete_all(from identity in Identity, where: identity.browser_ref in ^references)
     end)
 

@@ -11,21 +11,21 @@ defmodule Eirinchan.ThreadWatcher do
 
   @default_max_threads 500
 
-  def snapshot(browser_token, opts \\ []) when is_binary(browser_token) do
-    Snapshot.build(browser_token, opts)
+  def snapshot(browser_identity, opts \\ []) when is_binary(browser_identity) do
+    Snapshot.build(browser_identity, opts)
   end
 
   def empty_snapshot, do: Snapshot.empty()
 
-  def list_watches(browser_token) when is_binary(browser_token) do
-    browser_token = BrowserIdentity.reference(browser_token)
+  def list_watches(browser_identity) when is_binary(browser_identity) do
+    browser_ref = BrowserIdentity.reference(browser_identity)
 
     from(watch in Watch,
       join: thread in Post,
       on: thread.id == watch.thread_id and is_nil(thread.thread_id),
       join: board in BoardRecord,
       on: board.id == thread.board_id,
-      where: watch.browser_token == ^browser_token,
+      where: watch.browser_ref == ^browser_ref,
       order_by: [asc: board.uri, desc: watch.updated_at],
       select: {watch, board.uri}
     )
@@ -33,8 +33,8 @@ defmodule Eirinchan.ThreadWatcher do
     |> Enum.map(fn {watch, board_uri} -> %{watch | board_uri: board_uri} end)
   end
 
-  def list_watch_summaries(browser_token) when is_binary(browser_token) do
-    browser_token
+  def list_watch_summaries(browser_identity) when is_binary(browser_identity) do
+    browser_identity
     |> snapshot(summaries: true)
     |> Map.fetch!(:summaries)
   end
@@ -53,45 +53,45 @@ defmodule Eirinchan.ThreadWatcher do
     |> Kernel.||(thread_id)
   end
 
-  def watched_thread_ids(browser_token, board_uri)
-      when is_binary(browser_token) and is_binary(board_uri) do
-    browser_token = BrowserIdentity.reference(browser_token)
+  def watched_thread_ids(browser_identity, board_uri)
+      when is_binary(browser_identity) and is_binary(board_uri) do
+    browser_ref = BrowserIdentity.reference(browser_identity)
 
     from(watch in Watch,
       join: thread in Post,
       on: thread.id == watch.thread_id and is_nil(thread.thread_id),
       join: board in BoardRecord,
       on: board.id == thread.board_id,
-      where: watch.browser_token == ^browser_token and board.uri == ^board_uri,
+      where: watch.browser_ref == ^browser_ref and board.uri == ^board_uri,
       select: watch.thread_id
     )
     |> Repo.all()
     |> MapSet.new()
   end
 
-  def watch_state_for_board(browser_token, board_uri)
-      when is_binary(browser_token) and is_binary(board_uri) do
-    browser_token
+  def watch_state_for_board(browser_identity, board_uri)
+      when is_binary(browser_identity) and is_binary(board_uri) do
+    browser_identity
     |> snapshot()
     |> Map.fetch!(:watch_state_by_board)
     |> Map.get(board_uri, %{})
   end
 
-  def watch_count(browser_token) when is_binary(browser_token) do
-    browser_token
+  def watch_count(browser_identity) when is_binary(browser_identity) do
+    browser_identity
     |> watch_metrics()
     |> Map.fetch!(:watcher_count)
   end
 
-  def watch_metrics(browser_token) when is_binary(browser_token) do
-    browser_token
+  def watch_metrics(browser_identity) when is_binary(browser_identity) do
+    browser_identity
     |> snapshot()
     |> Map.fetch!(:metrics)
   end
 
-  def watched?(browser_token, board_uri, thread_id)
-      when is_binary(browser_token) and is_binary(board_uri) and is_integer(thread_id) do
-    browser_token = BrowserIdentity.reference(browser_token)
+  def watched?(browser_identity, board_uri, thread_id)
+      when is_binary(browser_identity) and is_binary(board_uri) and is_integer(thread_id) do
+    browser_ref = BrowserIdentity.reference(browser_identity)
 
     Repo.exists?(
       from watch in Watch,
@@ -100,14 +100,14 @@ defmodule Eirinchan.ThreadWatcher do
         join: board in BoardRecord,
         on: board.id == thread.board_id,
         where:
-          watch.browser_token == ^browser_token and board.uri == ^board_uri and
+          watch.browser_ref == ^browser_ref and board.uri == ^board_uri and
             watch.thread_id == ^thread_id
     )
   end
 
-  def watch_thread(browser_token, board_uri, thread_id, attrs \\ %{}, opts \\ [])
-      when is_binary(browser_token) and is_binary(board_uri) and is_integer(thread_id) do
-    browser_token = BrowserIdentity.reference(browser_token)
+  def watch_thread(browser_identity, board_uri, thread_id, attrs \\ %{}, opts \\ [])
+      when is_binary(browser_identity) and is_binary(board_uri) and is_integer(thread_id) do
+    browser_ref = BrowserIdentity.reference(browser_identity)
     attrs = Map.new(attrs)
     max_threads = Config.positive_integer(Keyword.get(opts, :max_threads), @default_max_threads)
 
@@ -117,16 +117,14 @@ defmodule Eirinchan.ThreadWatcher do
     insert_attrs =
       attrs
       |> Map.drop([:last_seen_post_id, "last_seen_post_id"])
-      |> Map.put(:browser_token, browser_token)
+      |> Map.put(:browser_ref, browser_ref)
       |> Map.put(:board_uri, board_uri)
       |> Map.put(:thread_id, thread_id)
 
     now = DateTime.utc_now() |> DateTime.truncate(:second)
 
-    Repo.transaction(fn ->
-      lock_browser_watches(browser_token)
-
-      unless watch_capacity_available?(browser_token, thread_id, max_threads) do
+    with_browser_lock(browser_ref, fn ->
+      unless watch_capacity_available?(browser_ref, thread_id, max_threads) do
         Repo.rollback(:watch_limit)
       end
 
@@ -134,25 +132,25 @@ defmodule Eirinchan.ThreadWatcher do
            |> Watch.changeset(insert_attrs)
            |> Repo.insert(
              on_conflict: [set: [board_uri: board_uri, updated_at: now]],
-             conflict_target: [:browser_token, :thread_id]
+             conflict_target: [:browser_ref, :thread_id]
            ) do
         {:ok, proposed_watch} ->
           if proposed_watch.activated do
             from(watch in Watch,
-              where: watch.browser_token == ^browser_token and watch.thread_id == ^thread_id
+              where: watch.browser_ref == ^browser_ref and watch.thread_id == ^thread_id
             )
             |> Repo.update_all(set: [activated: true, updated_at: now])
           end
 
           case last_seen_post_id do
             value when is_integer(value) ->
-              case mark_seen(browser_token, board_uri, thread_id, value) do
-                {:ok, %Watch{} = watch} -> watch
-                {:ok, nil} -> Repo.rollback(:invalid_last_seen_post)
+              case do_mark_seen(browser_ref, board_uri, thread_id, value, now) do
+                %Watch{} = watch -> watch
+                nil -> Repo.rollback(:invalid_last_seen_post)
               end
 
             _ ->
-              Repo.get_by!(Watch, browser_token: browser_token, thread_id: thread_id)
+              Repo.get_by!(Watch, browser_ref: browser_ref, thread_id: thread_id)
           end
 
         {:error, changeset} ->
@@ -161,25 +159,32 @@ defmodule Eirinchan.ThreadWatcher do
     end)
   end
 
-  defp lock_browser_watches(browser_token) do
-    Repo.query!("SELECT pg_advisory_xact_lock(hashtext($1))", [browser_token])
+  defp with_browser_lock(browser_ref, callback) do
+    Repo.transaction(fn ->
+      lock_browser_state(browser_ref)
+      callback.()
+    end)
+  end
+
+  defp lock_browser_state(browser_ref) do
+    Repo.query!("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [browser_ref])
     :ok
   end
 
-  defp watch_capacity_available?(browser_token, thread_id, max_threads) do
+  defp watch_capacity_available?(browser_ref, thread_id, max_threads) do
     Repo.exists?(
       from watch in Watch,
-        where: watch.browser_token == ^browser_token and watch.thread_id == ^thread_id
+        where: watch.browser_ref == ^browser_ref and watch.thread_id == ^thread_id
     ) or
       Repo.aggregate(
-        from(watch in Watch, where: watch.browser_token == ^browser_token),
+        from(watch in Watch, where: watch.browser_ref == ^browser_ref),
         :count
       ) < max_threads
   end
 
-  def activate_for_reply(thread_id, excluded_browser_token \\ nil)
+  def activate_for_reply(thread_id, excluded_browser_identity \\ nil)
       when is_integer(thread_id) and
-             (is_binary(excluded_browser_token) or is_nil(excluded_browser_token)) do
+             (is_binary(excluded_browser_identity) or is_nil(excluded_browser_identity)) do
     now = DateTime.utc_now() |> DateTime.truncate(:second)
 
     query =
@@ -188,9 +193,9 @@ defmodule Eirinchan.ThreadWatcher do
       )
 
     query =
-      if is_binary(excluded_browser_token) do
-        excluded_browser_ref = BrowserIdentity.reference(excluded_browser_token)
-        from(watch in query, where: watch.browser_token != ^excluded_browser_ref)
+      if is_binary(excluded_browser_identity) do
+        excluded_browser_ref = BrowserIdentity.reference(excluded_browser_identity)
+        from(watch in query, where: watch.browser_ref != ^excluded_browser_ref)
       else
         query
       end
@@ -199,9 +204,9 @@ defmodule Eirinchan.ThreadWatcher do
     {:ok, count}
   end
 
-  def unwatch_thread(browser_token, board_uri, thread_id)
-      when is_binary(browser_token) and is_binary(board_uri) and is_integer(thread_id) do
-    browser_token = BrowserIdentity.reference(browser_token)
+  def unwatch_thread(browser_identity, board_uri, thread_id)
+      when is_binary(browser_identity) and is_binary(board_uri) and is_integer(thread_id) do
+    browser_ref = BrowserIdentity.reference(browser_identity)
 
     valid_thread_ids =
       from(thread in Post,
@@ -211,32 +216,36 @@ defmodule Eirinchan.ThreadWatcher do
         select: thread.id
       )
 
-    {count, _} =
-      from(watch in Watch,
-        where:
-          watch.browser_token == ^browser_token and
-            watch.thread_id in subquery(valid_thread_ids)
-      )
-      |> Repo.delete_all()
+    with_browser_lock(browser_ref, fn ->
+      {count, _} =
+        from(watch in Watch,
+          where:
+            watch.browser_ref == ^browser_ref and
+              watch.thread_id in subquery(valid_thread_ids)
+        )
+        |> Repo.delete_all()
 
-    {:ok, count}
+      count
+    end)
   end
 
-  def clear_watches(browser_token) when is_binary(browser_token) do
-    browser_token = BrowserIdentity.reference(browser_token)
+  def clear_watches(browser_identity) when is_binary(browser_identity) do
+    browser_ref = BrowserIdentity.reference(browser_identity)
 
-    {count, _} =
-      Repo.delete_all(
-        from watch in Watch,
-          where: watch.browser_token == ^browser_token
-      )
+    with_browser_lock(browser_ref, fn ->
+      {count, _} =
+        Repo.delete_all(
+          from watch in Watch,
+            where: watch.browser_ref == ^browser_ref
+        )
 
-    {:ok, count}
+      count
+    end)
   end
 
-  def reconcile_moved_watches(browser_token, board_uri \\ nil)
-      when is_binary(browser_token) and (is_binary(board_uri) or is_nil(board_uri)) do
-    browser_token = BrowserIdentity.reference(browser_token)
+  def reconcile_moved_watches(browser_identity, board_uri \\ nil)
+      when is_binary(browser_identity) and (is_binary(board_uri) or is_nil(board_uri)) do
+    browser_ref = BrowserIdentity.reference(browser_identity)
     now = DateTime.utc_now() |> DateTime.truncate(:second)
 
     query =
@@ -245,7 +254,7 @@ defmodule Eirinchan.ThreadWatcher do
         on: thread.id == watch.thread_id and is_nil(thread.thread_id),
         join: board in BoardRecord,
         on: board.id == thread.board_id,
-        where: watch.browser_token == ^browser_token and watch.board_uri != board.uri,
+        where: watch.browser_ref == ^browser_ref and watch.board_uri != board.uri,
         update: [set: [board_uri: board.uri, updated_at: ^now]]
       )
 
@@ -258,50 +267,65 @@ defmodule Eirinchan.ThreadWatcher do
         query
       end
 
-    _ = Repo.update_all(query, [])
+    {:ok, :ok} =
+      with_browser_lock(browser_ref, fn ->
+        _ = Repo.update_all(query, [])
+        :ok
+      end)
+
     :ok
   end
 
-  def purge_missing_watches(browser_token, board_uri \\ nil)
-      when is_binary(browser_token) and (is_binary(board_uri) or is_nil(board_uri)) do
-    browser_token = BrowserIdentity.reference(browser_token)
+  def purge_missing_watches(browser_identity, board_uri \\ nil)
+      when is_binary(browser_identity) and (is_binary(board_uri) or is_nil(board_uri)) do
+    browser_ref = BrowserIdentity.reference(browser_identity)
     thread_ids = from(post in Post, where: is_nil(post.thread_id), select: post.id)
 
     query =
       from watch in Watch,
-        where:
-          watch.browser_token == ^browser_token and watch.thread_id not in subquery(thread_ids)
+        where: watch.browser_ref == ^browser_ref and watch.thread_id not in subquery(thread_ids)
 
     query =
       if is_binary(board_uri),
         do: from(watch in query, where: watch.board_uri == ^board_uri),
         else: query
 
-    Repo.delete_all(query)
+    case with_browser_lock(browser_ref, fn -> Repo.delete_all(query) end) do
+      {:ok, result} -> result
+      {:error, reason} -> {:error, reason}
+    end
   end
 
-  def unwatch_stale_threads(browser_token, board_uri)
-      when is_binary(browser_token) and is_binary(board_uri) do
-    browser_token = BrowserIdentity.reference(browser_token)
+  def unwatch_stale_threads(browser_identity, board_uri)
+      when is_binary(browser_identity) and is_binary(board_uri) do
+    browser_ref = BrowserIdentity.reference(browser_identity)
     thread_ids = from(post in Post, where: is_nil(post.thread_id), select: post.id)
 
-    {count, _} =
-      from(watch in Watch,
-        where:
-          watch.browser_token == ^browser_token and watch.board_uri == ^board_uri and
-            watch.thread_id not in subquery(thread_ids)
-      )
-      |> Repo.delete_all()
+    with_browser_lock(browser_ref, fn ->
+      {count, _} =
+        from(watch in Watch,
+          where:
+            watch.browser_ref == ^browser_ref and watch.board_uri == ^board_uri and
+              watch.thread_id not in subquery(thread_ids)
+        )
+        |> Repo.delete_all()
 
-    {:ok, count}
+      count
+    end)
   end
 
-  def mark_seen(browser_token, board_uri, thread_id, last_seen_post_id)
-      when is_binary(browser_token) and is_binary(board_uri) and is_integer(thread_id) and
+  def mark_seen(browser_identity, board_uri, thread_id, last_seen_post_id)
+      when is_binary(browser_identity) and is_binary(board_uri) and is_integer(thread_id) and
              is_integer(last_seen_post_id) do
-    browser_token = BrowserIdentity.reference(browser_token)
+    browser_ref = BrowserIdentity.reference(browser_identity)
     now = DateTime.utc_now() |> DateTime.truncate(:second)
 
+    with_browser_lock(browser_ref, fn ->
+      do_mark_seen(browser_ref, board_uri, thread_id, last_seen_post_id, now)
+    end)
+  end
+
+  defp do_mark_seen(browser_ref, board_uri, thread_id, last_seen_post_id, now) do
     valid_watch_query =
       from(watch in Watch,
         join: thread in Post,
@@ -313,7 +337,7 @@ defmodule Eirinchan.ThreadWatcher do
           seen_post.board_id == thread.board_id and seen_post.id == ^last_seen_post_id and
             (seen_post.id == thread.id or seen_post.thread_id == thread.id),
         where:
-          watch.browser_token == ^browser_token and watch.thread_id == ^thread_id and
+          watch.browser_ref == ^browser_ref and watch.thread_id == ^thread_id and
             board.uri == ^board_uri
       )
 
@@ -325,8 +349,8 @@ defmodule Eirinchan.ThreadWatcher do
       |> Repo.update_all([])
 
     case count do
-      0 -> {:ok, Repo.one(from(watch in valid_watch_query, select: watch))}
-      _ -> {:ok, Repo.get_by!(Watch, browser_token: browser_token, thread_id: thread_id)}
+      0 -> Repo.one(from(watch in valid_watch_query, select: watch))
+      _ -> Repo.get_by!(Watch, browser_ref: browser_ref, thread_id: thread_id)
     end
   end
 end

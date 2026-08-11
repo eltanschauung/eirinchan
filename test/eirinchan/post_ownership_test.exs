@@ -10,8 +10,8 @@ defmodule Eirinchan.PostOwnershipTest do
     token = "legacy-browser-token-for-storage"
 
     assert {:ok, ownership} = PostOwnership.record(token, post.id)
-    assert ownership.browser_token == BrowserIdentity.reference(token)
-    refute String.contains?(ownership.browser_token, token)
+    assert ownership.browser_ref == BrowserIdentity.reference(token)
+    refute String.contains?(ownership.browser_ref, token)
     assert PostOwnership.owned_post_ids(token, [post.id]) == MapSet.new([post.id])
   end
 end

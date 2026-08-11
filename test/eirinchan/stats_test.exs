@@ -103,8 +103,8 @@ defmodule Eirinchan.StatsTest do
         "user-agent",
         "Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)"
       )
-      |> Plug.Conn.assign(:browser_token, crawler.browser_ref)
-      |> Plug.Conn.assign(:returning_browser_token, true)
+      |> Plug.Conn.assign(:browser_ref, crawler.browser_ref)
+      |> Plug.Conn.assign(:returning_browser_identity, true)
 
     _ = EirinchanWeb.Plugs.TrackBrowserPresence.call(conn, [])
     BrowserPresence.touch(human.browser_ref)

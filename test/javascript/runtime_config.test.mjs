@@ -56,7 +56,17 @@ function runtimeContext(meta = {}) {
     window
   });
   vm.runInContext(source, context, {filename: "runtime-config.js"});
-  return {document, runtime: window.EirinchanRuntime};
+  return {document, runtime: window.EirinchanRuntime, window};
+}
+
+function memoryStorage(initial = {}) {
+  const entries = new Map(Object.entries(initial));
+
+  return {
+    getItem(key) { return entries.has(key) ? entries.get(key) : null; },
+    setItem(key, value) { entries.set(key, String(value)); },
+    removeItem(key) { entries.delete(key); }
+  };
 }
 
 test("same-origin URL restrictions enforce path boundaries", () => {
@@ -80,6 +90,43 @@ test("malformed cookies fail closed", () => {
 
   assert.equal(runtime.readCookie("broken", "fallback"), "fallback");
   assert.equal(runtime.writeCookie("bad cookie", "value"), false);
+
+  assert.equal(runtime.writeCookie("valid", "value", {maxAge: 60}), true);
+  assert.match(document.cookie, /^valid=value; path=\/; max-age=60; samesite=lax; secure$/);
+});
+
+test("concurrent post-success cookies clear every draft format", () => {
+  const {document, runtime, window} = runtimeContext();
+  const sessionStorage = memoryStorage({
+    "eirinchan:draft:bant:new": JSON.stringify({body: "new thread"}),
+    "eirinchan:draft:tech:42": JSON.stringify({body: "reply"}),
+    body: JSON.stringify({
+      "https://example.test/bant/index.html": "legacy new thread",
+      "https://example.test/tech/res/42.html": "legacy reply",
+      "https://example.test/keep": "keep"
+    })
+  });
+
+  window.sessionStorage = sessionStorage;
+
+  const first = encodeURIComponent(JSON.stringify({
+    draft: "eirinchan:draft:bant:new",
+    url: "https://example.test/bant/index.html"
+  }));
+  const second = encodeURIComponent(JSON.stringify({
+    draft: "eirinchan:draft:tech:42",
+    url: "https://example.test/tech/res/42.html"
+  }));
+
+  document.cookie = "eirinchan_posted_aaaaaaaaaaaaaaaa=" + first +
+    "; eirinchan_posted_bbbbbbbbbbbbbbbb=" + second;
+
+  assert.equal(runtime.consumePostSuccessCookies("eirinchan_posted"), 2);
+  assert.equal(sessionStorage.getItem("eirinchan:draft:bant:new"), null);
+  assert.equal(sessionStorage.getItem("eirinchan:draft:tech:42"), null);
+  assert.deepEqual(JSON.parse(sessionStorage.getItem("body")), {
+    "https://example.test/keep": "keep"
+  });
 });
 
 test("inline image concurrency comes from runtime metadata and defaults to ten", () => {

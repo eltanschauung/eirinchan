@@ -13,7 +13,7 @@ defmodule EirinchanWeb.ThreadWatcherController do
          {:ok, thread} <- Posts.fetch_thread(board, thread_id),
          {:ok, _watch} <-
            ThreadWatcher.watch_thread(
-             conn.assigns.browser_token,
+             conn.assigns.browser_ref,
              board.uri,
              thread.id,
              %{last_seen_post_id: thread.id},
@@ -28,7 +28,7 @@ defmodule EirinchanWeb.ThreadWatcherController do
             thread_id: PublicIds.public_id(thread),
             board: board.uri
           },
-          watcher_metrics(conn.assigns.browser_token)
+          watcher_metrics(conn.assigns.browser_ref)
         )
       )
     else
@@ -48,7 +48,7 @@ defmodule EirinchanWeb.ThreadWatcherController do
   def delete(conn, %{"board" => board_uri, "thread_id" => thread_id}) do
     with {:ok, board} <- fetch_board(board_uri),
          {:ok, _count, public_thread_id} <-
-           unwatch_thread(conn.assigns.browser_token, board, thread_id) do
+           unwatch_thread(conn.assigns.browser_ref, board, thread_id) do
       json(
         conn,
         Map.merge(
@@ -58,7 +58,7 @@ defmodule EirinchanWeb.ThreadWatcherController do
             thread_id: public_thread_id,
             board: board.uri
           },
-          watcher_metrics(conn.assigns.browser_token)
+          watcher_metrics(conn.assigns.browser_ref)
         )
       )
     else
@@ -80,7 +80,7 @@ defmodule EirinchanWeb.ThreadWatcherController do
          true <- post_belongs_to_thread?(last_seen_post, thread),
          {:ok, _watch} <-
            ThreadWatcher.mark_seen(
-             conn.assigns.browser_token,
+             conn.assigns.browser_ref,
              board.uri,
              thread.id,
              last_seen_post.id
@@ -93,7 +93,7 @@ defmodule EirinchanWeb.ThreadWatcherController do
             thread_id: PublicIds.public_id(thread),
             last_seen_post_id: parsed_last_seen_post_id
           },
-          watcher_metrics(conn.assigns.browser_token)
+          watcher_metrics(conn.assigns.browser_ref)
         )
       )
     else
@@ -106,9 +106,9 @@ defmodule EirinchanWeb.ThreadWatcherController do
   end
 
   def clear(conn, _params) do
-    case conn.assigns[:browser_token] do
-      token when is_binary(token) ->
-        {:ok, _count} = ThreadWatcher.clear_watches(token)
+    case conn.assigns[:browser_ref] do
+      browser_ref when is_binary(browser_ref) ->
+        {:ok, _count} = ThreadWatcher.clear_watches(browser_ref)
 
         json(conn, %{
           ok: true,
@@ -122,8 +122,8 @@ defmodule EirinchanWeb.ThreadWatcherController do
     end
   end
 
-  defp watcher_metrics(browser_token) do
-    browser_token
+  defp watcher_metrics(browser_ref) do
+    browser_ref
     |> ThreadWatcher.watch_metrics()
     |> Map.take([:watcher_count, :watcher_unread_count, :watcher_you_count])
   end
@@ -145,17 +145,17 @@ defmodule EirinchanWeb.ThreadWatcherController do
     end
   end
 
-  defp unwatch_thread(browser_token, board, thread_id) do
+  defp unwatch_thread(browser_ref, board, thread_id) do
     case Posts.fetch_thread(board, thread_id) do
       {:ok, thread} ->
-        with {:ok, count} <- ThreadWatcher.unwatch_thread(browser_token, board.uri, thread.id) do
+        with {:ok, count} <- ThreadWatcher.unwatch_thread(browser_ref, board.uri, thread.id) do
           {:ok, count, PublicIds.public_id(thread)}
         end
 
       {:error, :thread_not_found} ->
         case Integer.parse(to_string(thread_id)) do
           {public_thread_id, ""} ->
-            {:ok, count} = ThreadWatcher.unwatch_stale_threads(browser_token, board.uri)
+            {:ok, count} = ThreadWatcher.unwatch_stale_threads(browser_ref, board.uri)
             {:ok, count, public_thread_id}
 
           _ ->
