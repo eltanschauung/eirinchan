@@ -21,6 +21,7 @@ defmodule Eirinchan.EmojiShortcodes do
     "check" => "✅",
     "cherry_blossom" => "🌸",
     "clap" => "👏",
+    "clinking" => "🥂",
     "clown" => "🤡",
     "crossed_fingers" => "🤞",
     "cry" => "😢",
