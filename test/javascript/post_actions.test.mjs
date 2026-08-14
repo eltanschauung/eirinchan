@@ -139,3 +139,26 @@ test("successful post actions follow the server redirect", async () => {
   assert.deepEqual(alerts, []);
   assert.deepEqual(redirects, ["/bant/res/390417.html"]);
 });
+
+test("successful reports use the confirmation popup without navigating", async () => {
+  const {alerts, redirects, runtimeAlerts, window} = actionWindow(
+    `<form name="postcontrols" action="/post.php" method="post">
+      <input type="hidden" name="board" value="bant">
+      <input class="delete" type="checkbox" name="delete_390418" checked>
+      <input type="text" name="reason" value="spam">
+      <input type="submit" name="report" value="Report">
+    </form>`,
+    async () =>
+      new Response(JSON.stringify({redirect: "/bant/res/390417.html", status: "ok"}), {
+        status: 200,
+        headers: {"content-type": "application/json"}
+      })
+  );
+
+  submit(window, 'input[name="report"]');
+  await flushPromises(window);
+
+  assert.deepEqual(alerts, ["Report submitted."]);
+  assert.deepEqual(runtimeAlerts, []);
+  assert.deepEqual(redirects, []);
+});
