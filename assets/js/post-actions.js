@@ -74,13 +74,15 @@
     return payload;
   }
 
+  function showAlert(message) {
+    if (typeof window.alert === "function") window.alert(message);
+    else if (typeof runtime.showAlert === "function") runtime.showAlert(message);
+    else if (typeof window.showAlert === "function") window.showAlert(message);
+  }
+
   function showFailure(action, message) {
     var fallback = action === "report" ? "Report failed. Please try again." : "Delete failed. Please try again.";
-    var text = message || fallback;
-
-    if (typeof window.alert === "function") window.alert(text);
-    else if (typeof runtime.showAlert === "function") runtime.showAlert(text);
-    else if (typeof window.showAlert === "function") window.showAlert(text);
+    showAlert(message || fallback);
   }
 
   function responseBody(response) {
@@ -164,7 +166,8 @@
         });
       })
       .then(function (body) {
-        postActions.navigate(body.redirect);
+        if (action === "report") showAlert("Report submitted.");
+        else postActions.navigate(body.redirect);
       })
       .catch(function (error) {
         showFailure(action, error && error.message);
