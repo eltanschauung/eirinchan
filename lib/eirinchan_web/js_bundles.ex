@@ -14,6 +14,7 @@ defmodule EirinchanWeb.JsBundles do
       "js/mobile-style.js",
       "js/navarrows2.js",
       "js/post-filter.js",
+      "js/post-actions.js",
       "js/image-hover.js",
       "js/show-own-posts-options.js",
       "js/webm-settings.js"
@@ -102,6 +103,7 @@ defmodule EirinchanWeb.JsBundles do
     "js/options/user-js.js" => "assets/js/options/user-js.js",
     "js/post-hover.js" => "assets/js/post-hover.js",
     "js/post-filter.js" => "assets/js/post-filter.js",
+    "js/post-actions.js" => "assets/js/post-actions.js",
     "js/runtime-config.js" => "assets/js/runtime-config.js",
     "js/search.js" => "assets/js/search.js",
     "js/show-own-posts-options.js" => "assets/js/show-own-posts-options.js",
