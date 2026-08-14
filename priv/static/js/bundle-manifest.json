@@ -3,10 +3,10 @@
     {
       "label": "bundle:core",
       "output": "priv/static/js/bundle-public-core.js",
-      "output_bytes": 132895,
+      "output_bytes": 135815,
       "public_path": "/js/bundle-public-core.js",
-      "sha256": "4de5603f17608a46219c68f418c1cd50a83c093507eda808f316257ebb1d70a5",
-      "source_bytes": 174980,
+      "sha256": "33abf52e07fd1e0d619556074e6333445c4565193c0cd561677feff796ff23b1",
+      "source_bytes": 180521,
       "sources": [
         "priv/static/js/jquery.min.js",
         "assets/js/options.js",
@@ -17,6 +17,7 @@
         "assets/js/mobile-style.js",
         "assets/js/navarrows2.js",
         "assets/js/post-filter.js",
+        "assets/js/post-actions.js",
         "assets/js/image-hover.js",
         "assets/js/show-own-posts-options.js",
         "assets/js/webm-settings.js"
@@ -271,6 +272,17 @@
       "source_bytes": 3030,
       "sources": [
         "assets/js/options/user-js.js"
+      ]
+    },
+    {
+      "label": "maintained:js/post-actions.js",
+      "output": "priv/static/js/post-actions.js",
+      "output_bytes": 2922,
+      "public_path": "/js/post-actions.js",
+      "sha256": "40bf3ba7ccd5b6cee14754212f226adb49cb90d72128ec022e0430d4ac05f06c",
+      "source_bytes": 5540,
+      "sources": [
+        "assets/js/post-actions.js"
       ]
     },
     {
