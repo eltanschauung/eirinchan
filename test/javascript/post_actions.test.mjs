@@ -14,12 +14,16 @@ function actionWindow(markup, fetchImplementation) {
     url: "https://example.test/bant/res/390417.html"
   });
   const alerts = [];
+  const runtimeAlerts = [];
   const redirects = [];
 
   dom.window.EirinchanRuntime = {
     showAlert(message) {
-      alerts.push(message);
+      runtimeAlerts.push(message);
     }
+  };
+  dom.window.alert = (message) => {
+    alerts.push(message);
   };
   dom.window.EirinchanPostActions = {
     navigate(redirect) {
@@ -29,7 +33,7 @@ function actionWindow(markup, fetchImplementation) {
   dom.window.fetch = fetchImplementation;
   dom.window.eval(source);
 
-  return {alerts, redirects, window: dom.window};
+  return {alerts, redirects, runtimeAlerts, window: dom.window};
 }
 
 function submit(window, selector) {
@@ -51,7 +55,7 @@ function flushPromises(window) {
 
 test("incorrect quick-action passwords use the rejection popup without navigating", async () => {
   let request;
-  const {alerts, redirects, window} = actionWindow(
+  const {alerts, redirects, runtimeAlerts, window} = actionWindow(
     `<form class="post-actions" action="/post.php" method="post">
       <input type="hidden" name="_csrf_token" value="csrf-token">
       <input type="hidden" name="board" value="bant">
@@ -77,7 +81,9 @@ test("incorrect quick-action passwords use the rejection popup without navigatin
   assert.equal(request.url, "https://example.test/post.php");
   assert.equal(request.options.body.get("delete_post_id"), "390418");
   assert.equal(request.options.body.get("json_response"), "1");
+  assert.equal(request.options.headers.Accept, undefined);
   assert.deepEqual(alerts, ["Incorrect password."]);
+  assert.deepEqual(runtimeAlerts, []);
   assert.deepEqual(redirects, []);
   assert.equal(button.disabled, false);
 });

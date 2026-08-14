@@ -3,10 +3,10 @@
     {
       "label": "bundle:core",
       "output": "priv/static/js/bundle-public-core.js",
-      "output_bytes": 135815,
+      "output_bytes": 135817,
       "public_path": "/js/bundle-public-core.js",
-      "sha256": "33abf52e07fd1e0d619556074e6333445c4565193c0cd561677feff796ff23b1",
-      "source_bytes": 180521,
+      "sha256": "3dda2b494129293c97a3eb96f233da60cf199f7b33fe034bda4b16e293e2ed8c",
+      "source_bytes": 180523,
       "sources": [
         "priv/static/js/jquery.min.js",
         "assets/js/options.js",
@@ -277,10 +277,10 @@
     {
       "label": "maintained:js/post-actions.js",
       "output": "priv/static/js/post-actions.js",
-      "output_bytes": 2922,
+      "output_bytes": 2924,
       "public_path": "/js/post-actions.js",
-      "sha256": "40bf3ba7ccd5b6cee14754212f226adb49cb90d72128ec022e0430d4ac05f06c",
-      "source_bytes": 5540,
+      "sha256": "0df37de7a84ece756029e9c02cf30e14e54d06b03ce6d1e478a83813c8643c89",
+      "source_bytes": 5542,
       "sources": [
         "assets/js/post-actions.js"
       ]

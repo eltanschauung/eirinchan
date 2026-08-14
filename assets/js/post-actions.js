@@ -78,9 +78,9 @@
     var fallback = action === "report" ? "Report failed. Please try again." : "Delete failed. Please try again.";
     var text = message || fallback;
 
-    if (typeof runtime.showAlert === "function") runtime.showAlert(text);
+    if (typeof window.alert === "function") window.alert(text);
+    else if (typeof runtime.showAlert === "function") runtime.showAlert(text);
     else if (typeof window.showAlert === "function") window.showAlert(text);
-    else window.alert(text);
   }
 
   function responseBody(response) {
@@ -151,7 +151,6 @@
         body: payload,
         credentials: "same-origin",
         headers: {
-          Accept: "application/json",
           "X-Requested-With": "XMLHttpRequest"
         }
       })
