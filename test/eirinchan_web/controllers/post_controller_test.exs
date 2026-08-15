@@ -1236,6 +1236,30 @@ defmodule EirinchanWeb.PostControllerTest do
     assert %{"error" => "File too large."} = json_response(conn, 422)
   end
 
+  test "api posting returns the sample filename rejection alert", %{conn: conn} do
+    board = board_fixture(%{config_overrides: %{reject_sample_filenames: true}})
+    referer = "http://www.example.com/#{board.uri}/index.html"
+    csrf_conn = get(conn, "/csrf-token")
+    %{"csrf_token" => csrf_token} = json_response(csrf_conn, 200)
+
+    conn =
+      csrf_conn
+      |> recycle()
+      |> put_req_header("accept", "application/json")
+      |> put_req_header("x-csrf-token", csrf_token)
+      |> put_req_header("referer", referer)
+      |> post("/api/post", %{
+        "board" => board.uri,
+        "body" => "first post",
+        "file" => upload_fixture("preview_sample.png", "sample"),
+        "post" => "New Topic"
+      })
+
+    assert %{
+             "error" => "Your files contain a sample image. Try again with the full version!"
+           } = json_response(conn, 422)
+  end
+
   test "posting rejects duplicate files when global duplicate mode is enabled", %{conn: conn} do
     board = board_fixture(%{config_overrides: %{duplicate_file_mode: "global"}})
     upload = upload_fixture("first.png", "same-bytes")

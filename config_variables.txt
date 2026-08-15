@@ -162,6 +162,7 @@ Canonical keys
 - default_user_flag
 - user_flags
 - duplicate_file_mode
+- reject_sample_filenames
 - max_filesize
 - multiimage_method
 - max_filename_display_length
@@ -238,6 +239,7 @@ Canonical keys
 - error.board_locked
 - error.password
 - error.duplicate_file
+- error.sample_filename
 - error.file_required
 - error.filetype
 - error.mime_exploit
@@ -307,6 +309,7 @@ Deprecated alias keys also accepted
 - generationStrategy
 - replyHardLimit
 - imageHardLimit
+- rejectSampleFilenames
 - maxFilesize
 - thumbWidth
 - thumbHeight

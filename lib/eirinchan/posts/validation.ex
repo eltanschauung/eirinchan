@@ -39,6 +39,9 @@ defmodule Eirinchan.Posts.Validation do
       op? and config.force_image_op and uploads == [] and not embed? and not sticker_op? ->
         {:error, :file_required}
 
+      config.reject_sample_filenames and sample_filename?(uploads) ->
+        {:error, :sample_filename}
+
       op? and length(uploads) > 1 and AccessList.enabled?() and
           not AccessList.allowed?(request[:remote_ip] || request["remote_ip"]) ->
         {:error, :access_list}
@@ -338,6 +341,14 @@ defmodule Eirinchan.Posts.Validation do
          :ok <- validate_upload_size(metadata, config) do
       :ok
     end
+  end
+
+  defp sample_filename?(uploads) do
+    Enum.any?(uploads, fn %Plug.Upload{filename: filename} ->
+      filename
+      |> String.downcase()
+      |> String.contains?("sample")
+    end)
   end
 
   defp validate_raw_upload_types(uploads, config, op?) do

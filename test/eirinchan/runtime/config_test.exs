@@ -71,6 +71,13 @@ defmodule Eirinchan.Runtime.ConfigTest do
              24
   end
 
+  test "defaults and aliases sample filename rejection" do
+    refute Config.default_config().reject_sample_filenames
+    refute Config.compose().reject_sample_filenames
+    assert Config.compose(nil, %{reject_sample_filenames: true}).reject_sample_filenames
+    assert Config.compose(nil, %{"rejectSampleFilenames" => true}).reject_sample_filenames
+  end
+
   test "merges default, instance, and board config before applying computed defaults" do
     defaults = %{
       root: "/",
