@@ -3005,6 +3005,39 @@ defmodule Eirinchan.PostsTest do
              )
   end
 
+  test "create_post rejects sample filenames only when configured" do
+    default_board = board_fixture()
+
+    assert {:ok, _thread, _meta} =
+             Posts.create_post(
+               default_board,
+               %{
+                 "body" => "first post",
+                 "file" => upload_fixture("sample-image.png", "sample"),
+                 "post" => "New Topic"
+               },
+               config: post_config(default_board.config_overrides),
+               request: post_request(default_board.uri)
+             )
+
+    board = board_fixture(%{config_overrides: %{reject_sample_filenames: true}})
+
+    assert {:error, :sample_filename} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "first post",
+                 "files" => [
+                   upload_fixture("full.png", content: "full", geometry: "64x64"),
+                   upload_fixture("Artist-SAMPLE-02.png", content: "sample", geometry: "64x64")
+                 ],
+                 "post" => "New Topic"
+               },
+               config: post_config(board.config_overrides),
+               request: post_request(board.uri)
+             )
+  end
+
   test "create_post allows multi-file posts when max_filesize uses each mode" do
     board = board_fixture(%{config_overrides: %{max_filesize: 550, multiimage_method: "each"}})
 

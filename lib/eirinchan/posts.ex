@@ -72,6 +72,7 @@ defmodule Eirinchan.Posts do
              | :image_too_large
              | :duplicate_thread
              | :duplicate_file
+             | :sample_filename
              | :file_required
              | :invalid_file_type
              | :mime_exploit

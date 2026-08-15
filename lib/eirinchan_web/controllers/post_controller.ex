@@ -792,6 +792,7 @@ defmodule EirinchanWeb.PostController do
   defp error_status(:image_too_large), do: :unprocessable_entity
   defp error_status(:duplicate_thread), do: :unprocessable_entity
   defp error_status(:duplicate_file), do: :unprocessable_entity
+  defp error_status(:sample_filename), do: :unprocessable_entity
   defp error_status(:body_required), do: :unprocessable_entity
   defp error_status(:file_required), do: :unprocessable_entity
   defp error_status(:invalid_file_type), do: :unprocessable_entity
@@ -857,6 +858,7 @@ defmodule EirinchanWeb.PostController do
   defp error_message(:image_too_large, config), do: config.error.image_too_large
   defp error_message(:duplicate_thread, config), do: config.error.duplicate_thread
   defp error_message(:duplicate_file, config), do: config.error.duplicate_file
+  defp error_message(:sample_filename, config), do: config.error.sample_filename
   defp error_message(:body_required, config), do: config.error.tooshort_body
 
   defp error_message(:file_required, config) do
