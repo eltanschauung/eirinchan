@@ -7,7 +7,7 @@ defmodule Eirinchan.Uploads do
   alias Eirinchan.Command
   alias Eirinchan.Posts.Post
 
-  @image_extensions [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".avif"]
+  @image_extensions [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".avif", ".heic"]
   @video_extensions [".webm", ".mp4"]
   @processed_extensions @image_extensions ++ @video_extensions
   @codec_whitelists %{
@@ -187,6 +187,9 @@ defmodule Eirinchan.Uploads do
   defp expected_file_signature?(".avif", <<_size::binary-size(4), "ftyp", brands::binary>>),
     do: String.contains?(brands, ["avif", "avis"])
 
+  defp expected_file_signature?(".heic", <<_size::binary-size(4), "ftyp", brands::binary>>),
+    do: String.contains?(brands, ["heic", "heix", "hevc", "hevx", "heim", "heis", "hevm", "hevs"])
+
   defp expected_file_signature?(".webm", <<0x1A, 0x45, 0xDF, 0xA3, _::binary>>), do: true
   defp expected_file_signature?(".mp4", <<_size::binary-size(4), "ftyp", _::binary>>), do: true
   defp expected_file_signature?(ext, _prefix) when ext in @processed_extensions, do: false
@@ -353,6 +356,9 @@ defmodule Eirinchan.Uploads do
       ext == ".avif" ->
         file_type == "image/avif"
 
+      ext == ".heic" ->
+        file_type in ["image/heic", "image/heif"]
+
       ext == ".svg" ->
         file_type == "image/svg+xml"
 
@@ -412,10 +418,10 @@ defmodule Eirinchan.Uploads do
   def video_extension?(ext) when is_binary(ext), do: ext in @video_extensions
   def video_extension?(_ext), do: false
 
-  defp png_conversion_upload?(%{ext: ext}) when ext in [".avif", ".webp"], do: true
+  defp png_conversion_upload?(%{ext: ext}) when ext in [".avif", ".webp", ".heic"], do: true
 
   defp png_conversion_upload?(%{file_type: file_type})
-       when file_type in ["image/avif", "image/webp"],
+       when file_type in ["image/avif", "image/webp", "image/heic", "image/heif"],
        do: true
 
   defp png_conversion_upload?(_metadata), do: false
@@ -654,6 +660,16 @@ defmodule Eirinchan.Uploads do
     end
   end
 
+  defp convert_to_png(source_path, destination_path, _config, ".heic") do
+    case Command.run("convert", [source_path <> "[0]", destination_path], stderr_to_stdout: true) do
+      {_output, 0} ->
+        if File.exists?(destination_path), do: :ok, else: {:error, :invalid_image}
+
+      _ ->
+        {:error, :invalid_image}
+    end
+  end
+
   defp convert_to_png(source_path, destination_path, config, source_ext) do
     ffmpeg = get_in(config, [:webm, :ffmpeg_path]) || "ffmpeg"
 
@@ -869,7 +885,7 @@ defmodule Eirinchan.Uploads do
 
   defp first_frame_path(path) when is_binary(path) do
     case String.downcase(Path.extname(path)) do
-      ext when ext in [".gif", ".webp"] -> path <> "[0]"
+      ext when ext in [".gif", ".webp", ".heic"] -> path <> "[0]"
       _ -> path
     end
   end
@@ -1343,6 +1359,8 @@ defmodule Eirinchan.Uploads do
   defp canonical_extension_for_file_type("image/x-ms-bmp"), do: ".bmp"
   defp canonical_extension_for_file_type("image/webp"), do: ".webp"
   defp canonical_extension_for_file_type("image/avif"), do: ".avif"
+  defp canonical_extension_for_file_type("image/heic"), do: ".heic"
+  defp canonical_extension_for_file_type("image/heif"), do: ".heic"
   defp canonical_extension_for_file_type(_file_type), do: nil
 
   defp normalized_filename(filename, _config) do

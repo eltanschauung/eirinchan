@@ -905,6 +905,32 @@ defmodule Eirinchan.PostsTest do
     assert File.exists?(Eirinchan.Uploads.filesystem_path(thread.thumb_path))
   end
 
+  test "create_post converts heic uploads to stored png files" do
+    board = board_fixture()
+    upload = heic_upload_fixture("photo.heic")
+
+    assert {:ok, thread, %{noko: false}} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "heic post",
+                 "file" => upload,
+                 "post" => "New Topic"
+               },
+               config: post_config(board.config_overrides),
+               request: post_request(board.uri)
+             )
+
+    assert thread.file_name == "photo.png"
+    assert thread.file_path =~ ~r|^/#{board.uri}/src/\d+\.png$|
+    assert thread.file_type == "image/png"
+    assert thread.image_width == 18
+    assert thread.image_height == 12
+    assert thread.thumb_path =~ ~r|^/#{board.uri}/thumb/\d+s\.png$|
+    assert File.exists?(Eirinchan.Uploads.filesystem_path(thread.file_path))
+    assert File.exists?(Eirinchan.Uploads.filesystem_path(thread.thumb_path))
+  end
+
   test "create_post marks spoiler uploads on primary and extra files" do
     board = board_fixture()
 
