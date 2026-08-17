@@ -4,6 +4,10 @@ defmodule Eirinchan.Runtime.ConfigTest do
   alias Eirinchan.Boards.Board
   alias Eirinchan.Runtime.Config
 
+  test "allows HEIC uploads by default" do
+    assert ".heic" in Config.default_config().allowed_ext_files
+  end
+
   test "defaults global message cache refreshes to 30 seconds" do
     assert Config.default_config().global_message_refresh_seconds == 30
     assert Config.default_config().statistics_snapshots

@@ -341,6 +341,7 @@ defmodule Eirinchan.Runtime.Config do
       ".bmp",
       ".webp",
       ".avif",
+      ".heic",
       ".webm",
       ".mp4",
       ".jxl",

@@ -23,6 +23,24 @@ defmodule Eirinchan.UploadsTest do
     refute Uploads.compatible_with_extension?(".ogg", "text/html")
   end
 
+  test "heic uploads require a HEIF image MIME type" do
+    assert Uploads.compatible_with_extension?(".heic", "image/heic")
+    assert Uploads.compatible_with_extension?(".heic", "image/heif")
+    refute Uploads.compatible_with_extension?(".heic", "image/jpeg")
+  end
+
+  test "preflight validates the HEIC container signature" do
+    heic = raw_upload_fixture("safe.heic", <<0, 0, 0, 28, "ftypheic", 0, 0, 0, 0, "mif1heic">>)
+    disguised = raw_upload_fixture("disguised.heic", <<0xFF, 0xD8, 0xFF, 0, 0, 0, 0, 0>>)
+    on_exit(fn -> File.rm(heic.path) end)
+    on_exit(fn -> File.rm(disguised.path) end)
+
+    config = %{allowed_ext_files: [".heic"], allowed_ext_files_op: nil, max_filesize: 1024}
+
+    assert :ok = Uploads.preflight_upload(heic, config)
+    assert {:error, :mime_exploit} = Uploads.preflight_upload(disguised, config)
+  end
+
   test "preflight rejects a dangerous decoder format disguised as an allowed image" do
     upload = raw_upload_fixture("disguised.png", <<0x50, 0x43, 0x44, 0x5F, 0x49, 0x50, 0x49>>)
     on_exit(fn -> File.rm(upload.path) end)
