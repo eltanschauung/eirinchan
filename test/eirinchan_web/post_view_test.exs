@@ -279,10 +279,15 @@ defmodule EirinchanWeb.PostViewTest do
 
     badge = PostView.poster_identity_badge(reply_same_thread, config)
 
+    assert badge.kind == :standard
     assert badge.class == "poster_id standard_poster_id"
     assert badge.style =~ "background-color:"
     assert badge.style =~ "border-radius: 6px;"
     assert html =~ ~s(class="poster_id standard_poster_id")
+    assert html =~ ~s(data-poster-id="#{same_thread_id}")
+    assert html =~ ~s(role="button")
+    assert html =~ ~s(tabindex="0")
+    assert html =~ ~s(aria-pressed="false")
     assert html =~ same_thread_id
   end
 
@@ -302,6 +307,7 @@ defmodule EirinchanWeb.PostViewTest do
 
     badge = PostView.poster_identity_badge(post, config)
 
+    assert badge.kind == :standard
     assert badge.class == "poster_id standard_poster_id"
     assert badge.style =~ "background-color:"
     assert html =~ ~s(class="poster_id standard_poster_id")
@@ -324,10 +330,15 @@ defmodule EirinchanWeb.PostViewTest do
     html = PostComponents.post_identity_html(%{post: post, config: config, board: board})
 
     assert PostView.poster_id(post, config) == "Judaism ✡"
+    assert badge.kind == :april_fools
     assert badge.label == "Judaism ✡"
     assert badge.class == "poster_id april_fools_team"
     assert badge.style =~ "#000080"
     assert html =~ ~s(class="poster_id april_fools_team")
+    refute html =~ "data-poster-id"
+    refute html =~ ~s(role="button")
+    refute html =~ ~s(tabindex="0")
+    refute html =~ "aria-pressed"
     assert html =~ "Judaism ✡"
   end
 

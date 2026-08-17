@@ -15,6 +15,7 @@ defmodule EirinchanWeb.JsBundles do
       "js/navarrows2.js",
       "js/post-filter.js",
       "js/post-actions.js",
+      "js/poster-id-highlighting.js",
       "js/image-hover.js",
       "js/show-own-posts-options.js",
       "js/webm-settings.js"
@@ -104,6 +105,7 @@ defmodule EirinchanWeb.JsBundles do
     "js/post-hover.js" => "assets/js/post-hover.js",
     "js/post-filter.js" => "assets/js/post-filter.js",
     "js/post-actions.js" => "assets/js/post-actions.js",
+    "js/poster-id-highlighting.js" => "assets/js/poster-id-highlighting.js",
     "js/runtime-config.js" => "assets/js/runtime-config.js",
     "js/search.js" => "assets/js/search.js",
     "js/show-own-posts-options.js" => "assets/js/show-own-posts-options.js",

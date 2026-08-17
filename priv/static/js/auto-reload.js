@@ -666,7 +666,7 @@ window.auto_reload_enabled = true;
         replacementCheckbox.checked = currentCheckbox.checked;
       }
 
-      ["highlighted", "mentioned", "filtered", "hidden"].forEach(function (className) {
+      ["highlighted", "poster-id-highlighted", "mentioned", "filtered", "hidden"].forEach(function (className) {
         if (current.classList.contains(className)) {
           replacement.classList.add(className);
         }

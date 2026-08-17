@@ -139,3 +139,19 @@ test("fetched reply hover keeps reply media without borrowing OP media", async (
   assert.equal(preview.querySelector('[data-media-owner="op"]'), null);
   window.close();
 });
+
+test("quote hover does not clear a poster-ID highlight", async () => {
+  const window = await hoverPreview({
+    quote:
+      '<a id="quote" data-highlight-reply="392885" href="/bant/res/392885.html#392885">&gt;&gt;392885</a>',
+    response: ""
+  });
+
+  const post = window.document.getElementById("reply_392885");
+  const quote = window.document.getElementById("quote");
+  post.classList.add("poster-id-highlighted", "highlighted");
+
+  window.jQuery(quote).trigger("mouseleave");
+  assert.equal(post.classList.contains("highlighted"), true);
+  window.close();
+});

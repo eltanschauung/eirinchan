@@ -71,6 +71,7 @@ defmodule Eirinchan.PosterIds do
     case AprilFoolsTeams.badge(post) do
       %{label: label, html_colour: html_colour, text_colour: text_colour} ->
         %{
+          kind: :april_fools,
           label: label,
           class: "poster_id april_fools_team",
           style:
@@ -96,6 +97,7 @@ defmodule Eirinchan.PosterIds do
     html_colour = Enum.at(@colours, :erlang.phash2(label, length(@colours)))
 
     %{
+      kind: :standard,
       label: label,
       class: "poster_id standard_poster_id",
       style:

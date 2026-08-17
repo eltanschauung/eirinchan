@@ -3,10 +3,10 @@
     {
       "label": "bundle:core",
       "output": "priv/static/js/bundle-public-core.js",
-      "output_bytes": 135864,
+      "output_bytes": 137811,
       "public_path": "/js/bundle-public-core.js",
-      "sha256": "410a54b8d2df6a38b68c2ecf0350ea4f9f5800ba05461e4a38cbb404355b66ce",
-      "source_bytes": 180638,
+      "sha256": "45b3a167fed900d2af8927493ab6ec65345b34297f720ddc9b75958be8b44a85",
+      "source_bytes": 184582,
       "sources": [
         "priv/static/js/jquery.min.js",
         "assets/js/options.js",
@@ -18,6 +18,7 @@
         "assets/js/navarrows2.js",
         "assets/js/post-filter.js",
         "assets/js/post-actions.js",
+        "assets/js/poster-id-highlighting.js",
         "assets/js/image-hover.js",
         "assets/js/show-own-posts-options.js",
         "assets/js/webm-settings.js"
@@ -26,10 +27,10 @@
     {
       "label": "bundle:default",
       "output": "priv/static/js/bundle-public-default.js",
-      "output_bytes": 12032,
+      "output_bytes": 12070,
       "public_path": "/js/bundle-public-default.js",
-      "sha256": "1e4b0a6ac02063aefb59a21ed24f18917755732c022a43c9a8930e891ce958a7",
-      "source_bytes": 22300,
+      "sha256": "6f134ec150f0f6e3d8c03d850210caf004c7adf2ae6113d309f113c0248a4f17",
+      "source_bytes": 22373,
       "sources": [
         "assets/js/inline-expanding.js",
         "priv/static/js/expand.js",
@@ -40,10 +41,10 @@
     {
       "label": "bundle:thread",
       "output": "priv/static/js/bundle-public-thread.js",
-      "output_bytes": 309158,
+      "output_bytes": 309196,
       "public_path": "/js/bundle-public-thread.js",
-      "sha256": "bc88b4abeb50ceb98822d9ef625287092facedbc1eef75b14a6df4eaf00c35c8",
-      "source_bytes": 342328,
+      "sha256": "bf4505a9ceec093c748864b5a6801d48ef3f76f829e50454795466b158b88264",
+      "source_bytes": 342401,
       "sources": [
         "assets/js/inline-expanding.js",
         "priv/static/js/thread-stats.js",
@@ -68,10 +69,10 @@
     {
       "label": "bundle:index",
       "output": "priv/static/js/bundle-public-index.js",
-      "output_bytes": 311877,
+      "output_bytes": 311915,
       "public_path": "/js/bundle-public-index.js",
-      "sha256": "e4da7bee7cebe6a994616dd699d2293328e5865a09af920a27b6f5628243a62d",
-      "source_bytes": 348509,
+      "sha256": "576d1d89c1bc9e1d463f1d38a021d342806ecb10eda48eb4d4ad29d88a88faaa",
+      "source_bytes": 348582,
       "sources": [
         "assets/js/inline-expanding.js",
         "priv/static/js/strftime.min.js",
@@ -299,12 +300,23 @@
     {
       "label": "maintained:js/post-hover.js",
       "output": "priv/static/js/post-hover.js",
-      "output_bytes": 4795,
+      "output_bytes": 4833,
       "public_path": "/js/post-hover.js",
-      "sha256": "97f8d6df7a94871cc308d3fe50a5b7a0986c304aa529283ca096dd5fca2517f6",
-      "source_bytes": 10726,
+      "sha256": "e392811ceaf271a6b2960e29624d958afbc366ee3ffd6bfd9bc75f6561f827ae",
+      "source_bytes": 10799,
       "sources": [
         "assets/js/post-hover.js"
+      ]
+    },
+    {
+      "label": "maintained:js/poster-id-highlighting.js",
+      "output": "priv/static/js/poster-id-highlighting.js",
+      "output_bytes": 1949,
+      "public_path": "/js/poster-id-highlighting.js",
+      "sha256": "ff4126b396c80f38c92e5c3e98b3199d66a6cb27a54bb76ff2cf283b1b73ff8a",
+      "source_bytes": 3943,
+      "sources": [
+        "assets/js/poster-id-highlighting.js"
       ]
     },
     {

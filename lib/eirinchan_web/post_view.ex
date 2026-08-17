@@ -189,6 +189,9 @@ defmodule EirinchanWeb.PostView do
   def poster_identity_label(%{label: label}) when is_binary(label), do: label
   def poster_identity_label(_badge), do: nil
 
+  def standard_poster_identity?(%{kind: :standard}), do: true
+  def standard_poster_identity?(_badge), do: false
+
   def backlinks_html(post, backlinks_map \\ %{}) do
     EirinchanWeb.PostComponents.backlinks_html(%{
       post: post,

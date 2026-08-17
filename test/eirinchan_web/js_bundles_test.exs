@@ -78,6 +78,11 @@ defmodule EirinchanWeb.JsBundlesTest do
     assert outputs["assets/app.js"] == "assets/js/app.js"
     assert outputs["js/options.js"] == "assets/js/options.js"
 
+    assert outputs["js/poster-id-highlighting.js"] ==
+             "assets/js/poster-id-highlighting.js"
+
+    assert "js/poster-id-highlighting.js" in JsBundles.sources_for(:core)
+
     Enum.each(outputs, fn {public_output, source} ->
       assert String.starts_with?(JsBundles.output_path(public_output), "priv/static/")
       refute String.starts_with?(source, "priv/static/")

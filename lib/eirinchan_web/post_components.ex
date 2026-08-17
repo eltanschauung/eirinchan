@@ -364,6 +364,13 @@ defmodule EirinchanWeb.PostComponents do
       :if={@poster_badge}
       class={PostView.poster_identity_class(@poster_badge)}
       style={PostView.poster_identity_style(@poster_badge)}
+      data-poster-id={
+        PostView.standard_poster_identity?(@poster_badge) &&
+          PostView.poster_identity_label(@poster_badge)
+      }
+      role={PostView.standard_poster_identity?(@poster_badge) && "button"}
+      tabindex={PostView.standard_poster_identity?(@poster_badge) && "0"}
+      aria-pressed={PostView.standard_poster_identity?(@poster_badge) && "false"}
     ><%= PostView.poster_identity_label(@poster_badge) %></span>
     """
   end
