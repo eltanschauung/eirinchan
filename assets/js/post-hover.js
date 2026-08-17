@@ -295,7 +295,9 @@
           },
           function () {
             hovered = false;
-            if (post && post.length) post.removeClass("highlighted");
+            if (post && post.length && !post.hasClass("poster-id-highlighted")) {
+              post.removeClass("highlighted");
+            }
             $(".post-hover").remove();
           }
         )

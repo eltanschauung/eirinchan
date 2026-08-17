@@ -70,6 +70,7 @@ defmodule Eirinchan.PosterIds do
     html_colour = Enum.at(@colours, :erlang.phash2(label, length(@colours)))
 
     %{
+      kind: :standard,
       label: label,
       class: "poster_id standard_poster_id",
       style:

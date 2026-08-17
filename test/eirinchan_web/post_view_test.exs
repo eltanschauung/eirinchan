@@ -283,10 +283,15 @@ defmodule EirinchanWeb.PostViewTest do
 
     badge = PostView.poster_identity_badge(reply_same_thread, config)
 
+    assert badge.kind == :standard
     assert badge.class == "poster_id standard_poster_id"
     assert badge.style =~ "background-color:"
     assert badge.style =~ "border-radius: 6px;"
     assert html =~ ~s(class="poster_id standard_poster_id")
+    assert html =~ ~s(data-poster-id="#{same_thread_id}")
+    assert html =~ ~s(role="button")
+    assert html =~ ~s(tabindex="0")
+    assert html =~ ~s(aria-pressed="false")
     assert html =~ same_thread_id
   end
 
@@ -306,6 +311,7 @@ defmodule EirinchanWeb.PostViewTest do
 
     badge = PostView.poster_identity_badge(post, config)
 
+    assert badge.kind == :standard
     assert badge.class == "poster_id standard_poster_id"
     assert badge.style =~ "background-color:"
     assert html =~ ~s(class="poster_id standard_poster_id")
