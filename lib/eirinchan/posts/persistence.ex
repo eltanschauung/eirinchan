@@ -9,6 +9,7 @@ defmodule Eirinchan.Posts.Persistence do
   alias Eirinchan.Posts.NntpReference
   alias Eirinchan.Posts.Post
   alias Eirinchan.Posts.PostFile
+  alias Eirinchan.Posts.PostFingerprint
   alias Eirinchan.Posts.ThreadFingerprint
   alias Eirinchan.Posts
   alias Eirinchan.Uploads
@@ -17,14 +18,28 @@ defmodule Eirinchan.Posts.Persistence do
           BoardRecord.t(),
           Post.t() | nil,
           map(),
+          map(),
           module(),
           map(),
           DateTime.t(),
           (-> :ok)
         ) ::
           {:ok, Post.t()} | {:error, term()}
-  def create_post_record(%BoardRecord{} = board, thread, attrs, repo, config, now, after_insert) do
-    attrs = ThreadFingerprint.put(attrs, thread, config)
+  def create_post_record(
+        %BoardRecord{} = board,
+        thread,
+        attrs,
+        request,
+        repo,
+        config,
+        now,
+        after_insert
+      ) do
+    attrs =
+      attrs
+      |> ThreadFingerprint.put(thread, config)
+      |> PostFingerprint.put(request, config)
+
     upload_entries = Map.get(attrs, "__upload_entries__", [])
     cleanup_key = {__MODULE__, make_ref()}
     Process.put(cleanup_key, [])
@@ -32,6 +47,7 @@ defmodule Eirinchan.Posts.Persistence do
     try do
       case repo.transaction(fn ->
              with :ok <- reject_recent_duplicate_thread(board, thread, attrs, repo, config, now),
+                  :ok <- reject_recent_duplicate_post(board, attrs, repo, config, now),
                   {:ok, locked_board} <- lock_board(board, repo),
                   {:ok, attrs} <- allocate_public_id(locked_board, attrs, repo),
                   {:ok, post} <- insert_post(locked_board, thread, attrs, repo, config, now),
@@ -247,6 +263,30 @@ defmodule Eirinchan.Posts.Persistence do
         )
 
       if duplicate?, do: {:error, :duplicate_thread}, else: :ok
+    else
+      :ok
+    end
+  end
+
+  defp reject_recent_duplicate_post(board, attrs, repo, config, now) do
+    minutes = PostFingerprint.window_minutes(config)
+    fingerprint = Map.get(attrs, "duplicate_post_fingerprint")
+    identity = Map.get(attrs, "duplicate_post_identity")
+
+    if minutes > 0 and is_binary(fingerprint) and is_binary(identity) do
+      lock_scope = "duplicate-post:#{board.id}:#{identity}:#{fingerprint}"
+      repo.query!("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [lock_scope])
+      cutoff = DateTime.add(now, -minutes * 60, :second)
+
+      duplicate? =
+        repo.exists?(
+          from post in Post,
+            where:
+              post.board_id == ^board.id and post.duplicate_post_identity == ^identity and
+                post.duplicate_post_fingerprint == ^fingerprint and post.inserted_at >= ^cutoff
+        )
+
+      if duplicate?, do: {:error, :duplicate_post}, else: :ok
     else
       :ok
     end

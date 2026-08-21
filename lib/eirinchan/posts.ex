@@ -70,6 +70,7 @@ defmodule Eirinchan.Posts do
              | :image_hard_limit
              | :invalid_image
              | :image_too_large
+             | :duplicate_post
              | :duplicate_thread
              | :duplicate_file
              | :sample_filename
@@ -281,6 +282,7 @@ defmodule Eirinchan.Posts do
                   board,
                   thread,
                   attrs,
+                  request,
                   repo,
                   config,
                   now,

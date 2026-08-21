@@ -75,6 +75,20 @@ defmodule Eirinchan.Runtime.ConfigTest do
              24
   end
 
+  test "defaults, normalizes, and aliases the duplicate post window" do
+    assert Config.default_config().duplicate_post_window_minutes == 60
+    assert Config.compose().duplicate_post_window_minutes == 60
+
+    assert Config.compose(nil, %{duplicate_post_window_minutes: 0}).duplicate_post_window_minutes ==
+             0
+
+    assert Config.compose(nil, %{"duplicatePostWindowMinutes" => "90"}).duplicate_post_window_minutes ==
+             90
+
+    assert Config.compose(nil, %{duplicate_post_window_minutes: -1}).duplicate_post_window_minutes ==
+             60
+  end
+
   test "defaults and aliases sample filename rejection" do
     refute Config.default_config().reject_sample_filenames
     refute Config.compose().reject_sample_filenames

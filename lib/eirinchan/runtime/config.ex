@@ -166,6 +166,7 @@ defmodule Eirinchan.Runtime.Config do
     flood_global_count: 300,
     filters: nil,
     max_threads_per_hour: 0,
+    duplicate_post_window_minutes: 60,
     markup_urls: true,
     max_links: 20,
     duplicate_thread_window_hours: 24,
@@ -426,6 +427,7 @@ defmodule Eirinchan.Runtime.Config do
       image_hard_limit: "Thread has reached its maximum image limit.",
       board_locked: "Board is locked.",
       password: "Incorrect password.",
+      duplicate_post: "You already posted that recently.",
       duplicate_thread: "An identical thread was posted too recently.",
       duplicate_file: "Duplicate file.",
       sample_filename: "Your files contain a sample image. Try again with the full version!",
@@ -501,6 +503,7 @@ defmodule Eirinchan.Runtime.Config do
     "browserAbuseChallengeSeconds" => :browser_abuse_challenge_seconds,
     "filters" => :filters,
     "maxThreadsPerHour" => :max_threads_per_hour,
+    "duplicatePostWindowMinutes" => :duplicate_post_window_minutes,
     "duplicateThreadWindowHours" => :duplicate_thread_window_hours,
     "markupUrls" => :markup_urls,
     "maxLinks" => :max_links,
@@ -654,6 +657,11 @@ defmodule Eirinchan.Runtime.Config do
     identity_rotation = min(config.browser_identity_rotation_seconds, identity_ttl)
 
     config
+    |> Map.update(
+      :duplicate_post_window_minutes,
+      60,
+      &bounded_non_negative_integer(&1, 60, 525_600)
+    )
     |> Map.update(
       :duplicate_thread_window_hours,
       24,
