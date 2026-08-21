@@ -3173,7 +3173,7 @@ defmodule Eirinchan.PostsTest do
              )
   end
 
-  test "create_post rejects sample filenames only when configured" do
+  test "create_post rejects sample and p0_master filenames only when configured" do
     default_board = board_fixture()
 
     assert {:ok, _thread, _meta} =
@@ -3199,6 +3199,22 @@ defmodule Eirinchan.PostsTest do
                    upload_fixture("full.png", content: "full", geometry: "64x64"),
                    upload_fixture("Artist-SAMPLE-02.png", content: "sample", geometry: "64x64")
                  ],
+                 "post" => "New Topic"
+               },
+               config: post_config(board.config_overrides),
+               request: post_request(board.uri)
+             )
+
+    assert {:error, :sample_filename} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "second post",
+                 "file" =>
+                   upload_fixture("Artwork-P0_MASTER-final.png",
+                     content: "master",
+                     geometry: "64x64"
+                   ),
                  "post" => "New Topic"
                },
                config: post_config(board.config_overrides),
