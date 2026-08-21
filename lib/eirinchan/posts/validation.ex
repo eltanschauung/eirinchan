@@ -347,7 +347,7 @@ defmodule Eirinchan.Posts.Validation do
     Enum.any?(uploads, fn %Plug.Upload{filename: filename} ->
       filename
       |> String.downcase()
-      |> String.contains?("sample")
+      |> String.contains?(["sample", "p0_master"])
     end)
   end
 
