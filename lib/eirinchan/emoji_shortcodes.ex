@@ -111,7 +111,7 @@ defmodule Eirinchan.EmojiShortcodes do
     "warning" => "⚠️",
     "wave" => "👋",
     "white_heart" => "🤍",
-    "wink" => "😉",
+    "winking" => "😉",
     "writing_hand" => "✍️",
     "x" => "❌",
     "yellow_heart" => "💛",

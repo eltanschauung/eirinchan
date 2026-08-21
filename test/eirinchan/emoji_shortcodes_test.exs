@@ -58,6 +58,10 @@ defmodule Eirinchan.EmojiShortcodesTest do
     assert EmojiShortcodes.replace(":clinking:") == "🥂"
   end
 
+  test "uses winking rather than wink for the winking-face emoji" do
+    assert EmojiShortcodes.replace(":winking: :wink:") == "😉 :wink:"
+  end
+
   test "replaces every configured shortcode" do
     entries =
       EmojiShortcodes.entries()
