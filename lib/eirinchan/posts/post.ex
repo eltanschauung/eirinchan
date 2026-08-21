@@ -41,6 +41,8 @@ defmodule Eirinchan.Posts.Post do
     field :legacy_import_id, :integer
     field :team, :integer
     field :thread_fingerprint, :string
+    field :duplicate_post_fingerprint, :string
+    field :duplicate_post_identity, :string
 
     belongs_to :board, Eirinchan.Boards.BoardRecord
     belongs_to :thread, __MODULE__
@@ -89,7 +91,9 @@ defmodule Eirinchan.Posts.Post do
       :public_id,
       :legacy_import_id,
       :team,
-      :thread_fingerprint
+      :thread_fingerprint,
+      :duplicate_post_fingerprint,
+      :duplicate_post_identity
     ])
     |> update_change(:name, &normalize_string/1)
     |> update_change(:email, &normalize_string/1)

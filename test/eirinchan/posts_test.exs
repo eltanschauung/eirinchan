@@ -95,6 +95,12 @@ defmodule Eirinchan.PostsTest do
     %{referer: "http://example.test/#{board_uri}/index.html"}
   end
 
+  defp identified_post_request(board_uri, identity, remote_ip \\ {203, 0, 113, 60}) do
+    post_request(board_uri)
+    |> Map.put(:browser_ref, BrowserIdentity.reference(identity))
+    |> Map.put(:remote_ip, remote_ip)
+  end
+
   defp rejected_upload do
     %Plug.Upload{filename: "payload.jpg", path: "/upload-must-not-be-processed"}
   end
@@ -215,6 +221,141 @@ defmodule Eirinchan.PostsTest do
              Posts.create_post(board, attrs, config: config, request: request)
 
     assert second.thread_fingerprint == first.thread_fingerprint
+  end
+
+  test "create_post rejects a recent duplicate text reply from the same browser" do
+    board = board_fixture()
+    thread = thread_fixture(board)
+    config = post_config(board.config_overrides)
+    request = identified_post_request(board.uri, "same-browser")
+
+    attrs = %{
+      "thread" => Integer.to_string(PublicIds.public_id(thread)),
+      "body" => "I miss him",
+      "post" => "New Reply"
+    }
+
+    assert {:ok, first, _meta} =
+             Posts.create_post(board, attrs, config: config, request: request)
+
+    assert is_binary(first.duplicate_post_fingerprint)
+    assert byte_size(first.duplicate_post_fingerprint) == 64
+    assert byte_size(first.duplicate_post_identity) == 43
+
+    assert {:error, :duplicate_post} =
+             Posts.create_post(
+               board,
+               %{attrs | "body" => "  I miss him\r\n"},
+               config: config,
+               request: request
+             )
+
+    assert {:ok, _other_browser_reply, _meta} =
+             Posts.create_post(
+               board,
+               attrs,
+               config: config,
+               request: identified_post_request(board.uri, "other-browser")
+             )
+  end
+
+  test "create_post compares the complete upload content when rejecting duplicates" do
+    board = board_fixture()
+    thread = thread_fixture(board)
+    config = post_config(board.config_overrides)
+    request = identified_post_request(board.uri, "media-browser")
+    thread_id = Integer.to_string(PublicIds.public_id(thread))
+
+    assert {:ok, _first, _meta} =
+             Posts.create_post(
+               board,
+               %{
+                 "thread" => thread_id,
+                 "body" => "same caption",
+                 "file" => upload_fixture("first.png", "first-media"),
+                 "post" => "New Reply"
+               },
+               config: config,
+               request: request
+             )
+
+    assert {:ok, _different_media, _meta} =
+             Posts.create_post(
+               board,
+               %{
+                 "thread" => thread_id,
+                 "body" => "same caption",
+                 "file" => upload_fixture("different.png", "different-media"),
+                 "post" => "New Reply"
+               },
+               config: config,
+               request: request
+             )
+
+    assert {:error, :duplicate_post} =
+             Posts.create_post(
+               board,
+               %{
+                 "thread" => thread_id,
+                 "body" => "same caption",
+                 "file" => upload_fixture("renamed.png", "first-media"),
+                 "post" => "New Reply"
+               },
+               config: config,
+               request: request
+             )
+  end
+
+  test "create_post permits duplicate replies when duplicate post rejection is disabled" do
+    board = board_fixture(%{config_overrides: %{duplicate_post_window_minutes: 0}})
+    thread = thread_fixture(board)
+    config = post_config(board.config_overrides)
+    request = identified_post_request(board.uri, "disabled-browser")
+
+    attrs = %{
+      "thread" => Integer.to_string(PublicIds.public_id(thread)),
+      "body" => "repeatable reply",
+      "post" => "New Reply"
+    }
+
+    assert {:ok, first, _meta} =
+             Posts.create_post(board, attrs, config: config, request: request)
+
+    assert {:ok, second, _meta} =
+             Posts.create_post(board, attrs, config: config, request: request)
+
+    assert is_nil(first.duplicate_post_fingerprint)
+    assert is_nil(second.duplicate_post_fingerprint)
+  end
+
+  test "create_post permits an identical reply outside the duplicate post window" do
+    board = board_fixture(%{config_overrides: %{duplicate_post_window_minutes: 1}})
+    thread = thread_fixture(board)
+    config = post_config(board.config_overrides)
+    request = identified_post_request(board.uri, "expired-browser")
+
+    attrs = %{
+      "thread" => Integer.to_string(PublicIds.public_id(thread)),
+      "body" => "repeat after expiry",
+      "post" => "New Reply"
+    }
+
+    assert {:ok, first, _meta} =
+             Posts.create_post(board, attrs, config: config, request: request)
+
+    first
+    |> Ecto.Changeset.change(
+      inserted_at:
+        DateTime.utc_now()
+        |> DateTime.add(-2 * 60, :second)
+        |> DateTime.truncate(:second)
+    )
+    |> Repo.update!()
+
+    assert {:ok, second, _meta} =
+             Posts.create_post(board, attrs, config: config, request: request)
+
+    assert second.duplicate_post_fingerprint == first.duplicate_post_fingerprint
   end
 
   test "create_post creates a reply when a valid thread is supplied" do
@@ -1552,7 +1693,8 @@ defmodule Eirinchan.PostsTest do
           max_pages: 5,
           flood_time: 0,
           flood_time_ip: 0,
-          flood_time_same: 0
+          flood_time_same: 0,
+          duplicate_post_window_minutes: 0
         }
       })
 

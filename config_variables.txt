@@ -79,6 +79,7 @@ Canonical keys
 - flood_time_same
 - filters
 - max_threads_per_hour
+- duplicate_post_window_minutes
 - markup_urls
 - max_links
 - board_search
@@ -239,6 +240,7 @@ Canonical keys
 - error.image_hard_limit
 - error.board_locked
 - error.password
+- error.duplicate_post
 - error.duplicate_file
 - error.sample_filename
 - error.file_required
@@ -292,6 +294,7 @@ Deprecated alias keys also accepted
 - floodTimeSame
 - filters
 - maxThreadsPerHour
+- duplicatePostWindowMinutes
 - markupUrls
 - maxLinks
 - boardSearch

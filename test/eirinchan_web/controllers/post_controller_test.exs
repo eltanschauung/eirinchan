@@ -1354,6 +1354,42 @@ defmodule EirinchanWeb.PostControllerTest do
            } = json_response(duplicate_conn, 422)
   end
 
+  test "posting returns the duplicate post rejection through the JSON alert pipeline", %{
+    conn: conn
+  } do
+    board = board_fixture()
+    thread = thread_fixture(board)
+    referer = "http://www.example.com/#{board.uri}/index.html"
+    token = browser_token("duplicate-post-alert")
+
+    attrs = %{
+      "thread" => Integer.to_string(PublicIds.public_id(thread)),
+      "body" => "I miss him",
+      "json_response" => "1",
+      "post" => "New Reply"
+    }
+
+    first_conn =
+      conn
+      |> put_req_cookie("__Host-eirinchan_browser", Eirinchan.BrowserIdentity.issue(token))
+      |> put_req_header("referer", referer)
+      |> post(~p"/#{board.uri}/post", attrs)
+
+    assert %{"id" => _id} = json_response(first_conn, 200)
+
+    duplicate_conn =
+      first_conn
+      |> recycle()
+      |> put_req_cookie("__Host-eirinchan_browser", Eirinchan.BrowserIdentity.issue(token))
+      |> put_req_header("referer", referer)
+      |> post(~p"/#{board.uri}/post", attrs)
+
+    assert %{
+             "error" => "You already posted that recently.",
+             "error_code" => "duplicate_post"
+           } = json_response(duplicate_conn, 422)
+  end
+
   test "posting redirects use canonical slug thread paths when slugify is enabled", %{conn: conn} do
     board = board_fixture(%{config_overrides: %{slugify: true}})
 
