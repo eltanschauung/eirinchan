@@ -7,6 +7,8 @@ defmodule Eirinchan.Statistics.Store do
   alias Eirinchan.Repo
   alias Eirinchan.Statistics.SearchTerm
   alias Eirinchan.Statistics.Snapshot
+  alias Eirinchan.Statistics.Week
+  alias Eirinchan.Statistics.WeeklyVisitors
   alias Eirinchan.Stats
 
   @search_identity_limits [
@@ -45,6 +47,7 @@ defmodule Eirinchan.Statistics.Store do
     presence_server = Keyword.get(opts, :presence_server, Eirinchan.BrowserPresence)
     captured_at = Keyword.get(opts, :captured_at, DateTime.utc_now(:microsecond))
     daily? = Keyword.get(opts, :daily?, false)
+    weekly_start = Keyword.get(opts, :weekly_start)
     period_end = DateTime.truncate(period_end, :second)
     period_start = DateTime.add(period_end, -3_600, :second)
     board_ids = Boards.list_boards(repo: repo) |> Enum.map(& &1.id)
@@ -87,9 +90,15 @@ defmodule Eirinchan.Statistics.Store do
             lock: "FOR UPDATE"
         )
 
-      snapshot
-      |> Snapshot.changeset(attrs)
-      |> repo.update!()
+      attrs = weekly_attrs(attrs, snapshot, weekly_start, repo)
+
+      updated_snapshot =
+        snapshot
+        |> Snapshot.changeset(attrs)
+        |> repo.update!()
+
+      if weekly_start, do: WeeklyVisitors.clear(repo, weekly_start)
+      updated_snapshot
     end)
     |> transaction_result()
   end
@@ -106,6 +115,26 @@ defmodule Eirinchan.Statistics.Store do
     ) || %{}
   end
 
+  def weekly_unique_visitor_rollups(opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+
+    repo.all(
+      from snapshot in Snapshot,
+        where:
+          snapshot.finalized and not is_nil(snapshot.weekly_period_start) and
+            not is_nil(snapshot.weekly_unique_visitors),
+        order_by: snapshot.weekly_period_start,
+        select: {snapshot.weekly_period_start, snapshot.weekly_unique_visitors}
+    )
+    |> Enum.map(fn {week_start, unique_visitors} ->
+      %{
+        week_start: week_start,
+        week_end: Week.end_at(week_start),
+        unique_visitors: unique_visitors
+      }
+    end)
+  end
+
   defp requests_in_previous_24_hours(repo, period_end) do
     cutoff = DateTime.add(period_end, -24 * 3_600, :second)
 
@@ -117,6 +146,20 @@ defmodule Eirinchan.Statistics.Store do
     |> Enum.reduce(0, fn counters, total ->
       total + Map.get(counters || %{}, "requests.total", 0)
     end)
+  end
+
+  defp weekly_attrs(attrs, _snapshot, nil, _repo), do: attrs
+
+  defp weekly_attrs(attrs, snapshot, weekly_start, repo) do
+    unique_visitors =
+      if is_integer(snapshot.weekly_unique_visitors),
+        do: snapshot.weekly_unique_visitors,
+        else: WeeklyVisitors.count(repo, weekly_start)
+
+    Map.merge(attrs, %{
+      weekly_period_start: weekly_start,
+      weekly_unique_visitors: unique_visitors
+    })
   end
 
   defp stringify_keys(map) do

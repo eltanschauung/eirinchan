@@ -7,6 +7,7 @@ defmodule Eirinchan.Statistics.Report do
   alias Eirinchan.Statistics
   alias Eirinchan.Statistics.SearchTerm
   alias Eirinchan.Statistics.Snapshot
+  alias Eirinchan.Statistics.Week
   alias Eirinchan.Settings
 
   @challenge_step_percent 80
@@ -235,7 +236,13 @@ defmodule Eirinchan.Statistics.Report do
       users_10minutes: snapshot.users_10minutes || 0,
       counters: snapshot.counters || %{},
       daily_total_requests: snapshot.daily_total_requests,
-      daily_unique_visitors: snapshot.daily_unique_visitors
+      daily_unique_visitors: snapshot.daily_unique_visitors,
+      weekly_period_start:
+        snapshot.weekly_period_start && DateTime.to_iso8601(snapshot.weekly_period_start),
+      weekly_period_end:
+        snapshot.weekly_period_start &&
+          snapshot.weekly_period_start |> Week.end_at() |> DateTime.to_iso8601(),
+      weekly_unique_visitors: snapshot.weekly_unique_visitors
     }
   end
 end

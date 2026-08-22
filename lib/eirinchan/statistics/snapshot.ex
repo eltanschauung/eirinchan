@@ -14,6 +14,8 @@ defmodule Eirinchan.Statistics.Snapshot do
     field :daily_board_ppd, :map
     field :daily_total_requests, :integer
     field :daily_unique_visitors, :integer
+    field :weekly_period_start, :utc_datetime
+    field :weekly_unique_visitors, :integer
     field :finalized, :boolean, default: false
 
     timestamps(type: :utc_datetime_usec)
@@ -32,6 +34,8 @@ defmodule Eirinchan.Statistics.Snapshot do
       :daily_board_ppd,
       :daily_total_requests,
       :daily_unique_visitors,
+      :weekly_period_start,
+      :weekly_unique_visitors,
       :finalized
     ])
     |> validate_required([:period_start, :period_end, :counters, :finalized])
