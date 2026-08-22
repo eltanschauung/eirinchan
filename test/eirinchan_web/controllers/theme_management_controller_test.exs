@@ -80,7 +80,7 @@ defmodule EirinchanWeb.ThemeManagementControllerTest do
     assert conn |> recycle() |> get("/stats.css") |> response(200) =~ ".statistics-chart"
     today = :calendar.local_time() |> elem(0) |> Date.from_erl!()
 
-    assert length(Floki.find(document, ".statistics-chart")) == 7
+    assert length(Floki.find(document, ".statistics-chart")) == 8
 
     assert length(Floki.find(document, "#posts-per-month-#{today.year} .statistics-chart-column")) ==
              12
@@ -93,6 +93,18 @@ defmodule EirinchanWeb.ThemeManagementControllerTest do
                "#average-visitors-per-hour-last-week .statistics-chart-column"
              )
            ) == 24
+
+    assert length(
+             Floki.find(
+               document,
+               "#average-posts-per-hour-last-week .statistics-chart-column"
+             )
+           ) == 24
+
+    assert Floki.attribute(document, ".statistics-chart", "id") |> Enum.take(-2) == [
+             "average-visitors-per-hour-last-week",
+             "average-posts-per-hour-last-week"
+           ]
 
     assert length(Floki.find(document, "#visitors-current-month .statistics-chart-column")) ==
              Date.days_in_month(today)
