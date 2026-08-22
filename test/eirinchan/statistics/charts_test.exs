@@ -11,7 +11,7 @@ defmodule Eirinchan.Statistics.ChartsTest do
     def utc_datetime(datetime), do: DateTime.from_naive!(datetime, "Etc/UTC")
   end
 
-  test "builds all seven fixed-shape charts and prefers completed snapshots for post counts" do
+  test "builds all eight fixed-shape charts and prefers completed snapshots for post counts" do
     now = ~U[2026-08-02 15:30:00Z]
     board = board_fixture()
 
@@ -39,7 +39,7 @@ defmodule Eirinchan.Statistics.ChartsTest do
 
     for {date, visitors} <- Enum.zip(Date.range(~D[2026-07-26], ~D[2026-08-01]), 1..7) do
       insert_snapshot(DateTime.new!(date, ~T[05:00:00], "Etc/UTC"),
-        posts: 0,
+        posts: visitors,
         visitors: visitors
       )
     end
@@ -52,7 +52,7 @@ defmodule Eirinchan.Statistics.ChartsTest do
         current_visitors: 6
       )
 
-    assert length(result.charts) == 7
+    assert length(result.charts) == 8
 
     current_pph = chart(result, "pph-2026-08-02")
     yesterday_pph = chart(result, "pph-2026-08-01")
@@ -61,6 +61,7 @@ defmodule Eirinchan.Statistics.ChartsTest do
     current_visitors = chart(result, "visitors-current-month")
     last_month_visitors = chart(result, "visitors-last-month")
     average_visitors = chart(result, "average-visitors-per-hour-last-week")
+    average_posts = chart(result, "average-posts-per-hour-last-week")
 
     assert current_pph.title == "Posts Per Hour - August 2nd 2026"
     assert current_pph.column_count == 24
@@ -78,7 +79,7 @@ defmodule Eirinchan.Statistics.ChartsTest do
     assert ppd.column_count == 62
     assert point(ppd, "6/5").value == 2
     assert point(ppd, "6/5").title_label == "June 5th 2026"
-    assert point(ppd, "8/1").value == 7
+    assert point(ppd, "8/1").value == 14
     assert ppd.note =~ "reconstructed from retained posts"
 
     assert monthly_posts.title == "Posts Per Month - 2026"
@@ -107,6 +108,20 @@ defmodule Eirinchan.Statistics.ChartsTest do
     assert point(average_visitors, "5am").title_label == "05:00"
     assert point(average_visitors, "5am").samples == 7
     assert point(average_visitors, "6am").state == :unavailable
+
+    assert average_posts.title == "Average Posts Per Hour - Last Week"
+    assert average_posts.column_count == 24
+    assert point(average_posts, "5am").value == 4.0
+    assert point(average_posts, "5am").title_label == "05:00"
+    assert point(average_posts, "5am").samples == 7
+    assert point(average_posts, "5am").state == :tracked
+    assert point(average_posts, "6am").value == 0.0
+    assert point(average_posts, "6am").state == :reconstructed
+
+    assert Enum.map(Enum.take(result.charts, -2), & &1.id) == [
+             "average-visitors-per-hour-last-week",
+             "average-posts-per-hour-last-week"
+           ]
   end
 
   test "uses long current and previous date titles" do

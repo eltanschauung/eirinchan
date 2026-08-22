@@ -79,7 +79,8 @@ defmodule Eirinchan.Statistics.Charts do
         "Visitors Per Day - Last Month",
         "visitors-last-month"
       ),
-      average_visitors_chart(last_week_start, yesterday, snapshots, calendar)
+      average_visitors_chart(last_week_start, yesterday, snapshots, calendar),
+      average_posts_chart(last_week_start, yesterday, hourly_posts)
     ]
 
     %{
@@ -366,6 +367,51 @@ defmodule Eirinchan.Statistics.Charts do
     chart(
       "average-visitors-per-hour-last-week",
       "Average Visitors Per Hour - Last Week",
+      points,
+      coverage_note(points)
+    )
+  end
+
+  defp average_posts_chart(start_date, end_date, hourly_posts) do
+    points =
+      Enum.map(0..23, fn hour ->
+        totals =
+          start_date
+          |> Date.range(end_date)
+          |> Enum.map(&Map.get(hourly_posts, {&1, hour}))
+          |> Enum.reject(&is_nil/1)
+
+        case totals do
+          [] ->
+            point(hour_label(hour), nil, :unavailable,
+              samples: 0,
+              title_label: time_title(hour)
+            )
+
+          totals ->
+            average =
+              totals
+              |> Enum.reduce(0, &(&1.value + &2))
+              |> Kernel./(length(totals))
+              |> Float.round(1)
+
+            sources = Enum.reduce(totals, MapSet.new(), &MapSet.union(&2, &1.sources))
+
+            state =
+              if length(totals) == @last_week_days,
+                do: source_state(sources),
+                else: :incomplete
+
+            point(hour_label(hour), average, state,
+              samples: length(totals),
+              title_label: time_title(hour)
+            )
+        end
+      end)
+
+    chart(
+      "average-posts-per-hour-last-week",
+      "Average Posts Per Hour - Last Week",
       points,
       coverage_note(points)
     )
