@@ -10,6 +10,8 @@ defmodule Eirinchan.BrowserPresence do
   alias Eirinchan.BrowserIdentities.Identity
   alias Eirinchan.BrowserIdentity
   alias Eirinchan.Repo
+  alias Eirinchan.Statistics
+  alias Eirinchan.Statistics.WeeklyVisitors
 
   @table :eirinchan_browser_presence
   @dirty_table :eirinchan_browser_presence_dirty
@@ -101,6 +103,16 @@ defmodule Eirinchan.BrowserPresence do
         end)
     }
 
+    if Statistics.enabled?() do
+      case WeeklyVisitors.backfill_current_week(repo: state.repo) do
+        {_count, nil} ->
+          :ok
+
+        {:error, error} ->
+          Logger.error("weekly visitor backfill failed: #{error_message(error)}")
+      end
+    end
+
     schedule_prune()
     schedule_flush(state)
     {:ok, state}
@@ -184,7 +196,17 @@ defmodule Eirinchan.BrowserPresence do
   defp persist_entries(repo, entries) do
     {references, seen_at} = Enum.unzip(entries)
 
-    case repo.query(@persist_sql, [references, seen_at]) do
+    case repo.transaction(fn ->
+           case repo.query(@persist_sql, [references, seen_at]) do
+             {:ok, _result} ->
+               if Statistics.enabled?(),
+                 do: WeeklyVisitors.record!(repo, entries),
+                 else: {0, nil}
+
+             {:error, error} ->
+               repo.rollback(error)
+           end
+         end) do
       {:ok, _result} ->
         :ok
 

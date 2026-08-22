@@ -23,6 +23,9 @@ defmodule Eirinchan.Statistics do
 
   def latest_daily_board_ppd(opts \\ []), do: Store.latest_daily_board_ppd(opts)
 
+  def weekly_unique_visitor_rollups(opts \\ []),
+    do: Store.weekly_unique_visitor_rollups(opts)
+
   def record_request(%Plug.Conn{} = conn, opts \\ []) do
     if Keyword.get(opts, :enabled?, enabled?()) do
       now = Keyword.get(opts, :now, DateTime.utc_now(:second))

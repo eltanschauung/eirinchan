@@ -9,6 +9,9 @@ defmodule Eirinchan.Statistics.WorkerTest do
   alias Eirinchan.Statistics.SearchTerm
   alias Eirinchan.Statistics.Snapshot
   alias Eirinchan.Statistics.Store
+  alias Eirinchan.Statistics.Week
+  alias Eirinchan.Statistics.WeeklyVisitor
+  alias Eirinchan.Statistics.WeeklyVisitors
   alias Eirinchan.Statistics.Worker
 
   setup do
@@ -27,7 +30,10 @@ defmodule Eirinchan.Statistics.WorkerTest do
          flush_interval_ms: false,
          schedule_snapshots?: false,
          enabled?: fn -> true end,
-         local_hour: fn _datetime -> 0 end}
+         local_hour: fn _datetime -> 0 end,
+         weekly_start: fn period_end ->
+           period_end |> DateTime.add(-1, :second) |> Week.start_at()
+         end}
       )
 
     %{worker: worker}
@@ -47,6 +53,16 @@ defmodule Eirinchan.Statistics.WorkerTest do
 
     identity = identity_fixture(period_end)
     assert identity.presence_seen_at == DateTime.add(period_end, -60, :second)
+
+    weekly_start = Week.start_at(request_time)
+
+    assert {1, nil} =
+             WeeklyVisitors.record!(Repo, [
+               {identity.browser_ref, DateTime.to_unix(request_time, :second)}
+             ])
+
+    assert WeeklyVisitors.pending_completed_week_start(Repo, Week.end_at(weekly_start)) ==
+             weekly_start
 
     Statistics.record_metrics(
       ["requests.total", "requests.board.test.index.full", "actions.search.attempted"],
@@ -79,7 +95,19 @@ defmodule Eirinchan.Statistics.WorkerTest do
     assert snapshot.daily_board_ppd[Integer.to_string(board.id)] == 2
     assert snapshot.daily_total_requests == 1
     assert snapshot.daily_unique_visitors == 1
+    assert snapshot.weekly_period_start == weekly_start
+    assert snapshot.weekly_unique_visitors == 1
     assert Store.latest_daily_board_ppd(repo: Repo) == snapshot.daily_board_ppd
+
+    assert Store.weekly_unique_visitor_rollups(repo: Repo) == [
+             %{
+               week_start: weekly_start,
+               week_end: Week.end_at(weekly_start),
+               unique_visitors: 1
+             }
+           ]
+
+    assert Repo.aggregate(WeeklyVisitor, :count, :browser_ref) == 0
 
     assert Repo.get_by!(SearchTerm,
              period_start: DateTime.add(period_end, -3_600, :second),

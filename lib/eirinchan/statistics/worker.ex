@@ -7,6 +7,7 @@ defmodule Eirinchan.Statistics.Worker do
 
   alias Eirinchan.Statistics
   alias Eirinchan.Statistics.Store
+  alias Eirinchan.Statistics.WeeklyVisitors
 
   @default_flush_interval_ms 60_000
   @snapshot_grace_ms 5_000
@@ -28,13 +29,20 @@ defmodule Eirinchan.Statistics.Worker do
   def init(opts) do
     Statistics.create_counter_table()
     Statistics.create_search_term_table()
+    repo = Keyword.get(opts, :repo, Eirinchan.Repo)
 
     state = %{
-      repo: Keyword.get(opts, :repo, Eirinchan.Repo),
+      repo: repo,
       presence_server: Keyword.get(opts, :presence_server, Eirinchan.BrowserPresence),
       enabled?: Keyword.get(opts, :enabled?, &Statistics.enabled?/0),
       now: Keyword.get(opts, :now, fn -> DateTime.utc_now(:second) end),
       local_hour: Keyword.get(opts, :local_hour, &local_hour/1),
+      weekly_start:
+        Keyword.get(
+          opts,
+          :weekly_start,
+          &WeeklyVisitors.pending_completed_week_start(repo, &1)
+        ),
       flush_interval_ms: Keyword.get(opts, :flush_interval_ms, @default_flush_interval_ms),
       schedule_snapshots?: Keyword.get(opts, :schedule_snapshots?, true)
     }
@@ -76,6 +84,7 @@ defmodule Eirinchan.Statistics.Worker do
              repo: state.repo,
              captured_at: state.now.(),
              daily?: state.local_hour.(period_end) == 0,
+             weekly_start: state.weekly_start.(period_end),
              presence_server: state.presence_server
            ) do
       :ok

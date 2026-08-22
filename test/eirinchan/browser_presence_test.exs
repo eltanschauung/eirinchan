@@ -6,6 +6,8 @@ defmodule Eirinchan.BrowserPresenceTest do
   alias Eirinchan.BrowserIdentity
   alias Eirinchan.BrowserPresence
   alias Eirinchan.Repo
+  alias Eirinchan.Statistics.Week
+  alias Eirinchan.Statistics.WeeklyVisitor
 
   setup do
     :ets.delete_all_objects(:eirinchan_browser_presence)
@@ -41,6 +43,32 @@ defmodule Eirinchan.BrowserPresenceTest do
     :ets.delete_all_objects(:eirinchan_browser_presence_dirty)
 
     assert BrowserPresence.users_10minutes() == 1
+  end
+
+  test "touch records one durable membership for the browser's local week" do
+    identity = identity_fixture(nil)
+    week_start = Week.start_at(DateTime.utc_now(:second))
+
+    assert :ok = BrowserPresence.touch(identity.browser_ref)
+    assert :ok = BrowserPresence.flush()
+
+    assert Repo.get_by!(WeeklyVisitor,
+             week_start: week_start,
+             browser_ref: identity.browser_ref
+           )
+
+    assert :ok = BrowserPresence.touch(identity.browser_ref)
+    assert :ok = BrowserPresence.flush()
+
+    assert Repo.aggregate(
+             Ecto.Query.from(visitor in WeeklyVisitor,
+               where:
+                 visitor.week_start == ^week_start and
+                   visitor.browser_ref == ^identity.browser_ref
+             ),
+             :count,
+             :browser_ref
+           ) == 1
   end
 
   test "touch updates valid browser references" do
