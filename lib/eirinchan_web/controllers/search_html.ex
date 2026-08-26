@@ -123,6 +123,7 @@ defmodule EirinchanWeb.SearchHTML do
   attr :board, :map, required: true
   attr :thread, :map, required: true
   attr :config, :map, required: true
+  attr :preferred_thread_path, :string, required: true
 
   def search_post(assigns) do
     ~H"""
@@ -131,6 +132,7 @@ defmodule EirinchanWeb.SearchHTML do
       board={@board}
       thread={@thread}
       config={@config}
+      preferred_thread_path={@preferred_thread_path}
       show_reply_link={true}
       quote_mode={:navigate}
     />
