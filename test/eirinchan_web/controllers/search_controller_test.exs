@@ -595,6 +595,65 @@ defmodule EirinchanWeb.SearchControllerTest do
     assert no_match =~ "(No results.)"
   end
 
+  test "advanced search filters posts by embed presence", %{conn: conn} do
+    board = board_fixture(%{uri: "embeds#{System.unique_integer([:positive, :monotonic])}"})
+    config = Eirinchan.Runtime.Config.compose(nil, %{}, board.config_overrides)
+
+    {:ok, _embedded, _meta} =
+      Eirinchan.Posts.create_post(
+        board,
+        %{
+          "body" => "embedded search target",
+          "embed" => "https://youtu.be/dQw4w9WgXcQ",
+          "post" => "New Topic"
+        },
+        config: config,
+        request: %{referer: "http://example.test/#{board.uri}/index.html"}
+      )
+
+    {:ok, _plain, _meta} =
+      Eirinchan.Posts.create_post(
+        board,
+        %{"body" => "plain search target", "post" => "New Topic"},
+        config: config,
+        request: %{referer: "http://example.test/#{board.uri}/index.html"}
+      )
+
+    with_embeds =
+      conn
+      |> get("/search.php", %{
+        "board" => board.uri,
+        "image" => "with_embed",
+        "scope" => "selected"
+      })
+      |> html_response(200)
+
+    assert with_embeds =~ "embedded search target"
+    refute with_embeds =~ "plain search target"
+
+    without_embeds =
+      build_conn()
+      |> get("/search.php", %{
+        "board" => board.uri,
+        "image" => "without_embed",
+        "scope" => "selected"
+      })
+      |> html_response(200)
+
+    assert without_embeds =~ "plain search target"
+    refute without_embeds =~ "embedded search target"
+
+    {:ok, document} = Floki.parse_document(with_embeds)
+
+    assert Floki.attribute(document, ~s(input[name="image"][value="with_embed"]), "checked") == [
+             "checked"
+           ]
+
+    assert Floki.attribute(document, ~s(input[name="image"][value="without_embed"]), "value") == [
+             "without_embed"
+           ]
+  end
+
   test "advanced search rejects non-canonical image hashes before querying", %{conn: conn} do
     board = board_fixture(%{uri: "hash#{System.unique_integer([:positive, :monotonic])}"})
 
