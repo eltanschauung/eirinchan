@@ -29,16 +29,29 @@
     return post.querySelector(badgeSelector);
   }
 
+  function posterIdCounts(posts) {
+    return posts.reduce(function (counts, post) {
+      var badge = postBadge(post);
+      var posterId = badge && badge.getAttribute("data-poster-id");
+
+      if (posterId) counts[posterId] = (counts[posterId] || 0) + 1;
+      return counts;
+    }, Object.create(null));
+  }
+
   function applyToThread(thread) {
     var key = threadKey(thread);
     if (!key) return;
 
     var selectedId = selectedByThread[key] || null;
+    var posts = directPosts(thread);
+    var counts = window.active_page === "thread" ? posterIdCounts(posts) : null;
 
-    directPosts(thread).forEach(function (post) {
+    posts.forEach(function (post) {
       var badge = postBadge(post);
+      var posterId = badge && badge.getAttribute("data-poster-id");
       var matches = Boolean(
-        badge && selectedId && badge.getAttribute("data-poster-id") === selectedId
+        badge && selectedId && posterId === selectedId
       );
 
       if (matches) {
@@ -47,7 +60,13 @@
         post.classList.remove("poster-id-highlighted", "highlighted");
       }
 
-      if (badge) badge.setAttribute("aria-pressed", matches ? "true" : "false");
+      if (badge) {
+        badge.setAttribute("aria-pressed", matches ? "true" : "false");
+
+        if (counts) {
+          badge.setAttribute("title", "Posts by this ID: " + Math.max(counts[posterId] || 0, 1));
+        }
+      }
     });
   }
 

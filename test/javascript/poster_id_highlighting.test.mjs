@@ -33,9 +33,9 @@ function post(id, posterId, kind = "reply") {
   `;
 }
 
-async function setup() {
+async function setup(activePage = "index") {
   const dom = new JSDOM(
-    `<!doctype html><html><body class="active-index">
+    `<!doctype html><html><body class="active-${activePage}">
       <div class="thread" id="thread_100" data-board="bant" data-thread-id="100">
         ${post(100, "same-id", "op")}
         ${post(101, "same-id")}
@@ -45,11 +45,17 @@ async function setup() {
         ${post(200, "same-id", "op")}
       </div>
     </body></html>`,
-    {runScripts: "outside-only", url: "https://example.test/bant/"}
+    {
+      runScripts: "outside-only",
+      url:
+        activePage === "thread"
+          ? "https://example.test/bant/res/100.html"
+          : "https://example.test/bant/"
+    }
   );
 
   const {window} = dom;
-  window.active_page = "index";
+  window.active_page = activePage;
   window.board_name = "bant";
   window.eval(jquerySource);
   window.eval(highlightingSource);
@@ -57,6 +63,24 @@ async function setup() {
   await new Promise((resolve) => window.setTimeout(resolve, 0));
   return window;
 }
+
+test("thread-page badges show how many posts clicking the ID would highlight", async () => {
+  const window = await setup("thread");
+
+  assert.equal(window.document.getElementById("badge_100").title, "Posts by this ID: 2");
+  assert.equal(window.document.getElementById("badge_101").title, "Posts by this ID: 2");
+  assert.equal(window.document.getElementById("badge_102").title, "Posts by this ID: 1");
+  assert.equal(window.document.getElementById("badge_200").title, "Posts by this ID: 1");
+  window.close();
+});
+
+test("index-page badges do not receive the thread-only post count title", async () => {
+  const window = await setup("index");
+
+  assert.equal(window.document.getElementById("badge_100").hasAttribute("title"), false);
+  assert.equal(window.document.getElementById("badge_102").hasAttribute("title"), false);
+  window.close();
+});
 
 function assertHighlighted(window, ids) {
   const expected = new Set(ids.map(String));
@@ -108,7 +132,7 @@ test("keyboard activation toggles and replaces a thread's selected ID", async ()
 });
 
 test("new replies inherit the active poster-ID highlight", async () => {
-  const window = await setup();
+  const window = await setup("thread");
   const thread = window.document.getElementById("thread_100");
 
   window.document.getElementById("badge_100").click();
@@ -119,6 +143,9 @@ test("new replies inherit the active poster-ID highlight", async () => {
   assert.equal(reply.classList.contains("poster-id-highlighted"), true);
   assert.equal(reply.classList.contains("highlighted"), true);
   assert.equal(window.document.getElementById("badge_103").getAttribute("aria-pressed"), "true");
+  assert.equal(window.document.getElementById("badge_100").title, "Posts by this ID: 3");
+  assert.equal(window.document.getElementById("badge_101").title, "Posts by this ID: 3");
+  assert.equal(window.document.getElementById("badge_103").title, "Posts by this ID: 3");
   window.close();
 });
 
