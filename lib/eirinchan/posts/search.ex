@@ -34,7 +34,12 @@ defmodule Eirinchan.Posts.Search do
       height: positive_integer(value(params, "height")),
       start_date: date(value(params, "start")),
       end_date: date(value(params, "end")),
-      image: allowed(value(params, "image"), ~w(all with without spoiler nonspoiler), "all"),
+      image:
+        allowed(
+          value(params, "image"),
+          ~w(all with without with_embed without_embed spoiler nonspoiler),
+          "all"
+        ),
       type: allowed(value(params, "type"), ~w(all sticky op reply), "all"),
       results: allowed(value(params, "results"), ~w(posts threads), "posts"),
       order: allowed(value(params, "order"), ~w(latest oldest), "latest"),
@@ -248,6 +253,14 @@ defmodule Eirinchan.Posts.Search do
       where:
         (is_nil(post.file_path) or post.file_path == "deleted") and
           post.id not in subquery(extra_ids)
+  end
+
+  defp apply_image_filter(query, "with_embed") do
+    from post in query, where: not is_nil(post.embed) and post.embed != ""
+  end
+
+  defp apply_image_filter(query, "without_embed") do
+    from post in query, where: is_nil(post.embed) or post.embed == ""
   end
 
   defp apply_image_filter(query, "spoiler") do
