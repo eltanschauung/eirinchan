@@ -53,6 +53,53 @@ defmodule EirinchanWeb.SearchControllerTest do
     refute page =~ "meta tea"
   end
 
+  test "search result quote links prefer noko50 for qualifying threads", %{conn: conn} do
+    board =
+      board_fixture(%{
+        uri: "noko50search#{System.unique_integer([:positive, :monotonic])}",
+        config_overrides: %{noko50_min: 1, noko50_count: 50}
+      })
+
+    config = Eirinchan.Runtime.Config.compose(nil, %{}, board.config_overrides)
+
+    {:ok, thread, _meta} =
+      Eirinchan.Posts.create_post(
+        board,
+        %{"body" => "noko50 search thread", "post" => "New Topic"},
+        config: config,
+        request: %{referer: "http://example.test/#{board.uri}/index.html"}
+      )
+
+    {:ok, reply, _meta} =
+      Eirinchan.Posts.create_post(
+        board,
+        %{
+          "thread" => Integer.to_string(PublicIds.public_id(thread)),
+          "body" => "noko50 search reply target",
+          "post" => "New Reply"
+        },
+        config: config,
+        request: %{referer: "http://example.test/#{board.uri}/index.html"}
+      )
+
+    page =
+      conn
+      |> get("/search.php", %{
+        "board" => board.uri,
+        "text" => "noko50 search reply target",
+        "scope" => "selected"
+      })
+      |> html_response(200)
+
+    {:ok, document} = Floki.parse_document(page)
+    reply_id = PublicIds.public_id(reply)
+
+    assert Floki.attribute(document, ~s(a[data-cite-reply="#{reply_id}"]), "href") == [
+             Eirinchan.ThreadPaths.thread_path(board, thread, config, noko50: true) <>
+               "#q#{reply_id}"
+           ]
+  end
+
   test "public search persists only bounded antispam state", %{conn: _conn} do
     board =
       board_fixture(%{
