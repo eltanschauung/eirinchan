@@ -2,6 +2,7 @@ defmodule Eirinchan.WhaleStickers.Defaults do
   @moduledoc false
 
   @entries [
+    %{token: "gem", file: "gem.png", title: "gem", append_break: false},
     %{token: "horse", file: "horse.png", title: "horse", append_break: false},
     %{token: "cum", file: "cum.gif", title: "cum", append_break: false},
     %{token: "milk", file: "milk.png", title: "milk", append_break: false},

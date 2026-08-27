@@ -3,6 +3,21 @@ defmodule Eirinchan.FormattingPageTest do
 
   alias Eirinchan.FormattingPage
 
+  test "puts the gem sticker first in the left formatting column" do
+    html =
+      FormattingPage.default_body([
+        %{token: "concern2", path: "/whalestickers/concern2.png", width: 120, height: 120},
+        %{token: "gem", path: "/whalestickers/gem.png", width: 388, height: 228}
+      ])
+
+    {:ok, document} = Floki.parse_fragment(html)
+
+    assert [first_sticker | _] =
+             Floki.find(document, ".formatting-sticker-column:first-child img")
+
+    assert Floki.attribute(first_sticker, "src") == ["/whalestickers/gem.png"]
+  end
+
   test "upgrades stored sticker markup without altering unrelated images" do
     html = """
     <div>

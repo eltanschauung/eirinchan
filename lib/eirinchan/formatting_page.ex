@@ -6,7 +6,7 @@ defmodule Eirinchan.FormattingPage do
 
   @left_column_count 52
   @live_sticker_order ~w(
-    concern2 milk ninacry smell tempura tenfact grimace wow ahegao nvke headphones cinema
+    gem concern2 milk ninacry smell tempura tenfact grimace wow ahegao nvke headphones cinema
     masaka2 krillin rika ominous kanmarisa mask banjo pout notes elated dogshit mid2 gojo
     angry2 17 yeah vibe thumb waka damn yikes cackle whale glasses fact fact2 thinking bruh
     unyu angry lmao dora boom gasp kys bald meow rofl pensive fact3 pensive2 horse kasawalk
