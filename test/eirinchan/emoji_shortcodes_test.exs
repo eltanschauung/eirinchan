@@ -4,7 +4,7 @@ defmodule Eirinchan.EmojiShortcodesTest do
   alias Eirinchan.EmojiShortcodes
 
   test "ships the complete built-in shortcode set" do
-    assert map_size(EmojiShortcodes.entries()) == 114
+    assert map_size(EmojiShortcodes.entries()) == 115
 
     assert EmojiShortcodes.entries()
            |> Map.take([
@@ -12,6 +12,7 @@ defmodule Eirinchan.EmojiShortcodesTest do
              "heart_on_fire",
              "eyes",
              "clinking",
+             "gemstone",
              "v",
              "bicep",
              "gemini",
@@ -21,6 +22,7 @@ defmodule Eirinchan.EmojiShortcodesTest do
              "heart_on_fire" => "❤️‍🔥",
              "eyes" => "👀",
              "clinking" => "🥂",
+             "gemstone" => "💎",
              "v" => "✌️",
              "bicep" => "💪",
              "gemini" => "♊",
@@ -52,6 +54,10 @@ defmodule Eirinchan.EmojiShortcodesTest do
 
   test "replaces the clinking glasses shortcode" do
     assert EmojiShortcodes.replace(":clinking:") == "🥂"
+  end
+
+  test "replaces the gemstone shortcode" do
+    assert EmojiShortcodes.replace(":gemstone:") == "💎"
   end
 
   test "uses winking rather than wink for the winking-face emoji" do
