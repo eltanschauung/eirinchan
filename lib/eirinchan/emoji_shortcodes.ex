@@ -38,6 +38,7 @@ defmodule Eirinchan.EmojiShortcodes do
     "flushed" => "😳",
     "ghost" => "👻",
     "gemini" => "♊",
+    "gemstone" => "💎",
     "goat" => "🐐",
     "green_heart" => "💚",
     "grin" => "😁",
