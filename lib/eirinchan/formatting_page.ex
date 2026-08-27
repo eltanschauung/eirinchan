@@ -20,7 +20,37 @@ defmodule Eirinchan.FormattingPage do
         ~r|(<div class="box-wrap(?: faq-page-shell)?(?: formatting-page-shell)?">.*?</div>\s*)<footer|s,
       strip: [:style]
     )
+    |> refresh_sticker_columns(sticker_entries)
     |> stabilize_sticker_images(sticker_entries)
+  end
+
+  defp refresh_sticker_columns(html, sticker_entries) when is_binary(html) do
+    with {:ok, nodes} <- Floki.parse_fragment(html),
+         {:ok, default_nodes} <- Floki.parse_fragment(default_body(sticker_entries)),
+         [replacement] <- Floki.find(default_nodes, ".formatting-sticker-columns"),
+         [_existing | _] <- Floki.find(nodes, ".formatting-sticker-columns") do
+      nodes
+      |> Floki.traverse_and_update(fn
+        {"div", attrs, _children} = node ->
+          if has_class?(attrs, "formatting-sticker-columns"), do: replacement, else: node
+
+        node ->
+          node
+      end)
+      |> Floki.raw_html()
+    else
+      _ -> html
+    end
+  end
+
+  defp refresh_sticker_columns(html, _sticker_entries), do: html
+
+  defp has_class?(attrs, class) do
+    attrs
+    |> Enum.find_value(fn {name, value} -> if name == "class", do: value end)
+    |> to_string()
+    |> String.split()
+    |> Enum.member?(class)
   end
 
   defp stabilize_sticker_images(html, sticker_entries) when is_binary(html) do

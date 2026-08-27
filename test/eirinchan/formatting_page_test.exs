@@ -3,6 +3,21 @@ defmodule Eirinchan.FormattingPageTest do
 
   alias Eirinchan.FormattingPage
 
+  test "refreshes the sticker columns in a stored formatting page" do
+    stored_body =
+      FormattingPage.default_body([
+        %{token: "old", path: "/stickers/old.png", width: 100, height: 100}
+      ])
+
+    normalized =
+      FormattingPage.normalize_body(stored_body, [
+        %{token: "new", path: "/stickers/new.png", width: 120, height: 120}
+      ])
+
+    refute normalized =~ "/stickers/old.png"
+    assert normalized =~ "/stickers/new.png"
+  end
+
   test "upgrades stored sticker markup without altering unrelated images" do
     html = """
     <div>
