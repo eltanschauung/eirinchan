@@ -18,6 +18,21 @@ defmodule Eirinchan.FormattingPageTest do
     assert Floki.attribute(first_sticker, "src") == ["/whalestickers/gem.png"]
   end
 
+  test "refreshes the sticker columns in a stored formatting page" do
+    stored_body =
+      FormattingPage.default_body([
+        %{token: "old", path: "/whalestickers/old.png", width: 100, height: 100}
+      ])
+
+    normalized =
+      FormattingPage.normalize_body(stored_body, [
+        %{token: "new", path: "/whalestickers/new.png", width: 120, height: 120}
+      ])
+
+    refute normalized =~ "/whalestickers/old.png"
+    assert normalized =~ "/whalestickers/new.png"
+  end
+
   test "upgrades stored sticker markup without altering unrelated images" do
     html = """
     <div>
