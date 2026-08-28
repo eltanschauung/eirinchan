@@ -137,7 +137,12 @@
 
   function bindImageHover(root) {
     var selectors = [];
-    if (readSetting("imageHover")) selectors.push("img.post-image", "canvas.post-image");
+    if (readSetting("imageHover")) {
+      selectors.push(
+        'a[data-inline-expandable="true"] img.post-image',
+        'a[data-inline-expandable="true"] canvas.post-image'
+      );
+    }
     if (readSetting("catalogImageHover") && catalogPage()) selectors.push(".thread-image");
     if (!selectors.length) return;
 
