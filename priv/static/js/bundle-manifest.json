@@ -3,10 +3,10 @@
     {
       "label": "bundle:core",
       "output": "priv/static/js/bundle-public-core.js",
-      "output_bytes": 138073,
+      "output_bytes": 138139,
       "public_path": "/js/bundle-public-core.js",
-      "sha256": "cb2dec9e1bd18ccb6b8ed0b3ece67dd123ca5c140ef81ec84831a0ae0aca013a",
-      "source_bytes": 185187,
+      "sha256": "64d99b38c16253a9806c3036e8fe8c1c506ace4246e35d09c3728b82086cc532",
+      "source_bytes": 185291,
       "sources": [
         "priv/static/js/jquery.min.js",
         "assets/js/options.js",
@@ -179,10 +179,10 @@
     {
       "label": "maintained:js/image-hover.js",
       "output": "priv/static/js/image-hover.js",
-      "output_bytes": 2977,
+      "output_bytes": 3043,
       "public_path": "/js/image-hover.js",
-      "sha256": "f5d5cd629ec35b646759522ae786fbb633d22a74de0299d68f23c9613ccca1a5",
-      "source_bytes": 5379,
+      "sha256": "bfc00dff6a619128c96ec5772a22e64a2da5a74e84fead259ddda05f42c630bf",
+      "source_bytes": 5483,
       "sources": [
         "assets/js/image-hover.js"
       ]
