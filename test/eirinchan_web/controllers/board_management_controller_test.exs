@@ -84,6 +84,20 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
              |> json_response(404)
   end
 
+  test "does not delete the configured primary board", %{conn: conn} do
+    board = board_fixture(%{uri: "b", title: "Primary"})
+
+    response =
+      conn
+      |> login_moderator(moderator_fixture(%{role: "admin"}))
+      |> put_secure_manage_token()
+      |> delete(~p"/manage/boards/#{board.uri}")
+      |> json_response(422)
+
+    assert response == %{"error" => "primary_board"}
+    assert Eirinchan.Boards.get_board_by_uri("b")
+  end
+
   test "board page loads through the DB-backed board context", %{conn: conn} do
     board_fixture(%{uri: "meta", title: "Meta"})
     board = board_fixture(%{title: "Technology", subtitle: "Wired"})
@@ -647,6 +661,20 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     assert catalog_page =~ ~s(name="delete_post_id")
   end
 
+  test "catalog subtitle visibility is board-configured", %{conn: conn} do
+    :ok = Eirinchan.Themes.enable_page_theme("catalog")
+
+    board =
+      board_fixture(%{
+        subtitle: "Configurable catalog subtitle",
+        config_overrides: %{show_catalog_subtitle: false}
+      })
+
+    page = conn |> get("/#{board.uri}/catalog.html") |> html_response(200)
+
+    refute page =~ "Configurable catalog subtitle"
+  end
+
   test "catalog page links qualifying threads to noko50", %{conn: conn} do
     :ok = Eirinchan.Themes.enable_page_theme("catalog")
 
@@ -860,7 +888,9 @@ defmodule EirinchanWeb.BoardManagementControllerTest do
     assert page =~ ~s(data-flag-code="tr")
 
     {:ok, document} = Floki.parse_document(page)
+
     [aliases_json] = Floki.attribute(document, ".catalog-filter-meta img.flag", "data-flag-aliases")
+
     assert "Turkey" in Jason.decode!(aliases_json)
 
     assert page =~ ~s(<span class="subject">Filter Subject</span>)

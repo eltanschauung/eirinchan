@@ -2443,6 +2443,14 @@ defmodule EirinchanWeb.ManagePageController do
       {:error, :forbidden} ->
         render_dashboard_error(conn, "Administrator access required.", %{}, :forbidden)
 
+      {:error, :primary_board} ->
+        render_dashboard_error(
+          conn,
+          "Change the primary board before deleting it.",
+          %{},
+          :unprocessable_entity
+        )
+
       nil ->
         render_dashboard_error(conn, "Board not found.", %{}, :not_found)
     end

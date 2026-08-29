@@ -3,7 +3,9 @@
 <header>
   <h1><%= PostView.board_heading(@board) %></h1>
   <div class="subtitle">
-    <%= @board_chrome.subtitle || @board.subtitle %>
+    <%= if Map.get(@config, :show_catalog_subtitle, true),
+      do: @board_chrome.subtitle || @board.subtitle,
+      else: "" %>
   </div>
   <.admin_shortcuts moderator={@current_moderator} />
 </header>

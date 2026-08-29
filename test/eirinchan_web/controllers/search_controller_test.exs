@@ -504,10 +504,12 @@ defmodule EirinchanWeb.SearchControllerTest do
            ]
   end
 
-  test "short search route redirects through the primary board without losing filters", %{conn: conn} do
+  test "short search route redirects through the primary board without losing filters", %{
+    conn: conn
+  } do
     board =
       board_fixture(%{
-        uri: "bant",
+        uri: "b",
         config_overrides: %{default_theme: "yotsuba", default_theme_dark: "tomorrow"}
       })
 

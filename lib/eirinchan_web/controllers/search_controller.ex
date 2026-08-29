@@ -6,6 +6,7 @@ defmodule EirinchanWeb.SearchController do
   alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.EventLog
   alias Eirinchan.Posts.Search
+  alias Eirinchan.PrimaryBoard
   alias Eirinchan.Runtime.Config
   alias Eirinchan.Settings
   alias Eirinchan.Statistics
@@ -238,7 +239,7 @@ defmodule EirinchanWeb.SearchController do
     else
       boards = Boards.list_boards()
 
-      case Enum.find(boards, &(&1.uri == "bant")) || List.first(boards) do
+      case PrimaryBoard.find(boards, Settings.effective_instance_config()) do
         nil -> params
         board -> Map.put(params, "board", board.uri)
       end

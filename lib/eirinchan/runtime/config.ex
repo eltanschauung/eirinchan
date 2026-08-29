@@ -10,6 +10,7 @@ defmodule Eirinchan.Runtime.Config do
   """
 
   alias Eirinchan.Boards.Board
+  alias Eirinchan.PrimaryBoard
 
   @bounded_positive_defaults %{
     announcement_cache_seconds: {30, 3_600},
@@ -61,6 +62,7 @@ defmodule Eirinchan.Runtime.Config do
     file_catalog: "catalog.html",
     file_catalog_page: "catalog/%d.html",
     catalog_name: "Catalog",
+    show_catalog_subtitle: true,
     archive_url: false,
     url_favicon: "images/logo.svg",
     website_description: "An imageboard powered by Eirinchan.",
@@ -90,6 +92,8 @@ defmodule Eirinchan.Runtime.Config do
     board_path: "%s/",
     board_abbreviation: "%s/",
     board_regex: "[a-zA-Z0-9_]+",
+    primary_board_uri: "b",
+    show_public_page_banner: false,
     locale: "en",
     timezone: "UTC",
     anonymous: "Anonymous",
@@ -473,7 +477,10 @@ defmodule Eirinchan.Runtime.Config do
     "fieldDisablePassword" => :field_disable_password,
     "postFormFlags" => :post_form_flags,
     "postFormEmbed" => :post_form_embed,
+    "primaryBoardUri" => :primary_board_uri,
     "stylesheetsBoard" => :stylesheets_board,
+    "showCatalogSubtitle" => :show_catalog_subtitle,
+    "showPublicPageBanner" => :show_public_page_banner,
     "defaultTheme" => :default_theme,
     "force_theme" => :forced_theme,
     "forceTheme" => :forced_theme,
@@ -657,6 +664,7 @@ defmodule Eirinchan.Runtime.Config do
     identity_rotation = min(config.browser_identity_rotation_seconds, identity_ttl)
 
     config
+    |> Map.update(:primary_board_uri, "b", &PrimaryBoard.normalize_uri/1)
     |> Map.update(
       :duplicate_post_window_minutes,
       60,

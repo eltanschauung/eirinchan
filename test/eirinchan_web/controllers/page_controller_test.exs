@@ -991,8 +991,8 @@ defmodule EirinchanWeb.PageControllerTest do
     moderator_fixture()
 
     board_fixture(%{
-      uri: "bant",
-      title: "International Random",
+      uri: "b",
+      title: "Random",
       config_overrides: %{default_theme: "yotsuba", default_theme_dark: "tomorrow"}
     })
 
@@ -1104,6 +1104,32 @@ defmodule EirinchanWeb.PageControllerTest do
 
     assert page =~ ~s(id="stylesheet" href="/stylesheets/eientei1.css)
     assert page =~ ~s(data-stylesheet="eientei1.css")
+  end
+
+  test "home and named public pages fall back to the saved primary board theme", %{conn: conn} do
+    moderator_fixture()
+    board_fixture(%{uri: "tech", title: "Technology"})
+    :ok = Settings.persist_instance_config(%{primary_board_uri: "tech"})
+
+    home_page =
+      conn
+      |> put_req_cookie("board_themes", ~s({"tech":"eientei1"}))
+      |> get("/")
+      |> html_response(200)
+
+    assert home_page =~ ~s(id="stylesheet" href="/stylesheets/eientei1.css)
+    assert home_page =~ ~s(data-stylesheet="eientei1.css")
+
+    faq_page =
+      conn
+      |> recycle()
+      |> put_req_cookie("board_themes", ~s({"tech":"eientei1"}))
+      |> get("/faq")
+      |> html_response(200)
+
+    assert faq_page =~ ~s(id="stylesheet" href="/stylesheets/eientei1.css)
+    assert faq_page =~ ~s(data-stylesheet="eientei1.css")
+
   end
 
   test "renders watcher page with watched threads", %{conn: conn} do
