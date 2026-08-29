@@ -1042,8 +1042,8 @@ defmodule EirinchanWeb.PageControllerTest do
     moderator_fixture()
 
     board_fixture(%{
-      uri: "bant",
-      title: "International Random",
+      uri: "b",
+      title: "Random",
       config_overrides: %{default_theme: "yotsuba", default_theme_dark: "tomorrow"}
     })
 
@@ -1197,9 +1197,9 @@ defmodule EirinchanWeb.PageControllerTest do
            end)
   end
 
-  test "GET /flags uses the enabled Bant user flag policy", %{conn: conn} do
+  test "GET /flags uses the enabled primary board user flag policy", %{conn: conn} do
     board_fixture(%{
-      uri: "bant",
+      uri: "b",
       config_overrides: %{
         user_flag: true,
         multiple_flags: true,
@@ -1263,12 +1263,14 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ ~s(data-stylesheet="eientei1.css")
   end
 
-  test "home and named public pages fall back to the saved bant board theme", %{conn: conn} do
+  test "home and named public pages fall back to the saved primary board theme", %{conn: conn} do
     moderator_fixture()
+    board_fixture(%{uri: "tech", title: "Technology"})
+    :ok = Settings.persist_instance_config(%{primary_board_uri: "tech"})
 
     home_page =
       conn
-      |> put_req_cookie("board_themes", ~s({"bant":"eientei1"}))
+      |> put_req_cookie("board_themes", ~s({"tech":"eientei1"}))
       |> get("/")
       |> html_response(200)
 
@@ -1278,7 +1280,7 @@ defmodule EirinchanWeb.PageControllerTest do
     faq_page =
       conn
       |> recycle()
-      |> put_req_cookie("board_themes", ~s({"bant":"eientei1"}))
+      |> put_req_cookie("board_themes", ~s({"tech":"eientei1"}))
       |> get("/faq")
       |> html_response(200)
 
@@ -1288,12 +1290,23 @@ defmodule EirinchanWeb.PageControllerTest do
     flags_page =
       conn
       |> recycle()
-      |> put_req_cookie("board_themes", ~s({"bant":"eientei1"}))
+      |> put_req_cookie("board_themes", ~s({"tech":"eientei1"}))
       |> get("/flags")
       |> html_response(200)
 
     assert flags_page =~ ~s(id="stylesheet" href="/stylesheets/eientei1.css)
     assert flags_page =~ ~s(data-stylesheet="eientei1.css")
+  end
+
+  test "public page banner visibility is instance-configured", %{conn: conn} do
+    moderator_fixture()
+    board_fixture(%{uri: "b", title: "Random"})
+    :ok = Settings.persist_instance_config(%{show_public_page_banner: true})
+
+    page = conn |> get("/") |> html_response(200)
+    document = Floki.parse_document!(page)
+
+    assert Floki.find(document, "img.board_image") != []
   end
 
   test "GET /flag redirects to /flags", %{conn: conn} do

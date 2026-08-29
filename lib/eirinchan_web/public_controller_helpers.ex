@@ -3,6 +3,7 @@ defmodule EirinchanWeb.PublicControllerHelpers do
 
   alias Eirinchan.BrowserAbuse
   alias Eirinchan.LogSystem
+  alias Eirinchan.PrimaryBoard
   alias Eirinchan.Settings
   alias Eirinchan.ThreadWatcher
   alias EirinchanWeb.FragmentHash
@@ -243,7 +244,8 @@ defmodule EirinchanWeb.PublicControllerHelpers do
 
   def public_page_assigns(conn, page_kind, active_page, opts \\ []) do
     boards = Keyword.get_lazy(opts, :boards, &Eirinchan.Boards.list_boards/0)
-    primary_board = Enum.find(boards, &(&1.uri == "bant")) || %{uri: "bant"}
+    instance_config = Settings.effective_instance_config()
+    primary_board = PrimaryBoard.resolve(boards, instance_config)
 
     shell_opts =
       [extra_stylesheets: extra_stylesheets()]
@@ -254,6 +256,7 @@ defmodule EirinchanWeb.PublicControllerHelpers do
     [
       boards: boards,
       primary_board: primary_board,
+      show_public_page_banner: Map.get(instance_config, :show_public_page_banner, false),
       board_chrome: EirinchanWeb.BoardChrome.for_board(primary_board),
       global_message_html: maybe_global_message_html(boards, opts),
       custom_pages: Eirinchan.CustomPages.list_pages(),

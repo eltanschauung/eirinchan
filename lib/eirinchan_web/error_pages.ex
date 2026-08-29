@@ -5,13 +5,16 @@ defmodule EirinchanWeb.ErrorPages do
   import Plug.Conn
 
   alias Eirinchan.Boards
+  alias Eirinchan.PrimaryBoard
+  alias Eirinchan.Settings
   alias EirinchanWeb.BoardChrome
   alias EirinchanWeb.PostView
   alias EirinchanWeb.PublicControllerHelpers
 
   def not_found(conn, message \\ nil) do
     boards = Boards.list_boards()
-    primary_board = Enum.find(boards, &(&1.uri == "bant")) || %{uri: "bant"}
+    instance_config = Settings.effective_instance_config()
+    primary_board = PrimaryBoard.resolve(boards, instance_config)
 
     assigns =
       [
@@ -20,6 +23,7 @@ defmodule EirinchanWeb.ErrorPages do
         message: message,
         boards: boards,
         primary_board: primary_board,
+        show_public_page_banner: Map.get(instance_config, :show_public_page_banner, false),
         board_chrome: BoardChrome.for_board(primary_board),
         global_boardlist_groups:
           PostView.boardlist_groups(boards,

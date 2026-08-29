@@ -4,21 +4,23 @@ defmodule EirinchanWeb.Plugs.FetchTheme do
   import Plug.Conn
 
   alias Eirinchan.Boards
+  alias Eirinchan.PrimaryBoard
   alias Eirinchan.Settings
   alias EirinchanWeb.ThemeRegistry
 
   @color_scheme_cookie "eirinchan_color_scheme"
-  @primary_public_board_uri "bant"
-
   def init(opts), do: opts
 
   def call(conn, _opts) do
     instance_config = Settings.effective_instance_config()
+    primary_board_uri = PrimaryBoard.uri(instance_config)
     stylesheets_board = Map.get(instance_config, :stylesheets_board, true)
     board = board_for_request(conn)
-    defaults_board = board || primary_public_board()
+    defaults_board = board || primary_public_board(primary_board_uri)
     forced_theme_identifier = forced_theme(board, instance_config)
-    saved_theme_identifier = saved_theme_identifier(conn, board, stylesheets_board)
+
+    saved_theme_identifier =
+      saved_theme_identifier(conn, board, stylesheets_board, primary_board_uri)
 
     light_theme_identifier =
       board_default_theme(defaults_board) || global_default_theme(instance_config)
@@ -52,13 +54,14 @@ defmodule EirinchanWeb.Plugs.FetchTheme do
     |> assign(:auto_theme_dark, if(auto_theme?, do: dark_theme))
   end
 
-  defp saved_theme_identifier(conn, board, true) do
+  defp saved_theme_identifier(conn, board, true, primary_board_uri) do
     board_theme_identifier(conn, board) ||
       global_theme_identifier(conn) ||
-      primary_public_board_theme_identifier(conn, board)
+      primary_public_board_theme_identifier(conn, board, primary_board_uri)
   end
 
-  defp saved_theme_identifier(conn, _board, false), do: global_theme_identifier(conn)
+  defp saved_theme_identifier(conn, _board, false, _primary_board_uri),
+    do: global_theme_identifier(conn)
 
   defp global_theme_identifier(conn) do
     conn.cookies["theme"]
@@ -74,16 +77,18 @@ defmodule EirinchanWeb.Plugs.FetchTheme do
     |> normalize_theme_identifier()
   end
 
-  defp primary_public_board_theme_identifier(_conn, board) when not is_nil(board), do: nil
+  defp primary_public_board_theme_identifier(_conn, board, _primary_board_uri)
+       when not is_nil(board),
+       do: nil
 
-  defp primary_public_board_theme_identifier(conn, nil) do
+  defp primary_public_board_theme_identifier(conn, nil, primary_board_uri) do
     conn.cookies["board_themes"]
     |> decode_board_themes_cookie()
-    |> Map.get(@primary_public_board_uri)
+    |> Map.get(primary_board_uri)
     |> normalize_theme_identifier()
   end
 
-  defp primary_public_board, do: Boards.get_board_by_uri(@primary_public_board_uri)
+  defp primary_public_board(primary_board_uri), do: Boards.get_board_by_uri(primary_board_uri)
 
   defp decode_board_themes_cookie(value) when is_binary(value) do
     decoded_value =

@@ -4,6 +4,8 @@ defmodule Mix.Tasks.Eirinchan.ImportLivePage do
   @shortdoc "Imports page 1 threads from the live vichan MySQL board into Postgres"
 
   alias Eirinchan.LiveVichanImport
+  alias Eirinchan.PrimaryBoard
+  alias Eirinchan.Settings
 
   @impl true
   def run(args) do
@@ -15,7 +17,10 @@ defmodule Mix.Tasks.Eirinchan.ImportLivePage do
       )
 
     case LiveVichanImport.import_page(
-           board: Keyword.get(opts, :board, "bant"),
+           board:
+             Keyword.get_lazy(opts, :board, fn ->
+               Settings.effective_instance_config() |> PrimaryBoard.uri()
+             end),
            limit: Keyword.get(opts, :limit, 15),
            source_root: Keyword.get(opts, :source_root, "/path/to/vichan")
          ) do

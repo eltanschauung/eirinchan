@@ -7,6 +7,7 @@ defmodule Eirinchan.Boards do
 
   alias Eirinchan.Boards.{Board, EctoStore}
   alias Eirinchan.Boards.BoardRecord
+  alias Eirinchan.PrimaryBoard
   alias Eirinchan.Repo
   alias Eirinchan.Runtime
   alias Eirinchan.Runtime.{Config, RequestContext}
@@ -58,10 +59,18 @@ defmodule Eirinchan.Boards do
   end
 
   @spec delete_board(BoardRecord.t(), keyword()) ::
-          {:ok, BoardRecord.t()} | {:error, Ecto.Changeset.t()}
+          {:ok, BoardRecord.t()} | {:error, Ecto.Changeset.t() | :primary_board}
   def delete_board(%BoardRecord{} = board, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
-    repo.delete(board)
+
+    instance_config =
+      Keyword.get_lazy(opts, :instance_config, &Settings.effective_instance_config/0)
+
+    if board.uri == PrimaryBoard.uri(instance_config) do
+      {:error, :primary_board}
+    else
+      repo.delete(board)
+    end
   end
 
   @spec change_board(BoardRecord.t(), map()) :: Ecto.Changeset.t()

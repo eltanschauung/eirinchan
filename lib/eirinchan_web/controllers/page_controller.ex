@@ -11,6 +11,7 @@ defmodule EirinchanWeb.PageController do
   alias Eirinchan.LandingPages
   alias Eirinchan.NewsBlotter
   alias Eirinchan.Posts
+  alias Eirinchan.PrimaryBoard
   alias Eirinchan.Settings
   alias Eirinchan.SiteContact
   alias Eirinchan.StaticImageDimensions
@@ -758,7 +759,9 @@ defmodule EirinchanWeb.PageController do
       |> Enum.map(fn board -> {board, board_config(board, conn)} end)
       |> Enum.filter(fn {_board, config} -> Map.get(config, :user_flag, false) end)
 
-    case Enum.find(enabled_configs, fn {board, _config} -> board.uri == "bant" end) ||
+    primary_board_uri = PrimaryBoard.uri(Settings.effective_instance_config())
+
+    case Enum.find(enabled_configs, fn {board, _config} -> board.uri == primary_board_uri end) ||
            List.first(enabled_configs) do
       {_board, config} -> config
       nil -> nil
