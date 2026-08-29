@@ -16,4 +16,15 @@ defmodule Eirinchan.WhaleStickers.DefaultsTest do
 
     assert missing == []
   end
+
+  test "formatting columns contain every default sticker exactly once" do
+    columns = Defaults.formatting_columns()
+    configured_tokens = Defaults.entries() |> Enum.map(& &1.token) |> Enum.sort()
+    formatting_tokens = columns |> Map.values() |> List.flatten()
+
+    assert Enum.sort(formatting_tokens) == configured_tokens
+    assert length(formatting_tokens) == length(Enum.uniq(formatting_tokens))
+    assert length(columns.left) == 52
+    assert hd(columns.left) == "gem"
+  end
 end

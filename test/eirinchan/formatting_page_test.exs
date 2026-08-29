@@ -18,6 +18,22 @@ defmodule Eirinchan.FormattingPageTest do
     assert Floki.attribute(first_sticker, "src") == ["/whalestickers/gem.png"]
   end
 
+  test "uses the column placement owned by the sticker defaults" do
+    html =
+      FormattingPage.default_body([
+        %{token: "pensive2", path: "/whalestickers/pensive2.png", width: 120, height: 120},
+        %{token: "gem", path: "/whalestickers/gem.png", width: 388, height: 228}
+      ])
+
+    {:ok, document} = Floki.parse_fragment(html)
+
+    assert Floki.find(document, ".formatting-sticker-column:first-child img")
+           |> Floki.attribute("src") == ["/whalestickers/gem.png"]
+
+    assert Floki.find(document, ".formatting-sticker-column:last-child img")
+           |> Floki.attribute("src") == ["/whalestickers/pensive2.png"]
+  end
+
   test "refreshes the sticker columns in a stored formatting page" do
     stored_body =
       FormattingPage.default_body([
