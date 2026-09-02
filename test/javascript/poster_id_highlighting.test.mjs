@@ -34,12 +34,16 @@ function post(id, posterId, kind = "reply") {
 }
 
 async function setup(activePage = "index") {
+  const replies = `${post(101, "same-id")}${post(102, "other-id")}`;
+  const firstThreadPosts =
+    activePage === "thread"
+      ? `${post(100, "same-id", "op")}<div id="thread-refresh-target">${replies}</div>`
+      : `${post(100, "same-id", "op")}${replies}`;
+
   const dom = new JSDOM(
     `<!doctype html><html><body class="active-${activePage}">
       <div class="thread" id="thread_100" data-board="bant" data-thread-id="100">
-        ${post(100, "same-id", "op")}
-        ${post(101, "same-id")}
-        ${post(102, "other-id")}
+        ${firstThreadPosts}
       </div>
       <div class="thread" id="thread_200" data-board="bant" data-thread-id="200">
         ${post(200, "same-id", "op")}
@@ -94,8 +98,8 @@ function assertHighlighted(window, ids) {
 }
 
 test("clicking a poster ID highlights exact matches only within its thread", async () => {
-  const window = await setup();
-  const badge = window.document.getElementById("badge_100");
+  const window = await setup("thread");
+  const badge = window.document.getElementById("badge_101");
 
   badge.click();
 
@@ -133,10 +137,10 @@ test("keyboard activation toggles and replaces a thread's selected ID", async ()
 
 test("new replies inherit the active poster-ID highlight", async () => {
   const window = await setup("thread");
-  const thread = window.document.getElementById("thread_100");
+  const refreshTarget = window.document.getElementById("thread-refresh-target");
 
   window.document.getElementById("badge_100").click();
-  thread.insertAdjacentHTML("beforeend", post(103, "same-id"));
+  refreshTarget.insertAdjacentHTML("beforeend", post(103, "same-id"));
   const reply = window.document.getElementById("reply_103");
   window.jQuery(window.document).trigger("new_post", reply);
 
