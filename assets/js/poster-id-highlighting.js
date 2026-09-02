@@ -20,9 +20,22 @@
   }
 
   function directPosts(thread) {
-    return Array.prototype.filter.call(thread.children, function (child) {
-      return child.matches && child.matches("div.post.op, div.post.reply");
+    var posts = [];
+
+    Array.prototype.forEach.call(thread.children, function (child) {
+      if (child.matches && child.matches("div.post.op, div.post.reply")) {
+        posts.push(child);
+        return;
+      }
+
+      if (child.id === "thread-refresh-target") {
+        Array.prototype.forEach.call(child.children, function (reply) {
+          if (reply.matches && reply.matches("div.post.reply")) posts.push(reply);
+        });
+      }
     });
+
+    return posts;
   }
 
   function postBadge(post) {
