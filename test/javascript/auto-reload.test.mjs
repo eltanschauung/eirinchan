@@ -13,16 +13,25 @@ function delay(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-async function setup({deleteChecked = false, configureWindow} = {}) {
+async function setup({deleteChecked = false, configureWindow, pageKind = "index"} = {}) {
+  const refreshTarget = pageKind === "thread"
+    ? `<form data-post-form></form>
+      <div id="thread-refresh-target" data-fragment-md5="current">
+        <div class="post reply" id="reply_1" data-fragment-version="one"></div>
+        <br class="clear">
+      </div>
+      <a id="bottom"></a>`
+    : `<div id="board-refresh-target" data-fragment-md5="current">
+        <input type="checkbox" class="delete" id="delete_1" ${deleteChecked ? "checked" : ""}>
+      </div>`;
+
   const dom = new JSDOM(`<!doctype html><html><head><title>Board</title></head><body>
-    <div id="updater" data-live-updater data-page-kind="index" data-poll-interval-seconds="0.01">
+    <div id="updater" data-live-updater data-page-kind="${pageKind}" data-poll-interval-seconds="0.01">
       <input id="auto_update_status" type="checkbox">
       <span id="update_secs"></span>
       <a href="#" id="update_thread" aria-pressed="true">Live</a>
     </div>
-    <div id="board-refresh-target" data-fragment-md5="current">
-      <input type="checkbox" class="delete" id="delete_1" ${deleteChecked ? "checked" : ""}>
-    </div>
+    ${refreshTarget}
   </body></html>`, {
     runScripts: "outside-only",
     url: "https://example.test/bant/"
@@ -139,5 +148,70 @@ test("index features prepare a replacement before the updater commits it", async
   const replacement = dom.window.document.getElementById("board-refresh-target");
   assert.deepEqual(calls, [{currentConnected: true, replacementInLiveDocument: false}]);
   assert.equal(replacement.dataset.filtersPrepared, "true");
+  dom.window.close();
+});
+
+test("a reply post invalidates an older in-flight thread fragment", async () => {
+  const {dom, requests} = await setup({pageKind: "thread"});
+  const $ = dom.window.jQuery;
+  const form = dom.window.document.querySelector("form[data-post-form]");
+  const target = dom.window.document.getElementById("thread-refresh-target");
+
+  await delay(25);
+  assert.equal(requests.length, 1);
+
+  $(form).data("ajax-posting", true);
+  $(dom.window.document).trigger("ajax_before_post", [new dom.window.FormData(), form]);
+
+  assert.equal(requests[0].aborted, true);
+
+  target.insertAdjacentHTML(
+    "beforeend",
+    '<div class="post reply" id="reply_2" data-fragment-version="two"></div><br class="clear">'
+  );
+
+  requests[0].resolve(`<!doctype html><html><body>
+    <div id="thread-refresh-target" data-fragment-md5="stale">
+      <div class="post reply" id="reply_1" data-fragment-version="one"></div>
+    </div>
+  </body></html>`);
+
+  assert.ok(dom.window.document.getElementById("reply_2"));
+  assert.equal(target.dataset.fragmentMd5, "current");
+
+  $(form).removeData("ajax-posting");
+  $(dom.window.document).trigger("ajax_after_post", [{id: 2}, form]);
+  assert.equal(requests.length, 2);
+
+  requests[1].resolve(`<!doctype html><html><body>
+    <div id="thread-refresh-target" data-fragment-md5="fresh">
+      <div class="post reply" id="reply_1" data-fragment-version="one"></div>
+      <div class="post reply" id="reply_2" data-fragment-version="two"></div>
+    </div>
+  </body></html>`);
+
+  assert.ok(dom.window.document.getElementById("reply_2"));
+  assert.equal(target.dataset.fragmentMd5, "fresh");
+  dom.window.close();
+});
+
+test("thread refreshes defer until an unsuccessful post attempt clears", async () => {
+  const {dom, requests} = await setup({pageKind: "thread"});
+  const $ = dom.window.jQuery;
+  const form = dom.window.document.querySelector("form[data-post-form]");
+
+  await delay(25);
+  assert.equal(requests.length, 1);
+
+  $(form).data("ajax-posting", true);
+  $(dom.window.document).trigger("ajax_before_post", [new dom.window.FormData(), form]);
+  assert.equal(requests[0].aborted, true);
+
+  await delay(25);
+  assert.equal(requests.length, 1);
+
+  $(form).removeData("ajax-posting");
+  await delay(25);
+  assert.equal(requests.length, 2);
   dom.window.close();
 });

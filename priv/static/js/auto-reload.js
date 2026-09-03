@@ -72,7 +72,8 @@ window.auto_reload_enabled = true;
       windowActive: !document.hidden,
       lastRequestAt: Date.now(),
       scrollFramePending: false,
-      suspended: false
+      suspended: false,
+      mutationGeneration: 0
     };
 
     function createSettings() {
@@ -199,6 +200,15 @@ window.auto_reload_enabled = true;
       return !!document.querySelector("input.delete:checked");
     }
 
+    function postSubmissionActive() {
+      return Array.prototype.some.call(
+        document.querySelectorAll("form[data-post-form]"),
+        function (form) {
+          return !!$(form).data("ajax-posting");
+        }
+      );
+    }
+
     function enabled() {
       return livePreferenceEnabled() && !postSelectionActive();
     }
@@ -315,6 +325,11 @@ window.auto_reload_enabled = true;
         return false;
       }
 
+      if (pageKind === "thread" && postSubmissionActive()) {
+        scheduleIfEnabled(minimumDelay);
+        return false;
+      }
+
       if (shouldDeferForMedia()) {
         scheduleIfEnabled(minimumDelay);
         return false;
@@ -333,14 +348,20 @@ window.auto_reload_enabled = true;
         headers: headers
       });
 
+      request.eirinchanMutationGeneration = state.mutationGeneration;
       state.request = request;
 
       request.done(function (markup, textStatus, xhr) {
         finishRequest(request);
 
-        // A checked post control represents active user work. Never replace
-        // its fragment (or JS-added controls) with a response already in flight.
-        if (!enabled() || request.eirinchanPostSelectionAbort) {
+        // Never let a response captured before active user work replace newer
+        // post state or JS-added controls.
+        if (
+          !enabled() ||
+          request.eirinchanPostSelectionAbort ||
+          request.eirinchanPostSubmissionAbort ||
+          request.eirinchanMutationGeneration !== state.mutationGeneration
+        ) {
           setStatus("");
           syncButtonState();
           return;
@@ -371,7 +392,11 @@ window.auto_reload_enabled = true;
       request.fail(function (xhr, textStatus, errorThrown) {
         finishRequest(request);
 
-        if (request.eirinchanPagehideAbort || request.eirinchanPostSelectionAbort) {
+        if (
+          request.eirinchanPagehideAbort ||
+          request.eirinchanPostSelectionAbort ||
+          request.eirinchanPostSubmissionAbort
+        ) {
           return;
         }
 
@@ -893,6 +918,31 @@ window.auto_reload_enabled = true;
 
       syncButtonState();
     });
+
+    if (pageKind === "thread") {
+      $(document).on("ajax_before_post.eirinchanLiveUpdater", function () {
+        state.mutationGeneration += 1;
+        cancelCountdown();
+
+        if (state.request && typeof state.request.abort === "function") {
+          state.request.eirinchanPostSubmissionAbort = true;
+          state.request.abort();
+        }
+
+        setStatus("");
+        scheduleIfEnabled(minimumDelay);
+      });
+
+      $(document).on("ajax_after_post.eirinchanLiveUpdater", function () {
+        if (state.suspended || !enabled() || postSubmissionActive()) {
+          scheduleIfEnabled(minimumDelay);
+          return;
+        }
+
+        cancelCountdown();
+        requestRefresh(true);
+      });
+    }
 
     $(toggleLink).on("click.eirinchanLiveUpdater", function (event) {
       event.preventDefault();
