@@ -122,6 +122,15 @@ defmodule Eirinchan.Antispam do
     |> repo.insert()
   end
 
+  def release_public_activity(%SearchQuery{} = entry, opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+
+    case repo.delete(entry) do
+      {:ok, _entry} -> :ok
+      {:error, _changeset} -> :error
+    end
+  end
+
   def reserve_public_action(%BoardRecord{} = board, action, attrs, request, config, opts \\ []) do
     if moderated_request?(request) do
       :ok

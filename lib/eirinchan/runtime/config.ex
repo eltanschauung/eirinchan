@@ -159,6 +159,7 @@ defmodule Eirinchan.Runtime.Config do
     antispam_question_answer: nil,
     browser_abuse_challenge_seconds: 60 * 60,
     delete_post_max_age_minutes: 3,
+    max_post_deletions_per_hour: 10,
     anti_bump_flood: false,
     max_cites: 45,
     max_cross: 45,
@@ -516,6 +517,7 @@ defmodule Eirinchan.Runtime.Config do
     "floodGlobalWindow" => :flood_global_window,
     "floodGlobalCount" => :flood_global_count,
     "browserAbuseChallengeSeconds" => :browser_abuse_challenge_seconds,
+    "maxPostDeletionsPerHour" => :max_post_deletions_per_hour,
     "filters" => :filters,
     "maxThreadsPerHour" => :max_threads_per_hour,
     "duplicatePostWindowMinutes" => :duplicate_post_window_minutes,
@@ -683,6 +685,11 @@ defmodule Eirinchan.Runtime.Config do
       :duplicate_thread_window_hours,
       24,
       &bounded_non_negative_integer(&1, 24, 87_600)
+    )
+    |> Map.update(
+      :max_post_deletions_per_hour,
+      10,
+      &bounded_non_negative_integer(&1, 10, 1_000_000)
     )
     |> Map.update(:inline_expand_max, 10, &bounded_non_negative_integer(&1, 10, 10_000))
     |> Map.update(:archive_min_replies, 0, &bounded_non_negative_integer(&1, 0, 1_000_000))

@@ -89,6 +89,17 @@ defmodule Eirinchan.Runtime.ConfigTest do
              60
   end
 
+  test "defaults, normalizes, and aliases the hourly post deletion limit" do
+    assert Config.default_config().max_post_deletions_per_hour == 10
+    assert Config.compose().max_post_deletions_per_hour == 10
+    assert Config.compose(nil, %{max_post_deletions_per_hour: 0}).max_post_deletions_per_hour == 0
+
+    assert Config.compose(nil, %{"maxPostDeletionsPerHour" => "25"}).max_post_deletions_per_hour ==
+             25
+
+    assert Config.compose(nil, %{max_post_deletions_per_hour: -1}).max_post_deletions_per_hour == 10
+  end
+
   test "defaults and aliases sample filename rejection" do
     refute Config.default_config().reject_sample_filenames
     refute Config.compose().reject_sample_filenames
