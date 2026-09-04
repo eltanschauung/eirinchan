@@ -11,13 +11,15 @@ defmodule EirinchanWeb.Plugs.FetchBrowserTokenTest do
 
   test "reuses existing host-only browser token cookie", %{conn: conn} do
     token = browser_token("existing")
+    issued_at = System.system_time(:second) - 120
 
     conn =
       conn
-      |> put_req_cookie(@cookie_name, BrowserIdentity.issue(token))
+      |> put_req_cookie(@cookie_name, BrowserIdentity.issue(token, issued_at))
       |> FetchBrowserToken.call([])
 
     assert conn.assigns.browser_ref == BrowserIdentity.reference(token)
+    assert conn.assigns.browser_identity_issued_at == issued_at
     refute Map.has_key?(conn.assigns, :browser_identity_token)
     assert conn.assigns.returning_browser_identity
     refute Map.has_key?(conn.resp_cookies, @cookie_name)
@@ -33,8 +35,9 @@ defmodule EirinchanWeb.Plugs.FetchBrowserTokenTest do
       conn.resp_cookies
       |> Map.fetch!(@cookie_name)
 
-    assert {:ok, %{token: token}} = BrowserIdentity.verify(set_cookie.value)
+    assert {:ok, %{token: token, issued_at: issued_at}} = BrowserIdentity.verify(set_cookie.value)
     assert BrowserIdentity.reference(token) == conn.assigns.browser_ref
+    assert conn.assigns.browser_identity_issued_at == issued_at
     refute Map.has_key?(conn.assigns, :browser_identity_token)
     refute Repo.get(Identity, conn.assigns.browser_ref)
     assert set_cookie.path == "/"
@@ -83,6 +86,7 @@ defmodule EirinchanWeb.Plugs.FetchBrowserTokenTest do
 
     assert conn.assigns.browser_ref == BrowserIdentity.reference(token)
     refute Map.has_key?(conn.assigns, :browser_identity_token)
+    assert conn.assigns.browser_identity_issued_at == nil
     assert conn.assigns.returning_browser_identity
 
     assert {:ok, %{token: ^token}} =
@@ -100,6 +104,7 @@ defmodule EirinchanWeb.Plugs.FetchBrowserTokenTest do
 
     assert conn.assigns.browser_ref == BrowserIdentity.reference(token)
     refute Map.has_key?(conn.assigns, :browser_identity_token)
+    assert conn.assigns.browser_identity_issued_at == nil
     assert conn.assigns.returning_browser_identity
 
     assert {:ok, %{token: ^token}} =

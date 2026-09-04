@@ -89,6 +89,45 @@ defmodule Eirinchan.Runtime.ConfigTest do
              60
   end
 
+  test "defaults, normalizes, and aliases the hourly post deletion limit" do
+    assert Config.default_config().max_post_deletions_per_hour == 10
+    assert Config.compose().max_post_deletions_per_hour == 10
+    assert Config.compose(nil, %{max_post_deletions_per_hour: 0}).max_post_deletions_per_hour == 0
+
+    assert Config.compose(nil, %{"maxPostDeletionsPerHour" => "25"}).max_post_deletions_per_hour ==
+             25
+
+    assert Config.compose(nil, %{max_post_deletions_per_hour: -1}).max_post_deletions_per_hour ==
+             10
+  end
+
+  test "defaults, normalizes, and aliases visitor qualification controls" do
+    defaults = Config.default_config()
+    assert defaults.visitor_minimum_age_seconds == 60
+    assert defaults.visitor_identity_churn_limit == 3
+    assert defaults.visitor_identity_churn_window_seconds == 600
+
+    config =
+      Config.compose(nil, %{
+        "visitorMinimumAgeSeconds" => "90",
+        "visitorIdentityChurnLimit" => "5",
+        "visitorIdentityChurnWindowSeconds" => "900"
+      })
+
+    assert config.visitor_minimum_age_seconds == 90
+    assert config.visitor_identity_churn_limit == 5
+    assert config.visitor_identity_churn_window_seconds == 900
+
+    disabled =
+      Config.compose(nil, %{
+        visitor_minimum_age_seconds: 0,
+        visitor_identity_churn_limit: 0
+      })
+
+    assert disabled.visitor_minimum_age_seconds == 0
+    assert disabled.visitor_identity_churn_limit == 0
+  end
+
   test "defaults and aliases sample filename rejection" do
     refute Config.default_config().reject_sample_filenames
     refute Config.compose().reject_sample_filenames

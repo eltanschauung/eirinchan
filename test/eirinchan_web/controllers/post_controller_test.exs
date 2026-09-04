@@ -1944,6 +1944,62 @@ defmodule EirinchanWeb.PostControllerTest do
     assert %{"error" => "Incorrect password."} = json_response(conn, 403)
   end
 
+  test "hourly deletion limit counts successful replies and threads together", %{conn: _conn} do
+    board =
+      board_fixture(%{
+        config_overrides: %{max_post_deletions_per_hour: 3}
+      })
+
+    first_thread =
+      thread_fixture(board, %{password: "first-thread-pw", body: "first deletion-limit thread"})
+
+    first_reply = reply_fixture(board, first_thread, %{password: "first-reply-pw"})
+
+    second_thread =
+      thread_fixture(board, %{password: "second-thread-pw", body: "second deletion-limit thread"})
+
+    blocked_thread =
+      thread_fixture(board, %{password: "blocked-thread-pw", body: "blocked deletion-limit thread"})
+
+    browser_cookie = Eirinchan.BrowserIdentity.issue(browser_token("hourly-delete-limit"))
+
+    delete_post = fn post, password ->
+      %{build_conn() | remote_ip: {198, 51, 100, 91}}
+      |> put_req_cookie("__Host-eirinchan_browser", browser_cookie)
+      |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+      |> post("/#{board.uri}/post", %{
+        "delete_post_id" => Integer.to_string(PublicIds.public_id(post)),
+        "password" => password,
+        "json_response" => "1"
+      })
+    end
+
+    wrong_password_conn = delete_post.(first_reply, "wrong")
+    assert %{"error" => "Incorrect password."} = json_response(wrong_password_conn, 403)
+
+    reply_delete_conn = delete_post.(first_reply, "first-reply-pw")
+    assert %{"thread_deleted" => false} = json_response(reply_delete_conn, 200)
+
+    first_thread_delete_conn = delete_post.(first_thread, "first-thread-pw")
+    assert %{"thread_deleted" => true} = json_response(first_thread_delete_conn, 200)
+
+    second_thread_delete_conn = delete_post.(second_thread, "second-thread-pw")
+    assert %{"thread_deleted" => true} = json_response(second_thread_delete_conn, 200)
+
+    blocked_conn = delete_post.(blocked_thread, "blocked-thread-pw")
+
+    assert %{
+             "error" => "You've deleted too many posts this hour.",
+             "error_code" => "too_many_deletions"
+           } = json_response(blocked_conn, 429)
+
+    assert {:ok, _thread} = Eirinchan.Posts.get_post(board, blocked_thread.id)
+
+    assert 3 ==
+             Eirinchan.Antispam.list_public_activity_entries("198.51.100.91", repo: Repo)
+             |> Enum.count(&(&1.activity == "post_delete"))
+  end
+
   test "failed public deletions still consume the action flood allowance", %{conn: conn} do
     board = board_fixture(%{config_overrides: %{flood_time: 60, flood_ip_count: 1}})
     thread = thread_fixture(board, %{password: "threadpw"})

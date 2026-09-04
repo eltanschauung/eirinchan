@@ -78,7 +78,9 @@ defmodule EirinchanWeb.PostController do
       :delete ->
         delete_file_only = delete_file_only?(params)
 
-        with :ok <- Antispam.reserve_public_action(board, :delete, params, request, config) do
+        with :ok <- Antispam.reserve_public_action(board, :delete, params, request, config),
+             {:ok, deletion_reservation} <-
+               reserve_post_deletion(board, request, config, delete_file_only) do
           delete_action =
             if delete_file_only do
               Posts.public_delete_post_files(
@@ -103,6 +105,8 @@ defmodule EirinchanWeb.PostController do
               respond_deleted(conn, board, result, params)
 
             {:error, reason} when is_atom(reason) ->
+              _ = release_post_deletion(deletion_reservation)
+
               respond_error(
                 conn,
                 reason,
@@ -112,6 +116,7 @@ defmodule EirinchanWeb.PostController do
               )
 
             {:error, %Ecto.Changeset{} = changeset} ->
+              _ = release_post_deletion(deletion_reservation)
               respond_changeset_error(conn, changeset)
           end
         else
@@ -257,6 +262,25 @@ defmodule EirinchanWeb.PostController do
     end
   end
 
+  defp reserve_post_deletion(_board, _request, _config, true), do: {:ok, nil}
+
+  defp reserve_post_deletion(board, request, config, false) do
+    if Map.get(request, :moderator) do
+      {:ok, nil}
+    else
+      case Antispam.reserve_configured_public_activity("post_delete", request, config,
+             board_id: board.id
+           ) do
+        {:ok, reservation} -> {:ok, reservation}
+        {:error, :rate_limited} -> {:error, :too_many_deletions}
+        {:error, _reason} -> {:error, :antispam}
+      end
+    end
+  end
+
+  defp release_post_deletion(nil), do: :ok
+  defp release_post_deletion(reservation), do: Antispam.release_public_activity(reservation)
+
   defp ajax_reply_owned_post_ids(conn, board, post) do
     if ShowYous.enabled?(conn) do
       quoted_public_ids =
@@ -383,7 +407,7 @@ defmodule EirinchanWeb.PostController do
     log_post_error(reason, status, conn)
 
     conn =
-      if reason == :antispam,
+      if reason in [:antispam, :too_many_deletions],
         do: Statistics.mark_rate_limited(conn, branch(conn.params)),
         else: conn
 
@@ -764,6 +788,7 @@ defmodule EirinchanWeb.PostController do
   defp error_status(:thread_locked), do: :forbidden
   defp error_status(:invalid_referer), do: :forbidden
   defp error_status(:antispam), do: :unprocessable_entity
+  defp error_status(:too_many_deletions), do: :too_many_requests
   defp error_status(:too_many_threads), do: :unprocessable_entity
   defp error_status(:toomanylinks), do: :unprocessable_entity
   defp error_status(:toomanycites), do: :unprocessable_entity
@@ -826,6 +851,10 @@ defmodule EirinchanWeb.PostController do
   defp error_message(:thread_locked, config), do: config.error.locked
   defp error_message(:invalid_referer, config), do: config.error.referer
   defp error_message(:antispam, config), do: config.error.antispam
+
+  defp error_message(:too_many_deletions, _config),
+    do: "You've deleted too many posts this hour."
+
   defp error_message(:too_many_threads, config), do: config.error.too_many_threads
   defp error_message(:toomanylinks, config), do: config.error.toomanylinks
   defp error_message(:toomanycites, config), do: config.error.toomanycites

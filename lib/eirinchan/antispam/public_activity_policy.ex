@@ -8,11 +8,13 @@ defmodule Eirinchan.Antispam.PublicActivityPolicy do
 
   @search_defaults {[15, 2], [50, 2]}
   @feedback_defaults {[5, 24 * 60], [50, 2]}
+  @post_delete_default 10
 
   def limit_sets(activity, config) do
     case normalize_activity(activity) do
       "search" -> search_limits(config)
       "feedback" -> feedback_limits(config)
+      "post_delete" -> post_delete_limits(config)
       other -> raise ArgumentError, "no public activity rate-limit policy for #{inspect(other)}"
     end
   end
@@ -73,6 +75,29 @@ defmodule Eirinchan.Antispam.PublicActivityPolicy do
         global_window_seconds: global_minutes * 60
       ]
     ]
+  end
+
+  defp post_delete_limits(config) do
+    count = configured_count(config, :max_post_deletions_per_hour, @post_delete_default)
+
+    [
+      [
+        per_ip_count: count,
+        per_ip_window_seconds: 60 * 60,
+        per_browser_count: count,
+        per_browser_window_seconds: 60 * 60,
+        per_client_count: count,
+        per_client_window_seconds: 60 * 60,
+        global_count: 0
+      ]
+    ]
+  end
+
+  defp configured_count(config, key, default) do
+    case Map.get(config, key) do
+      count when is_integer(count) and count >= 0 -> count
+      _ -> default
+    end
   end
 
   defp configured_tuple(config, key, [default_count, default_minutes]) do
