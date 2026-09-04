@@ -108,6 +108,9 @@ defmodule Eirinchan.Runtime.Config do
     auto_updater_poll_interval_seconds: 5,
     inline_expand_max: 10,
     statistics_snapshots: true,
+    visitor_minimum_age_seconds: 60,
+    visitor_identity_churn_limit: 3,
+    visitor_identity_churn_window_seconds: 10 * 60,
     statistics_challenge_step_percent: 80,
     statistics_api_default_hours: 1,
     statistics_api_max_hours: 168,
@@ -538,6 +541,9 @@ defmodule Eirinchan.Runtime.Config do
     "feedbackSubmissionsPerMinutesAll" => :feedback_submissions_per_minutes_all,
     "autoUpdaterPollIntervalSeconds" => :auto_updater_poll_interval_seconds,
     "statisticsSnapshots" => :statistics_snapshots,
+    "visitorMinimumAgeSeconds" => :visitor_minimum_age_seconds,
+    "visitorIdentityChurnLimit" => :visitor_identity_churn_limit,
+    "visitorIdentityChurnWindowSeconds" => :visitor_identity_churn_window_seconds,
     "watcherMaxThreads" => :watcher_max_threads,
     "searchAllowedBoards" => :search_allowed_boards,
     "searchDisallowedBoards" => :search_disallowed_boards,
@@ -690,6 +696,21 @@ defmodule Eirinchan.Runtime.Config do
       :max_post_deletions_per_hour,
       10,
       &bounded_non_negative_integer(&1, 10, 1_000_000)
+    )
+    |> Map.update(
+      :visitor_minimum_age_seconds,
+      60,
+      &bounded_non_negative_integer(&1, 60, 86_400)
+    )
+    |> Map.update(
+      :visitor_identity_churn_limit,
+      3,
+      &bounded_non_negative_integer(&1, 3, 1_000)
+    )
+    |> Map.update(
+      :visitor_identity_churn_window_seconds,
+      10 * 60,
+      &bounded_positive_integer(&1, 10 * 60, 86_400)
     )
     |> Map.update(:inline_expand_max, 10, &bounded_non_negative_integer(&1, 10, 10_000))
     |> Map.update(:archive_min_replies, 0, &bounded_non_negative_integer(&1, 0, 1_000_000))

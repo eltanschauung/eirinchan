@@ -19,7 +19,7 @@ defmodule EirinchanWeb.Plugs.FetchBrowserToken do
 
       {:upgrade, token} ->
         conn
-        |> resolve_identity(token, System.system_time(:second), true, true)
+        |> resolve_identity(token, System.system_time(:second), true, true, nil)
         |> delete_resp_cookie(@legacy_cookie_name, CookiePolicy.browser_identity_delete())
 
       :missing ->
@@ -55,15 +55,21 @@ defmodule EirinchanWeb.Plugs.FetchBrowserToken do
     )
   end
 
-  defp assign_identity(conn, token) do
-    assign(conn, :browser_ref, BrowserIdentity.reference(token))
+  defp assign_identity(conn, token, issued_at) do
+    conn
+    |> assign(:browser_ref, BrowserIdentity.reference(token))
+    |> assign(:browser_identity_issued_at, issued_at)
   end
 
   defp resolve_identity(conn, token, issued_at, returning?, set_cookie?) do
+    resolve_identity(conn, token, issued_at, returning?, set_cookie?, issued_at)
+  end
+
+  defp resolve_identity(conn, token, issued_at, returning?, set_cookie?, qualification_issued_at) do
     case BrowserIdentities.resolve(token, issued_at) do
       {:ok, _reference, options} ->
         conn
-        |> assign_identity(token)
+        |> assign_identity(token, qualification_issued_at)
         |> assign(:returning_browser_identity, returning?)
         |> maybe_refresh_cookie(token, set_cookie? or options[:rotate_cookie?])
 
@@ -77,7 +83,7 @@ defmodule EirinchanWeb.Plugs.FetchBrowserToken do
     issued_at = System.system_time(:second)
 
     conn
-    |> assign_identity(token)
+    |> assign_identity(token, issued_at)
     |> assign(:returning_browser_identity, false)
     |> put_browser_cookie(BrowserIdentity.issue(token, issued_at))
   end
