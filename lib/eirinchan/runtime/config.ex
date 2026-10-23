@@ -887,6 +887,13 @@ defmodule Eirinchan.Runtime.Config do
 
   defp normalize_override_value(_key, %{__struct__: _} = value), do: value
 
+  # These maps contain administrator-defined names, not config field names.
+  # Their keys must not depend on which atoms the runtime has already loaded.
+  defp normalize_override_value(key, value)
+       when key in [:allowed_tags, :user_flags] and is_map(value) do
+    Map.new(value, fn {name, label} -> {to_string(name), label} end)
+  end
+
   defp normalize_override_value(key, value) when is_map(value) do
     nested_aliases = Map.get(@deprecated_nested_aliases, key, %{})
 
