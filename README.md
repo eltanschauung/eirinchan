@@ -70,6 +70,10 @@ administrator credentials.
 
 This software has been heavily pentested by GPT 5.6 Pro in software-side and live environments. This software is not subject to CSRF vulnerability recently found in Vichan.
 
+JSON moderator clients must preserve cookies, fetch `/csrf-token` (using `Accept: */*`),
+and send its `csrf_token` as `x-csrf-token` on `/manage/login` and `/manage/logout`.
+Fetch a fresh token after login renews the session.
+
 ## Don't like Docker?
 
 Installing this software natively is possible with Elixir 1.20.4, Erlang/OTP 29.1.2,
