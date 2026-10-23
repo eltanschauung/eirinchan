@@ -95,11 +95,13 @@ defmodule EirinchanWeb.IpAccessAuthControllerTest do
     assert log =~ ~s|"event":"auth.ip_access.rejected"|
     assert log =~ ~s|"outcome":"invalid_password"|
     assert log =~ ~s|"status":"failed"|
-    assert log =~ ~s|"submitted_value":"wrong"|
+    refute log =~ "submitted_value"
+    refute log =~ "wrong"
+    refute log =~ "127.0.0.0/24"
     assert log =~ conn.assigns.browser_ref
   end
 
-  test "successful attempts log the exact submitted value with audit metadata", %{
+  test "successful attempts log hashed correlation without credentials or raw subnet", %{
     conn: conn
   } do
     logger_level = Logger.level()
@@ -114,8 +116,10 @@ defmodule EirinchanWeb.IpAccessAuthControllerTest do
     assert log =~ ~s|"event":"auth.ip_access.granted"|
     assert log =~ ~s|"outcome":"granted"|
     assert log =~ ~s|"status":"passed"|
-    assert log =~ ~s|"submitted_value":"DOOR"|
-    assert log =~ ~s|"ip_subnet":"192.0.2.0/24"|
+    refute log =~ "submitted_value"
+    refute log =~ "DOOR"
+    refute log =~ "192.0.2."
+    refute log =~ "ip_subnet"
     assert log =~ EventLog.subject_id("192.0.2.0/24", :ip_access_audit_subnet)
     assert log =~ conn.assigns.browser_ref
   end
@@ -126,7 +130,7 @@ defmodule EirinchanWeb.IpAccessAuthControllerTest do
     assert html_response(conn, 422) =~ "Password is required."
     assert log =~ ~s|"outcome":"password_required"|
     assert log =~ ~s|"status":"failed"|
-    assert log =~ ~s|"submitted_value":""|
+    refute log =~ "submitted_value"
   end
 
   test "invalid authentication attempts are throttled per subnet", %{conn: conn} do
@@ -148,7 +152,9 @@ defmodule EirinchanWeb.IpAccessAuthControllerTest do
     assert get_resp_header(limited, "retry-after") == ["60"]
     assert log =~ ~s|"outcome":"rate_limited"|
     assert log =~ ~s|"status":"failed"|
-    assert log =~ ~s|"submitted_value":"still-wrong"|
+    refute log =~ "submitted_value"
+    refute log =~ "still-wrong"
+    refute log =~ "127.0.0.0/24"
   end
 
   test "successful authentication normalizes same-origin referrers to local paths", %{conn: conn} do

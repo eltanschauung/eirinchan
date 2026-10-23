@@ -39,7 +39,7 @@ defmodule EirinchanWeb.IpAccessAuthController do
       handle_authorization(conn, result, config, ip, password)
     else
       {:error, retry_after} when is_integer(retry_after) ->
-        log_attempt(conn, "auth.ip_access.rejected", "rate_limited", password)
+        log_attempt(conn, "auth.ip_access.rejected", "rate_limited")
 
         conn
         |> put_resp_header("retry-after", Integer.to_string(retry_after))
@@ -51,7 +51,7 @@ defmodule EirinchanWeb.IpAccessAuthController do
     case result do
       {:ok, _result} ->
         IpAccessAuthThrottle.clear(ip)
-        log_attempt(conn, "auth.ip_access.granted", "granted", password, :info)
+        log_attempt(conn, "auth.ip_access.granted", "granted", :info)
 
         conn
         |> put_root_layout(false)
@@ -70,17 +70,17 @@ defmodule EirinchanWeb.IpAccessAuthController do
         )
 
       {:error, :password_required} ->
-        log_attempt(conn, "auth.ip_access.rejected", "password_required", password)
+        log_attempt(conn, "auth.ip_access.rejected", "password_required")
         render_error(conn, config, "Password is required.", password)
 
       {:error, :invalid_password} ->
         case IpAccessAuthThrottle.record_failure(ip, config) do
           :ok ->
-            log_attempt(conn, "auth.ip_access.rejected", "invalid_password", password)
+            log_attempt(conn, "auth.ip_access.rejected", "invalid_password")
             render_error(conn, config, "Invalid password.", password)
 
           {:error, retry_after} ->
-            log_attempt(conn, "auth.ip_access.rejected", "rate_limited", password)
+            log_attempt(conn, "auth.ip_access.rejected", "rate_limited")
 
             conn
             |> put_resp_header("retry-after", Integer.to_string(retry_after))
@@ -93,41 +93,37 @@ defmodule EirinchanWeb.IpAccessAuthController do
         end
 
       {:error, :invalid_ip} ->
-        log_attempt(conn, "auth.ip_access.failed", "invalid_ip", password, :error)
+        log_attempt(conn, "auth.ip_access.failed", "invalid_ip", :error)
         render_error(conn, config, "Unable to determine network range.", password)
 
       {:error, reason} ->
-        log_attempt(conn, "auth.ip_access.failed", reason, password, :error)
+        log_attempt(conn, "auth.ip_access.failed", reason, :error)
         render_error(conn, config, "Unable to update access list.", password)
     end
   end
 
-  defp log_attempt(conn, event, outcome, password, level \\ :warning) do
-    {ip_subnet, network_id} = network_metadata(conn)
-
+  defp log_attempt(conn, event, outcome, level \\ :warning) do
     EventLog.log(
       conn,
       event,
       %{
         browser_id: RequestMeta.browser_ref(conn),
         browser_present: is_binary(RequestMeta.browser_ref(conn)),
-        ip_subnet: ip_subnet,
-        network_id: network_id,
+        network_id: network_id(conn),
         outcome: outcome,
-        status: if(outcome == "granted", do: "passed", else: "failed"),
-        submitted_value: password
+        status: if(outcome == "granted", do: "passed", else: "failed")
       },
       level
     )
   end
 
-  defp network_metadata(conn) do
+  defp network_id(conn) do
     conn
     |> RequestMeta.effective_remote_ip()
     |> IpAccessAuth.subnet_for_ip()
     |> case do
-      {:ok, subnet} -> {subnet, EventLog.subject_id(subnet, :ip_access_audit_subnet)}
-      _error -> {nil, nil}
+      {:ok, subnet} -> EventLog.subject_id(subnet, :ip_access_audit_subnet)
+      _error -> nil
     end
   end
 

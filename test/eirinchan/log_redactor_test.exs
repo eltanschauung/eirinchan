@@ -3,6 +3,20 @@ defmodule Eirinchan.LogRedactorTest do
 
   alias Eirinchan.LogRedactor
 
+  test "legacy authentication submitted values are redacted in nested metadata" do
+    sanitized =
+      LogRedactor.sanitize_metadata(%{
+        submitted_value: "test-only-credential",
+        nested: %{"submitted_value" => "test-only-personal-password"},
+        outcome: "invalid_password"
+      })
+
+    refute inspect(sanitized) =~ "test-only-"
+    assert sanitized.submitted_value == "[REDACTED]"
+    assert sanitized.nested["submitted_value"] == "[REDACTED]"
+    assert sanitized.outcome == "invalid_password"
+  end
+
   test "removes sensitive headers, cookies, and complete connections from logger events" do
     conn = %Plug.Conn{
       req_headers: [
