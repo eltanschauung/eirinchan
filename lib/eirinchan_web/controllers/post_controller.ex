@@ -153,7 +153,7 @@ defmodule EirinchanWeb.PostController do
         end
 
       :post ->
-        case Posts.create_post(board, params, config: config, request: request) do
+        case Posts.create_public_post(board, params, config: config, request: request) do
           {:ok, post, meta} ->
             respond_created(conn, board, post, params, meta)
 

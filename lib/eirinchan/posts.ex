@@ -37,6 +37,18 @@ defmodule Eirinchan.Posts do
 
   @slow_post_log_ms 750
 
+  @doc "Creates a post from untrusted public form input; internal metadata is always derived."
+  def create_public_post(%BoardRecord{} = board, attrs, opts \\ []) do
+    config = Keyword.get(opts, :config, Config.compose())
+    attrs = attrs |> normalize_attrs() |> Eirinchan.Posts.PublicInput.filter(config)
+    create_post(board, attrs, Keyword.put(opts, :config, config))
+  end
+
+  @doc """
+  Trusted application posting pipeline. Callers may supply internal metadata.
+  Public request handlers must use `create_public_post/3` instead.
+  """
+
   @spec create_post(BoardRecord.t(), map(), keyword()) ::
           {:ok, Post.t(), map()}
           | {:error,
