@@ -164,14 +164,12 @@ sudo install -d -m 0755 -o root -g root "$(dirname -- "$RELEASE_ROOT")" "$RELEAS
 if [[ ! -e "$TARGET" ]]; then
   sudo install -d -m 0700 -o root -g root "$TEMP_TARGET"
   sudo cp -a -- "$OUTPUT_ROOT/." "$TEMP_TARGET/"
-  sudo chown -R root:root "$TEMP_TARGET"
-  sudo find "$TEMP_TARGET" -type d -exec chmod 0555 {} +
-  sudo find "$TEMP_TARGET" -type f -perm /111 -exec chmod 0555 {} +
-  sudo find "$TEMP_TARGET" -type f ! -perm /111 -exec chmod 0444 {} +
+  sudo bash "$SOURCE_ROOT/ops/deploy/release-permissions.sh" "$TEMP_TARGET" "$DEPLOY_GROUP"
   sudo mv -- "$TEMP_TARGET" "$TARGET"
 fi
 
-sudo -u "$DEPLOY_USER" "$TARGET/bin/migrate"
+sudo -u "$DEPLOY_USER" -g "$DEPLOY_GROUP" test -r "$TARGET/releases/COOKIE"
+sudo -u "$DEPLOY_USER" -g "$DEPLOY_GROUP" "$TARGET/bin/migrate"
 
 sudo install -d -m 0755 -o root -g root "$(dirname -- "$DROP_IN")"
 sudo install -m 0644 -o root -g root \
