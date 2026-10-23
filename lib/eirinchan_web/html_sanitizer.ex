@@ -30,8 +30,11 @@ defmodule EirinchanWeb.HtmlSanitizer do
 
   def sanitize_fragment(html) when is_binary(html) do
     case Floki.parse_fragment(html) do
-      {:ok, nodes} -> nodes |> sanitize_nodes() |> Floki.raw_html() |> String.replace("&#39;", "'")
-      {:error, _reason} -> ""
+      {:ok, nodes} ->
+        nodes |> sanitize_nodes() |> Floki.raw_html() |> String.replace("&#39;", "'")
+
+      {:error, _reason} ->
+        ""
     end
   end
 
@@ -45,11 +48,14 @@ defmodule EirinchanWeb.HtmlSanitizer do
     normalized_tag = String.downcase(tag)
 
     cond do
-      normalized_tag in @drop_with_contents -> []
+      normalized_tag in @drop_with_contents ->
+        []
+
       normalized_tag in @allowed_tags ->
         [{normalized_tag, sanitize_attributes(normalized_tag, attrs), sanitize_nodes(children)}]
 
-      true -> sanitize_nodes(children)
+      true ->
+        sanitize_nodes(children)
     end
   end
 
@@ -148,10 +154,11 @@ defmodule EirinchanWeb.HtmlSanitizer do
 
   defp secure_external_link(attrs, "a") do
     if Enum.any?(attrs, &match?({"target", "_blank"}, &1)) do
-      rel = Enum.find_value(attrs, "", fn
-        {"rel", value} -> value
-        _attribute -> nil
-      end)
+      rel =
+        Enum.find_value(attrs, "", fn
+          {"rel", value} -> value
+          _attribute -> nil
+        end)
 
       Enum.reject(attrs, &match?({"rel", _value}, &1)) ++ [{"rel", merge_rel(rel)}]
     else
@@ -170,7 +177,9 @@ defmodule EirinchanWeb.HtmlSanitizer do
   end
 
   defp safe_attribute_value?(value) when is_binary(value) do
-    not String.contains?(value, ["\u0000", "\r", "\n"])
+    # Browsers remove ASCII tabs/newlines during URL parsing, unlike URI.parse/1.
+    # Reject controls before parsing so an obfuscated scheme cannot look relative.
+    not Regex.match?(~r/[\x00-\x1F\x7F]/, value)
   end
 
   defp safe_attribute_value?(_value), do: false

@@ -3,6 +3,34 @@ defmodule EirinchanWeb.HtmlSanitizerTest do
 
   alias EirinchanWeb.HtmlSanitizer
 
+  test "rejects browser-normalized control characters in URL attributes" do
+    for scheme <- [
+          "java&#9;script:",
+          "java&#x09;script:",
+          "java\tscript:",
+          "java&#10;script:",
+          "\u0001javascript:"
+        ] do
+      html = ~s|<a href="#{scheme}alert(1)">link</a><img src="#{scheme}alert(1)">|
+      sanitized = HtmlSanitizer.sanitize_fragment(html)
+      refute sanitized =~ "href="
+      refute sanitized =~ "src="
+    end
+  end
+
+  test "retains ordinary relative, HTTP, HTTPS, fragment and mailto URLs" do
+    for url <- [
+          "/rules",
+          "../faq",
+          "#section",
+          "https://example.test/path",
+          "http://example.test",
+          "mailto:example@example.test"
+        ] do
+      assert HtmlSanitizer.sanitize_fragment(~s|<a href="#{url}">link</a>|) =~ ~s|href="#{url}"|
+    end
+  end
+
   test "removes script tags inline handlers and javascript urls" do
     html =
       ~s|<div onclick="alert(1)"><script>alert(1)</script><a href="javascript:alert(1)">x</a><img src="ok.png" onerror="alert(1)"></div>|
@@ -68,13 +96,15 @@ defmodule EirinchanWeb.HtmlSanitizerTest do
   end
 
   test "drops executable namespaces forms and their contents" do
-    html = ~s|<svg><a href="https://evil.test">svg</a></svg><form><input name="x"></form><math><mtext>x</mtext></math>safe|
+    html =
+      ~s|<svg><a href="https://evil.test">svg</a></svg><form><input name="x"></form><math><mtext>x</mtext></math>safe|
 
     assert HtmlSanitizer.sanitize_fragment(html) == "safe"
   end
 
   test "preserves common rich text and secures blank-target links" do
-    html = ~s|<h2 class="title">Heading</h2><table><tr><th scope="col">A</th></tr></table><a href="https://example.test" target="_blank">link</a>|
+    html =
+      ~s|<h2 class="title">Heading</h2><table><tr><th scope="col">A</th></tr></table><a href="https://example.test" target="_blank">link</a>|
 
     sanitized = HtmlSanitizer.sanitize_fragment(html)
 
