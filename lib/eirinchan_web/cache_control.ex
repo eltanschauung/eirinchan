@@ -9,7 +9,10 @@ defmodule EirinchanWeb.CacheControl do
   @version_pattern ~r/\A[A-Za-z0-9._:-]{1,128}\z/
 
   def static_headers(conn) do
-    [{"cache-control", cache_control_for_request(conn.request_path, conn.query_string)}]
+    [
+      {"cache-control", cache_control_for_request(conn.request_path, conn.query_string)},
+      {"x-content-type-options", "nosniff"}
+    ]
   end
 
   def cache_control_for_request(path, query_string)
