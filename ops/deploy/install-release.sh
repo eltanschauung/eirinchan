@@ -18,9 +18,10 @@ PHX_PORT="${EIRINCHAN_DEPLOY_PORT:-4001}"
 SHARED_ENV="${EIRINCHAN_SHARED_ENV:-$DEPLOY_HOME/.config/eirinchan-shared.env}"
 SECRET_KEY_FILE="${EIRINCHAN_SECRET_KEY_FILE:-$DEPLOY_HOME/.config/eirinchan4001/secret_key_base}"
 GEOIP_CONFIG="${EIRINCHAN_GEOIP_CONFIG:-$DEPLOY_HOME/.config/maxmind/GeoIP.conf}"
-TOOLCHAIN_ID="${EIRINCHAN_TOOLCHAIN_ID:-elixir-1.20.2-otp-27}"
-ELIXIR_BIN="${EIRINCHAN_ELIXIR_BIN:-$DEPLOY_HOME/.local/elixir-1.20.2-otp-27/bin}"
-OTP_BIN="${EIRINCHAN_OTP_BIN:-$DEPLOY_HOME/.local/otp-27.3.4.12/bin}"
+TOOLCHAIN_ID="${EIRINCHAN_TOOLCHAIN_ID:-elixir-1.20.4-otp-29}"
+ELIXIR_BIN="${EIRINCHAN_ELIXIR_BIN:-$DEPLOY_HOME/.local/elixir-1.20.4-otp-29/bin}"
+OTP_BIN="${EIRINCHAN_OTP_BIN:-$DEPLOY_HOME/.local/otp-29.1.2/bin}"
+NODE_BIN="${EIRINCHAN_NODE_BIN:-$DEPLOY_HOME/.local/node-26.12.1/bin}"
 MIX_HOME="${EIRINCHAN_MIX_HOME:-$DEPLOY_HOME/.mix-1.20}"
 HEX_HOME="${EIRINCHAN_HEX_HOME:-$DEPLOY_HOME/.hex-1.20}"
 
@@ -43,7 +44,7 @@ fi
 [[ "$TOOLCHAIN_ID" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "Invalid EIRINCHAN_TOOLCHAIN_ID." >&2; exit 1; }
 
 for configured_path in "$DEPLOY_HOME" "$RELEASE_ROOT" "$CURRENT_LINK" "$DROP_IN" "$LOG_DIR" \
-  "$SHARED_ENV" "$SECRET_KEY_FILE" "$GEOIP_CONFIG" "$ELIXIR_BIN" "$OTP_BIN" "$MIX_HOME" "$HEX_HOME"; do
+  "$SHARED_ENV" "$SECRET_KEY_FILE" "$GEOIP_CONFIG" "$ELIXIR_BIN" "$OTP_BIN" "$NODE_BIN" "$MIX_HOME" "$HEX_HOME"; do
   valid_path "$configured_path" || { echo "Refusing configured path with unsupported characters: $configured_path" >&2; exit 1; }
 done
 
@@ -126,7 +127,7 @@ trap cleanup EXIT
 
 git -C "$REPOSITORY" worktree add --detach "$SOURCE_ROOT" "$COMMIT"
 
-export PATH="$ELIXIR_BIN:$OTP_BIN:${PATH}"
+export PATH="$ELIXIR_BIN:$OTP_BIN:$NODE_BIN:${PATH}"
 export MIX_HOME
 export HEX_HOME
 export MIX_ENV=prod

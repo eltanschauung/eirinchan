@@ -391,6 +391,8 @@ defmodule EirinchanWeb.PageControllerTest do
   end
 
   test "unknown public paths apply the automatic dark style before paint", %{conn: conn} do
+    :ok = Settings.persist_instance_config(%{primary_board_uri: "bant"})
+
     board_fixture(%{
       uri: "bant",
       title: "International Random",
@@ -1299,6 +1301,7 @@ defmodule EirinchanWeb.PageControllerTest do
   end
 
   test "public page banner visibility is instance-configured", %{conn: conn} do
+    :ok = Eirinchan.Themes.disable_page_theme("recent")
     moderator_fixture()
     board_fixture(%{uri: "b", title: "Random"})
     :ok = Settings.persist_instance_config(%{show_public_page_banner: true})

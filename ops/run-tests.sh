@@ -3,10 +3,10 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPOSITORY="$(realpath -- "$SCRIPT_DIR/..")"
-TOOLCHAIN_ID=elixir-1.20.2-otp-27
+TOOLCHAIN_ID=elixir-1.20.4-otp-29
 CACHE_ROOT="${EIRINCHAN_TEST_CACHE_ROOT:-${HOME}/.cache/eirinchan/test/${TOOLCHAIN_ID}}"
 
-export PATH="/home/telemazer/.local/elixir-1.20.2-otp-27/bin:/home/telemazer/.local/otp-27.3.4.12/bin:${PATH}"
+export PATH="/home/telemazer/.local/elixir-1.20.4-otp-29/bin:/home/telemazer/.local/otp-29.1.2/bin:/home/telemazer/.local/node-26.12.1/bin:${PATH}"
 export MIX_HOME=/home/telemazer/.mix-1.20
 export HEX_HOME=/home/telemazer/.hex-1.20
 

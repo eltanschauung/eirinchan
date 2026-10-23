@@ -5,7 +5,7 @@ defmodule Eirinchan.MixProject do
     [
       app: :eirinchan,
       version: "0.1.0",
-      elixir: "~> 1.20.2",
+      elixir: "~> 1.20.4",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
@@ -32,14 +32,14 @@ defmodule Eirinchan.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:phoenix, "~> 1.7.22"},
+      {:phoenix, "~> 1.8.16"},
       {:plug, "~> 1.20.3"},
       {:phoenix_ecto, "~> 4.7.0"},
       {:ecto_sql, "~> 3.14"},
       {:postgrex, "~> 0.22.4"},
       {:phoenix_html, "~> 4.0"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
-      {:phoenix_live_view, "~> 0.20.2"},
+      {:phoenix_live_view, "~> 1.2.13"},
       {:floki, "~> 0.38.4"},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},

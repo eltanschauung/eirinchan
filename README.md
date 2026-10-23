@@ -72,8 +72,11 @@ This software has been heavily pentested by GPT 5.6 Pro in software-side and liv
 
 ## Don't like Docker?
 
-Installing this software natively is possible with Elixir 1.20.2, Erlang/OTP 27,
-and PostgreSQL installed:
+Installing this software natively is possible with Elixir 1.20.4, Erlang/OTP 29.1.2,
+Node.js 26.12.1 for asset tooling, and PostgreSQL installed. The native toolchains
+can be installed with `bash ops/install-elixir-toolchain.sh` and
+`bash ops/install-node-toolchain.sh`. Add their `bin` directories under `~/.local`
+to your `PATH` (the test and deployment wrappers do this automatically):
 
 ```sh
 export DATABASE_URL='ecto://localhost/eirinchan_dev'

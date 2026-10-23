@@ -9,12 +9,12 @@
   Configure boardlist groups separately for desktop and mobile. Each value must be a JSON array of groups using board URIs as strings or label-to-URL maps.
 </p>
 <p>
-  Link labels support the same placeholders as the global message. Inline conditional text can use <code>{if tf2_display &gt; N}conditional text</code>; the text after the condition is hidden unless the player count is greater than the integer threshold <code>N</code>.
+  Link labels support the same placeholders as the global message. Inline conditional text can use <code phx-no-curly-interpolation>{if tf2_display &gt; N}conditional text</code>; the text after the condition is hidden unless the player count is greater than the integer threshold <code>N</code>.
 </p>
 <br />
 <p>See this example:</p>
 
-<pre>
+<pre phx-no-curly-interpolation>
 {
   "desktop": [
     ["a", "b", "c", "j", "qa"],
