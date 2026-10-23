@@ -373,6 +373,8 @@ defmodule EirinchanWeb.PageControllerTest do
   end
 
   test "unknown public paths apply the automatic dark style before paint", %{conn: conn} do
+    :ok = Settings.persist_instance_config(%{primary_board_uri: "bant"})
+
     board_fixture(%{
       uri: "bant",
       title: "International Random",

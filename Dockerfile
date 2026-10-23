@@ -1,6 +1,6 @@
-ARG ELIXIR_IMAGE=hexpm/elixir:1.20.2-erlang-27.3.4.14-debian-bullseye-20260623-slim
-ARG NODE_IMAGE=node:22-bullseye-slim
-ARG RUNTIME_IMAGE=debian:bullseye-slim
+ARG ELIXIR_IMAGE=hexpm/elixir:1.20.4-erlang-29.1.2-debian-bookworm-20261020-slim
+ARG NODE_IMAGE=node:26.12.1-bookworm-slim
+ARG RUNTIME_IMAGE=debian:bookworm-slim
 
 FROM ${NODE_IMAGE} AS node_toolchain
 

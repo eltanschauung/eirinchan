@@ -4,6 +4,23 @@ defmodule Eirinchan.Runtime.ConfigTest do
   alias Eirinchan.Boards.Board
   alias Eirinchan.Runtime.Config
 
+  test "tag and user flag names stay strings even when matching atoms exist" do
+    # Explicit atoms make this independent of compiler/runtime atom loading.
+    assert Atom.to_string(:A) == "A"
+    assert Atom.to_string(:country) == "country"
+
+    config =
+      Config.compose(nil, %{
+        "allowed_tags" => %{"A" => "Anime", "name" => "Name"},
+        "user_flags" => %{"country" => "Country", "name" => "Name"},
+        "dir" => %{"img" => "src/"}
+      })
+
+    assert config.allowed_tags == %{"A" => "Anime", "name" => "Name"}
+    assert config.user_flags == %{"country" => "Country", "name" => "Name"}
+    assert config.dir.img == "src/"
+  end
+
   test "allows HEIC uploads by default" do
     assert ".heic" in Config.default_config().allowed_ext_files
   end

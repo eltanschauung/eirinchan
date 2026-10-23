@@ -51,6 +51,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
   end
 
   test "manage pages use the resolved automatic browser theme", %{conn: conn} do
+    :ok = Eirinchan.Settings.persist_instance_config(%{primary_board_uri: "bant"})
     moderator = moderator_fixture(%{role: "admin"})
 
     board_fixture(%{

@@ -40,13 +40,13 @@ jobs:
       - name: Install Erlang and Elixir
         uses: erlef/setup-beam@v1.24.1
         with:
-          otp-version: 27.3.4.12
-          elixir-version: 1.20.2
+          otp-version: 29.1.2
+          elixir-version: 1.20.4
 
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 26.12.1
           cache: npm
 
       - name: Install media tools
@@ -60,7 +60,7 @@ jobs:
           path: |
             deps
             _build
-          key: ${{ runner.os }}-otp27-elixir1.20-${{ hashFiles('mix.lock') }}
+          key: ${{ runner.os }}-otp29.1.2-elixir1.20.4-${{ hashFiles('mix.lock') }}
 
       - name: Install JavaScript tooling
         run: npm ci --ignore-scripts --no-audit --no-fund

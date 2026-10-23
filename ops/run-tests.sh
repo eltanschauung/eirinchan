@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPOSITORY="$(realpath -- "$SCRIPT_DIR/..")"
-TOOLCHAIN_ID="${EIRINCHAN_TOOLCHAIN_ID:-elixir-1.20.2-otp-27}"
+TOOLCHAIN_ID="${EIRINCHAN_TOOLCHAIN_ID:-elixir-1.20.4-otp-29}"
 CACHE_ROOT="${EIRINCHAN_TEST_CACHE_ROOT:-${HOME}/.cache/eirinchan/test/${TOOLCHAIN_ID}}"
 
 if [[ -n "${EIRINCHAN_TOOLCHAIN_PATH:-}" ]]; then
