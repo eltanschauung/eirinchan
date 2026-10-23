@@ -3,10 +3,10 @@
     {
       "label": "bundle:core",
       "output": "priv/static/js/bundle-public-core.js",
-      "output_bytes": 138290,
+      "output_bytes": 138339,
       "public_path": "/js/bundle-public-core.js",
-      "sha256": "fa17e740aedc2109d32e1f720d3e0f0cbafbe07594152e5f8ea5b35f290be686",
-      "source_bytes": 185601,
+      "sha256": "864290ce3c17d963eefed57d18103726f4f6ceb2aa2e598ff5a17edcc895d9d6",
+      "source_bytes": 185668,
       "sources": [
         "priv/static/js/jquery.min.js",
         "assets/js/options.js",
@@ -289,10 +289,10 @@
     {
       "label": "maintained:js/post-filter.js",
       "output": "priv/static/js/post-filter.js",
-      "output_bytes": 17952,
+      "output_bytes": 18001,
       "public_path": "/js/post-filter.js",
-      "sha256": "ce8fe9cf16d3d7ebd2ae76e4c03ccf0029014562273ba890cd4c605eeaf2faee",
-      "source_bytes": 34438,
+      "sha256": "247ae1d9235bb5bbbc888fa0602ed54c00f93c71c5fdc157f53ff255fe579dc4",
+      "source_bytes": 34505,
       "sources": [
         "assets/js/post-filter.js"
       ]

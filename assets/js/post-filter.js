@@ -1044,7 +1044,9 @@
     if (!pageSupportsFiltering) return;
 
     runtime.hasUID = document.getElementsByClassName("poster_id").length > 0;
-    runtime.forcedAnon = $("th:contains(Name)").length === 0;
+    runtime.forcedAnon = $("th").filter(function () {
+      return this.textContent.indexOf("Name") !== -1;
+    }).length === 0;
     installStyles();
     bindEvents();
     attachMenu(window.Menu);
