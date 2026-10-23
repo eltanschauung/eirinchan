@@ -33,10 +33,10 @@ defmodule Eirinchan.MixProject do
   defp deps do
     [
       {:phoenix, "~> 1.7.22"},
-      {:plug, "~> 1.19.5"},
-      {:phoenix_ecto, "~> 4.4.0"},
+      {:plug, "~> 1.20.3"},
+      {:phoenix_ecto, "~> 4.7.0"},
       {:ecto_sql, "~> 3.14"},
-      {:postgrex, "~> 0.22.3"},
+      {:postgrex, "~> 0.22.4"},
       {:phoenix_html, "~> 4.0"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 0.20.2"},
@@ -44,9 +44,9 @@ defmodule Eirinchan.MixProject do
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
       {:jason, "~> 1.2"},
-      {:locus, "~> 2.3.12"},
-      {:dns_cluster, "~> 0.1.1"},
-      {:bandit, "~> 1.12.4"},
+      {:locus, "~> 2.3.17"},
+      {:dns_cluster, "~> 0.3.1"},
+      {:bandit, "~> 1.13.1"},
       {:argon2_elixir, "~> 4.1"}
     ]
   end
