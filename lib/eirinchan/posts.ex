@@ -91,6 +91,7 @@ defmodule Eirinchan.Posts do
              | :mime_exploit
              | :file_too_large
              | :access_list
+             | :media_busy
              | :upload_failed}
           | {:error, Ecto.Changeset.t()}
   def create_post(%BoardRecord{} = board, attrs, opts \\ []) do

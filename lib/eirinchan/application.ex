@@ -17,6 +17,8 @@ defmodule Eirinchan.Application do
         {DNSCluster, query: Application.get_env(:eirinchan, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: Eirinchan.PubSub},
         {Task.Supervisor, name: Eirinchan.BuildTaskSupervisor},
+        {Task.Supervisor, name: Eirinchan.MediaTaskSupervisor},
+        Eirinchan.MediaProcessing,
         Eirinchan.VisitorQualification,
         Eirinchan.BrowserPresence,
         Eirinchan.ManageLoginThrottle,

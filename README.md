@@ -74,6 +74,13 @@ JSON moderator clients must preserve cookies, fetch `/csrf-token` (using `Accept
 and send its `csrf_token` as `x-csrf-token` on `/manage/login` and `/manage/logout`.
 Fetch a fresh token after login renews the session.
 
+Media jobs are admitted globally, not queued without limit. Instance settings
+`media_processing_concurrency` (default 2, maximum 8),
+`external_command_timeout_ms` (15000, maximum 60000), and
+`external_command_max_output_bytes` (262144, maximum 16777216) bound resource use.
+Over-capacity uploads return a retryable 503. Native installations require GNU
+`timeout` (coreutils); missing command/deadline executables fail closed.
+
 ## Don't like Docker?
 
 Installing this software natively is possible with Elixir 1.20.4, Erlang/OTP 29.1.2,

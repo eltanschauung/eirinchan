@@ -18,6 +18,10 @@ defmodule Eirinchan.Uploads do
   }
   @spec describe(Plug.Upload.t(), map()) :: {:ok, map()} | {:error, atom()}
   def describe(%Plug.Upload{} = upload, config) do
+    Eirinchan.MediaProcessing.run(fn -> do_describe(upload, config) end)
+  end
+
+  defp do_describe(upload, config) do
     normalized_name = normalized_input_filename(upload.filename)
 
     with {:ok, digest} <- file_digest_metadata(upload.path) do
@@ -46,6 +50,17 @@ defmodule Eirinchan.Uploads do
 
   @spec prepare(Plug.Upload.t(), map(), keyword()) :: {:ok, map()} | {:error, atom()}
   def prepare(%Plug.Upload{} = upload, config, opts \\ []) do
+    with :ok <- preflight_upload(upload, config, Keyword.get(opts, :op?, false)) do
+      Eirinchan.MediaProcessing.run(fn -> do_prepare(upload, config, opts) end,
+        cleanup: fn
+          {:ok, metadata} -> cleanup_prepared(metadata)
+          _ -> :ok
+        end
+      )
+    end
+  end
+
+  defp do_prepare(upload, config, opts) do
     op? = Keyword.get(opts, :op?, false)
     spoiler? = Keyword.get(opts, :spoiler?, false)
     normalized_name = normalized_input_filename(upload.filename)
@@ -289,9 +304,11 @@ defmodule Eirinchan.Uploads do
   def write_spoiler_thumbnail(nil, _config), do: :ok
 
   def write_spoiler_thumbnail(file_path, config) when is_binary(file_path) do
-    destination = filesystem_path(file_path)
-    Path.dirname(destination) |> File.mkdir_p!()
-    generate_spoiler_thumbnail(destination, config)
+    Eirinchan.MediaProcessing.run(fn ->
+      destination = filesystem_path(file_path)
+      Path.dirname(destination) |> File.mkdir_p!()
+      generate_spoiler_thumbnail(destination, config)
+    end)
   end
 
   def cleanup_prepared(metadata) when is_map(metadata) do
@@ -312,11 +329,10 @@ defmodule Eirinchan.Uploads do
           :ok | {:error, atom()}
   def regenerate_thumbnail(source_path, destination_path, config, metadata, op?)
       when is_binary(source_path) and is_binary(destination_path) do
-    destination_path
-    |> Path.dirname()
-    |> File.mkdir_p!()
-
-    generate_thumbnail(source_path, destination_path, config, metadata, op?)
+    Eirinchan.MediaProcessing.run(fn ->
+      destination_path |> Path.dirname() |> File.mkdir_p!()
+      generate_thumbnail(source_path, destination_path, config, metadata, op?)
+    end)
   end
 
   @spec board_root() :: String.t()

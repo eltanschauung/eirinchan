@@ -405,6 +405,7 @@ defmodule EirinchanWeb.PostController do
 
   defp respond_error(conn, reason, status, message, config) do
     log_post_error(reason, status, conn)
+    conn = if reason == :media_busy, do: put_resp_header(conn, "retry-after", "2"), else: conn
 
     conn =
       if reason in [:antispam, :too_many_deletions],
@@ -826,6 +827,7 @@ defmodule EirinchanWeb.PostController do
   defp error_status(:file_too_large), do: :unprocessable_entity
   defp error_status(:access_list), do: :forbidden
   defp error_status(:upload_failed), do: :internal_server_error
+  defp error_status(:media_busy), do: :service_unavailable
   defp error_status(:changeset), do: :unprocessable_entity
 
   defp error_message(:thread_not_found, _config), do: "Thread not found"
@@ -905,6 +907,10 @@ defmodule EirinchanWeb.PostController do
   defp error_message(:file_too_large, config), do: config.error.file_too_large
   defp error_message(:access_list, _config), do: "IP not permitted for multi-file OP posting."
   defp error_message(:upload_failed, config), do: config.error.upload_failed
+
+  defp error_message(:media_busy, _config),
+    do: "Media processing is busy. Please try again shortly."
+
   defp error_message(:ban_not_found, _config), do: "Ban not found"
   defp error_message(:changeset, _config), do: "Request invalid"
 
