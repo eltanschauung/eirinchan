@@ -1,0 +1,43 @@
+[Unit]
+Description=Eirinchan isolated immutable release
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=eirinchan
+Group=eirinchan
+WorkingDirectory=/var/lib/eirinchan
+EnvironmentFile=/etc/eirinchan/environment
+LoadCredential=secret_key_base:/etc/eirinchan/secret_key_base
+LoadCredential=database_url:/etc/eirinchan/database_url
+Environment=SECRET_KEY_BASE_FILE=%d/secret_key_base
+Environment=DATABASE_URL_FILE=%d/database_url
+Environment=EIRINCHAN_STATE_ROOT=/var/lib/eirinchan
+Environment=RELEASE_TMP=/run/eirinchan/release
+Environment=RELEASE_DISTRIBUTION=none
+ExecStart=/opt/eirinchan/current/bin/service-start
+Restart=on-failure
+RestartSec=3
+StateDirectory=eirinchan
+StateDirectoryMode=0700
+RuntimeDirectory=eirinchan
+RuntimeDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+AmbientCapabilities=
+MemoryHigh=1536M
+MemoryMax=2G
+TasksMax=512
+
+[Install]
+WantedBy=multi-user.target
