@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+# Keep the weekly cleanup in the running writer process, not a competing VM.
+set -eu
+export RELEASE_DISTRIBUTION="${RELEASE_DISTRIBUTION:-name}"
+export RELEASE_NODE="${RELEASE_NODE:-eirinchan@127.0.0.1}"
+export ERL_EPMD_ADDRESS=127.0.0.1
+export ERL_AFLAGS="${ERL_AFLAGS:-} -kernel inet_dist_use_interface {127,0,0,1}"
+export RELEASE_TMP="${RELEASE_TMP:-/run/eirinchan-log-retention/release}"
+exec "$(dirname -- "$0")/eirinchan" rpc 'Eirinchan.LogRetention.run!()'

@@ -2,7 +2,10 @@
 # Dedicated-identity/systemd-credential profile. Does not read an operator home.
 set -eu
 export PHX_SERVER=true
-export RELEASE_DISTRIBUTION="${RELEASE_DISTRIBUTION:-none}"
+export RELEASE_DISTRIBUTION="${RELEASE_DISTRIBUTION:-name}"
+export RELEASE_NODE="${RELEASE_NODE:-eirinchan@127.0.0.1}"
+export ERL_EPMD_ADDRESS=127.0.0.1
+export ERL_AFLAGS="${ERL_AFLAGS:-} -kernel inet_dist_use_interface {127,0,0,1}"
 export EIRINCHAN_STATE_ROOT="${EIRINCHAN_STATE_ROOT:-/var/lib/eirinchan}"
 export RELEASE_TMP="${RELEASE_TMP:-/run/eirinchan/release}"
 exec "$(dirname -- "$0")/eirinchan" start

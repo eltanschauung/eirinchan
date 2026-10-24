@@ -3,7 +3,6 @@ set -euo pipefail
 
 export EIRINCHAN_STATE_ROOT="@EIRINCHAN_STATE_ROOT@"
 export PHX_SERVER=true
-export RELEASE_DISTRIBUTION="${RELEASE_DISTRIBUTION:-none}"
 export PHX_HOST="@EIRINCHAN_HOST@"
 export PORT="@EIRINCHAN_PORT@"
 export RELEASE_TMP="$EIRINCHAN_STATE_ROOT/tmp/release"
@@ -15,6 +14,13 @@ set +a
 
 SECRET_KEY_BASE="$(tail -n 1 "@EIRINCHAN_SECRET_KEY_FILE@")"
 export SECRET_KEY_BASE
+
+# Weekly retention uses authenticated RPC. Keep only that host-local channel;
+# do not expose a distributed node on wildcard interfaces.
+export RELEASE_DISTRIBUTION="${RELEASE_DISTRIBUTION:-name}"
+export RELEASE_NODE="${RELEASE_NODE:-eirinchan@127.0.0.1}"
+export ERL_EPMD_ADDRESS=127.0.0.1
+export ERL_AFLAGS="${ERL_AFLAGS:-} -kernel inet_dist_use_interface {127,0,0,1}"
 install -d -m 0700 "$RELEASE_TMP"
 
 exec "$(dirname -- "$0")/eirinchan" start

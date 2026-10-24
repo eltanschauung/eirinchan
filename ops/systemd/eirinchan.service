@@ -14,7 +14,9 @@ Environment=SECRET_KEY_BASE_FILE=%d/secret_key_base
 Environment=DATABASE_URL_FILE=%d/database_url
 Environment=EIRINCHAN_STATE_ROOT=/var/lib/eirinchan
 Environment=RELEASE_TMP=/run/eirinchan/release
-Environment=RELEASE_DISTRIBUTION=none
+Environment=RELEASE_DISTRIBUTION=name
+Environment=RELEASE_NODE=eirinchan@127.0.0.1
+Environment=ERL_EPMD_ADDRESS=127.0.0.1
 ExecStart=/opt/eirinchan/current/bin/service-start
 Restart=on-failure
 RestartSec=3
