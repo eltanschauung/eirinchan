@@ -13,6 +13,7 @@ defmodule Eirinchan.LogRedactor do
     password
     secret
     session
+    submitted_value
     token
   )
 

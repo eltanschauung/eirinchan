@@ -74,6 +74,8 @@ COPY --chown=root:root docker/entrypoint.sh /usr/local/bin/eirinchan-entrypoint
 RUN chmod 0755 /usr/local/bin/eirinchan-entrypoint \
     && find /app -type d -exec chmod 0555 {} + \
     && find /app -type f -exec chmod a-w {} + \
+    && chown root:eirinchan /app/releases/COOKIE \
+    && chmod 0440 /app/releases/COOKIE \
     && chmod 0555 /app/bin/*
 
 ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/eirinchan-entrypoint"]

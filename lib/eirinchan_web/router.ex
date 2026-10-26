@@ -31,6 +31,7 @@ defmodule EirinchanWeb.Router do
     plug EirinchanWeb.Plugs.FetchBrowserTimezone
     plug EirinchanWeb.Plugs.FetchBrowserToken
     plug EirinchanWeb.Plugs.FetchCurrentModerator
+    plug :protect_from_forgery
     plug EirinchanWeb.Plugs.SecureHeaders
   end
 

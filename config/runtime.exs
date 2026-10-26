@@ -21,6 +21,13 @@ if System.get_env("PHX_SERVER") do
 end
 
 if config_env() == :prod do
+  read_secret = fn name ->
+    case System.get_env(name <> "_FILE") do
+      nil -> System.get_env(name)
+      path -> path |> File.read!() |> String.trim()
+    end
+  end
+
   state_root =
     System.get_env("EIRINCHAN_STATE_ROOT") ||
       raise "environment variable EIRINCHAN_STATE_ROOT is missing"
@@ -41,7 +48,7 @@ if config_env() == :prod do
   config :eirinchan, :max_request_bytes, max_request_bytes
 
   database_url =
-    System.get_env("DATABASE_URL") ||
+    read_secret.("DATABASE_URL") ||
       raise """
       environment variable DATABASE_URL is missing.
       For example: ecto://USER:PASS@HOST/DATABASE
@@ -61,7 +68,7 @@ if config_env() == :prod do
   # to check this value into version control, so we use an environment
   # variable instead.
   secret_key_base =
-    System.get_env("SECRET_KEY_BASE") ||
+    read_secret.("SECRET_KEY_BASE") ||
       raise """
       environment variable SECRET_KEY_BASE is missing.
       You can generate one by calling: mix phx.gen.secret

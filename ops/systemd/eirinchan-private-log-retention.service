@@ -1,0 +1,22 @@
+[Unit]
+Description=Weekly Eirinchan retention through authenticated loopback RPC
+Requires=eirinchan.service
+After=eirinchan.service
+
+[Service]
+Type=oneshot
+User=eirinchan
+Group=eirinchan
+Environment=RELEASE_NODE=eirinchan@127.0.0.1
+Environment=RELEASE_DISTRIBUTION=name
+ExecStart=/opt/eirinchan/current/bin/service-log-retention
+RuntimeDirectory=eirinchan-log-retention
+RuntimeDirectoryMode=0700
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+UMask=0077

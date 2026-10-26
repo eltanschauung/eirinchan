@@ -3,6 +3,13 @@ defmodule EirinchanWeb.CacheControlTest do
 
   alias EirinchanWeb.CacheControl
 
+  test "static responses prevent content sniffing without changing cache policy" do
+    conn = Plug.Test.conn(:get, "/js/main.js?v=test-release")
+    headers = CacheControl.static_headers(conn)
+    assert {"x-content-type-options", "nosniff"} in headers
+    assert {"cache-control", "public, max-age=31536000, immutable"} in headers
+  end
+
   test "unversioned JavaScript keeps the short compatibility cache" do
     assert CacheControl.cache_control_for_request("/js/main.js", "") ==
              "public, max-age=60"

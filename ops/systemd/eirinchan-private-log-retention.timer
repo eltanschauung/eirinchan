@@ -1,0 +1,11 @@
+[Unit]
+Description=Eirinchan isolated-profile retention every Monday at local midnight
+
+[Timer]
+OnCalendar=Mon *-*-* 00:00:00
+Persistent=true
+AccuracySec=1s
+Unit=eirinchan-private-log-retention.service
+
+[Install]
+WantedBy=timers.target

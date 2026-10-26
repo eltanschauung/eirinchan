@@ -61,8 +61,8 @@ defmodule Eirinchan.Tripcode do
 
   def split_name_and_tripcode(name, config) when is_binary(name) do
     case Regex.run(~r/^(.*?)(##?)(.+)$/u, name) do
-      [_, _display_name, _marker, _secret] ->
-        run_tripcode_command(name, config)
+      [_, display_name, _marker, _secret] ->
+        run_tripcode_command(name, config, display_name)
 
       _ ->
         {trim_to_nil(name), nil}
@@ -71,7 +71,7 @@ defmodule Eirinchan.Tripcode do
 
   def split_name_and_tripcode(name, _config), do: {name, nil}
 
-  defp run_tripcode_command(name, config) do
+  defp run_tripcode_command(name, config, display_name) do
     php = System.find_executable("php")
 
     if is_binary(php) do
@@ -92,14 +92,14 @@ defmodule Eirinchan.Tripcode do
               {trim_to_nil(display_name), trim_to_nil(tripcode)}
 
             _ ->
-              {trim_to_nil(name), nil}
+              {trim_to_nil(display_name), nil}
           end
 
         _ ->
-          {trim_to_nil(name), nil}
+          {trim_to_nil(display_name), nil}
       end
     else
-      {trim_to_nil(name), nil}
+      {trim_to_nil(display_name), nil}
     end
   end
 

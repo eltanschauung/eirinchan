@@ -4,6 +4,19 @@ defmodule Eirinchan.Runtime.ConfigTest do
   alias Eirinchan.Boards.Board
   alias Eirinchan.Runtime.Config
 
+  test "media admission, output and deadline settings are bounded" do
+    config =
+      Config.compose(nil, %{
+        media_processing_concurrency: "3",
+        external_command_max_output_bytes: 999_999_999,
+        external_command_timeout_ms: 0
+      })
+
+    assert config.media_processing_concurrency == 3
+    assert config.external_command_max_output_bytes == 16_777_216
+    assert config.external_command_timeout_ms == 15_000
+  end
+
   test "tag and user flag names stay strings even when matching atoms exist" do
     # Explicit atoms make this independent of compiler/runtime atom loading.
     assert Atom.to_string(:A) == "A"

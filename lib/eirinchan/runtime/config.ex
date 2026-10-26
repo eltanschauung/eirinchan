@@ -13,6 +13,9 @@ defmodule Eirinchan.Runtime.Config do
   alias Eirinchan.PrimaryBoard
 
   @bounded_positive_defaults %{
+    media_processing_concurrency: {2, 8},
+    external_command_max_output_bytes: {262_144, 16_777_216},
+    external_command_timeout_ms: {15_000, 60_000},
     announcement_cache_seconds: {30, 3_600},
     recent_theme_cache_seconds: {30, 3_600},
     statistics_challenge_step_percent: {80, 10_000},
@@ -50,6 +53,9 @@ defmodule Eirinchan.Runtime.Config do
   }
 
   @default_config %{
+    media_processing_concurrency: 2,
+    external_command_max_output_bytes: 262_144,
+    external_command_timeout_ms: 15_000,
     root: "/",
     root_file: nil,
     file_post: "post.php",
