@@ -46,7 +46,7 @@ defmodule Eirinchan.MixProject do
       {:jason, "~> 1.2"},
       {:locus, "~> 2.3.17"},
       {:dns_cluster, "~> 0.3.1"},
-      {:bandit, "~> 1.13.1"},
+      {:bandit, "~> 1.14.0"},
       {:argon2_elixir, "~> 4.1"}
     ]
   end
