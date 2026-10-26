@@ -29,7 +29,7 @@ defmodule Eirinchan.Statistics.Charts do
 
     earliest_date =
       Enum.min_by(
-        [ppd_start, previous_month_start, last_week_start, yesterday],
+        [year_start, ppd_start, previous_month_start, last_week_start, yesterday],
         &Date.to_gregorian_days/1
       )
 
@@ -38,17 +38,9 @@ defmodule Eirinchan.Statistics.Charts do
 
     retained_posts = retained_posts_by_hour(repo, board_ids, range_start, range_end)
 
-    monthly_posts =
-      retained_posts_by_month(
-        repo,
-        board_ids,
-        start_of_day(year_start, calendar),
-        range_end,
-        calendar
-      )
-
     snapshots = snapshots(repo, range_start, range_end)
     hourly_posts = hourly_posts(retained_posts, snapshots, range_start, range_end, now, calendar)
+    daily_posts = daily_posts(hourly_posts)
     daily_visitors = daily_visitors(snapshots, calendar)
 
     current_visitors =
@@ -59,8 +51,8 @@ defmodule Eirinchan.Statistics.Charts do
     charts = [
       pph_chart(today, "Posts Per Hour - #{date_title(today)}", hourly_posts, local_now),
       pph_chart(yesterday, "Posts Per Hour - #{date_title(yesterday)}", hourly_posts, local_now),
-      ppd_chart(ppd_start, today, hourly_posts),
-      posts_per_month_chart(today, monthly_posts),
+      ppd_chart(ppd_start, today, daily_posts),
+      posts_per_month_chart(today, daily_posts),
       visitors_chart(
         current_month_start,
         Date.end_of_month(today),
@@ -102,24 +94,6 @@ defmodule Eirinchan.Statistics.Charts do
         select: {fragment("date_trunc('hour', ?)", post.inserted_at), count(post.id)}
     )
     |> Map.new(fn {period_start, count} -> {hour_key(period_start), count} end)
-  end
-
-  defp retained_posts_by_month(_repo, [], _range_start, _range_end, _calendar), do: %{}
-
-  defp retained_posts_by_month(repo, board_ids, range_start, range_end, calendar) do
-    repo.all(
-      from post in Post,
-        where:
-          post.board_id in ^board_ids and post.inserted_at >= ^range_start and
-            post.inserted_at < ^range_end,
-        group_by: fragment("date_trunc('hour', ?)", post.inserted_at),
-        select: {fragment("date_trunc('hour', ?)", post.inserted_at), count(post.id)}
-    )
-    |> Enum.reduce(%{}, fn {utc_hour, count}, totals ->
-      local = utc_hour |> utc_datetime() |> calendar.local_naive()
-      date = NaiveDateTime.to_date(local)
-      Map.update(totals, {date.year, date.month}, count, &(&1 + count))
-    end)
   end
 
   defp snapshots(repo, range_start, range_end) do
@@ -211,21 +185,30 @@ defmodule Eirinchan.Statistics.Charts do
     chart("pph-#{Date.to_iso8601(date)}", title, points, coverage_note(points))
   end
 
-  defp ppd_chart(start_date, end_date, hourly_posts) do
+  # All posting charts share one history: finalized snapshots take precedence
+  # over retained rows, so moving or deleting old posts cannot rewrite tracked
+  # months. Retained rows only reconstruct hours without a saved snapshot.
+  defp daily_posts(hourly_posts) do
+    Enum.reduce(hourly_posts, %{}, fn {{date, _hour}, total}, days ->
+      Map.update(days, date, total, &merge_post_totals(&1, total))
+    end)
+  end
+
+  defp merge_post_totals(left, right) do
+    %{value: left.value + right.value, sources: MapSet.union(left.sources, right.sources)}
+  end
+
+  defp ppd_chart(start_date, end_date, daily_posts) do
     points =
       start_date
       |> Date.range(end_date)
       |> Enum.map(fn date ->
-        totals =
-          0..23
-          |> Enum.map(&Map.get(hourly_posts, {date, &1}))
-          |> Enum.reject(&is_nil/1)
+        total = Map.get(daily_posts, date)
+        state = if is_nil(total), do: :unavailable, else: source_state(total.sources)
 
-        sources = Enum.reduce(totals, MapSet.new(), &MapSet.union(&2, &1.sources))
-        value = Enum.reduce(totals, 0, &(&1.value + &2))
-        state = if totals == [], do: :unavailable, else: source_state(sources)
-
-        point("#{date.month}/#{date.day}", value, state, title_label: date_title(date))
+        point("#{date.month}/#{date.day}", total_value(total), state,
+          title_label: date_title(date)
+        )
       end)
 
     chart(
@@ -236,19 +219,25 @@ defmodule Eirinchan.Statistics.Charts do
     )
   end
 
-  defp posts_per_month_chart(today, monthly_posts) do
+  defp posts_per_month_chart(today, daily_posts) do
     current_month = Date.beginning_of_month(today)
+
+    monthly_posts =
+      Enum.reduce(daily_posts, %{}, fn {date, total}, months ->
+        key = {date.year, date.month}
+        Map.update(months, key, total, &merge_post_totals(&1, total))
+      end)
 
     points =
       Enum.map(1..12, fn month ->
         date = Date.new!(today.year, month, 1)
-        retained = Map.get(monthly_posts, {today.year, month}, 0)
+        total = Map.get(monthly_posts, {today.year, month})
 
         {value, state} =
           cond do
             Date.after?(date, current_month) -> {nil, :future}
-            month == 7 -> {retained, :reconstructed}
-            true -> {round(retained * 1.15), :estimated}
+            is_nil(total) -> {nil, :unavailable}
+            true -> {total.value, source_state(total.sources)}
           end
 
         point(Calendar.strftime(date, "%B"), value, state,
@@ -531,9 +520,6 @@ defmodule Eirinchan.Statistics.Charts do
     |> DateTime.from_naive!("Etc/UTC")
     |> hour_key()
   end
-
-  defp utc_datetime(%DateTime{} = datetime), do: datetime
-  defp utc_datetime(%NaiveDateTime{} = datetime), do: DateTime.from_naive!(datetime, "Etc/UTC")
 
   defp shift_month(%Date{} = date, offset) do
     month_index = date.year * 12 + date.month - 1 + offset

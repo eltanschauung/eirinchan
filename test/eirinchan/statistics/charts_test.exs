@@ -11,6 +11,11 @@ defmodule Eirinchan.Statistics.ChartsTest do
     def utc_datetime(datetime), do: DateTime.from_naive!(datetime, "Etc/UTC")
   end
 
+  defmodule SummerOffset do
+    def local_naive(datetime), do: datetime |> DateTime.add(-14_400) |> DateTime.to_naive()
+    def utc_datetime(datetime), do: datetime |> NaiveDateTime.add(14_400) |> UTC.utc_datetime()
+  end
+
   test "builds all eight fixed-shape charts and prefers completed snapshots for post counts" do
     now = ~U[2026-08-02 15:30:00Z]
     board = board_fixture()
@@ -84,10 +89,12 @@ defmodule Eirinchan.Statistics.ChartsTest do
 
     assert monthly_posts.title == "Posts Per Month - 2026"
     assert monthly_posts.column_count == 12
-    assert point(monthly_posts, "June").value == 5
-    assert point(monthly_posts, "June").state == :estimated
-    assert point(monthly_posts, "July").value == 1
+    assert point(monthly_posts, "June").value == 4
+    assert point(monthly_posts, "June").state == :reconstructed
+    assert point(monthly_posts, "July").value == 22
     assert point(monthly_posts, "July").state == :reconstructed
+    assert point(monthly_posts, "August").value == 15
+    assert point(monthly_posts, "August").state == :partial
     assert point(monthly_posts, "September").state == :future
 
     assert current_visitors.title == "Visitors Per Day - August"
@@ -141,6 +148,120 @@ defmodule Eirinchan.Statistics.ChartsTest do
 
     assert point(chart(result, "pph-2026-08-08"), "12am").title_label == "00:00"
     assert point(chart(result, "pph-2026-08-08"), "3pm").title_label == "15:00"
+  end
+
+  test "monthly totals sum the same daily history without a multiplier or July exception" do
+    board = board_fixture()
+    now = ~U[2026-09-01 12:30:00Z]
+
+    insert_snapshot(~U[2026-07-01 08:00:00Z], posts: 100, visitors: 0)
+
+    insert_snapshot(~U[2026-08-01 08:00:00Z],
+      posts: 80,
+      visitors: 0,
+      counters: %{"historical_estimate" => true}
+    )
+
+    insert_snapshot(~U[2026-08-31 23:00:00Z], posts: 20, visitors: 0)
+    pending = insert_snapshot(~U[2026-08-15 08:00:00Z], posts: 999, visitors: 0)
+    pending |> Snapshot.changeset(%{finalized: false}) |> Repo.update!()
+    # Future / unfinished snapshots must not contribute to either chart.
+    insert_snapshot(~U[2026-09-02 08:00:00Z], posts: 999, visitors: 0)
+
+    result = Charts.build([board.id], repo: Repo, now: now, calendar: UTC, current_visitors: 0)
+    monthly = chart(result, "posts-per-month-2026")
+    daily = chart(result, "posts-per-day-past-two-months")
+
+    for {month, number} <- [{"July", 7}, {"August", 8}] do
+      daily_sum =
+        daily.points
+        |> Enum.filter(&String.starts_with?(&1.label, "#{number}/"))
+        |> Enum.map(& &1.value)
+        |> Enum.sum()
+
+      assert point(monthly, month).value == daily_sum
+      assert daily_sum == 100
+    end
+
+    assert point(monthly, "August").state == :estimated
+    assert point(monthly, "September").value == 0
+    assert point(monthly, "September").state == :partial
+    assert point(monthly, "October").value == nil
+  end
+
+  test "tracked monthly totals survive archive moves, new public IDs and deletion" do
+    board = board_fixture()
+    archive = board_fixture()
+    post = post_at(board, ~U[2026-01-15 10:20:00Z])
+    now = ~U[2026-10-26 12:30:00Z]
+    insert_snapshot(~U[2026-01-15 10:00:00Z], posts: 12, visitors: 0)
+
+    build = fn ->
+      Charts.build([board.id, archive.id],
+        repo: Repo,
+        now: now,
+        calendar: UTC,
+        current_visitors: 0
+      )
+      |> chart("posts-per-month-2026")
+    end
+
+    assert point(build.(), "January").value == 12
+
+    # These are the statistics-relevant changes made by thread/reply movement.
+    Repo.update_all(from(stored in Post, where: stored.id == ^post.id),
+      set: [board_id: archive.id, public_id: 900_000]
+    )
+
+    assert Repo.get!(Post, post.id).inserted_at == ~U[2026-01-15 10:20:00Z]
+    assert point(build.(), "January").value == 12
+    assert point(build.(), "October").value == 0
+
+    Repo.delete!(Repo.get!(Post, post.id))
+    assert point(build.(), "January").value == 12
+    assert point(build.(), "October").value == 0
+  end
+
+  test "year boundaries keep the daily window without counting last year in January" do
+    board = board_fixture()
+    insert_snapshot(~U[2026-12-31 23:00:00Z], posts: 20, visitors: 0)
+    insert_snapshot(~U[2027-01-01 00:00:00Z], posts: 3, visitors: 0)
+    post_at(board, ~U[2027-01-01 01:10:00Z])
+
+    result =
+      Charts.build([board.id],
+        repo: Repo,
+        now: ~U[2027-01-01 01:30:00Z],
+        calendar: UTC,
+        current_visitors: 0
+      )
+
+    assert point(chart(result, "posts-per-day-past-two-months"), "12/31").value == 20
+    monthly = chart(result, "posts-per-month-2027")
+    assert point(monthly, "January").value == 4
+    assert point(monthly, "January").state == :partial
+    assert point(monthly, "February").state == :future
+  end
+
+  test "monthly and daily totals use the same local month boundaries" do
+    board = board_fixture()
+    insert_snapshot(~U[2026-06-01 02:00:00Z], posts: 19, visitors: 0)
+    insert_snapshot(~U[2026-06-01 04:00:00Z], posts: 3, visitors: 0)
+
+    result =
+      Charts.build([board.id],
+        repo: Repo,
+        now: ~U[2026-06-01 12:30:00Z],
+        calendar: SummerOffset,
+        current_visitors: 0
+      )
+
+    daily = chart(result, "posts-per-day-past-two-months")
+    monthly = chart(result, "posts-per-month-2026")
+    assert point(daily, "5/31").value == 19
+    assert point(daily, "6/1").value == 3
+    assert point(monthly, "May").value == 19
+    assert point(monthly, "June").value == 3
   end
 
   test "current-month visitors always reserve every day in a leap February" do
