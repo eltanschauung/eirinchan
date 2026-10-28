@@ -4,6 +4,7 @@ defmodule Eirinchan.IpAccessAuthThrottle do
   use GenServer
 
   alias Eirinchan.FailureWindow
+  alias Eirinchan.AuthAdmission
 
   @table :eirinchan_ip_access_auth_throttle
   @prune_interval_ms 60_000
@@ -32,6 +33,16 @@ defmodule Eirinchan.IpAccessAuthThrottle do
 
     GenServer.call(__MODULE__, {:failure, limits, window_seconds, lockout_seconds})
   end
+
+  def acquire(remote_ip, config) do
+    # The global failure budget is shared, so conservatively serialize this
+    # short operation, including its access-grant write, across subnets.
+    AuthAdmission.acquire(__MODULE__, [subnet_key(remote_ip), :global], 1, fn ->
+      allowed?(remote_ip, config)
+    end)
+  end
+
+  defdelegate release(lease), to: AuthAdmission
 
   def clear(remote_ip) do
     GenServer.call(__MODULE__, {:clear, [subnet_key(remote_ip)]})

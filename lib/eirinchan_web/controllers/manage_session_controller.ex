@@ -10,20 +10,27 @@ defmodule EirinchanWeb.ManageSessionController do
     config = current_config()
     remote_ip = RequestMeta.effective_remote_ip(conn)
 
-    case ManageLoginThrottle.allowed?(username, remote_ip, config) do
-      :ok ->
-        case Moderation.authenticate(username, password) do
-          {:ok, user} ->
-            ManageLoginThrottle.clear(username, remote_ip)
-            ModerationAudit.log(conn, "Logged in", moderator: user)
+    case ManageLoginThrottle.acquire(username, remote_ip, config) do
+      {:ok, lease} ->
+        try do
+          case Moderation.authenticate(username, password) do
+            {:ok, user} ->
+              ManageLoginThrottle.clear(username, remote_ip)
+              ModerationAudit.log(conn, "Logged in", moderator: user)
 
-            conn
-            |> establish_moderator_session(user, remote_ip)
-            |> json(%{data: session_data(user)})
+              conn
+              |> establish_moderator_session(user, remote_ip)
+              |> json(%{data: session_data(user)})
 
-          {:error, :invalid_credentials} ->
-            handle_failed_login(conn, username, remote_ip, config)
+            {:error, :invalid_credentials} ->
+              handle_failed_login(conn, username, remote_ip, config)
+          end
+        after
+          ManageLoginThrottle.release(lease)
         end
+
+      {:error, :unavailable} ->
+        conn |> put_status(:service_unavailable) |> json(%{error: "authentication_unavailable"})
 
       {:error, retry_after} ->
         log_rejected_login(conn, username, "rate_limited")

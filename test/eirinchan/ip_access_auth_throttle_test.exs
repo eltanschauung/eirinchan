@@ -23,6 +23,35 @@ defmodule Eirinchan.IpAccessAuthThrottleTest do
     assert retry_after > 0
   end
 
+  test "in-flight authentication consumes the remaining subnet attempt" do
+    config = %{max_attempts: 1, global_max_attempts: 100, lockout_seconds: 60}
+    ip = {192, 0, 2, 1}
+    parent = self()
+
+    task =
+      Task.async(fn ->
+        assert {:ok, lease} = IpAccessAuthThrottle.acquire(ip, config)
+        send(parent, :acquired)
+        receive do: (:release -> IpAccessAuthThrottle.release(lease))
+      end)
+
+    assert_receive :acquired, 1_000
+    assert {:error, 1} = IpAccessAuthThrottle.acquire(ip, config)
+    send(task.pid, :release)
+    assert :ok = Task.await(task)
+    assert {:ok, lease} = IpAccessAuthThrottle.acquire(ip, config)
+    assert :ok = IpAccessAuthThrottle.release(lease)
+  end
+
+  test "global in-flight capacity is shared across subnets" do
+    config = %{max_attempts: 5, global_max_attempts: 1, lockout_seconds: 60}
+    assert {:ok, lease} = IpAccessAuthThrottle.acquire({192, 0, 2, 1}, config)
+    assert {:error, 1} = IpAccessAuthThrottle.acquire({198, 51, 100, 1}, config)
+    assert :ok = IpAccessAuthThrottle.release(lease)
+    assert {:ok, other} = IpAccessAuthThrottle.acquire({198, 51, 100, 1}, config)
+    assert :ok = IpAccessAuthThrottle.release(other)
+  end
+
   test "successful authentication only clears the source subnet lock" do
     config = %{
       max_attempts: 1,

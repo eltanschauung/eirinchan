@@ -4,6 +4,7 @@ defmodule Eirinchan.ManageLoginThrottle do
   use GenServer
 
   alias Eirinchan.FailureWindow
+  alias Eirinchan.AuthAdmission
 
   @table :eirinchan_manage_login_throttle
   @prune_interval_ms 60_000
@@ -49,6 +50,14 @@ defmodule Eirinchan.ManageLoginThrottle do
 
     GenServer.call(__MODULE__, {:failure, limits, window_seconds, lockout_seconds})
   end
+
+  def acquire(username, remote_ip, config) do
+    keys = [username_key(username), user_key(username, remote_ip), ip_key(remote_ip)]
+    # Eight Argon2 operations bound memory-intensive work across identities.
+    AuthAdmission.acquire(__MODULE__, keys, 8, fn -> allowed?(username, remote_ip, config) end)
+  end
+
+  defdelegate release(lease), to: AuthAdmission
 
   def clear(username, remote_ip) do
     GenServer.call(
