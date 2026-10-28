@@ -141,6 +141,37 @@ defmodule EirinchanWeb.BoardControllerTest do
     assert fragment =~ ~s|<span class="own_post">(You)</span>|
   end
 
+  test "board fragment revalidation changes when ownership changes", %{conn: conn} do
+    board = board_fixture()
+    thread = thread_fixture(board, %{body: "Opening body"})
+    reply = reply_fixture(board, thread, %{body: "Reply body"})
+    token = browser_token("board-revalidation-yous")
+    path = "/#{board.uri}?fragment=1"
+
+    request =
+      conn |> put_req_cookie("browser_token", token) |> put_req_cookie("show_yous", "true")
+
+    first = get(request, path)
+    [old_etag] = get_resp_header(first, "etag")
+    assert html_response(first, 200)
+    assert {:ok, _} = PostOwnership.record(token, reply.id)
+    changed = request |> recycle() |> put_req_header("if-none-match", old_etag) |> get(path)
+    assert html_response(changed, 200) =~ ~s|<span class="own_post">(You)</span>|
+    [new_etag] = get_resp_header(changed, "etag")
+    refute new_etag == old_etag
+    unchanged = request |> recycle() |> put_req_header("if-none-match", new_etag) |> get(path)
+    assert response(unchanged, 304) == ""
+
+    disabled =
+      request
+      |> recycle()
+      |> put_req_cookie("show_yous", "false")
+      |> put_req_header("if-none-match", new_etag)
+      |> get(path)
+
+    refute html_response(disabled, 200) =~ ~s|<span class="own_post">(You)</span>|
+  end
+
   test "board index derives watcher paths client-side instead of embedding per-thread watch urls",
        %{
          conn: conn

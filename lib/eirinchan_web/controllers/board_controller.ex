@@ -311,7 +311,10 @@ defmodule EirinchanWeb.BoardController do
           )
 
         response_assigns =
-          fragment_ownership_assigns(render_assigns, conn, page_data, fragment?)
+          fragment_ownership_assigns(render_assigns, conn, page_data, fragment? or fragment_md5?)
+
+        fragment_md5 =
+          PublicControllerHelpers.personalized_fragment_md5(fragment_md5, response_assigns)
 
         cond do
           fragment_md5? ->

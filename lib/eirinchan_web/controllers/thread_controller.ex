@@ -131,6 +131,12 @@ defmodule EirinchanWeb.ThreadController do
               fragment_cache_key(board, summary, render_assigns)
             )
 
+          response_assigns =
+            fragment_ownership_assigns(render_assigns, conn, summary, fragment? or fragment_md5?)
+
+          fragment_md5 =
+            PublicControllerHelpers.personalized_fragment_md5(fragment_md5, response_assigns)
+
           cond do
             fragment_md5? ->
               text(conn, fragment_md5)
@@ -139,9 +145,6 @@ defmodule EirinchanWeb.ThreadController do
               PublicControllerHelpers.send_fragment_not_modified(conn, fragment_md5)
 
             true ->
-              response_assigns =
-                fragment_ownership_assigns(render_assigns, conn, summary, fragment?)
-
               response_assigns =
                 if fragment? do
                   response_assigns
