@@ -123,16 +123,6 @@ defmodule EirinchanWeb.ThreadController do
           render_assigns =
             Keyword.put(render_assigns, :post_fragment_context, post_fragment_context)
 
-          quick_reply_html =
-            Phoenix.Template.render_to_string(
-              EirinchanWeb.ThreadHTML,
-              "quick_reply",
-              "html",
-              render_assigns
-            )
-
-          render_assigns = Keyword.put(render_assigns, :quick_reply_html, quick_reply_html)
-
           fragment_md5 =
             PublicControllerHelpers.render_fragment_md5(
               EirinchanWeb.ThreadHTML,
@@ -140,8 +130,6 @@ defmodule EirinchanWeb.ThreadController do
               render_assigns,
               fragment_cache_key(board, summary, render_assigns)
             )
-
-          response_assigns = fragment_ownership_assigns(render_assigns, conn, summary, fragment?)
 
           cond do
             fragment_md5? ->
@@ -151,6 +139,24 @@ defmodule EirinchanWeb.ThreadController do
               PublicControllerHelpers.send_fragment_not_modified(conn, fragment_md5)
 
             true ->
+              response_assigns =
+                fragment_ownership_assigns(render_assigns, conn, summary, fragment?)
+
+              response_assigns =
+                if fragment? do
+                  response_assigns
+                else
+                  quick_reply_html =
+                    Phoenix.Template.render_to_string(
+                      EirinchanWeb.ThreadHTML,
+                      "quick_reply",
+                      "html",
+                      render_assigns
+                    )
+
+                  Keyword.put(response_assigns, :quick_reply_html, quick_reply_html)
+                end
+
               conn = if fragment?, do: put_root_layout(conn, false), else: conn
 
               conn =

@@ -166,6 +166,45 @@ defmodule EirinchanWeb.ThreadControllerTest do
     assert get_resp_header(not_modified, "etag") == [etag]
   end
 
+  test "thread updater requests skip quick-reply rendering", %{conn: conn} do
+    board = board_fixture()
+    thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
+    path = "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html"
+    parent = self()
+
+    tracer =
+      spawn(fn ->
+        receive do
+          {:trace, _, :call, {Phoenix.Template, :render_to_string, [_, "quick_reply", _, _]}} ->
+            send(parent, :quick_reply_rendered)
+        end
+      end)
+
+    :erlang.trace_pattern({Phoenix.Template, :render_to_string, 4}, true, [:local])
+    :erlang.trace(self(), true, [:call, {:tracer, tracer}])
+
+    try do
+      md5 = conn |> get(path <> "?fragment=md5") |> response(200) |> String.trim()
+      refute_receive :quick_reply_rendered, 50
+      _ = conn |> get(path <> "?fragment=1") |> html_response(200)
+      refute_receive :quick_reply_rendered, 50
+
+      _ =
+        conn
+        |> put_req_header("if-none-match", ~s("#{md5}"))
+        |> get(path <> "?fragment=1")
+        |> response(304)
+
+      refute_receive :quick_reply_rendered, 50
+      assert html_response(get(conn, path), 200) =~ "quick-reply-template"
+      assert_receive :quick_reply_rendered, 500
+    after
+      :erlang.trace(self(), false, [:call])
+      :erlang.trace_pattern({Phoenix.Template, :render_to_string, 4}, false, [:local])
+      if Process.alive?(tracer), do: Process.exit(tracer, :kill)
+    end
+  end
+
   test "thread fragment md5 changes after an existing reply is edited", %{conn: conn} do
     board = board_fixture()
     thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
