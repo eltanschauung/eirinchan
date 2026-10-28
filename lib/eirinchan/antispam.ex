@@ -138,7 +138,9 @@ defmodule Eirinchan.Antispam do
       repo = Keyword.get(opts, :repo, Repo)
 
       repo.transaction(fn ->
-        lock_antispam_scope(repo, "public-action:#{board.id}:#{action}")
+        # Dimension limits count an activity across all boards, so every
+        # equivalent action must hold the same transaction-scoped lock.
+        lock_antispam_scope(repo, "public-action:#{normalize_activity(action)}")
 
         with :ok <- check_public_action(board, action, attrs, request, config, opts),
              {:ok, _entry} <- log_public_action(board, action, attrs, request, opts) do
