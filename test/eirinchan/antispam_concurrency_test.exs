@@ -12,6 +12,14 @@ defmodule Eirinchan.AntispamConcurrencyTest do
   alias Eirinchan.Runtime.Config
 
   test "equivalent actions on different boards serialize a shared global quota" do
+    assert_shared_quota(:public_action)
+  end
+
+  test "concurrent upload attempts serialize the shared post quota" do
+    assert_shared_quota(:upload)
+  end
+
+  defp assert_shared_quota(kind) do
     opts = Repo.config()
     assert Keyword.get(opts, :hostname) in ["localhost", "127.0.0.1", "::1"]
     assert String.ends_with?(Keyword.get(opts, :database, ""), "_test")
@@ -63,12 +71,7 @@ defmodule Eirinchan.AntispamConcurrencyTest do
               Process.put(:race_parent, parent)
               receive do: (:start -> :ok)
 
-              Antispam.reserve_public_action(
-                board,
-                action_name,
-                %{},
-                %{remote_ip: {192, 0, 2, 7}},
-                config, repo: AntispamConcurrencyRepo)
+              reserve(kind, board, action_name, config)
             end)
           end
 
@@ -106,6 +109,17 @@ defmodule Eirinchan.AntispamConcurrencyTest do
     after
       if Process.alive?(repo_pid), do: GenServer.stop(repo_pid)
     end
+  end
+
+  defp reserve(:public_action, board, action, config) do
+    Antispam.reserve_public_action(board, action, %{}, %{remote_ip: {192, 0, 2, 7}}, config,
+      repo: AntispamConcurrencyRepo
+    )
+  end
+
+  defp reserve(:upload, board, _action, config) do
+    request = %{remote_ip: {192, 0, 2, 7}}
+    Antispam.reserve_upload_attempt(board, %{}, request, config, repo: AntispamConcurrencyRepo)
   end
 
   def query_event(_event, _measurements, metadata, _recipient) do

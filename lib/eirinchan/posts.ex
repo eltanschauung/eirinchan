@@ -207,9 +207,11 @@ defmodule Eirinchan.Posts do
       {attempt_accounting_us, attempt_accounting_result} =
         timed_continue(reply_limit_result, fn context ->
           if upload_attempt? do
-            case Antispam.log_upload_attempt(board, context.attrs, request, repo: repo) do
-              {:ok, _entry} -> {:ok, context}
-              {:error, _reason} -> {:error, :antispam}
+            case Antispam.reserve_upload_attempt(board, context.attrs, request, config,
+                   repo: repo
+                 ) do
+              :ok -> {:ok, context}
+              {:error, reason} -> {:error, reason}
             end
           else
             {:ok, context}
