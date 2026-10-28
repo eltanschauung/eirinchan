@@ -1115,13 +1115,17 @@ defmodule Eirinchan.Posts do
     config = Keyword.get(opts, :config, Config.compose())
 
     with {:ok, first_page} <- list_threads_page(board, 1, config: config, repo: repo) do
-      page_data =
-        Enum.map(1..first_page.total_pages, fn page ->
-          {:ok, data} = list_threads_page(board, page, config: config, repo: repo)
-          data
-        end)
+      remaining_pages =
+        if first_page.total_pages > 1 do
+          Enum.map(2..first_page.total_pages, fn page ->
+            {:ok, data} = list_threads_page(board, page, config: config, repo: repo)
+            data
+          end)
+        else
+          []
+        end
 
-      {:ok, page_data}
+      {:ok, [first_page | remaining_pages]}
     end
   end
 
