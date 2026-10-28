@@ -22,7 +22,8 @@ defmodule Eirinchan.AntispamConcurrencyTest do
   defp assert_shared_quota(kind) do
     opts = Repo.config()
     assert Keyword.get(opts, :hostname) in ["localhost", "127.0.0.1", "::1"]
-    assert String.ends_with?(Keyword.get(opts, :database, ""), "_test")
+    # Phoenix appends MIX_TEST_PARTITION digits to the standard test name.
+    assert Regex.match?(~r/_test[0-9]*$/, Keyword.get(opts, :database, ""))
 
     opts =
       opts
