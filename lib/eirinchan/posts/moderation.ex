@@ -1,6 +1,8 @@
 defmodule Eirinchan.Posts.Moderation do
   @moduledoc false
 
+  require Logger
+
   import Ecto.Query, only: [from: 2]
 
   alias Eirinchan.Build
@@ -450,23 +452,61 @@ defmodule Eirinchan.Posts.Moderation do
 
     with {:ok, targets} <- spoiler_targets(post, files, selection),
          {:ok, prepared} <- prepare_spoiler_targets(board, targets, config) do
-      try do
-        case repo.transaction(fn ->
-               publish_spoiler_targets(board, post, files, prepared, selection, repo)
-             end) do
-          {:ok, updated_post} ->
-            {:ok, updated_post}
-
-          {:error, reason} ->
+      result =
+        try do
+          repo.transaction(fn ->
+            publish_spoiler_targets(board, post, files, prepared, selection, repo)
+          end)
+        catch
+          kind, reason ->
             cleanup_spoiler_targets(prepared)
-            {:error, reason}
+            :erlang.raise(kind, reason, __STACKTRACE__)
         end
-      catch
-        kind, reason ->
+
+      case result do
+        {:ok, updated_post} ->
+          retire_spoiler_sources(prepared, repo)
+          {:ok, updated_post}
+
+        {:error, reason} ->
           cleanup_spoiler_targets(prepared)
-          :erlang.raise(kind, reason, __STACKTRACE__)
+          {:error, reason}
       end
     end
+  end
+
+  defp retire_spoiler_sources(prepared, repo) do
+    paths =
+      for {_kind, _id, original, candidate} <- prepared,
+          is_binary(original) and original != candidate,
+          do: original
+
+    paths = Enum.uniq(paths)
+
+    unless paths == [] do
+      # Legacy records can share a thumbnail path, or use the same path for
+      # source and thumbnail. Never remove a file still referenced by either.
+      referenced =
+        repo.all(
+          from post in Post,
+            where: post.file_path in ^paths or post.thumb_path in ^paths,
+            select: {post.file_path, post.thumb_path}
+        ) ++
+          repo.all(
+            from file in PostFile,
+              where: file.file_path in ^paths or file.thumb_path in ^paths,
+              select: {file.file_path, file.thumb_path}
+          )
+
+      live = referenced |> Enum.flat_map(&Tuple.to_list/1) |> MapSet.new()
+      Enum.each(paths, fn path -> unless MapSet.member?(live, path), do: Uploads.remove(path) end)
+    end
+  rescue
+    _ ->
+      # Publication already committed. Cleanup failure must not remove the
+      # newly-published variants or turn a safe thumbnail into a broken one.
+      Logger.warning("Superseded spoiler thumbnail cleanup was deferred")
+      :ok
   end
 
   defp spoiler_targets(post, files, :all) do

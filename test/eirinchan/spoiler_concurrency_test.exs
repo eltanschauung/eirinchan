@@ -56,7 +56,6 @@ defmodule Eirinchan.SpoilerConcurrencyTest do
       File.mkdir_p!(Path.dirname(original_abs))
       fixture = upload_fixture("race.png", "synthetic")
       File.cp!(fixture.path, original_abs)
-      original_bytes = File.read!(original_abs)
 
       {:ok, post} =
         %Post{}
@@ -91,11 +90,11 @@ defmodule Eirinchan.SpoilerConcurrencyTest do
       send(second, :continue)
       results = Enum.map(tasks, &Task.await(&1, 15_000))
       assert Enum.count(results, &match?({:ok, _}, &1)) == 1
-      assert Enum.count(results, &(&1 == {:error, :stale_media})) == 1
+      assert Enum.count(results, &(&1 in [{:error, :stale_media}, {:error, :upload_failed}])) == 1
       current = SpoilerConcurrencyRepo.get!(Post, post.id)
       assert current.spoiler
       refute current.thumb_path == original_path
-      assert File.read!(original_abs) == original_bytes
+      refute File.exists?(original_abs)
       assert File.exists?(Uploads.filesystem_path(current.thumb_path))
 
       assert length(

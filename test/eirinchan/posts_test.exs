@@ -4566,7 +4566,6 @@ defmodule Eirinchan.PostsTest do
 
     [original_extra] = thread.extra_files
     thumb_before = File.read!(Eirinchan.Uploads.filesystem_path(thread.thumb_path))
-    extra_before = File.read!(Eirinchan.Uploads.filesystem_path(original_extra.thumb_path))
 
     assert {:ok, spoilered_thread} = Posts.spoilerize_post_files(board, thread.id, config: config)
 
@@ -4575,10 +4574,8 @@ defmodule Eirinchan.PostsTest do
     [spoilered_extra] = spoilered_thread.extra_files
     refute spoilered_thread.thumb_path == thread.thumb_path
     refute spoilered_extra.thumb_path == original_extra.thumb_path
-    assert File.read!(Eirinchan.Uploads.filesystem_path(thread.thumb_path)) == thumb_before
-
-    assert File.read!(Eirinchan.Uploads.filesystem_path(original_extra.thumb_path)) ==
-             extra_before
+    refute File.exists?(Eirinchan.Uploads.filesystem_path(thread.thumb_path))
+    refute File.exists?(Eirinchan.Uploads.filesystem_path(original_extra.thumb_path))
 
     refute File.read!(Eirinchan.Uploads.filesystem_path(spoilered_thread.thumb_path)) ==
              thumb_before
@@ -4628,8 +4625,45 @@ defmodule Eirinchan.PostsTest do
     assert [%{spoiler: true, thumb_path: extra_path}] = spoilered_thread.extra_files
     [original_extra] = thread.extra_files
     refute extra_path == original_extra.thumb_path
-    assert File.exists?(Eirinchan.Uploads.filesystem_path(original_extra.thumb_path))
+    refute File.exists?(Eirinchan.Uploads.filesystem_path(original_extra.thumb_path))
     assert File.exists?(Eirinchan.Uploads.filesystem_path(extra_path))
+  end
+
+  test "spoiler variants retire only unreferenced sources and are removed with their posts" do
+    board = board_fixture()
+    config = post_config(board.config_overrides)
+
+    assert {:ok, thread, _} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "Opening body",
+                 "file" => upload_fixture("source.png", "first"),
+                 "post" => "New Topic"
+               }, config: config, request: post_request(board.uri))
+
+    assert {:ok, reply, _} =
+             Posts.create_post(
+               board,
+               %{
+                 "thread" => Integer.to_string(thread.id),
+                 "body" => "Reply",
+                 "file" => upload_fixture("reply.png", "second"),
+                 "post" => "Reply"
+               }, config: config, request: post_request(board.uri))
+
+    old_path = thread.thumb_path
+    bytes = File.read!(Eirinchan.Uploads.filesystem_path(old_path))
+    {:ok, _} = reply |> Ecto.Changeset.change(thumb_path: old_path) |> Repo.update()
+    assert {:ok, first} = Posts.spoilerize_post_file(board, thread.id, 0, config: config)
+    assert File.read!(Eirinchan.Uploads.filesystem_path(old_path)) == bytes
+    assert {:ok, second} = Posts.spoilerize_post_file(board, reply.id, 0, config: config)
+    refute File.exists?(Eirinchan.Uploads.filesystem_path(old_path))
+    assert File.exists?(Eirinchan.Uploads.filesystem_path(first.thumb_path))
+    assert File.exists?(Eirinchan.Uploads.filesystem_path(second.thumb_path))
+    assert {:ok, _} = Posts.moderate_delete_post(board, thread.id, config: config)
+    refute File.exists?(Eirinchan.Uploads.filesystem_path(first.thumb_path))
+    refute File.exists?(Eirinchan.Uploads.filesystem_path(second.thumb_path))
   end
 
   test "spoiler preparation failures leave database and existing thumbnails unchanged" do
