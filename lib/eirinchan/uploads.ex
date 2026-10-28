@@ -300,15 +300,94 @@ defmodule Eirinchan.Uploads do
     Path.join([board_root() | sanitized])
   end
 
-  @spec write_spoiler_thumbnail(String.t() | nil, map()) :: :ok | {:error, atom()}
-  def write_spoiler_thumbnail(nil, _config), do: :ok
+  @doc false
+  @spec prepare_spoiler_thumbnail(String.t(), String.t() | nil, map()) ::
+          {:ok, String.t() | nil} | {:error, atom()}
+  def prepare_spoiler_thumbnail(_board_uri, nil, _config), do: {:ok, nil}
 
-  def write_spoiler_thumbnail(file_path, config) when is_binary(file_path) do
-    Eirinchan.MediaProcessing.run(fn ->
-      destination = filesystem_path(file_path)
-      Path.dirname(destination) |> File.mkdir_p!()
-      generate_spoiler_thumbnail(destination, config)
-    end)
+  def prepare_spoiler_thumbnail(board_uri, file_path, config)
+      when is_binary(board_uri) and is_binary(file_path) do
+    with true <- board_uri not in ["", ".", ".."] and board_uri == Path.basename(board_uri),
+         ["", ^board_uri, "thumb", filename] <- String.split(file_path, "/"),
+         true <- filename == Path.basename(filename),
+         extension <- filename |> Path.extname() |> String.downcase(),
+         {:ok, _} <- spoiler_thumbnail_format(extension),
+         :ok <- safe_spoiler_source(board_uri, filename) do
+      nonce = :crypto.strong_rand_bytes(16) |> Base.encode16(case: :lower)
+      staged_dir = Path.join(staging_root(), "spoiler-#{nonce}")
+      staged_file = Path.join(staged_dir, "thumbnail#{extension}")
+      new_path = "/#{board_uri}/thumb/spoiler-#{nonce}#{extension}"
+
+      Eirinchan.MediaProcessing.run(
+        fn ->
+          with :ok <- File.mkdir_p(staging_root()),
+               :ok <- File.mkdir(staged_dir) do
+            try do
+              with :ok <- File.chmod(staged_dir, 0o700),
+                   :ok <- File.cp(filesystem_path(file_path), staged_file),
+                   :ok <- generate_spoiler_thumbnail(staged_file, config),
+                   :ok <- publish_spoiler_thumbnail(staged_file, filesystem_path(new_path)) do
+                {:ok, new_path}
+              else
+                _ -> {:error, :upload_failed}
+              end
+            after
+              _ = File.rm(staged_file)
+              _ = File.rm(staged_file <> ".blur" <> extension)
+              _ = File.rmdir(staged_dir)
+            end
+          else
+            _ -> {:error, :upload_failed}
+          end
+        end,
+        cleanup: fn
+          {:ok, path} -> remove(path)
+          _ -> :ok
+        end
+      )
+    else
+      _ -> {:error, :upload_failed}
+    end
+  end
+
+  # Reject symlinked board/thumbnail paths and files; the configured root is
+  # trusted, but a path from stored metadata must stay inside that root.
+  defp safe_spoiler_source(board_uri, filename) do
+    root = board_root()
+    board_dir = Path.join(root, board_uri)
+    thumb_dir = Path.join(board_dir, "thumb")
+
+    with {:ok, %File.Stat{type: :directory}} <- File.lstat(board_dir),
+         {:ok, %File.Stat{type: :directory}} <- File.lstat(thumb_dir),
+         {:ok, %File.Stat{type: :regular}} <- File.lstat(Path.join(thumb_dir, filename)) do
+      :ok
+    else
+      _ -> {:error, :upload_failed}
+    end
+  end
+
+  defp publish_spoiler_thumbnail(source, destination) do
+    with {:ok, bytes} <- File.read(source),
+         {:ok, output} <- File.open(destination, [:write, :binary, :exclusive]) do
+      try do
+        write_result = IO.binwrite(output, bytes)
+        close_result = File.close(output)
+
+        if write_result == :ok and close_result == :ok and File.chmod(destination, 0o644) == :ok do
+          :ok
+        else
+          _ = File.rm(destination)
+          {:error, :upload_failed}
+        end
+      catch
+        kind, reason ->
+          _ = File.close(output)
+          _ = File.rm(destination)
+          :erlang.raise(kind, reason, __STACKTRACE__)
+      end
+    else
+      _ -> {:error, :upload_failed}
+    end
   end
 
   def cleanup_prepared(metadata) when is_map(metadata) do
