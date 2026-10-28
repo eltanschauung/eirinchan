@@ -779,6 +779,7 @@ defmodule EirinchanWeb.PostController do
 
   defp error_status(:thread_not_found), do: :not_found
   defp error_status(:post_not_found), do: :not_found
+  defp error_status(:stale_media), do: :conflict
   defp error_status(:ban_not_found), do: :not_found
   defp error_status(:ipaccess), do: :forbidden
   defp error_status(:ipaccess_imagelim), do: :forbidden
@@ -907,6 +908,9 @@ defmodule EirinchanWeb.PostController do
   defp error_message(:file_too_large, config), do: config.error.file_too_large
   defp error_message(:access_list, _config), do: "IP not permitted for multi-file OP posting."
   defp error_message(:upload_failed, config), do: config.error.upload_failed
+
+  defp error_message(:stale_media, _config),
+    do: "Media changed or is being updated. Refresh the page and try again."
 
   defp error_message(:media_busy, _config),
     do: "Media processing is busy. Please try again shortly."

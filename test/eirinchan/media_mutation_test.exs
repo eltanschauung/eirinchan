@@ -1,7 +1,33 @@
+defmodule Eirinchan.MediaMutationSnapshotRepo do
+  def get_by(_schema, _clauses) do
+    [post | rest] = Process.get(:media_snapshots)
+    Process.put(:media_snapshots, rest)
+    post
+  end
+
+  def preload(post, _), do: post
+end
+
 defmodule Eirinchan.MediaMutationTest do
   use Eirinchan.DataCase, async: false
   alias Eirinchan.{MediaMutation, Posts, Uploads}
   alias Eirinchan.Runtime.Config
+
+  test "a changed post identity or thread scope is rejected after lock acquisition" do
+    board = %Eirinchan.Boards.BoardRecord{id: 1, uri: "synthetic"}
+    initial = %Eirinchan.Posts.Post{id: 1, public_id: 1, thread_id: 10}
+
+    for changed <- [%{initial | thread_id: 11}, %{initial | id: 2}] do
+      Process.put(:media_snapshots, [initial, changed])
+
+      assert {:error, :stale_media} =
+               MediaMutation.with_post(board, 1, Eirinchan.MediaMutationSnapshotRepo, fn ->
+                 flunk("stale mutation ran")
+               end)
+    end
+
+    Process.delete(:media_snapshots)
+  end
 
   for move <- [:reply, :thread], first <- [:spoiler, :move] do
     test "#{move} move and spoiler are serialized with #{first} first" do

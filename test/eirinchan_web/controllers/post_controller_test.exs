@@ -1944,6 +1944,39 @@ defmodule EirinchanWeb.PostControllerTest do
     assert %{"error" => "Incorrect password."} = json_response(conn, 403)
   end
 
+  test "delete reports a recoverable conflict while media is being updated", %{conn: conn} do
+    board = board_fixture()
+    thread = thread_fixture(board, %{password: "threadpw"})
+    parent = self()
+
+    task =
+      Task.async(fn ->
+        Eirinchan.MediaMutation.with_post(board, thread.public_id, Eirinchan.Repo, fn ->
+          send(parent, :media_locked)
+          receive do: (:release -> :ok)
+        end)
+      end)
+
+    assert_receive :media_locked, 2_000
+
+    try do
+      result =
+        conn
+        |> put_req_header("referer", "http://www.example.com/#{board.uri}/index.html")
+        |> post("/#{board.uri}/post", %{
+          "delete_post_id" => to_string(thread.public_id),
+          "password" => "threadpw",
+          "json_response" => "1"
+        })
+
+      assert %{"error" => "Media changed or is being updated. Refresh the page and try again."} =
+               json_response(result, 409)
+    after
+      send(task.pid, :release)
+      Task.await(task)
+    end
+  end
+
   test "hourly deletion limit counts successful replies and threads together", %{conn: _conn} do
     board =
       board_fixture(%{
@@ -1959,7 +1992,10 @@ defmodule EirinchanWeb.PostControllerTest do
       thread_fixture(board, %{password: "second-thread-pw", body: "second deletion-limit thread"})
 
     blocked_thread =
-      thread_fixture(board, %{password: "blocked-thread-pw", body: "blocked deletion-limit thread"})
+      thread_fixture(board, %{
+        password: "blocked-thread-pw",
+        body: "blocked deletion-limit thread"
+      })
 
     browser_cookie = Eirinchan.BrowserIdentity.issue(browser_token("hourly-delete-limit"))
 

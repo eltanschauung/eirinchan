@@ -3,8 +3,25 @@ defmodule Eirinchan.MediaMutation do
 
   def with_post(board, post_id, repo, fun, missing \\ :not_found) do
     case Eirinchan.Posts.get_post(board, post_id, repo: repo) do
-      {:ok, post} -> with_thread(post.thread_id || post.id, fun)
-      _ -> {:error, missing}
+      {:ok, post} ->
+        thread_id = post.thread_id || post.id
+
+        with_thread(thread_id, fn ->
+          # A move may have completed between initial lookup and acquisition.
+          # Do not run under a stale thread's lock or operate on a reused ID.
+          case Eirinchan.Posts.get_post(board, post_id, repo: repo) do
+            {:ok, current} ->
+              if current.id == post.id and (current.thread_id || current.id) == thread_id,
+                do: fun.(),
+                else: {:error, :stale_media}
+
+            _ ->
+              {:error, :stale_media}
+          end
+        end)
+
+      _ ->
+        {:error, missing}
     end
   end
 
