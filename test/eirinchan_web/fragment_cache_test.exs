@@ -59,6 +59,34 @@ defmodule EirinchanWeb.FragmentCacheTest do
     assert FragmentCache.fetch_or_store(:beta, fn -> "two" end) == "two"
   end
 
+  test "an in-flight fill cannot repopulate after a full invalidation" do
+    task = blocked_fill({:board, 1})
+    assert :ok = FragmentCache.clear()
+    send(task.pid, :finish_fill)
+    assert Task.await(task) == :old
+    assert FragmentCache.fetch_or_store({:board, 1}, fn -> :new end) == :new
+  end
+
+  test "an in-flight fill cannot repopulate an invalidated namespace" do
+    task = blocked_fill({:board, 1})
+    assert :ok = FragmentCache.delete_namespace(:board)
+    send(task.pid, :finish_fill)
+    assert Task.await(task) == :old
+    assert FragmentCache.fetch_or_store({:board, 1}, fn -> :new end) == :new
+  end
+
+  test "an in-flight fill cannot cross a cache owner restart" do
+    task = blocked_fill({:board, 1})
+    old_pid = Process.whereis(FragmentCache)
+    ref = Process.monitor(old_pid)
+    GenServer.stop(old_pid, :normal)
+    assert_receive {:DOWN, ^ref, :process, ^old_pid, :normal}
+    assert is_pid(wait_for_restart(old_pid))
+    send(task.pid, :finish_fill)
+    assert Task.await(task) == :old
+    assert FragmentCache.fetch_or_store({:board, 1}, fn -> :new end) == :new
+  end
+
   test "expires cached values after the configured ttl" do
     Application.put_env(:eirinchan, :fragment_cache, max_entries: 10, ttl_ms: 10)
 
@@ -78,6 +106,34 @@ defmodule EirinchanWeb.FragmentCacheTest do
 
     assert FragmentCache.size() == 2
     assert FragmentCache.fetch_or_store(:first, fn -> :recomputed end) == :recomputed
+  end
+
+  test "concurrent cache fills respect the configured entry limit" do
+    Application.put_env(:eirinchan, :fragment_cache, max_entries: 4, ttl_ms: 60_000)
+
+    1..40
+    |> Task.async_stream(
+      fn index -> FragmentCache.fetch_or_store({:parallel, index}, fn -> index end) end,
+      max_concurrency: 40
+    )
+    |> Enum.each(fn {:ok, value} -> assert is_integer(value) end)
+
+    assert FragmentCache.size() <= 4
+  end
+
+  defp blocked_fill(key) do
+    parent = self()
+
+    task =
+      Task.async(fn ->
+        FragmentCache.fetch_or_store(key, fn ->
+          send(parent, {:fill_started, self()})
+          receive do: (:finish_fill -> :old)
+        end)
+      end)
+
+    assert_receive {:fill_started, pid} when pid == task.pid
+    task
   end
 
   defp wait_for_restart(old_pid, attempts \\ 20)

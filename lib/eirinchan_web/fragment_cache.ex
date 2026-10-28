@@ -13,7 +13,7 @@ defmodule EirinchanWeb.FragmentCache do
   end
 
   @impl true
-  def init(:ok), do: {:ok, %{table: create_table()}}
+  def init(:ok), do: {:ok, %{table: create_table(), generation: make_ref()}}
 
   def fetch_or_store(key, fun) when is_function(fun, 0) do
     fetch_or_store(key, fun, @retry_attempts)
@@ -37,6 +37,29 @@ defmodule EirinchanWeb.FragmentCache do
     {:reply, :ok, ensure_state_table(state)}
   end
 
+  def handle_call(:generation, _from, state) do
+    state = ensure_state_table(state)
+    {:reply, state.generation, state}
+  end
+
+  def handle_call({:store_if_current, key, value, generation}, _from, state) do
+    state = ensure_state_table(state)
+    if state.generation == generation, do: insert_unsafe(key, value)
+    {:reply, :ok, state}
+  end
+
+  def handle_call(:clear, _from, state) do
+    state = ensure_state_table(state)
+    :ets.delete_all_objects(@table)
+    {:reply, :ok, %{state | generation: make_ref()}}
+  end
+
+  def handle_call({:delete_namespaces, namespaces}, _from, state) do
+    state = ensure_state_table(state)
+    delete_namespaces_unsafe(namespaces)
+    {:reply, :ok, %{state | generation: make_ref()}}
+  end
+
   defp fetch_or_store(key, fun, attempts_left) when attempts_left > 0 do
     ensure_table()
 
@@ -55,19 +78,15 @@ defmodule EirinchanWeb.FragmentCache do
         value
 
       :miss ->
-        value = fun.()
-        insert_unsafe(key, value)
-        value
+        store_computed(key, fun, 0)
     end
   end
 
   defp store_computed(key, fun, attempts_left) do
+    generation = owner_call(:generation, attempts_left)
     value = fun.()
-
-    case insert(key, value) do
-      :ok -> value
-      :retry -> fetch_or_store(key, fn -> value end, attempts_left - 1)
-    end
+    :ok = owner_call({:store_if_current, key, value, generation}, attempts_left)
+    value
   end
 
   defp lookup_fresh(key) do
@@ -82,20 +101,13 @@ defmodule EirinchanWeb.FragmentCache do
         if monotonic_ms() - inserted_at <= ttl_ms() do
           {:hit, value}
         else
-          :ets.delete(@table, key)
+          :ets.delete_object(@table, {key, inserted_at, value})
           :miss
         end
 
       _other ->
         :miss
     end
-  end
-
-  defp insert(key, value) do
-    insert_unsafe(key, value)
-    :ok
-  rescue
-    error in ArgumentError -> handle_stale_table(error)
   end
 
   defp insert_unsafe(key, value) do
@@ -118,40 +130,22 @@ defmodule EirinchanWeb.FragmentCache do
 
   defp clear(attempts_left) when attempts_left > 0 do
     ensure_table()
-
-    try do
-      :ets.delete_all_objects(@table)
-      :ok
-    rescue
-      error in ArgumentError ->
-        case handle_stale_table(error) do
-          :retry -> clear(attempts_left - 1)
-        end
-    end
+    owner_call(:clear, attempts_left)
   end
 
   defp clear(_attempts_left) do
     ensure_table()
-    :ets.delete_all_objects(@table)
-    :ok
+    owner_call(:clear, 0)
   end
 
   defp delete_namespaces(namespaces, attempts_left) when attempts_left > 0 do
     ensure_table()
-
-    try do
-      delete_namespaces_unsafe(namespaces)
-    rescue
-      error in ArgumentError ->
-        case handle_stale_table(error) do
-          :retry -> delete_namespaces(namespaces, attempts_left - 1)
-        end
-    end
+    owner_call({:delete_namespaces, namespaces}, attempts_left)
   end
 
   defp delete_namespaces(namespaces, _attempts_left) do
     ensure_table()
-    delete_namespaces_unsafe(namespaces)
+    owner_call({:delete_namespaces, namespaces}, 0)
   end
 
   defp delete_namespaces_unsafe(namespaces) do
@@ -189,10 +183,26 @@ defmodule EirinchanWeb.FragmentCache do
 
   defp ensure_state_table(state) do
     case :ets.whereis(@table) do
-      :undefined -> %{state | table: create_table()}
+      :undefined -> %{state | table: create_table(), generation: make_ref()}
       _table -> state
     end
   end
+
+  defp owner_call(message, attempts_left) do
+    ensure_owner_started()
+    GenServer.call(__MODULE__, message)
+  catch
+    :exit, {reason, {GenServer, :call, _args}} = error when attempts_left > 0 ->
+      if retryable_owner_exit?(reason),
+        do: owner_call(message, attempts_left - 1),
+        else: exit(error)
+  end
+
+  defp retryable_owner_exit?(reason) when reason in [:noproc, :normal, :shutdown, :killed],
+    do: true
+
+  defp retryable_owner_exit?({:shutdown, _reason}), do: true
+  defp retryable_owner_exit?(_reason), do: false
 
   defp create_table do
     case :ets.whereis(@table) do
