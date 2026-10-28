@@ -1,6 +1,8 @@
 defmodule Eirinchan.Posts.Moderation do
   @moduledoc false
 
+  require Logger
+
   import Ecto.Query, only: [from: 2]
 
   alias Eirinchan.Build
@@ -31,12 +33,24 @@ defmodule Eirinchan.Posts.Moderation do
       result =
         if is_nil(post.thread_id) do
           _ = Build.rebuild_after_delete(board, {:thread, post}, config: config, repo: repo)
-          %{deleted_post_id: post.public_id || post.id, thread_id: post.public_id || post.id, thread_deleted: true}
+
+          %{
+            deleted_post_id: post.public_id || post.id,
+            thread_id: post.public_id || post.id,
+            thread_deleted: true
+          }
         else
           _ =
-            Build.rebuild_after_delete(board, {:reply, post.thread_id}, config: config, repo: repo)
+            Build.rebuild_after_delete(board, {:reply, post.thread_id},
+              config: config,
+              repo: repo
+            )
 
-          %{deleted_post_id: post.public_id || post.id, thread_id: thread_public_id(repo, post), thread_deleted: false}
+          %{
+            deleted_post_id: post.public_id || post.id,
+            thread_id: thread_public_id(repo, post),
+            thread_deleted: false
+          }
         end
 
       {:ok, result}
@@ -110,7 +124,12 @@ defmodule Eirinchan.Posts.Moderation do
            end) do
         {:ok, updated_post} ->
           Enum.each(file_paths, &Uploads.remove/1)
-          _ = Posts.sync_thread_metrics(board, updated_post.thread_id || updated_post.id, repo: repo)
+
+          _ =
+            Posts.sync_thread_metrics(board, updated_post.thread_id || updated_post.id,
+              repo: repo
+            )
+
           _ = Build.rebuild_after_post_update(board, updated_post, config: config, repo: repo)
           {:ok, updated_post}
 
@@ -155,38 +174,20 @@ defmodule Eirinchan.Posts.Moderation do
     repo = Keyword.get(opts, :repo, Repo)
     config = Keyword.get(opts, :config, Config.compose())
 
-    with {:ok, post} <- Posts.get_post(board, post_id, repo: repo) do
-      case repo.transaction(fn ->
-             {:ok, updated_post} =
-               post
-               |> Post.create_changeset(%{spoiler: has_primary_file?(post)})
-               |> repo.update()
-
-             from(post_file in PostFile, where: post_file.post_id == ^post.id)
-             |> repo.update_all(set: [spoiler: true])
-
-             repo.preload(updated_post, :extra_files, force: true)
-           end) do
-        {:ok, updated_post} ->
-          if has_primary_file?(updated_post) do
-            :ok = Uploads.write_spoiler_thumbnail(updated_post.thumb_path, config)
-          end
-
-          Enum.each(updated_post.extra_files, fn post_file ->
-            :ok = Uploads.write_spoiler_thumbnail(post_file.thumb_path, config)
-          end)
-
-          _ = Posts.sync_thread_metrics(board, updated_post.thread_id || updated_post.id, repo: repo)
-          _ = Build.rebuild_after_post_update(board, updated_post, config: config, repo: repo)
-          {:ok, updated_post}
-
-        {:error, reason} ->
-          {:error, reason}
-      end
+    with {:ok, post} <- Posts.get_post(board, post_id, repo: repo),
+         {:ok, updated_post} <- spoiler_post_files(board, post, :all, config, repo) do
+      _ = Posts.sync_thread_metrics(board, updated_post.thread_id || updated_post.id, repo: repo)
+      _ = Build.rebuild_after_post_update(board, updated_post, config: config, repo: repo)
+      {:ok, updated_post}
     end
   end
 
-  @spec spoilerize_post_file(BoardRecord.t(), String.t() | integer(), non_neg_integer(), keyword()) ::
+  @spec spoilerize_post_file(
+          BoardRecord.t(),
+          String.t() | integer(),
+          non_neg_integer(),
+          keyword()
+        ) ::
           {:ok, Post.t()} | {:error, :not_found | Ecto.Changeset.t()}
   def spoilerize_post_file(%BoardRecord{} = board, post_id, file_index, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
@@ -194,8 +195,7 @@ defmodule Eirinchan.Posts.Moderation do
 
     with {:ok, post} <- Posts.get_post(board, post_id, repo: repo),
          {:ok, normalized_index} <- normalize_file_index(file_index),
-         {:ok, updated_post, thumb_paths} <- spoiler_single_post_file(post, normalized_index, repo) do
-      Enum.each(thumb_paths, &Uploads.write_spoiler_thumbnail(&1, config))
+         {:ok, updated_post} <- spoiler_post_files(board, post, normalized_index, config, repo) do
       _ = Posts.sync_thread_metrics(board, updated_post.thread_id || updated_post.id, repo: repo)
       _ = Build.rebuild_after_post_update(board, updated_post, config: config, repo: repo)
       {:ok, updated_post}
@@ -207,9 +207,17 @@ defmodule Eirinchan.Posts.Moderation do
 
   @spec move_thread(BoardRecord.t(), String.t() | integer(), BoardRecord.t(), keyword()) ::
           {:ok, Post.t()} | {:error, :not_found | :upload_failed | Ecto.Changeset.t()}
-  def move_thread(%BoardRecord{} = source_board, thread_id, %BoardRecord{} = target_board, opts \\ []) do
+  def move_thread(
+        %BoardRecord{} = source_board,
+        thread_id,
+        %BoardRecord{} = target_board,
+        opts \\ []
+      ) do
     repo = Keyword.get(opts, :repo, Repo)
-    source_config = Keyword.get(opts, :source_config, Keyword.get(opts, :config, Config.compose()))
+
+    source_config =
+      Keyword.get(opts, :source_config, Keyword.get(opts, :config, Config.compose()))
+
     target_config = Keyword.get(opts, :target_config, source_config)
 
     with {:ok, [thread | replies]} <- Posts.get_thread(source_board, thread_id, repo: repo) do
@@ -220,6 +228,7 @@ defmodule Eirinchan.Posts.Moderation do
         :ok ->
           case repo.transaction(fn ->
                  {:ok, locked_target_board} = lock_board(repo, target_board.id)
+
                  {public_ids_by_post_id, _updated_target_board} =
                    allocate_public_ids!(repo, locked_target_board, posts)
 
@@ -232,7 +241,8 @@ defmodule Eirinchan.Posts.Moderation do
                        thumb_path: remap_board_path(post.thumb_path, source_board, target_board)
                      }
 
-                     with {:ok, updated_post} <- post |> Post.create_changeset(attrs) |> repo.update(),
+                     with {:ok, updated_post} <-
+                            post |> Post.create_changeset(attrs) |> repo.update(),
                           :ok <- move_extra_files(post, source_board, target_board, repo) do
                        {:cont, [updated_post | acc]}
                      else
@@ -251,8 +261,19 @@ defmodule Eirinchan.Posts.Moderation do
                end) do
             {:ok, moved_thread} ->
               _ = Posts.sync_thread_metrics(target_board, moved_thread.id, repo: repo)
-              _ = Build.rebuild_after_delete(source_board, {:thread, thread}, config: source_config, repo: repo)
-              _ = Build.rebuild_after_post(target_board, moved_thread, config: target_config, repo: repo)
+
+              _ =
+                Build.rebuild_after_delete(source_board, {:thread, thread},
+                  config: source_config,
+                  repo: repo
+                )
+
+              _ =
+                Build.rebuild_after_post(target_board, moved_thread,
+                  config: target_config,
+                  repo: repo
+                )
+
               {:ok, repo.preload(moved_thread, :extra_files, force: true)}
 
             {:error, reason} ->
@@ -266,22 +287,39 @@ defmodule Eirinchan.Posts.Moderation do
     end
   end
 
-  @spec move_reply(BoardRecord.t(), String.t() | integer(), BoardRecord.t(), String.t() | integer(), keyword()) ::
+  @spec move_reply(
+          BoardRecord.t(),
+          String.t() | integer(),
+          BoardRecord.t(),
+          String.t() | integer(),
+          keyword()
+        ) ::
           {:ok, Post.t()} | {:error, :not_found | :upload_failed | Ecto.Changeset.t()}
-  def move_reply(%BoardRecord{} = source_board, post_id, %BoardRecord{} = target_board, target_thread_id, opts \\ []) do
+  def move_reply(
+        %BoardRecord{} = source_board,
+        post_id,
+        %BoardRecord{} = target_board,
+        target_thread_id,
+        opts \\ []
+      ) do
     repo = Keyword.get(opts, :repo, Repo)
-    source_config = Keyword.get(opts, :source_config, Keyword.get(opts, :config, Config.compose()))
+
+    source_config =
+      Keyword.get(opts, :source_config, Keyword.get(opts, :config, Config.compose()))
+
     target_config = Keyword.get(opts, :target_config, source_config)
 
     with {:ok, reply} <- Posts.get_post(source_board, post_id, repo: repo),
          false <- is_nil(reply.thread_id),
-         {:ok, target_thread} <- PostsThreadLookup.fetch_thread(target_board, target_thread_id, repo) do
+         {:ok, target_thread} <-
+           PostsThreadLookup.fetch_thread(target_board, target_thread_id, repo) do
       file_moves = move_file_operations([reply], source_board, target_board)
 
       case apply_file_moves(file_moves) do
         :ok ->
           case repo.transaction(fn ->
                  {:ok, locked_target_board} = lock_board(repo, target_board.id)
+
                  {public_ids_by_post_id, _updated_target_board} =
                    allocate_public_ids!(repo, locked_target_board, [reply])
 
@@ -293,7 +331,8 @@ defmodule Eirinchan.Posts.Moderation do
                    thumb_path: remap_board_path(reply.thumb_path, source_board, target_board)
                  }
 
-                 with {:ok, updated_reply} <- reply |> Post.create_changeset(attrs) |> repo.update(),
+                 with {:ok, updated_reply} <-
+                        reply |> Post.create_changeset(attrs) |> repo.update(),
                       :ok <- move_extra_files(reply, source_board, target_board, repo),
                       :ok <- Posts.replace_citations(target_board, updated_reply, repo) do
                    updated_reply
@@ -304,8 +343,19 @@ defmodule Eirinchan.Posts.Moderation do
             {:ok, moved_reply} ->
               _ = Posts.sync_thread_metrics(source_board, reply.thread_id, repo: repo)
               _ = Posts.sync_thread_metrics(target_board, target_thread.id, repo: repo)
-              _ = Build.rebuild_after_delete(source_board, {:reply, reply.thread_id}, config: source_config, repo: repo)
-              _ = Build.rebuild_after_post(target_board, moved_reply, config: target_config, repo: repo)
+
+              _ =
+                Build.rebuild_after_delete(source_board, {:reply, reply.thread_id},
+                  config: source_config,
+                  repo: repo
+                )
+
+              _ =
+                Build.rebuild_after_post(target_board, moved_reply,
+                  config: target_config,
+                  repo: repo
+                )
+
               {:ok, repo.preload(moved_reply, :extra_files, force: true)}
 
             {:error, reason} ->
@@ -323,7 +373,8 @@ defmodule Eirinchan.Posts.Moderation do
     end
   end
 
-  defp normalize_file_index(file_index) when is_integer(file_index) and file_index >= 0, do: {:ok, file_index}
+  defp normalize_file_index(file_index) when is_integer(file_index) and file_index >= 0,
+    do: {:ok, file_index}
 
   defp normalize_file_index(file_index) when is_binary(file_index) do
     case Integer.parse(file_index) do
@@ -353,7 +404,11 @@ defmodule Eirinchan.Posts.Moderation do
   end
 
   defp lock_board(repo, board_id) do
-    case repo.one(from board_record in BoardRecord, where: board_record.id == ^board_id, lock: "FOR UPDATE") do
+    case repo.one(
+           from board_record in BoardRecord,
+             where: board_record.id == ^board_id,
+             lock: "FOR UPDATE"
+         ) do
       %BoardRecord{} = board -> {:ok, board}
       _ -> {:error, :board_not_found}
     end
@@ -392,45 +447,173 @@ defmodule Eirinchan.Posts.Moderation do
     end
   end
 
-  defp spoiler_single_post_file(%Post{} = post, file_index, repo) do
-    extra = extra_files_for_post(post, repo)
+  defp spoiler_post_files(board, post, selection, config, repo) do
+    files = Enum.sort_by(post.extra_files, & &1.position)
 
-    cond do
-      file_index == 0 and path_present?(post.file_path) ->
-        case repo.transaction(fn ->
-               case post |> Post.create_changeset(%{spoiler: true}) |> repo.update() do
-                 {:ok, updated_post} -> repo.preload(updated_post, :extra_files, force: true)
-                 {:error, reason} -> repo.rollback(reason)
-               end
-             end) do
-          {:ok, updated_post} -> {:ok, updated_post, [updated_post.thumb_path]}
-          {:error, reason} -> {:error, reason}
+    with {:ok, targets} <- spoiler_targets(post, files, selection),
+         {:ok, prepared} <- prepare_spoiler_targets(board, targets, config) do
+      result =
+        try do
+          repo.transaction(fn ->
+            publish_spoiler_targets(board, post, files, prepared, selection, repo)
+          end)
+        catch
+          kind, reason ->
+            cleanup_spoiler_targets(prepared)
+            :erlang.raise(kind, reason, __STACKTRACE__)
         end
 
-      file_index > 0 ->
-        case Enum.find(extra, &(&1.position == file_index)) do
-          nil ->
-            {:error, :not_found}
+      case result do
+        {:ok, updated_post} ->
+          retire_spoiler_sources(prepared, repo)
+          {:ok, updated_post}
 
-          target ->
-            case repo.transaction(fn ->
-                   case target |> PostFile.create_changeset(%{spoiler: true}) |> repo.update() do
-                     {:ok, _updated_file} ->
-                       post
-                       |> repo.preload(:extra_files, force: true)
-
-                     {:error, reason} ->
-                       repo.rollback(reason)
-                   end
-                 end) do
-              {:ok, updated_post} -> {:ok, updated_post, [target.thumb_path]}
-              {:error, reason} -> {:error, reason}
-            end
-        end
-
-      true ->
-        {:error, :not_found}
+        {:error, reason} ->
+          cleanup_spoiler_targets(prepared)
+          {:error, reason}
+      end
     end
+  end
+
+  defp retire_spoiler_sources(prepared, repo) do
+    paths =
+      for {_kind, _id, original, candidate} <- prepared,
+          is_binary(original) and original != candidate,
+          do: original
+
+    paths = Enum.uniq(paths)
+
+    unless paths == [] do
+      # Legacy records can share a thumbnail path, or use the same path for
+      # source and thumbnail. Never remove a file still referenced by either.
+      referenced =
+        repo.all(
+          from post in Post,
+            where: post.file_path in ^paths or post.thumb_path in ^paths,
+            select: {post.file_path, post.thumb_path}
+        ) ++
+          repo.all(
+            from file in PostFile,
+              where: file.file_path in ^paths or file.thumb_path in ^paths,
+              select: {file.file_path, file.thumb_path}
+          )
+
+      live = referenced |> Enum.flat_map(&Tuple.to_list/1) |> MapSet.new()
+      Enum.each(paths, fn path -> unless MapSet.member?(live, path), do: Uploads.remove(path) end)
+    end
+  rescue
+    _ ->
+      # Publication already committed. Cleanup failure must not remove the
+      # newly-published variants or turn a safe thumbnail into a broken one.
+      Logger.warning("Superseded spoiler thumbnail cleanup was deferred")
+      :ok
+  end
+
+  defp spoiler_targets(post, files, :all) do
+    primary = if has_primary_file?(post), do: [{:post, post}], else: []
+    {:ok, primary ++ Enum.map(files, &{:extra, &1})}
+  end
+
+  defp spoiler_targets(post, _files, 0) do
+    if path_present?(post.file_path), do: {:ok, [{:post, post}]}, else: {:error, :not_found}
+  end
+
+  defp spoiler_targets(_post, files, index) when index > 0 do
+    case Enum.find(files, &(&1.position == index)) do
+      nil -> {:error, :not_found}
+      file -> {:ok, [{:extra, file}]}
+    end
+  end
+
+  defp prepare_spoiler_targets(board, targets, config) do
+    Enum.reduce_while(targets, {:ok, []}, fn {kind, file}, {:ok, prepared} ->
+      result =
+        try do
+          if file.spoiler do
+            {:ok, file.thumb_path}
+          else
+            Uploads.prepare_spoiler_thumbnail(board.uri, file.thumb_path, config)
+          end
+        catch
+          kind, reason ->
+            cleanup_spoiler_targets(prepared)
+            :erlang.raise(kind, reason, __STACKTRACE__)
+        end
+
+      case result do
+        {:ok, path} ->
+          {:cont, {:ok, [{kind, file.id, file.thumb_path, path} | prepared]}}
+
+        {:error, reason} ->
+          cleanup_spoiler_targets(prepared)
+          {:halt, {:error, reason}}
+      end
+    end)
+  end
+
+  defp cleanup_spoiler_targets(prepared) do
+    Enum.each(prepared, fn {_kind, _id, original, candidate} ->
+      if is_binary(candidate) and candidate != original, do: Uploads.remove(candidate)
+    end)
+  end
+
+  defp publish_spoiler_targets(board, original, original_files, prepared, selection, repo) do
+    locked =
+      repo.one(
+        from post in Post,
+          where: post.id == ^original.id and post.board_id == ^board.id,
+          lock: "FOR UPDATE"
+      ) || repo.rollback(:not_found)
+
+    locked_files =
+      repo.all(
+        from file in PostFile,
+          where: file.post_id == ^original.id,
+          order_by: file.position,
+          lock: "FOR UPDATE"
+      )
+
+    if spoiler_snapshot(locked, locked_files) != spoiler_snapshot(original, original_files) do
+      repo.rollback(:stale_media)
+    end
+
+    if selection == :all and not has_primary_file?(locked) and locked.spoiler do
+      case locked |> Post.create_changeset(%{spoiler: false}) |> repo.update() do
+        {:ok, _} -> :ok
+        {:error, reason} -> repo.rollback(reason)
+      end
+    end
+
+    Enum.each(prepared, fn
+      {:post, _id, _old, path} ->
+        case locked
+             |> Post.create_changeset(%{spoiler: true, thumb_path: path})
+             |> repo.update() do
+          {:ok, _} -> :ok
+          {:error, reason} -> repo.rollback(reason)
+        end
+
+      {:extra, id, _old, path} ->
+        file = Enum.find(locked_files, &(&1.id == id)) || repo.rollback(:stale_media)
+
+        case file
+             |> PostFile.create_changeset(%{spoiler: true, thumb_path: path})
+             |> repo.update() do
+          {:ok, _} -> :ok
+          {:error, reason} -> repo.rollback(reason)
+        end
+    end)
+
+    repo.get!(Post, locked.id) |> repo.preload(:extra_files, force: true)
+  end
+
+  defp spoiler_snapshot(post, files) do
+    {
+      Map.take(post, [:id, :board_id, :file_path, :thumb_path, :spoiler]),
+      files
+      |> Enum.sort_by(& &1.position)
+      |> Enum.map(&Map.take(&1, [:id, :position, :file_path, :thumb_path, :spoiler]))
+    }
   end
 
   defp delete_primary_post_file(%Post{} = post, [], repo) do
@@ -473,7 +656,9 @@ defmodule Eirinchan.Posts.Moderation do
         file_paths = file_delete_paths(target)
 
         case repo.transaction(fn ->
-               case target |> PostFile.create_changeset(deleted_file_attrs(target)) |> repo.update() do
+               case target
+                    |> PostFile.create_changeset(deleted_file_attrs(target))
+                    |> repo.update() do
                  {:ok, _updated_file} ->
                    repo.preload(post, :extra_files, force: true)
 
@@ -509,7 +694,9 @@ defmodule Eirinchan.Posts.Moderation do
       )
 
     Enum.reduce_while(post_files, :ok, fn post_file, :ok ->
-      case post_file |> PostFile.create_changeset(deleted_file_attrs(post_file)) |> repo.update() do
+      case post_file
+           |> PostFile.create_changeset(deleted_file_attrs(post_file))
+           |> repo.update() do
         {:ok, _updated_post_file} -> {:cont, :ok}
         {:error, reason} -> {:halt, {:error, reason}}
       end
@@ -619,8 +806,10 @@ defmodule Eirinchan.Posts.Moderation do
         |> extra_files()
         |> Enum.flat_map(fn post_file ->
           [
-            {post_file.file_path, remap_board_path(post_file.file_path, source_board, target_board)},
-            {post_file.thumb_path, remap_board_path(post_file.thumb_path, source_board, target_board)}
+            {post_file.file_path,
+             remap_board_path(post_file.file_path, source_board, target_board)},
+            {post_file.thumb_path,
+             remap_board_path(post_file.thumb_path, source_board, target_board)}
           ]
         end)
 
@@ -663,5 +852,4 @@ defmodule Eirinchan.Posts.Moderation do
        when is_binary(path) do
     String.replace_prefix(path, "/#{source_uri}/", "/#{target_uri}/")
   end
-
 end

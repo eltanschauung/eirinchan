@@ -36,14 +36,19 @@ defmodule EirinchanWeb.Plugs.PublicDocumentCache do
   defp cacheable_document?(conn) do
     conn.method == "GET" and
       conn.status == 200 and
-      html_response?(conn) and
+      cacheable_content_type?(conn) and
       not excluded_path?(conn.request_path)
   end
 
-  defp html_response?(conn) do
+  defp cacheable_content_type?(conn) do
     conn
     |> get_resp_header("content-type")
-    |> Enum.any?(&String.starts_with?(&1, "text/html"))
+    |> Enum.any?(fn type ->
+      Enum.any?(
+        ["text/html", "application/xml", "application/rss+xml"],
+        &String.starts_with?(type, &1)
+      )
+    end)
   end
 
   # The feedback document embeds a session-bound CSRF token in a plain HTML
@@ -59,12 +64,15 @@ defmodule EirinchanWeb.Plugs.PublicDocumentCache do
   defp excluded_path?(_path), do: false
 
   defp etag_value(body) do
-    :crypto.hash(:md5, body)
+    :crypto.hash(:sha256, body)
     |> Base.encode16(case: :lower)
   end
 
   defp document_etag_value(conn, body) do
-    case conn.private[:public_document_etag] do
+    # The updater's fragment validator is part of its existing protocol. A
+    # full document must instead identify the complete rendered representation,
+    # including its session-bound forms and personalized root layout.
+    case conn.private[:public_fragment_etag] do
       value when is_binary(value) and value != "" -> value
       _ -> etag_value(body)
     end
@@ -75,7 +83,9 @@ defmodule EirinchanWeb.Plugs.PublicDocumentCache do
     |> get_req_header("if-none-match")
     |> Enum.flat_map(&String.split(&1, ","))
     |> Enum.map(&String.trim/1)
-    |> Enum.any?(fn candidate -> normalize_etag(candidate) == normalize_etag(etag) end)
+    |> Enum.any?(fn candidate ->
+      candidate == "*" or normalize_etag(candidate) == normalize_etag(etag)
+    end)
   end
 
   defp normalize_etag("W/" <> rest), do: String.trim(rest)

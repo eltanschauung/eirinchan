@@ -177,7 +177,11 @@ defmodule EirinchanWeb.BoardController do
 
           true ->
             conn = if fragment?, do: put_root_layout(conn, false), else: conn
-            conn = Plug.Conn.put_private(conn, :public_document_etag, fragment_md5)
+
+            conn =
+              if fragment?,
+                do: Plug.Conn.put_private(conn, :public_fragment_etag, fragment_md5),
+                else: conn
 
             conn =
               render(
@@ -307,7 +311,10 @@ defmodule EirinchanWeb.BoardController do
           )
 
         response_assigns =
-          fragment_ownership_assigns(render_assigns, conn, page_data, fragment?)
+          fragment_ownership_assigns(render_assigns, conn, page_data, fragment? or fragment_md5?)
+
+        fragment_md5 =
+          PublicControllerHelpers.personalized_fragment_md5(fragment_md5, response_assigns)
 
         cond do
           fragment_md5? ->
@@ -318,7 +325,11 @@ defmodule EirinchanWeb.BoardController do
 
           true ->
             conn = if fragment?, do: put_root_layout(conn, false), else: conn
-            conn = Plug.Conn.put_private(conn, :public_document_etag, fragment_md5)
+
+            conn =
+              if fragment?,
+                do: Plug.Conn.put_private(conn, :public_fragment_etag, fragment_md5),
+                else: conn
 
             conn =
               render(

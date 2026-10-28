@@ -10,6 +10,37 @@ defmodule EirinchanWeb.ManagePageControllerTest do
   alias Eirinchan.Posts.PublicIds
   alias Eirinchan.Repo
 
+  test "browser login includes retry-after when concurrent admission is full", %{conn: conn} do
+    :ets.delete_all_objects(:eirinchan_manage_login_throttle)
+
+    moderator =
+      moderator_fixture(%{username: "admission_test", password: "correct horse battery staple"})
+
+    leases =
+      for _ <- 1..1 do
+        {:ok, lease} =
+          Eirinchan.ManageLoginThrottle.acquire(moderator.username, conn.remote_ip, %{
+            mod_login_max_attempts: 5
+          })
+
+        lease
+      end
+
+    try do
+      denied =
+        post(conn, "/manage/login/browser", %{
+          "username" => moderator.username,
+          "password" => "correct horse battery staple"
+        })
+
+      assert html_response(denied, 429) =~ "Too many login attempts."
+      assert get_resp_header(denied, "retry-after") == ["1"]
+    after
+      Enum.each(leases, &Eirinchan.ManageLoginThrottle.release/1)
+      :ets.delete_all_objects(:eirinchan_manage_login_throttle)
+    end
+  end
+
   test "login page renders and browser login redirects to the dashboard", %{conn: conn} do
     moderator = moderator_fixture(%{username: "admin", password: "correct horse battery staple"})
     _board = board_fixture(%{uri: "bant", title: "International Random"})

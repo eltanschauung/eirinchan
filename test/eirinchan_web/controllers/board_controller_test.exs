@@ -4,7 +4,70 @@ defmodule EirinchanWeb.BoardControllerTest do
   alias Eirinchan.BrowserAbuse
   alias Eirinchan.PostOwnership
 
-  test "board index returns an etag and honors if-none-match", %{conn: conn} do
+  test "refreshed messages retain unchanged fragment hashes and change when content changes", %{
+    conn: conn
+  } do
+    board = board_fixture(%{config_overrides: %{"global_message" => "First announcement"}})
+    thread = thread_fixture(board, %{body: "Announcement cache test"})
+
+    paths = [
+      "/#{board.uri}?fragment=md5",
+      "/#{board.uri}/res/#{Eirinchan.Posts.PublicIds.public_id(thread)}.html?fragment=md5"
+    ]
+
+    first = Enum.map(paths, fn path -> conn |> get(path) |> response(200) end)
+
+    assert :ok = EirinchanWeb.Announcements.refresh_cache()
+    assert Enum.map(paths, fn path -> conn |> get(path) |> response(200) end) == first
+
+    assert {:ok, _} =
+             Eirinchan.Boards.update_board(board, %{
+               config_overrides: %{"global_message" => "Changed announcement"}
+             })
+
+    changed = Enum.map(paths, fn path -> conn |> get(path) |> response(200) end)
+    assert Enum.zip(first, changed) |> Enum.all?(fn {before, after_} -> before != after_ end)
+  end
+
+  test "a changed theme cannot reuse a full-page fragment validator", %{conn: conn} do
+    board = board_fixture()
+    _thread = thread_fixture(board, %{body: "Theme validation thread"})
+    first = get(conn, "/#{board.uri}")
+    [etag] = get_resp_header(first, "etag")
+
+    second =
+      first
+      |> recycle()
+      |> put_req_cookie("theme", "tomorrow")
+      |> put_req_header("if-none-match", etag)
+      |> get("/#{board.uri}")
+
+    assert html_response(second, 200) =~ "tomorrow.css"
+  end
+
+  test "a fresh session cannot reuse a prior full-page validator", %{conn: conn} do
+    board = board_fixture()
+    _thread = thread_fixture(board, %{body: "Session validation thread"})
+    [etag] = conn |> get("/#{board.uri}") |> get_resp_header("etag")
+
+    fresh =
+      build_conn()
+      |> put_req_header("if-none-match", etag)
+      |> get("/#{board.uri}")
+
+    page = html_response(fresh, 200)
+
+    [token] =
+      page
+      |> Floki.parse_document!()
+      |> Floki.find("meta[name='csrf-token']")
+      |> Floki.attribute("content")
+
+    session_state = Plug.Conn.get_session(fresh, "_csrf_token")
+    assert Plug.CSRFProtection.valid_state_and_csrf_token?(session_state, token)
+  end
+
+  test "board index revalidates the complete session-bound document", %{conn: conn} do
     board = board_fixture()
     _thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
 
@@ -20,14 +83,14 @@ defmodule EirinchanWeb.BoardControllerTest do
     assert get_resp_header(first_conn, "cache-control") == ["private, no-cache"]
 
     second_conn =
-      conn
+      first_conn
       |> recycle()
       |> put_req_header("if-none-match", etag)
       |> get("/#{board.uri}")
 
-    assert second_conn.status == 304
-    assert second_conn.resp_body == ""
-    assert get_resp_header(second_conn, "etag") == [etag]
+    assert second_conn.status == 200
+    assert second_conn.resp_body =~ "csrf-token"
+    refute get_resp_header(second_conn, "etag") == [etag]
   end
 
   test "board index keeps the shared postcontrols form and paginator outside the thread tree", %{
@@ -76,6 +139,37 @@ defmodule EirinchanWeb.BoardControllerTest do
     assert fragment =~ ~s(data-fragment-md5="#{public_md5}")
     assert fragment =~ ~r/class="post reply you"[^>]*id="reply_\d+"/
     assert fragment =~ ~s|<span class="own_post">(You)</span>|
+  end
+
+  test "board fragment revalidation changes when ownership changes", %{conn: conn} do
+    board = board_fixture()
+    thread = thread_fixture(board, %{body: "Opening body"})
+    reply = reply_fixture(board, thread, %{body: "Reply body"})
+    token = browser_token("board-revalidation-yous")
+    path = "/#{board.uri}?fragment=1"
+
+    request =
+      conn |> put_req_cookie("browser_token", token) |> put_req_cookie("show_yous", "true")
+
+    first = get(request, path)
+    [old_etag] = get_resp_header(first, "etag")
+    assert html_response(first, 200)
+    assert {:ok, _} = PostOwnership.record(token, reply.id)
+    changed = request |> recycle() |> put_req_header("if-none-match", old_etag) |> get(path)
+    assert html_response(changed, 200) =~ ~s|<span class="own_post">(You)</span>|
+    [new_etag] = get_resp_header(changed, "etag")
+    refute new_etag == old_etag
+    unchanged = request |> recycle() |> put_req_header("if-none-match", new_etag) |> get(path)
+    assert response(unchanged, 304) == ""
+
+    disabled =
+      request
+      |> recycle()
+      |> put_req_cookie("show_yous", "false")
+      |> put_req_header("if-none-match", new_etag)
+      |> get(path)
+
+    refute html_response(disabled, 200) =~ ~s|<span class="own_post">(You)</span>|
   end
 
   test "board index derives watcher paths client-side instead of embedding per-thread watch urls",

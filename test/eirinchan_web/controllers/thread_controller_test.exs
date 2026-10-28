@@ -148,6 +148,14 @@ defmodule EirinchanWeb.ThreadControllerTest do
 
     etag = ~s("#{md5}")
 
+    fragment =
+      conn
+      |> recycle()
+      |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html?fragment=1")
+
+    assert html_response(fragment, 200) =~ ~s(data-fragment-md5="#{md5}")
+    assert get_resp_header(fragment, "etag") == [etag]
+
     not_modified =
       conn
       |> recycle()
@@ -156,6 +164,45 @@ defmodule EirinchanWeb.ThreadControllerTest do
 
     assert response(not_modified, 304) == ""
     assert get_resp_header(not_modified, "etag") == [etag]
+  end
+
+  test "thread updater requests skip quick-reply rendering", %{conn: conn} do
+    board = board_fixture()
+    thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
+    path = "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html"
+    parent = self()
+
+    tracer =
+      spawn(fn ->
+        receive do
+          {:trace, _, :call, {Phoenix.Template, :render_to_string, [_, "quick_reply", _, _]}} ->
+            send(parent, :quick_reply_rendered)
+        end
+      end)
+
+    :erlang.trace_pattern({Phoenix.Template, :render_to_string, 4}, true, [:local])
+    :erlang.trace(self(), true, [:call, {:tracer, tracer}])
+
+    try do
+      md5 = conn |> get(path <> "?fragment=md5") |> response(200) |> String.trim()
+      refute_receive :quick_reply_rendered, 50
+      _ = conn |> get(path <> "?fragment=1") |> html_response(200)
+      refute_receive :quick_reply_rendered, 50
+
+      _ =
+        conn
+        |> put_req_header("if-none-match", ~s("#{md5}"))
+        |> get(path <> "?fragment=1")
+        |> response(304)
+
+      refute_receive :quick_reply_rendered, 50
+      assert html_response(get(conn, path), 200) =~ "quick-reply-template"
+      assert_receive :quick_reply_rendered, 500
+    after
+      :erlang.trace(self(), false, [:call])
+      :erlang.trace_pattern({Phoenix.Template, :render_to_string, 4}, false, [:local])
+      if Process.alive?(tracer), do: Process.exit(tracer, :kill)
+    end
   end
 
   test "thread fragment md5 changes after an existing reply is edited", %{conn: conn} do
@@ -213,7 +260,7 @@ defmodule EirinchanWeb.ThreadControllerTest do
     refute md5_before == md5_after
   end
 
-  test "thread pages return an etag and honor if-none-match", %{conn: conn} do
+  test "thread pages revalidate the complete session-bound document", %{conn: conn} do
     board = board_fixture()
     thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
     _reply = reply_fixture(board, thread, %{body: "Reply body"})
@@ -241,9 +288,30 @@ defmodule EirinchanWeb.ThreadControllerTest do
       |> put_req_header("if-none-match", etag)
       |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html")
 
-    assert second_conn.status == 304
-    assert second_conn.resp_body == ""
-    assert get_resp_header(second_conn, "etag") == [etag]
+    assert second_conn.status == 200
+    assert second_conn.resp_body =~ "csrf-token"
+    refute get_resp_header(second_conn, "etag") == [etag]
+  end
+
+  test "a fresh thread session cannot reuse a previous full-page validator", %{conn: conn} do
+    board = board_fixture()
+    thread = thread_fixture(board, %{body: "Session validation thread"})
+    path = "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html"
+    [etag] = conn |> get(path) |> get_resp_header("etag")
+
+    fresh = build_conn() |> put_req_header("if-none-match", etag) |> get(path)
+    page = html_response(fresh, 200)
+
+    [token] =
+      page
+      |> Floki.parse_document!()
+      |> Floki.find("meta[name='csrf-token']")
+      |> Floki.attribute("content")
+
+    assert Plug.CSRFProtection.valid_state_and_csrf_token?(
+             Plug.Conn.get_session(fresh, "_csrf_token"),
+             token
+           )
   end
 
   test "thread pages keep the shared postcontrols form outside the rendered thread tree", %{
@@ -852,6 +920,49 @@ defmodule EirinchanWeb.ThreadControllerTest do
     assert fragment =~ ~s(data-fragment-md5="#{public_md5}")
     assert fragment =~ ~r/class="post reply you"[^>]*id="reply_\d+"/
     assert fragment =~ ~s|<span class="own_post">(You)</span>|
+  end
+
+  test "thread fragment revalidation changes when ownership changes", %{conn: conn} do
+    board = board_fixture()
+    thread = thread_fixture(board, %{body: "Opening body"})
+    reply = reply_fixture(board, thread, %{body: "Reply body"})
+    quoting = reply_fixture(board, thread, %{body: ">>#{PublicIds.public_id(reply)}"})
+    unaffected = reply_fixture(board, thread, %{body: "Unrelated"})
+    token = browser_token("thread-revalidation-yous")
+    path = "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html?fragment=1"
+
+    request =
+      conn |> put_req_cookie("browser_token", token) |> put_req_cookie("show_yous", "true")
+
+    first = get(request, path)
+    [old_etag] = get_resp_header(first, "etag")
+    before_html = html_response(first, 200)
+    assert {:ok, _} = PostOwnership.record(token, reply.id)
+    changed = request |> recycle() |> put_req_header("if-none-match", old_etag) |> get(path)
+    after_html = html_response(changed, 200)
+    assert after_html =~ ~s|<span class="own_post">(You)</span>|
+    assert after_html =~ ~s|data-quote-annotation="you">(You)</small>|
+    refute reply_fragment_version(before_html, reply) == reply_fragment_version(after_html, reply)
+
+    refute reply_fragment_version(before_html, quoting) ==
+             reply_fragment_version(after_html, quoting)
+
+    assert reply_fragment_version(before_html, unaffected) ==
+             reply_fragment_version(after_html, unaffected)
+
+    [new_etag] = get_resp_header(changed, "etag")
+    refute new_etag == old_etag
+    unchanged = request |> recycle() |> put_req_header("if-none-match", new_etag) |> get(path)
+    assert response(unchanged, 304) == ""
+
+    disabled =
+      request
+      |> recycle()
+      |> put_req_cookie("show_yous", "false")
+      |> put_req_header("if-none-match", new_etag)
+      |> get(path)
+
+    refute html_response(disabled, 200) =~ ~s|<span class="own_post">(You)</span>|
   end
 
   test "thread pages render poster tripcodes", %{conn: conn} do

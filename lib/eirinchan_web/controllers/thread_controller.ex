@@ -123,16 +123,6 @@ defmodule EirinchanWeb.ThreadController do
           render_assigns =
             Keyword.put(render_assigns, :post_fragment_context, post_fragment_context)
 
-          quick_reply_html =
-            Phoenix.Template.render_to_string(
-              EirinchanWeb.ThreadHTML,
-              "quick_reply",
-              "html",
-              render_assigns
-            )
-
-          render_assigns = Keyword.put(render_assigns, :quick_reply_html, quick_reply_html)
-
           fragment_md5 =
             PublicControllerHelpers.render_fragment_md5(
               EirinchanWeb.ThreadHTML,
@@ -141,7 +131,21 @@ defmodule EirinchanWeb.ThreadController do
               fragment_cache_key(board, summary, render_assigns)
             )
 
-          response_assigns = fragment_ownership_assigns(render_assigns, conn, summary, fragment?)
+          response_assigns =
+            fragment_ownership_assigns(render_assigns, conn, summary, fragment? or fragment_md5?)
+
+          response_assigns =
+            Keyword.update!(response_assigns, :post_fragment_context, fn context ->
+              own_ids =
+                if Keyword.get(response_assigns, :show_yous),
+                  do: Keyword.fetch!(response_assigns, :own_post_ids),
+                  else: MapSet.new()
+
+              Map.put(context, :own_post_ids, own_ids)
+            end)
+
+          fragment_md5 =
+            PublicControllerHelpers.personalized_fragment_md5(fragment_md5, response_assigns)
 
           cond do
             fragment_md5? ->
@@ -151,8 +155,27 @@ defmodule EirinchanWeb.ThreadController do
               PublicControllerHelpers.send_fragment_not_modified(conn, fragment_md5)
 
             true ->
+              response_assigns =
+                if fragment? do
+                  response_assigns
+                else
+                  quick_reply_html =
+                    Phoenix.Template.render_to_string(
+                      EirinchanWeb.ThreadHTML,
+                      "quick_reply",
+                      "html",
+                      render_assigns
+                    )
+
+                  Keyword.put(response_assigns, :quick_reply_html, quick_reply_html)
+                end
+
               conn = if fragment?, do: put_root_layout(conn, false), else: conn
-              conn = Plug.Conn.put_private(conn, :public_document_etag, fragment_md5)
+
+              conn =
+                if fragment?,
+                  do: Plug.Conn.put_private(conn, :public_fragment_etag, fragment_md5),
+                  else: conn
 
               conn =
                 render(

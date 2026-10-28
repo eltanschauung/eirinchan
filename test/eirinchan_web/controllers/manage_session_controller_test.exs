@@ -15,7 +15,10 @@ defmodule EirinchanWeb.ManageSessionControllerTest do
     login_conn =
       conn
       |> put_req_header("accept", "application/json")
-      |> post("/manage/login", %{"username" => moderator.username, "password" => "correct horse battery staple"})
+      |> post("/manage/login", %{
+        "username" => moderator.username,
+        "password" => "correct horse battery staple"
+      })
 
     assert %{
              "data" => %{
@@ -51,13 +54,44 @@ defmodule EirinchanWeb.ManageSessionControllerTest do
     assert %{"error" => "unauthorized"} = json_response(unauthorized_conn, 401)
   end
 
+  test "login rejects while all configured attempts are in flight", %{conn: conn} do
+    moderator = moderator_fixture(%{username: "admin", password: "correct horse battery staple"})
+    config = %{mod_login_max_attempts: 5}
+
+    leases =
+      for _ <- 1..1 do
+        {:ok, lease} =
+          Eirinchan.ManageLoginThrottle.acquire(moderator.username, conn.remote_ip, config)
+
+        lease
+      end
+
+    try do
+      denied =
+        conn
+        |> put_req_header("accept", "application/json")
+        |> post("/manage/login", %{
+          "username" => moderator.username,
+          "password" => "correct horse battery staple"
+        })
+
+      assert %{"error" => "rate_limited"} = json_response(denied, 429)
+      assert get_resp_header(denied, "retry-after") == ["1"]
+    after
+      Enum.each(leases, &Eirinchan.ManageLoginThrottle.release/1)
+    end
+  end
+
   test "sessions are invalidated after password hash changes", %{conn: conn} do
     moderator = moderator_fixture(%{username: "admin", password: "correct horse battery staple"})
 
     login_conn =
       conn
       |> put_req_header("accept", "application/json")
-      |> post("/manage/login", %{"username" => moderator.username, "password" => "correct horse battery staple"})
+      |> post("/manage/login", %{
+        "username" => moderator.username,
+        "password" => "correct horse battery staple"
+      })
 
     updated =
       moderator
@@ -91,7 +125,10 @@ defmodule EirinchanWeb.ManageSessionControllerTest do
     login_conn =
       conn
       |> put_req_header("accept", "application/json")
-      |> post("/manage/login", %{"username" => moderator.username, "password" => "correct horse battery staple"})
+      |> post("/manage/login", %{
+        "username" => moderator.username,
+        "password" => "correct horse battery staple"
+      })
 
     assert %{"error" => "unauthorized"} =
              login_conn
@@ -108,7 +145,10 @@ defmodule EirinchanWeb.ManageSessionControllerTest do
     first_login =
       conn
       |> put_req_header("accept", "application/json")
-      |> post("/manage/login", %{"username" => moderator.username, "password" => "correct horse battery staple"})
+      |> post("/manage/login", %{
+        "username" => moderator.username,
+        "password" => "correct horse battery staple"
+      })
 
     Process.sleep(1100)
 
@@ -116,7 +156,10 @@ defmodule EirinchanWeb.ManageSessionControllerTest do
       conn
       |> recycle()
       |> put_req_header("accept", "application/json")
-      |> post("/manage/login", %{"username" => moderator.username, "password" => "correct horse battery staple"})
+      |> post("/manage/login", %{
+        "username" => moderator.username,
+        "password" => "correct horse battery staple"
+      })
 
     assert %{"error" => "unauthorized"} =
              first_login
@@ -132,7 +175,10 @@ defmodule EirinchanWeb.ManageSessionControllerTest do
     login_conn =
       conn
       |> put_req_header("accept", "application/json")
-      |> post("/manage/login", %{"username" => moderator.username, "password" => "correct horse battery staple"})
+      |> post("/manage/login", %{
+        "username" => moderator.username,
+        "password" => "correct horse battery staple"
+      })
 
     stale_conn =
       login_conn
@@ -159,7 +205,10 @@ defmodule EirinchanWeb.ManageSessionControllerTest do
     login_conn =
       conn
       |> put_req_header("accept", "application/json")
-      |> post("/manage/login", %{"username" => moderator.username, "password" => "correct horse battery staple"})
+      |> post("/manage/login", %{
+        "username" => moderator.username,
+        "password" => "correct horse battery staple"
+      })
 
     stale_conn =
       login_conn

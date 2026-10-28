@@ -23,6 +23,54 @@ defmodule Eirinchan.IpAccessAuthThrottleTest do
     assert retry_after > 0
   end
 
+  test "a throttle restart retains subnet and global locks" do
+    config = %{max_attempts: 1, global_max_attempts: 1, lockout_seconds: 60}
+    ip = {192, 0, 2, 1}
+    assert {:error, 60} = IpAccessAuthThrottle.record_failure(ip, config)
+    table = :ets.whereis(:eirinchan_ip_access_auth_throttle)
+    assert :ets.info(table, :owner) == Process.whereis(Eirinchan.AuthHistory)
+    assert :ok = Supervisor.terminate_child(Eirinchan.Supervisor, IpAccessAuthThrottle)
+
+    try do
+      assert {:ok, _} = Supervisor.restart_child(Eirinchan.Supervisor, IpAccessAuthThrottle)
+      assert :ets.whereis(:eirinchan_ip_access_auth_throttle) == table
+      assert {:error, _} = IpAccessAuthThrottle.allowed?(ip, config)
+      assert {:error, _} = IpAccessAuthThrottle.allowed?({198, 51, 100, 1}, config)
+    after
+      unless Process.whereis(IpAccessAuthThrottle),
+        do: Supervisor.restart_child(Eirinchan.Supervisor, IpAccessAuthThrottle)
+    end
+  end
+
+  test "in-flight authentication consumes the remaining subnet attempt" do
+    config = %{max_attempts: 1, global_max_attempts: 100, lockout_seconds: 60}
+    ip = {192, 0, 2, 1}
+    parent = self()
+
+    task =
+      Task.async(fn ->
+        assert {:ok, lease} = IpAccessAuthThrottle.acquire(ip, config)
+        send(parent, :acquired)
+        receive do: (:release -> IpAccessAuthThrottle.release(lease))
+      end)
+
+    assert_receive :acquired, 1_000
+    assert {:error, 1} = IpAccessAuthThrottle.acquire(ip, config)
+    send(task.pid, :release)
+    assert :ok = Task.await(task)
+    assert {:ok, lease} = IpAccessAuthThrottle.acquire(ip, config)
+    assert :ok = IpAccessAuthThrottle.release(lease)
+  end
+
+  test "global in-flight capacity is shared across subnets" do
+    config = %{max_attempts: 5, global_max_attempts: 1, lockout_seconds: 60}
+    assert {:ok, lease} = IpAccessAuthThrottle.acquire({192, 0, 2, 1}, config)
+    assert {:error, 1} = IpAccessAuthThrottle.acquire({198, 51, 100, 1}, config)
+    assert :ok = IpAccessAuthThrottle.release(lease)
+    assert {:ok, other} = IpAccessAuthThrottle.acquire({198, 51, 100, 1}, config)
+    assert :ok = IpAccessAuthThrottle.release(other)
+  end
+
   test "successful authentication only clears the source subnet lock" do
     config = %{
       max_attempts: 1,
@@ -36,5 +84,89 @@ defmodule Eirinchan.IpAccessAuthThrottleTest do
 
     assert :ok = IpAccessAuthThrottle.clear({192, 0, 2, 10})
     assert :ok = IpAccessAuthThrottle.allowed?({192, 0, 2, 99}, config)
+  end
+
+  test "a one-attempt limit locks immediately after an expired window" do
+    ip = {192, 0, 2, 1}
+    config = %{max_attempts: 1, global_max_attempts: 100, window_seconds: 1, lockout_seconds: 60}
+    assert {:error, 60} = IpAccessAuthThrottle.record_failure(ip, config)
+    {:ok, subnet} = Eirinchan.IpAccessAuth.subnet_for_ip(ip)
+    key = {:subnet, subnet}
+    [entry] = :ets.lookup(:eirinchan_ip_access_auth_throttle, key)
+
+    :ets.insert(
+      :eirinchan_ip_access_auth_throttle,
+      entry |> put_elem(2, System.system_time(:second) - 2) |> put_elem(3, 0)
+    )
+
+    assert {:error, 60} = IpAccessAuthThrottle.record_failure(ip, config)
+  end
+
+  test "numeric string settings do not crash the throttle owner" do
+    owner = Process.whereis(IpAccessAuthThrottle)
+
+    config = %{
+      max_attempts: "1",
+      global_max_attempts: "100",
+      window_seconds: "300",
+      lockout_seconds: "60"
+    }
+
+    assert {:error, 60} = IpAccessAuthThrottle.record_failure({192, 0, 2, 1}, config)
+    assert Process.whereis(IpAccessAuthThrottle) == owner
+  end
+
+  test "legacy pruning preserves the configured long window" do
+    now = System.system_time(:second)
+    :ets.insert(:eirinchan_ip_access_auth_throttle, {{:subnet, "partial"}, 1, now - 4_000, 0})
+    :ets.insert(:eirinchan_ip_access_auth_throttle, {{:subnet, "expired"}, 1, now - 8_000, 0})
+    assert :ok = IpAccessAuthThrottle.allowed?({192, 0, 2, 1}, %{window_seconds: 7_200})
+    send(Process.whereis(IpAccessAuthThrottle), :prune)
+    :sys.get_state(IpAccessAuthThrottle)
+    assert :ets.member(:eirinchan_ip_access_auth_throttle, {:subnet, "partial"})
+    refute :ets.member(:eirinchan_ip_access_auth_throttle, {:subnet, "expired"})
+  end
+
+  test "long configured windows survive the hourly pruning threshold" do
+    ip = {192, 0, 2, 1}
+
+    config = %{
+      max_attempts: 100,
+      global_max_attempts: 100,
+      window_seconds: 7_200,
+      lockout_seconds: 60
+    }
+
+    assert :ok = IpAccessAuthThrottle.record_failure(ip, config)
+    {:ok, subnet} = Eirinchan.IpAccessAuth.subnet_for_ip(ip)
+    key = {:subnet, subnet}
+    now = System.system_time(:second)
+    [entry] = :ets.lookup(:eirinchan_ip_access_auth_throttle, key)
+    entry = entry |> put_elem(2, now - 4_000) |> put_elem(3, 0)
+    entry = if tuple_size(entry) == 5, do: put_elem(entry, 4, now + 3_200), else: entry
+    :ets.insert(:eirinchan_ip_access_auth_throttle, entry)
+    send(Process.whereis(IpAccessAuthThrottle), :prune)
+    :sys.get_state(IpAccessAuthThrottle)
+    assert :ets.member(:eirinchan_ip_access_auth_throttle, key)
+  end
+
+  test "simultaneous failures are all counted" do
+    ip = {192, 0, 2, 1}
+
+    config = %{
+      max_attempts: 1_000,
+      global_max_attempts: 1_000,
+      window_seconds: 300,
+      lockout_seconds: 60
+    }
+
+    1..200
+    |> Task.async_stream(fn _ -> IpAccessAuthThrottle.record_failure(ip, config) end,
+      max_concurrency: 100
+    )
+    |> Enum.each(fn result -> assert result == {:ok, :ok} end)
+
+    [entry] = :ets.lookup(:eirinchan_ip_access_auth_throttle, :global)
+    assert elem(entry, 1) == 200
   end
 end

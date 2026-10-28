@@ -11,9 +11,7 @@ defmodule EirinchanWeb.Announcements do
   @default_aggregate_cache_seconds 30
 
   @refresh_cache_namespaces [
-    :announcement_global_message,
-    :board_fragment_md5,
-    :thread_fragment_md5
+    :announcement_global_message
   ]
 
   def refresh_cache do

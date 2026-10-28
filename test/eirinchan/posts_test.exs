@@ -4476,7 +4476,7 @@ defmodule Eirinchan.PostsTest do
     refute File.exists?(Eirinchan.Uploads.filesystem_path(extra.file_path))
   end
 
-  test "spoilerize_post_files marks files as spoilers and rewrites thumbs" do
+  test "spoilerize_post_files publishes new blurred thumbs and preserves old cached paths" do
     board = board_fixture()
     config = post_config(board.config_overrides)
 
@@ -4495,13 +4495,38 @@ defmodule Eirinchan.PostsTest do
                request: post_request(board.uri)
              )
 
+    [original_extra] = thread.extra_files
     thumb_before = File.read!(Eirinchan.Uploads.filesystem_path(thread.thumb_path))
 
     assert {:ok, spoilered_thread} = Posts.spoilerize_post_files(board, thread.id, config: config)
 
     assert spoilered_thread.spoiler
     assert Enum.all?(spoilered_thread.extra_files, & &1.spoiler)
-    refute File.read!(Eirinchan.Uploads.filesystem_path(thread.thumb_path)) == thumb_before
+    [spoilered_extra] = spoilered_thread.extra_files
+    refute spoilered_thread.thumb_path == thread.thumb_path
+    refute spoilered_extra.thumb_path == original_extra.thumb_path
+    refute File.exists?(Eirinchan.Uploads.filesystem_path(thread.thumb_path))
+    refute File.exists?(Eirinchan.Uploads.filesystem_path(original_extra.thumb_path))
+
+    refute File.read!(Eirinchan.Uploads.filesystem_path(spoilered_thread.thumb_path)) ==
+             thumb_before
+
+    # A uniform GIF can have identical bytes after blurring.
+    assert <<"GIF", _::binary>> =
+             File.read!(Eirinchan.Uploads.filesystem_path(spoilered_extra.thumb_path))
+
+    assert EirinchanWeb.PostView.file_thumb_src(spoilered_thread, config) ==
+             spoilered_thread.thumb_path
+
+    assert EirinchanWeb.PostView.file_thumb_src(spoilered_extra, config) ==
+             spoilered_extra.thumb_path
+
+    assert EirinchanWeb.PostView.catalog_media_path(spoilered_thread, config) ==
+             spoilered_thread.thumb_path
+
+    assert {:ok, unchanged} = Posts.spoilerize_post_files(board, thread.id, config: config)
+    assert unchanged.thumb_path == spoilered_thread.thumb_path
+    assert Enum.map(unchanged.extra_files, & &1.thumb_path) == [spoilered_extra.thumb_path]
   end
 
   test "spoilerize_post_file marks only the targeted extra file as spoiler" do
@@ -4527,7 +4552,130 @@ defmodule Eirinchan.PostsTest do
              Posts.spoilerize_post_file(board, thread.id, 1, config: config)
 
     refute spoilered_thread.spoiler
-    assert [%{spoiler: true}] = spoilered_thread.extra_files
+    assert spoilered_thread.thumb_path == thread.thumb_path
+    assert [%{spoiler: true, thumb_path: extra_path}] = spoilered_thread.extra_files
+    [original_extra] = thread.extra_files
+    refute extra_path == original_extra.thumb_path
+    refute File.exists?(Eirinchan.Uploads.filesystem_path(original_extra.thumb_path))
+    assert File.exists?(Eirinchan.Uploads.filesystem_path(extra_path))
+  end
+
+  test "spoiler variants retire only unreferenced sources and are removed with their posts" do
+    board = board_fixture()
+    config = post_config(board.config_overrides)
+
+    assert {:ok, thread, _} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "Opening body",
+                 "file" => upload_fixture("source.png", "first"),
+                 "post" => "New Topic"
+               }, config: config, request: post_request(board.uri))
+
+    assert {:ok, reply, _} =
+             Posts.create_post(
+               board,
+               %{
+                 "thread" => Integer.to_string(thread.id),
+                 "body" => "Reply",
+                 "file" => upload_fixture("reply.png", "second"),
+                 "post" => "Reply"
+               }, config: config, request: post_request(board.uri))
+
+    old_path = thread.thumb_path
+    bytes = File.read!(Eirinchan.Uploads.filesystem_path(old_path))
+    {:ok, _} = reply |> Ecto.Changeset.change(thumb_path: old_path) |> Repo.update()
+    assert {:ok, first} = Posts.spoilerize_post_file(board, thread.id, 0, config: config)
+    assert File.read!(Eirinchan.Uploads.filesystem_path(old_path)) == bytes
+    assert {:ok, second} = Posts.spoilerize_post_file(board, reply.id, 0, config: config)
+    refute File.exists?(Eirinchan.Uploads.filesystem_path(old_path))
+    assert File.exists?(Eirinchan.Uploads.filesystem_path(first.thumb_path))
+    assert File.exists?(Eirinchan.Uploads.filesystem_path(second.thumb_path))
+    assert {:ok, _} = Posts.moderate_delete_post(board, thread.id, config: config)
+    refute File.exists?(Eirinchan.Uploads.filesystem_path(first.thumb_path))
+    refute File.exists?(Eirinchan.Uploads.filesystem_path(second.thumb_path))
+  end
+
+  test "spoiler preparation failures leave database and existing thumbnails unchanged" do
+    board = board_fixture()
+    config = post_config(board.config_overrides)
+
+    assert {:ok, thread, _} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "Opening body",
+                 "files" => [
+                   upload_fixture("first.png", "first"),
+                   upload_fixture("second.gif", "second")
+                 ],
+                 "post" => "New Topic"
+               },
+               config: config,
+               request: post_request(board.uri)
+             )
+
+    [extra] = thread.extra_files
+    missing_path = "/#{board.uri}/thumb/does-not-exist.gif"
+
+    {:ok, _} =
+      extra
+      |> Eirinchan.Posts.PostFile.create_changeset(%{thumb_path: missing_path})
+      |> Repo.update()
+
+    thumb_directory = Eirinchan.Uploads.filesystem_path("/#{board.uri}/thumb")
+    before = File.ls!(thumb_directory) |> Enum.sort()
+    original = File.read!(Eirinchan.Uploads.filesystem_path(thread.thumb_path))
+
+    assert {:error, :upload_failed} =
+             Posts.spoilerize_post_files(board, thread.id, config: config)
+
+    assert {:ok, after_failure} = Posts.get_post(board, thread.id)
+    refute after_failure.spoiler
+    assert after_failure.thumb_path == thread.thumb_path
+    assert [%{spoiler: false, thumb_path: ^missing_path}] = after_failure.extra_files
+    assert File.read!(Eirinchan.Uploads.filesystem_path(thread.thumb_path)) == original
+    assert File.ls!(thumb_directory) |> Enum.sort() == before
+  end
+
+  test "spoiler preparation rejects paths outside the board thumbnail directory" do
+    config = post_config(%{})
+
+    assert {:error, :upload_failed} =
+             Eirinchan.Uploads.prepare_spoiler_thumbnail("test", "/test/../source.png", config)
+
+    assert {:error, :upload_failed} =
+             Eirinchan.Uploads.prepare_spoiler_thumbnail(
+               "test",
+               "/another/thumb/image.png",
+               config
+             )
+
+    assert {:error, :upload_failed} =
+             Eirinchan.Uploads.prepare_spoiler_thumbnail("..", "/../thumb/image.png", config)
+
+    assert {:error, :upload_failed} =
+             Eirinchan.Uploads.prepare_spoiler_thumbnail(
+               "test",
+               "/test/thumb/nested/image.png",
+               config
+             )
+  end
+
+  test "spoiler preparation refuses symlinked source files" do
+    board = board_fixture()
+    config = post_config(board.config_overrides)
+    source = upload_fixture("symlink.png", "fixture")
+    path = "/#{board.uri}/thumb/symlink.png"
+    absolute = Eirinchan.Uploads.filesystem_path(path)
+    File.mkdir_p!(Path.dirname(absolute))
+    File.ln_s!(source.path, absolute)
+
+    assert {:error, :upload_failed} =
+             Eirinchan.Uploads.prepare_spoiler_thumbnail(board.uri, path, config)
+
+    assert File.lstat!(absolute).type == :symlink
   end
 
   test "create_post records flood entries and rejects rapid repeated posts from the same ip" do

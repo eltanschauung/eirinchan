@@ -21,6 +21,7 @@ defmodule Eirinchan.Application do
         Eirinchan.MediaProcessing,
         Eirinchan.VisitorQualification,
         Eirinchan.BrowserPresence,
+        Eirinchan.AuthHistory,
         Eirinchan.ManageLoginThrottle,
         Eirinchan.IpAccessAuthThrottle,
         Eirinchan.StaticImageDimensions,

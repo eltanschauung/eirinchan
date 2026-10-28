@@ -104,7 +104,7 @@ defmodule Eirinchan.Posts.ThreadLookup do
   defp build_thread_view_cached(board, thread, config, last_posts, repo) do
     stats = thread_view_cache_stats(repo, board.id, thread.id)
 
-    FragmentCache.fetch_or_store(thread_view_cache_key(thread, stats, last_posts), fn ->
+    FragmentCache.fetch_or_store(thread_view_cache_key(thread, stats, last_posts, config), fn ->
       replies =
         repo.all(
           from post in Post,
@@ -157,11 +157,13 @@ defmodule Eirinchan.Posts.ThreadLookup do
     ) || %{reply_count: 0, latest_updated_at: nil}
   end
 
-  defp thread_view_cache_key(thread, stats, last_posts) do
+  defp thread_view_cache_key(thread, stats, last_posts, config) do
     {
       :thread_view,
       thread.id,
       last_posts,
+      config.noko50_min,
+      config.noko50_count,
       thread.updated_at,
       thread.bump_at,
       stats.reply_count,

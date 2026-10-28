@@ -34,10 +34,24 @@ defmodule EirinchanWeb.IpAccessAuthController do
     config = effective_config()
     ip = RequestMeta.effective_remote_ip(conn)
 
-    with :ok <- IpAccessAuthThrottle.allowed?(ip, config),
-         result <- IpAccessAuth.authorize(ip, password, config) do
-      handle_authorization(conn, result, config, ip, password)
-    else
+    case IpAccessAuthThrottle.acquire(ip, config) do
+      {:ok, lease} ->
+        try do
+          result = IpAccessAuth.authorize(ip, password, config)
+          handle_authorization(conn, result, config, ip, password)
+        after
+          IpAccessAuthThrottle.release(lease)
+        end
+
+      {:error, :unavailable} ->
+        render_error(
+          conn,
+          config,
+          "Authentication is temporarily unavailable.",
+          nil,
+          :service_unavailable
+        )
+
       {:error, retry_after} when is_integer(retry_after) ->
         log_attempt(conn, "auth.ip_access.rejected", "rate_limited")
 

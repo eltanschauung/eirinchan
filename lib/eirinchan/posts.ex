@@ -207,9 +207,11 @@ defmodule Eirinchan.Posts do
       {attempt_accounting_us, attempt_accounting_result} =
         timed_continue(reply_limit_result, fn context ->
           if upload_attempt? do
-            case Antispam.log_upload_attempt(board, context.attrs, request, repo: repo) do
-              {:ok, _entry} -> {:ok, context}
-              {:error, _reason} -> {:error, :antispam}
+            case Antispam.reserve_upload_attempt(board, context.attrs, request, config,
+                   repo: repo
+                 ) do
+              :ok -> {:ok, context}
+              {:error, reason} -> {:error, reason}
             end
           else
             {:ok, context}
@@ -299,6 +301,7 @@ defmodule Eirinchan.Posts do
                   repo,
                   config,
                   now,
+                  upload_attempt?,
                   fn ->
                     maybe_bump_thread(thread, attrs, config, repo, now)
                     maybe_cycle_thread(board, thread, config, repo)
@@ -310,10 +313,6 @@ defmodule Eirinchan.Posts do
             case persistence_result do
               {:ok, post} ->
                 {pruning_us, _} = timed(fn -> maybe_prune_threads(board, post, config, repo) end)
-
-                unless upload_attempt? do
-                  Antispam.log_post(board, attrs, request, repo: repo)
-                end
 
                 {build_dispatch_us, _} =
                   timed(fn ->
@@ -1115,13 +1114,17 @@ defmodule Eirinchan.Posts do
     config = Keyword.get(opts, :config, Config.compose())
 
     with {:ok, first_page} <- list_threads_page(board, 1, config: config, repo: repo) do
-      page_data =
-        Enum.map(1..first_page.total_pages, fn page ->
-          {:ok, data} = list_threads_page(board, page, config: config, repo: repo)
-          data
-        end)
+      remaining_pages =
+        if first_page.total_pages > 1 do
+          Enum.map(2..first_page.total_pages, fn page ->
+            {:ok, data} = list_threads_page(board, page, config: config, repo: repo)
+            data
+          end)
+        else
+          []
+        end
 
-      {:ok, page_data}
+      {:ok, [first_page | remaining_pages]}
     end
   end
 
@@ -1729,7 +1732,7 @@ defmodule Eirinchan.Posts do
       preview_count = if include_replies, do: thread_preview_count(thread, config), else: 0
 
       FragmentCache.fetch_or_store(
-        thread_summary_cache_key(thread, stats, preview_count, include_replies),
+        thread_summary_cache_key(thread, stats, preview_count, include_replies, config),
         fn ->
           replies =
             if include_replies do
@@ -1781,12 +1784,14 @@ defmodule Eirinchan.Posts do
     }
   end
 
-  defp thread_summary_cache_key(thread, stats, preview_count, include_replies) do
+  defp thread_summary_cache_key(thread, stats, preview_count, include_replies, config) do
     {
       :thread_summary,
       thread.id,
       include_replies,
       preview_count,
+      config.noko50_min,
+      config.noko50_count,
       thread.updated_at,
       thread.bump_at,
       stats.reply_count,

@@ -32,6 +32,21 @@ defmodule EirinchanWeb.PublicControllerHelpers do
     FragmentHash.md5(view, template, assigns, cache_key: cache_key)
   end
 
+  # The shared hash describes the unpersonalized fragment. Ownership is
+  # browser-specific and must never be stored in the shared fragment cache.
+  def personalized_fragment_md5(fragment_md5, assigns) do
+    own_ids = Keyword.get(assigns, :own_post_ids, MapSet.new())
+
+    if Keyword.get(assigns, :show_yous, false) and MapSet.size(own_ids) > 0 do
+      {:owned_fragment_v1, fragment_md5, Enum.sort(own_ids)}
+      |> :erlang.term_to_binary([:deterministic])
+      |> then(&:crypto.hash(:md5, &1))
+      |> Base.encode16(case: :lower)
+    else
+      fragment_md5
+    end
+  end
+
   def fragment_render_stamp(assigns, keys) when is_list(assigns) and is_list(keys) do
     keys
     |> Enum.map(&{&1, Keyword.get(assigns, &1)})

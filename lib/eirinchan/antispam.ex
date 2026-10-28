@@ -75,6 +75,28 @@ defmodule Eirinchan.Antispam do
     log_post(board, attrs, request, opts)
   end
 
+  def reserve_upload_attempt(%BoardRecord{} = board, attrs, request, config, opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+
+    repo.transaction(fn ->
+      # Check and account together across boards, but release before expensive
+      # image/video preparation. Failed processing remains an attempt.
+      lock_post_scope(repo)
+
+      with :ok <- check_post(board, attrs, request, config, opts),
+           {:ok, _entry} <- log_upload_attempt(board, attrs, request, opts) do
+        :ok
+      else
+        {:error, %Ecto.Changeset{}} -> {:error, :antispam}
+        error -> error
+      end
+    end)
+    |> unwrap_transaction()
+  end
+
+  @doc false
+  def lock_post_scope(repo), do: lock_antispam_scope(repo, "post")
+
   def check_public_action(%BoardRecord{} = board, action, attrs, request, config, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
     now = DateTime.utc_now()
@@ -138,7 +160,9 @@ defmodule Eirinchan.Antispam do
       repo = Keyword.get(opts, :repo, Repo)
 
       repo.transaction(fn ->
-        lock_antispam_scope(repo, "public-action:#{board.id}:#{action}")
+        # Dimension limits count an activity across all boards, so every
+        # equivalent action must hold the same transaction-scoped lock.
+        lock_antispam_scope(repo, "public-action:#{normalize_activity(action)}")
 
         with :ok <- check_public_action(board, action, attrs, request, config, opts),
              {:ok, _entry} <- log_public_action(board, action, attrs, request, opts) do

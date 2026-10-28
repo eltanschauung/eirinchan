@@ -393,7 +393,7 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ ~s(src="/js/theme-bootstrap.js)
   end
 
-  test "GET / returns an etag and honors if-none-match", %{conn: conn} do
+  test "GET / revalidates the complete session-bound document", %{conn: conn} do
     moderator_fixture()
 
     board =
@@ -414,14 +414,14 @@ defmodule EirinchanWeb.PageControllerTest do
     assert get_resp_header(first_conn, "cache-control") == ["private, no-cache"]
 
     second_conn =
-      conn
+      first_conn
       |> recycle()
       |> put_req_header("if-none-match", etag)
       |> get("/")
 
-    assert second_conn.status == 304
-    assert second_conn.resp_body == ""
-    assert get_resp_header(second_conn, "etag") == [etag]
+    assert second_conn.status == 200
+    assert second_conn.resp_body =~ "csrf-token"
+    refute get_resp_header(second_conn, "etag") == [etag]
   end
 
   test "forced_theme overrides visitor theme cookies and hides the style selector", %{conn: conn} do
@@ -1060,10 +1060,8 @@ defmodule EirinchanWeb.PageControllerTest do
     board = board_fixture(%{uri: "tea#{System.unique_integer([:positive])}", title: "Tea"})
     thread = thread_fixture(board, %{subject: "Mapped", body: "XML body"})
 
-    xml =
-      conn
-      |> get("/sitemap.xml")
-      |> response(200)
+    first = get(conn, "/sitemap.xml")
+    xml = response(first, 200)
 
     assert xml =~ "<?xml version=\"1.0\""
     assert xml =~ "/#{board.uri}</loc>"
@@ -1071,6 +1069,11 @@ defmodule EirinchanWeb.PageControllerTest do
     assert xml =~ "/#{board.uri}/res/#{PublicIds.public_id(thread)}"
     assert xml =~ "<lastmod>"
     assert xml =~ "<changefreq>hourly</changefreq>"
+
+    [etag] = get_resp_header(first, "etag")
+    second = first |> recycle() |> put_req_header("if-none-match", etag) |> get("/sitemap.xml")
+    assert response(second, 304) == ""
+    assert get_resp_header(second, "cache-control") == ["private, no-cache"]
   end
 
   test "GET /pages/feedback uses the feedback page constructor and form", %{conn: conn} do

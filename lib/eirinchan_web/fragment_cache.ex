@@ -7,13 +7,18 @@ defmodule EirinchanWeb.FragmentCache do
   @retry_attempts 2
   @default_max_entries 5_000
   @default_ttl_ms 5 * 60 * 1_000
+  @supervisor_wait_attempts 200
+  @supervisor_wait_ms 5
+  @max_namespace_generations 512
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, :ok, Keyword.put_new(opts, :name, __MODULE__))
   end
 
   @impl true
-  def init(:ok), do: {:ok, %{table: create_table()}}
+  def init(:ok) do
+    {:ok, new_generation_state(%{table: create_table()})}
+  end
 
   def fetch_or_store(key, fun) when is_function(fun, 0) do
     fetch_or_store(key, fun, @retry_attempts)
@@ -22,6 +27,8 @@ defmodule EirinchanWeb.FragmentCache do
   def clear, do: clear(@retry_attempts)
 
   def delete_namespace(namespace), do: delete_namespaces([namespace])
+
+  def delete_namespaces([]), do: :ok
 
   def delete_namespaces(namespaces) when is_list(namespaces) do
     delete_namespaces(MapSet.new(namespaces), @retry_attempts)
@@ -35,6 +42,50 @@ defmodule EirinchanWeb.FragmentCache do
   @impl true
   def handle_call(:ensure_table, _from, state) do
     {:reply, :ok, ensure_state_table(state)}
+  end
+
+  def handle_call(:generation, _from, state) do
+    state = ensure_state_table(state)
+    # Older callers may still be in flight across a hot code upgrade. Their
+    # generation is conservatively fenced by every namespace invalidation.
+    {:reply, Map.get(state, :legacy_generation, state.generation), state}
+  end
+
+  def handle_call({:generation, namespace}, _from, state) do
+    state = ensure_state_table(state)
+    {:reply, generation_for_namespace(state, namespace), state}
+  end
+
+  def handle_call({:store_if_current, key, value, generation}, _from, state) do
+    state = ensure_state_table(state)
+    if current_generation?(state, key, generation), do: insert_unsafe(key, value)
+    {:reply, :ok, state}
+  end
+
+  def handle_call(:clear, _from, state) do
+    state = ensure_state_table(state)
+    :ets.delete_all_objects(@table)
+    {:reply, :ok, new_generation_state(state)}
+  end
+
+  def handle_call({:delete_namespaces, namespaces}, _from, state) do
+    state = ensure_state_table(state)
+    delete_namespaces_unsafe(namespaces)
+    versions = Map.get(state, :namespace_generations, %{})
+    versions = Enum.reduce(namespaces, versions, &Map.put(&2, &1, make_ref()))
+
+    state =
+      if map_size(versions) > @max_namespace_generations do
+        # Bound state even if many distinct namespaces are supplied. A rare
+        # full-generation reset is safe, though it rejects unrelated fills.
+        new_generation_state(state)
+      else
+        state
+        |> Map.put(:namespace_generations, versions)
+        |> Map.put(:legacy_generation, make_ref())
+      end
+
+    {:reply, :ok, state}
   end
 
   defp fetch_or_store(key, fun, attempts_left) when attempts_left > 0 do
@@ -55,19 +106,15 @@ defmodule EirinchanWeb.FragmentCache do
         value
 
       :miss ->
-        value = fun.()
-        insert_unsafe(key, value)
-        value
+        store_computed(key, fun, 0)
     end
   end
 
   defp store_computed(key, fun, attempts_left) do
+    generation = owner_call({:generation, key_namespace(key)}, attempts_left)
     value = fun.()
-
-    case insert(key, value) do
-      :ok -> value
-      :retry -> fetch_or_store(key, fn -> value end, attempts_left - 1)
-    end
+    :ok = owner_call({:store_if_current, key, value, generation}, attempts_left)
+    value
   end
 
   defp lookup_fresh(key) do
@@ -82,7 +129,7 @@ defmodule EirinchanWeb.FragmentCache do
         if monotonic_ms() - inserted_at <= ttl_ms() do
           {:hit, value}
         else
-          :ets.delete(@table, key)
+          :ets.delete_object(@table, {key, inserted_at, value})
           :miss
         end
 
@@ -91,15 +138,12 @@ defmodule EirinchanWeb.FragmentCache do
     end
   end
 
-  defp insert(key, value) do
-    insert_unsafe(key, value)
-    :ok
-  rescue
-    error in ArgumentError -> handle_stale_table(error)
-  end
-
   defp insert_unsafe(key, value) do
-    evict_if_full()
+    # A second in-flight computation may finish after another has stored this
+    # key. Replacing it does not consume capacity and must not evict a neighbor.
+    unless :ets.member(@table, key) and :ets.info(@table, :size) <= max_entries(),
+      do: evict_if_full()
+
     :ets.insert(@table, {key, monotonic_ms(), value})
   end
 
@@ -107,51 +151,57 @@ defmodule EirinchanWeb.FragmentCache do
     size = :ets.info(@table, :size)
     maximum = max_entries()
 
-    if size >= maximum do
-      @table
-      |> :ets.tab2list()
-      |> Enum.sort_by(fn {_key, inserted_at, _value} -> inserted_at end)
-      |> Enum.take(size - maximum + 1)
-      |> Enum.each(fn {key, _inserted_at, _value} -> :ets.delete(@table, key) end)
+    case size - maximum + 1 do
+      count when count <= 0 ->
+        :ok
+
+      1 ->
+        # The common saturated-cache path needs only the oldest row. Folding
+        # avoids copying and sorting the whole table for every new entry.
+        oldest =
+          :ets.foldl(
+            fn
+              entry, nil ->
+                entry
+
+              {_key, timestamp, _value} = entry, {_, oldest_timestamp, _} = oldest ->
+                if timestamp < oldest_timestamp, do: entry, else: oldest
+            end,
+            nil,
+            @table
+          )
+
+        if oldest, do: :ets.delete_object(@table, oldest)
+
+      count ->
+        # If capacity was lowered at runtime, evict all excess entries in a
+        # single pass. This rare path retains the existing ordering policy.
+        @table
+        |> :ets.tab2list()
+        |> Enum.sort_by(fn {_key, inserted_at, _value} -> inserted_at end)
+        |> Enum.take(count)
+        |> Enum.each(fn entry -> :ets.delete_object(@table, entry) end)
     end
   end
 
   defp clear(attempts_left) when attempts_left > 0 do
     ensure_table()
-
-    try do
-      :ets.delete_all_objects(@table)
-      :ok
-    rescue
-      error in ArgumentError ->
-        case handle_stale_table(error) do
-          :retry -> clear(attempts_left - 1)
-        end
-    end
+    owner_call(:clear, attempts_left)
   end
 
   defp clear(_attempts_left) do
     ensure_table()
-    :ets.delete_all_objects(@table)
-    :ok
+    owner_call(:clear, 0)
   end
 
   defp delete_namespaces(namespaces, attempts_left) when attempts_left > 0 do
     ensure_table()
-
-    try do
-      delete_namespaces_unsafe(namespaces)
-    rescue
-      error in ArgumentError ->
-        case handle_stale_table(error) do
-          :retry -> delete_namespaces(namespaces, attempts_left - 1)
-        end
-    end
+    owner_call({:delete_namespaces, namespaces}, attempts_left)
   end
 
   defp delete_namespaces(namespaces, _attempts_left) do
     ensure_table()
-    delete_namespaces_unsafe(namespaces)
+    owner_call({:delete_namespaces, namespaces}, 0)
   end
 
   defp delete_namespaces_unsafe(namespaces) do
@@ -169,17 +219,55 @@ defmodule EirinchanWeb.FragmentCache do
 
   defp namespaced_key?(_key, _namespace), do: false
 
+  defp key_namespace(key) when is_tuple(key) and tuple_size(key) > 0,
+    do: {:tuple, elem(key, 0)}
+
+  defp key_namespace(_key), do: :plain
+
+  defp generation_for_namespace(state, namespace) do
+    namespace_version =
+      case namespace do
+        {:tuple, namespace} -> Map.get(Map.get(state, :namespace_generations, %{}), namespace)
+        :plain -> nil
+      end
+
+    {state.generation, namespace_version}
+  end
+
+  defp current_generation?(state, key, generation) when is_tuple(generation),
+    do: generation == generation_for_namespace(state, key_namespace(key))
+
+  defp current_generation?(state, _key, generation) when is_reference(generation),
+    do: generation == Map.get(state, :legacy_generation, state.generation)
+
+  defp current_generation?(_state, _key, _generation), do: false
+
+  defp new_generation_state(state) do
+    state
+    |> Map.put(:generation, make_ref())
+    |> Map.put(:legacy_generation, make_ref())
+    |> Map.put(:namespace_generations, %{})
+  end
+
   defp ensure_table do
-    ensure_owner_started()
-    GenServer.call(__MODULE__, :ensure_table)
+    case :ets.whereis(@table) do
+      :undefined -> owner_call(:ensure_table, @retry_attempts)
+      _table -> :ok
+    end
   end
 
   defp ensure_owner_started do
     case Process.whereis(__MODULE__) do
       nil ->
-        case start_link([]) do
-          {:ok, _pid} -> :ok
-          {:error, {:already_started, _pid}} -> :ok
+        case Process.whereis(Eirinchan.Supervisor) do
+          supervisor when is_pid(supervisor) ->
+            wait_for_supervised_owner(supervisor, @supervisor_wait_attempts)
+
+          nil ->
+            case start_link([]) do
+              {:ok, _pid} -> :ok
+              {:error, {:already_started, _pid}} -> :ok
+            end
         end
 
       _pid ->
@@ -187,12 +275,46 @@ defmodule EirinchanWeb.FragmentCache do
     end
   end
 
+  defp wait_for_supervised_owner(supervisor, attempts_left) do
+    case Process.whereis(__MODULE__) do
+      pid when is_pid(pid) ->
+        :ok
+
+      nil when attempts_left > 0 ->
+        if Process.alive?(supervisor) do
+          Process.sleep(@supervisor_wait_ms)
+          wait_for_supervised_owner(supervisor, attempts_left - 1)
+        else
+          exit(:cache_supervisor_unavailable)
+        end
+
+      nil ->
+        exit(:cache_owner_unavailable)
+    end
+  end
+
   defp ensure_state_table(state) do
     case :ets.whereis(@table) do
-      :undefined -> %{state | table: create_table()}
+      :undefined -> state |> Map.put(:table, create_table()) |> new_generation_state()
       _table -> state
     end
   end
+
+  defp owner_call(message, attempts_left) do
+    ensure_owner_started()
+    GenServer.call(__MODULE__, message)
+  catch
+    :exit, {reason, {GenServer, :call, _args}} = error when attempts_left > 0 ->
+      if retryable_owner_exit?(reason),
+        do: owner_call(message, attempts_left - 1),
+        else: exit(error)
+  end
+
+  defp retryable_owner_exit?(reason) when reason in [:noproc, :normal, :shutdown, :killed],
+    do: true
+
+  defp retryable_owner_exit?({:shutdown, _reason}), do: true
+  defp retryable_owner_exit?(_reason), do: false
 
   defp create_table do
     case :ets.whereis(@table) do
@@ -212,8 +334,7 @@ defmodule EirinchanWeb.FragmentCache do
 
   defp handle_stale_table(error) do
     if stale_table_error?(error) do
-      ensure_owner_started()
-      GenServer.call(__MODULE__, :ensure_table)
+      owner_call(:ensure_table, @retry_attempts)
       :retry
     else
       raise error

@@ -55,23 +55,37 @@ defmodule EirinchanWeb.ManagePageController do
     config = Settings.current_instance_config()
     remote_ip = RequestMeta.effective_remote_ip(conn)
 
-    case ManageLoginThrottle.allowed?(username, remote_ip, config) do
-      :ok ->
-        case Moderation.authenticate(username, password) do
-          {:ok, moderator} ->
-            ManageLoginThrottle.clear(username, remote_ip)
-            ModerationAudit.log(conn, "Logged in", moderator: moderator)
+    case ManageLoginThrottle.acquire(username, remote_ip, config) do
+      {:ok, lease} ->
+        try do
+          case Moderation.authenticate(username, password) do
+            {:ok, moderator} ->
+              ManageLoginThrottle.clear(username, remote_ip)
+              ModerationAudit.log(conn, "Logged in", moderator: moderator)
 
-            conn
-            |> establish_moderator_session(moderator, remote_ip)
-            |> redirect(to: ~p"/manage")
+              conn
+              |> establish_moderator_session(moderator, remote_ip)
+              |> redirect(to: ~p"/manage")
 
-          {:error, :invalid_credentials} ->
-            handle_failed_browser_login(conn, username, remote_ip, config)
+            {:error, :invalid_credentials} ->
+              handle_failed_browser_login(conn, username, remote_ip, config)
+          end
+        after
+          ManageLoginThrottle.release(lease)
         end
 
-      {:error, _retry_after} ->
+      {:error, :unavailable} ->
         conn
+        |> put_status(:service_unavailable)
+        |> render(:login,
+          error: "Authentication is temporarily unavailable.",
+          username: username,
+          credential_limits: moderation_credential_limits()
+        )
+
+      {:error, retry_after} ->
+        conn
+        |> put_resp_header("retry-after", Integer.to_string(retry_after))
         |> put_status(:too_many_requests)
         |> render(:login,
           error: "Too many login attempts. Try again later.",
@@ -824,12 +838,15 @@ defmodule EirinchanWeb.ManagePageController do
   def create_user_browser(conn, params) do
     with {:ok, moderator} <- ensure_permission(conn, :createusers),
          {:ok, user} <-
-           Moderation.create_user(%{
-             username: Map.get(params, "username"),
-             password: Map.get(params, "password"),
-             role: Map.get(params, "role"),
-             all_boards: allboards_param?(params)
-           }, config: moderation_runtime_config()),
+           Moderation.create_user(
+             %{
+               username: Map.get(params, "username"),
+               password: Map.get(params, "password"),
+               role: Map.get(params, "role"),
+               all_boards: allboards_param?(params)
+             },
+             config: moderation_runtime_config()
+           ),
          {:ok, _user} <- sync_user_board_accesses(user, params) do
       ModerationAudit.log(conn, "Created user #{user.username}", moderator: moderator)
 
@@ -915,12 +932,16 @@ defmodule EirinchanWeb.ManagePageController do
 
         ModeratorPermissions.allowed?(moderator, :editusers) ->
           with {:ok, updated} <-
-                 Moderation.update_user(user, %{
-                   username: Map.get(params, "username"),
-                   password: Map.get(params, "password"),
-                   role: user.role,
-                   all_boards: allboards_param?(params)
-                 }, config: moderation_runtime_config()),
+                 Moderation.update_user(
+                   user,
+                   %{
+                     username: Map.get(params, "username"),
+                     password: Map.get(params, "password"),
+                     role: user.role,
+                     all_boards: allboards_param?(params)
+                   },
+                   config: moderation_runtime_config()
+                 ),
                {:ok, _updated} <- sync_user_board_accesses(updated, params) do
             log_user_update(conn, moderator, user, updated, params)
 
@@ -940,12 +961,16 @@ defmodule EirinchanWeb.ManagePageController do
 
         moderator.id == user.id and ModeratorPermissions.allowed?(moderator, :change_password) ->
           with {:ok, updated} <-
-                 Moderation.update_user(user, %{
-                   username: user.username,
-                   password: Map.get(params, "password"),
-                   role: user.role,
-                   all_boards: user.all_boards
-                 }, config: moderation_runtime_config()) do
+                 Moderation.update_user(
+                   user,
+                   %{
+                     username: user.username,
+                     password: Map.get(params, "password"),
+                     role: user.role,
+                     all_boards: user.all_boards
+                   },
+                   config: moderation_runtime_config()
+                 ) do
             if String.trim(to_string(Map.get(params, "password", ""))) != "" do
               ModerationAudit.log(conn, "Changed own password", moderator: moderator)
             end
@@ -2556,8 +2581,9 @@ defmodule EirinchanWeb.ManagePageController do
 
   defp handle_failed_browser_login(conn, username, remote_ip, config) do
     case ManageLoginThrottle.record_failure(username, remote_ip, config) do
-      {:error, _retry_after} ->
+      {:error, retry_after} ->
         conn
+        |> put_resp_header("retry-after", Integer.to_string(retry_after))
         |> put_status(:too_many_requests)
         |> render(:login,
           error: "Too many login attempts. Try again later.",

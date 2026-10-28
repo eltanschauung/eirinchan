@@ -157,6 +157,34 @@ defmodule EirinchanWeb.IpAccessAuthControllerTest do
     refute log =~ "127.0.0.0/24"
   end
 
+  test "auth rejects while its subnet attempt is in flight and accepts after release", %{
+    conn: conn
+  } do
+    {:ok, _} =
+      Settings.update_instance_config_from_json(
+        Jason.encode!(%{
+          ip_access_passwords: ["door"],
+          ip_access_auth: %{max_attempts: 1, global_max_attempts: 100, lockout_seconds: 60}
+        })
+      )
+
+    {:ok, lease} =
+      Eirinchan.IpAccessAuthThrottle.acquire(conn.remote_ip, %{
+        max_attempts: 1,
+        global_max_attempts: 100
+      })
+
+    try do
+      denied = post(conn, "/auth", %{"password" => "door"})
+      assert html_response(denied, 429) =~ "Too many attempts."
+      assert get_resp_header(denied, "retry-after") == ["1"]
+    after
+      Eirinchan.IpAccessAuthThrottle.release(lease)
+    end
+
+    assert html_response(post(conn, "/auth", %{"password" => "door"}), 200) =~ "Access granted."
+  end
+
   test "successful authentication normalizes same-origin referrers to local paths", %{conn: conn} do
     conn =
       conn
