@@ -111,6 +111,7 @@ defmodule EirinchanWeb.SearchController do
 
         conn
         |> Statistics.mark_rate_limited(:search)
+        |> put_status(:too_many_requests)
         |> track_and_render(
           context,
           empty_page(),

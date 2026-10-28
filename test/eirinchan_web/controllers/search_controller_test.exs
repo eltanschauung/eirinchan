@@ -170,7 +170,7 @@ defmodule EirinchanWeb.SearchControllerTest do
       with_log(fn ->
         second_conn
         |> get("/search.php", %{"search" => "tripcode", "board" => board.uri})
-        |> html_response(200)
+        |> html_response(429)
       end)
 
     assert second_page =~ "Wait a while before searching again, please."
