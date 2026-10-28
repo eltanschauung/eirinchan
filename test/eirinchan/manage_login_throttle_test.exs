@@ -47,4 +47,27 @@ defmodule Eirinchan.ManageLoginThrottleTest do
 
     assert retry_after > 0
   end
+
+  test "a one-attempt limit locks on the first failure" do
+    config = %{mod_login_max_attempts: 1, mod_login_lockout_seconds: 60}
+    assert {:error, 60} = ManageLoginThrottle.record_failure("admin", {192, 0, 2, 1}, config)
+  end
+
+  test "simultaneous failures are all counted per username" do
+    config = %{
+      mod_login_max_attempts: 1_000,
+      mod_login_username_max_attempts: 1_000,
+      mod_login_ip_max_attempts: 1_000
+    }
+
+    1..200
+    |> Task.async_stream(
+      fn _ -> ManageLoginThrottle.record_failure("admin", {192, 0, 2, 1}, config) end,
+      max_concurrency: 100
+    )
+    |> Enum.each(fn result -> assert result == {:ok, :ok} end)
+
+    [entry] = :ets.lookup(:eirinchan_manage_login_throttle, {:username, "admin"})
+    assert elem(entry, 1) == 200
+  end
 end
