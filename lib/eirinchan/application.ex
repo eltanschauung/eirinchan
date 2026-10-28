@@ -8,6 +8,7 @@ defmodule Eirinchan.Application do
   @impl true
   def start(_type, _args) do
     :ok = Eirinchan.LogRedactor.install()
+    :ok = Eirinchan.AuthAdmission.initialize()
 
     children =
       [

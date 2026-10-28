@@ -1,6 +1,24 @@
 defmodule Eirinchan.AuthAdmissionTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
   alias Eirinchan.AuthAdmission
+
+  test "an uninitialized or replaced authority fails closed" do
+    key = {AuthAdmission, :authority}
+    original = :persistent_term.get(key)
+
+    try do
+      for invalid <- [nil, self()] do
+        :persistent_term.put(key, invalid)
+
+        assert {:error, :unavailable} =
+                 AuthAdmission.acquire(make_ref(), [:identity], 1, fn ->
+                   flunk("verification admitted")
+                 end)
+      end
+    after
+      :persistent_term.put(key, original)
+    end
+  end
 
   test "rejected and raised admission checks release every acquired lock" do
     family = make_ref()
