@@ -110,19 +110,7 @@ defmodule Eirinchan.ManageLoginThrottle do
   end
 
   defp ensure_table do
-    case :ets.whereis(@table) do
-      :undefined ->
-        :ets.new(@table, [
-          :named_table,
-          :public,
-          :set,
-          read_concurrency: true,
-          write_concurrency: true
-        ])
-
-      table ->
-        table
-    end
+    Eirinchan.AuthHistory.table(@table)
   end
 
   defp user_key(username, remote_ip),

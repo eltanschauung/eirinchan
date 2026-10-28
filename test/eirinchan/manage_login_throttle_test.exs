@@ -53,6 +53,24 @@ defmodule Eirinchan.ManageLoginThrottleTest do
     assert {:error, 60} = ManageLoginThrottle.record_failure("admin", {192, 0, 2, 1}, config)
   end
 
+  test "a throttle restart retains failure history" do
+    config = %{mod_login_max_attempts: 1, mod_login_lockout_seconds: 60}
+    ip = {192, 0, 2, 1}
+    assert {:error, 60} = ManageLoginThrottle.record_failure("admin", ip, config)
+    table = :ets.whereis(:eirinchan_manage_login_throttle)
+    assert :ets.info(table, :owner) == Process.whereis(Eirinchan.AuthHistory)
+    assert :ok = Supervisor.terminate_child(Eirinchan.Supervisor, ManageLoginThrottle)
+
+    try do
+      assert {:ok, _} = Supervisor.restart_child(Eirinchan.Supervisor, ManageLoginThrottle)
+      assert :ets.whereis(:eirinchan_manage_login_throttle) == table
+      assert {:error, _} = ManageLoginThrottle.allowed?("admin", ip, config)
+    after
+      unless Process.whereis(ManageLoginThrottle),
+        do: Supervisor.restart_child(Eirinchan.Supervisor, ManageLoginThrottle)
+    end
+  end
+
   test "in-flight authentication consumes the remaining attempt and is released on exit" do
     config = %{mod_login_max_attempts: 1, mod_login_lockout_seconds: 60}
     ip = {192, 0, 2, 1}

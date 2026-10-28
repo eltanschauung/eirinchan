@@ -90,19 +90,7 @@ defmodule Eirinchan.IpAccessAuthThrottle do
   defp schedule_prune, do: Process.send_after(self(), :prune, @prune_interval_ms)
 
   defp ensure_table do
-    case :ets.whereis(@table) do
-      :undefined ->
-        :ets.new(@table, [
-          :named_table,
-          :public,
-          :set,
-          read_concurrency: true,
-          write_concurrency: true
-        ])
-
-      table ->
-        table
-    end
+    Eirinchan.AuthHistory.table(@table)
   end
 
   defp subnet_key(remote_ip) do

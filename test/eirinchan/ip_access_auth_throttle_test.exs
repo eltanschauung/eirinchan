@@ -23,6 +23,25 @@ defmodule Eirinchan.IpAccessAuthThrottleTest do
     assert retry_after > 0
   end
 
+  test "a throttle restart retains subnet and global locks" do
+    config = %{max_attempts: 1, global_max_attempts: 1, lockout_seconds: 60}
+    ip = {192, 0, 2, 1}
+    assert {:error, 60} = IpAccessAuthThrottle.record_failure(ip, config)
+    table = :ets.whereis(:eirinchan_ip_access_auth_throttle)
+    assert :ets.info(table, :owner) == Process.whereis(Eirinchan.AuthHistory)
+    assert :ok = Supervisor.terminate_child(Eirinchan.Supervisor, IpAccessAuthThrottle)
+
+    try do
+      assert {:ok, _} = Supervisor.restart_child(Eirinchan.Supervisor, IpAccessAuthThrottle)
+      assert :ets.whereis(:eirinchan_ip_access_auth_throttle) == table
+      assert {:error, _} = IpAccessAuthThrottle.allowed?(ip, config)
+      assert {:error, _} = IpAccessAuthThrottle.allowed?({198, 51, 100, 1}, config)
+    after
+      unless Process.whereis(IpAccessAuthThrottle),
+        do: Supervisor.restart_child(Eirinchan.Supervisor, IpAccessAuthThrottle)
+    end
+  end
+
   test "in-flight authentication consumes the remaining subnet attempt" do
     config = %{max_attempts: 1, global_max_attempts: 100, lockout_seconds: 60}
     ip = {192, 0, 2, 1}
