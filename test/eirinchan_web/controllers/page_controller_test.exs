@@ -1111,10 +1111,8 @@ defmodule EirinchanWeb.PageControllerTest do
     board = board_fixture(%{uri: "tea#{System.unique_integer([:positive])}", title: "Tea"})
     thread = thread_fixture(board, %{subject: "Mapped", body: "XML body"})
 
-    xml =
-      conn
-      |> get("/sitemap.xml")
-      |> response(200)
+    first = get(conn, "/sitemap.xml")
+    xml = response(first, 200)
 
     assert xml =~ "<?xml version=\"1.0\""
     assert xml =~ "/#{board.uri}</loc>"
@@ -1122,6 +1120,11 @@ defmodule EirinchanWeb.PageControllerTest do
     assert xml =~ "/#{board.uri}/res/#{PublicIds.public_id(thread)}"
     assert xml =~ "<lastmod>"
     assert xml =~ "<changefreq>hourly</changefreq>"
+
+    [etag] = get_resp_header(first, "etag")
+    second = first |> recycle() |> put_req_header("if-none-match", etag) |> get("/sitemap.xml")
+    assert response(second, 304) == ""
+    assert get_resp_header(second, "cache-control") == ["private, no-cache"]
   end
 
   test "GET /pages/flags renders the flags page", %{conn: conn} do

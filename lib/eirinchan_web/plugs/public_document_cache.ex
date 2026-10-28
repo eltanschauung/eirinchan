@@ -36,14 +36,19 @@ defmodule EirinchanWeb.Plugs.PublicDocumentCache do
   defp cacheable_document?(conn) do
     conn.method == "GET" and
       conn.status == 200 and
-      html_response?(conn) and
+      cacheable_content_type?(conn) and
       not excluded_path?(conn.request_path)
   end
 
-  defp html_response?(conn) do
+  defp cacheable_content_type?(conn) do
     conn
     |> get_resp_header("content-type")
-    |> Enum.any?(&String.starts_with?(&1, "text/html"))
+    |> Enum.any?(fn type ->
+      Enum.any?(
+        ["text/html", "application/xml", "application/rss+xml"],
+        &String.starts_with?(type, &1)
+      )
+    end)
   end
 
   # The feedback document embeds a session-bound CSRF token in a plain HTML

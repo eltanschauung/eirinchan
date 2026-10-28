@@ -26,6 +26,21 @@ defmodule EirinchanWeb.Plugs.PublicDocumentCacheTest do
     assert document("<html>stable</html>", "*").status == 304
   end
 
+  test "XML representations can be revalidated by their actual bytes" do
+    for type <- ["application/xml", "application/rss+xml"] do
+      first = xml_document("<root>first</root>", type)
+      [etag] = get_resp_header(first, "etag")
+      assert xml_document("<root>first</root>", type, etag).status == 304
+      assert xml_document("<root>changed</root>", type, etag).status == 200
+    end
+  end
+
+  defp xml_document(body, type, etag \\ nil) do
+    conn = conn(:get, "/example.xml")
+    conn = if etag, do: put_req_header(conn, "if-none-match", etag), else: conn
+    conn |> PublicDocumentCache.call([]) |> put_resp_content_type(type) |> send_resp(200, body)
+  end
+
   defp document(body, etag \\ nil) do
     conn = conn(:get, "/example")
     conn = if etag, do: put_req_header(conn, "if-none-match", etag), else: conn
