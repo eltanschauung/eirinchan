@@ -66,6 +66,22 @@ defmodule Eirinchan.ManageLoginThrottleTest do
     assert Process.whereis(ManageLoginThrottle) == owner
   end
 
+  test "legacy pruning preserves the configured long window" do
+    now = System.system_time(:second)
+    :ets.insert(:eirinchan_manage_login_throttle, {{:username, "partial"}, 1, now - 4_000, 0})
+    :ets.insert(:eirinchan_manage_login_throttle, {{:username, "expired"}, 1, now - 8_000, 0})
+
+    assert :ok =
+             ManageLoginThrottle.allowed?("other", {192, 0, 2, 1}, %{
+               mod_login_window_seconds: 7_200
+             })
+
+    send(Process.whereis(ManageLoginThrottle), :prune)
+    :sys.get_state(ManageLoginThrottle)
+    assert :ets.member(:eirinchan_manage_login_throttle, {:username, "partial"})
+    refute :ets.member(:eirinchan_manage_login_throttle, {:username, "expired"})
+  end
+
   test "simultaneous failures are all counted per username" do
     config = %{
       mod_login_max_attempts: 1_000,

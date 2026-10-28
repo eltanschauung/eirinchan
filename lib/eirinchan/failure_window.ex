@@ -47,13 +47,24 @@ defmodule Eirinchan.FailureWindow do
     |> result()
   end
 
-  def prune(table, now) do
-    :ets.select_delete(table, [
-      {{:"$1", :"$2", :"$3", :"$4", :"$5"}, [{:"=<", :"$5", now}], [true]},
-      # Four-field rows can only exist after a hot code upgrade. Preserve the
-      # former one-hour pruning rule, and never remove an active lockout.
-      {{:"$1", :"$2", :"$3", :"$4"}, [{:"=<", :"$3", now - 3_600}, {:"=<", :"$4", now}], [true]}
-    ])
+  def prune(table, now, legacy_window \\ nil) do
+    new_rows = {{:"$1", :"$2", :"$3", :"$4", :"$5"}, [{:"=<", :"$5", now}], [true]}
+
+    # Legacy rows have no expiry. Do not prune them until a caller supplies a
+    # window; preserve the longest observed window and any active lockouts.
+    specs =
+      if is_integer(legacy_window) do
+        cutoff = now - max(legacy_window, 3_600)
+
+        [
+          new_rows,
+          {{:"$1", :"$2", :"$3", :"$4"}, [{:"=<", :"$3", cutoff}, {:"=<", :"$4", now}], [true]}
+        ]
+      else
+        [new_rows]
+      end
+
+    :ets.select_delete(table, specs)
   end
 
   defp record_key(table, key, now, max_attempts, window, lockout, max_entries) do

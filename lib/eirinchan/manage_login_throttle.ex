@@ -13,10 +13,11 @@ defmodule Eirinchan.ManageLoginThrottle do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
-  def allowed?(username, remote_ip, _config) do
+  def allowed?(username, remote_ip, config) do
     GenServer.call(
       __MODULE__,
-      {:allowed, [username_key(username), user_key(username, remote_ip), ip_key(remote_ip)]}
+      {:allowed, [username_key(username), user_key(username, remote_ip), ip_key(remote_ip)],
+       FailureWindow.nonnegative_integer(config, :mod_login_window_seconds, 300)}
     )
   end
 
@@ -68,11 +69,16 @@ defmodule Eirinchan.ManageLoginThrottle do
     {:reply, FailureWindow.allowed?(ensure_table(), keys, now_seconds()), state}
   end
 
+  def handle_call({:allowed, keys, window}, _from, state) do
+    {:reply, FailureWindow.allowed?(ensure_table(), keys, now_seconds()),
+     remember_window(state, window)}
+  end
+
   def handle_call({:failure, limits, window, lockout}, _from, state) do
     result =
       FailureWindow.record(ensure_table(), limits, now_seconds(), window, lockout, max_entries())
 
-    {:reply, result, state}
+    {:reply, result, remember_window(state, window)}
   end
 
   def handle_call({:clear, keys}, _from, state) do
@@ -82,14 +88,13 @@ defmodule Eirinchan.ManageLoginThrottle do
 
   @impl true
   def handle_info(:prune, state) do
-    prune_stale()
+    FailureWindow.prune(ensure_table(), now_seconds(), Map.get(state, :legacy_window))
     schedule_prune()
     {:noreply, state}
   end
 
-  defp prune_stale do
-    FailureWindow.prune(ensure_table(), now_seconds())
-  end
+  defp remember_window(state, window),
+    do: Map.put(state, :legacy_window, max(Map.get(state, :legacy_window, 0), window))
 
   defp schedule_prune do
     Process.send_after(self(), :prune, @prune_interval_ms)

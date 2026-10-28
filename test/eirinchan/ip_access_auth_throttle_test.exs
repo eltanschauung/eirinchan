@@ -68,6 +68,17 @@ defmodule Eirinchan.IpAccessAuthThrottleTest do
     assert Process.whereis(IpAccessAuthThrottle) == owner
   end
 
+  test "legacy pruning preserves the configured long window" do
+    now = System.system_time(:second)
+    :ets.insert(:eirinchan_ip_access_auth_throttle, {{:subnet, "partial"}, 1, now - 4_000, 0})
+    :ets.insert(:eirinchan_ip_access_auth_throttle, {{:subnet, "expired"}, 1, now - 8_000, 0})
+    assert :ok = IpAccessAuthThrottle.allowed?({192, 0, 2, 1}, %{window_seconds: 7_200})
+    send(Process.whereis(IpAccessAuthThrottle), :prune)
+    :sys.get_state(IpAccessAuthThrottle)
+    assert :ets.member(:eirinchan_ip_access_auth_throttle, {:subnet, "partial"})
+    refute :ets.member(:eirinchan_ip_access_auth_throttle, {:subnet, "expired"})
+  end
+
   test "long configured windows survive the hourly pruning threshold" do
     ip = {192, 0, 2, 1}
 
