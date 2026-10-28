@@ -3,6 +3,22 @@ defmodule Eirinchan.FailureWindow do
 
   # Called only by the owning throttle process, so lookup/update and capacity
   # decisions are serialized. Password verification stays outside that process.
+  def nonnegative_integer(config, key, default) do
+    case Map.get(config, key, default) do
+      value when is_integer(value) and value >= 0 ->
+        value
+
+      value when is_binary(value) ->
+        case Integer.parse(value) do
+          {number, ""} when number >= 0 -> number
+          _ -> default
+        end
+
+      _ ->
+        default
+    end
+  end
+
   def allowed?(table, keys, now) do
     keys
     |> Enum.flat_map(fn key ->
@@ -33,7 +49,10 @@ defmodule Eirinchan.FailureWindow do
 
   def prune(table, now) do
     :ets.select_delete(table, [
-      {{:"$1", :"$2", :"$3", :"$4", :"$5"}, [{:"=<", :"$5", now}], [true]}
+      {{:"$1", :"$2", :"$3", :"$4", :"$5"}, [{:"=<", :"$5", now}], [true]},
+      # Four-field rows can only exist after a hot code upgrade. Preserve the
+      # former one-hour pruning rule, and never remove an active lockout.
+      {{:"$1", :"$2", :"$3", :"$4"}, [{:"=<", :"$3", now - 3_600}, {:"=<", :"$4", now}], [true]}
     ])
   end
 

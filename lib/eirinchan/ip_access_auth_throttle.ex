@@ -18,12 +18,12 @@ defmodule Eirinchan.IpAccessAuthThrottle do
   end
 
   def record_failure(remote_ip, config) do
-    window_seconds = Map.get(config, :window_seconds, 300)
-    lockout_seconds = Map.get(config, :lockout_seconds, 900)
+    window_seconds = FailureWindow.nonnegative_integer(config, :window_seconds, 300)
+    lockout_seconds = FailureWindow.nonnegative_integer(config, :lockout_seconds, 900)
 
     limits = [
-      {subnet_key(remote_ip), Map.get(config, :max_attempts, 5)},
-      {:global, Map.get(config, :global_max_attempts, 100)}
+      {subnet_key(remote_ip), FailureWindow.nonnegative_integer(config, :max_attempts, 5)},
+      {:global, FailureWindow.nonnegative_integer(config, :global_max_attempts, 100)}
     ]
 
     GenServer.call(__MODULE__, {:failure, limits, window_seconds, lockout_seconds})

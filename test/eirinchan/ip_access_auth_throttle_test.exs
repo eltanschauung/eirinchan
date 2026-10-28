@@ -54,6 +54,20 @@ defmodule Eirinchan.IpAccessAuthThrottleTest do
     assert {:error, 60} = IpAccessAuthThrottle.record_failure(ip, config)
   end
 
+  test "numeric string settings do not crash the throttle owner" do
+    owner = Process.whereis(IpAccessAuthThrottle)
+
+    config = %{
+      max_attempts: "1",
+      global_max_attempts: "100",
+      window_seconds: "300",
+      lockout_seconds: "60"
+    }
+
+    assert {:error, 60} = IpAccessAuthThrottle.record_failure({192, 0, 2, 1}, config)
+    assert Process.whereis(IpAccessAuthThrottle) == owner
+  end
+
   test "long configured windows survive the hourly pruning threshold" do
     ip = {192, 0, 2, 1}
 

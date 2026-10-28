@@ -21,14 +21,24 @@ defmodule Eirinchan.ManageLoginThrottle do
   end
 
   def record_failure(username, remote_ip, config) do
-    max_attempts = Map.get(config, :mod_login_max_attempts, 5)
+    max_attempts = FailureWindow.nonnegative_integer(config, :mod_login_max_attempts, 5)
 
     username_max_attempts =
-      Map.get(config, :mod_login_username_max_attempts, max(max_attempts * 2, 10))
+      FailureWindow.nonnegative_integer(
+        config,
+        :mod_login_username_max_attempts,
+        max(max_attempts * 2, 10)
+      )
 
-    ip_max_attempts = Map.get(config, :mod_login_ip_max_attempts, max(max_attempts * 4, 20))
-    window_seconds = Map.get(config, :mod_login_window_seconds, 300)
-    lockout_seconds = Map.get(config, :mod_login_lockout_seconds, 900)
+    ip_max_attempts =
+      FailureWindow.nonnegative_integer(
+        config,
+        :mod_login_ip_max_attempts,
+        max(max_attempts * 4, 20)
+      )
+
+    window_seconds = FailureWindow.nonnegative_integer(config, :mod_login_window_seconds, 300)
+    lockout_seconds = FailureWindow.nonnegative_integer(config, :mod_login_lockout_seconds, 900)
 
     limits = [
       {username_key(username), username_max_attempts},

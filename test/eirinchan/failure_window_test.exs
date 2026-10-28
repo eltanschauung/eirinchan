@@ -42,4 +42,12 @@ defmodule Eirinchan.FailureWindowTest do
     :ets.insert(table, {:locked_old, 3, 10_000, 10_020})
     assert {:error, 19} = FailureWindow.allowed?(table, [:locked_old], 10_001)
   end
+
+  test "prunes legacy entries without removing active lockouts", %{table: table} do
+    :ets.insert(table, {:expired, 1, 1_000, 0})
+    :ets.insert(table, {:locked, 3, 1_000, 5_100})
+    assert FailureWindow.prune(table, 5_000) == 1
+    assert {:error, 100} = FailureWindow.allowed?(table, [:locked], 5_000)
+    assert FailureWindow.prune(table, 5_100) == 1
+  end
 end

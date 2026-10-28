@@ -53,6 +53,19 @@ defmodule Eirinchan.ManageLoginThrottleTest do
     assert {:error, 60} = ManageLoginThrottle.record_failure("admin", {192, 0, 2, 1}, config)
   end
 
+  test "numeric string settings do not crash the throttle owner" do
+    owner = Process.whereis(ManageLoginThrottle)
+
+    config = %{
+      mod_login_max_attempts: "1",
+      mod_login_window_seconds: "300",
+      mod_login_lockout_seconds: "60"
+    }
+
+    assert {:error, 60} = ManageLoginThrottle.record_failure("admin", {192, 0, 2, 1}, config)
+    assert Process.whereis(ManageLoginThrottle) == owner
+  end
+
   test "simultaneous failures are all counted per username" do
     config = %{
       mod_login_max_attempts: 1_000,
