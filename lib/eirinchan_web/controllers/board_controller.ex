@@ -177,7 +177,11 @@ defmodule EirinchanWeb.BoardController do
 
           true ->
             conn = if fragment?, do: put_root_layout(conn, false), else: conn
-            conn = Plug.Conn.put_private(conn, :public_document_etag, fragment_md5)
+
+            conn =
+              if fragment?,
+                do: Plug.Conn.put_private(conn, :public_fragment_etag, fragment_md5),
+                else: conn
 
             conn =
               render(
@@ -318,7 +322,11 @@ defmodule EirinchanWeb.BoardController do
 
           true ->
             conn = if fragment?, do: put_root_layout(conn, false), else: conn
-            conn = Plug.Conn.put_private(conn, :public_document_etag, fragment_md5)
+
+            conn =
+              if fragment?,
+                do: Plug.Conn.put_private(conn, :public_fragment_etag, fragment_md5),
+                else: conn
 
             conn =
               render(

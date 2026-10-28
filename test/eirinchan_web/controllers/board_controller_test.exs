@@ -4,7 +4,45 @@ defmodule EirinchanWeb.BoardControllerTest do
   alias Eirinchan.BrowserAbuse
   alias Eirinchan.PostOwnership
 
-  test "board index returns an etag and honors if-none-match", %{conn: conn} do
+  test "a changed theme cannot reuse a full-page fragment validator", %{conn: conn} do
+    board = board_fixture()
+    _thread = thread_fixture(board, %{body: "Theme validation thread"})
+    first = get(conn, "/#{board.uri}")
+    [etag] = get_resp_header(first, "etag")
+
+    second =
+      first
+      |> recycle()
+      |> put_req_cookie("theme", "tomorrow")
+      |> put_req_header("if-none-match", etag)
+      |> get("/#{board.uri}")
+
+    assert html_response(second, 200) =~ "tomorrow.css"
+  end
+
+  test "a fresh session cannot reuse a prior full-page validator", %{conn: conn} do
+    board = board_fixture()
+    _thread = thread_fixture(board, %{body: "Session validation thread"})
+    [etag] = conn |> get("/#{board.uri}") |> get_resp_header("etag")
+
+    fresh =
+      build_conn()
+      |> put_req_header("if-none-match", etag)
+      |> get("/#{board.uri}")
+
+    page = html_response(fresh, 200)
+
+    [token] =
+      page
+      |> Floki.parse_document!()
+      |> Floki.find("meta[name='csrf-token']")
+      |> Floki.attribute("content")
+
+    session_state = Plug.Conn.get_session(fresh, "_csrf_token")
+    assert Plug.CSRFProtection.valid_state_and_csrf_token?(session_state, token)
+  end
+
+  test "board index revalidates the complete session-bound document", %{conn: conn} do
     board = board_fixture()
     _thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
 
@@ -20,14 +58,14 @@ defmodule EirinchanWeb.BoardControllerTest do
     assert get_resp_header(first_conn, "cache-control") == ["private, no-cache"]
 
     second_conn =
-      conn
+      first_conn
       |> recycle()
       |> put_req_header("if-none-match", etag)
       |> get("/#{board.uri}")
 
-    assert second_conn.status == 304
-    assert second_conn.resp_body == ""
-    assert get_resp_header(second_conn, "etag") == [etag]
+    assert second_conn.status == 200
+    assert second_conn.resp_body =~ "csrf-token"
+    refute get_resp_header(second_conn, "etag") == [etag]
   end
 
   test "board index keeps the shared postcontrols form and paginator outside the thread tree", %{

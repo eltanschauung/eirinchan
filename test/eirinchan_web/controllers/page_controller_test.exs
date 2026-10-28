@@ -411,7 +411,7 @@ defmodule EirinchanWeb.PageControllerTest do
     assert page =~ ~s(src="/js/theme-bootstrap.js)
   end
 
-  test "GET / returns an etag and honors if-none-match", %{conn: conn} do
+  test "GET / revalidates the complete session-bound document", %{conn: conn} do
     moderator_fixture()
 
     board =
@@ -432,14 +432,14 @@ defmodule EirinchanWeb.PageControllerTest do
     assert get_resp_header(first_conn, "cache-control") == ["private, no-cache"]
 
     second_conn =
-      conn
+      first_conn
       |> recycle()
       |> put_req_header("if-none-match", etag)
       |> get("/")
 
-    assert second_conn.status == 304
-    assert second_conn.resp_body == ""
-    assert get_resp_header(second_conn, "etag") == [etag]
+    assert second_conn.status == 200
+    assert second_conn.resp_body =~ "csrf-token"
+    refute get_resp_header(second_conn, "etag") == [etag]
   end
 
   test "forced_theme overrides visitor theme cookies and hides the style selector", %{conn: conn} do

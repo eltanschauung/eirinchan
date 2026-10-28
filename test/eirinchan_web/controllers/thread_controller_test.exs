@@ -148,6 +148,14 @@ defmodule EirinchanWeb.ThreadControllerTest do
 
     etag = ~s("#{md5}")
 
+    fragment =
+      conn
+      |> recycle()
+      |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html?fragment=1")
+
+    assert html_response(fragment, 200) =~ ~s(data-fragment-md5="#{md5}")
+    assert get_resp_header(fragment, "etag") == [etag]
+
     not_modified =
       conn
       |> recycle()
@@ -213,7 +221,7 @@ defmodule EirinchanWeb.ThreadControllerTest do
     refute md5_before == md5_after
   end
 
-  test "thread pages return an etag and honor if-none-match", %{conn: conn} do
+  test "thread pages revalidate the complete session-bound document", %{conn: conn} do
     board = board_fixture()
     thread = thread_fixture(board, %{body: "Thread body", subject: "Thread subject"})
     _reply = reply_fixture(board, thread, %{body: "Reply body"})
@@ -241,9 +249,30 @@ defmodule EirinchanWeb.ThreadControllerTest do
       |> put_req_header("if-none-match", etag)
       |> get("/#{board.uri}/res/#{PublicIds.public_id(thread)}.html")
 
-    assert second_conn.status == 304
-    assert second_conn.resp_body == ""
-    assert get_resp_header(second_conn, "etag") == [etag]
+    assert second_conn.status == 200
+    assert second_conn.resp_body =~ "csrf-token"
+    refute get_resp_header(second_conn, "etag") == [etag]
+  end
+
+  test "a fresh thread session cannot reuse a previous full-page validator", %{conn: conn} do
+    board = board_fixture()
+    thread = thread_fixture(board, %{body: "Session validation thread"})
+    path = "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html"
+    [etag] = conn |> get(path) |> get_resp_header("etag")
+
+    fresh = build_conn() |> put_req_header("if-none-match", etag) |> get(path)
+    page = html_response(fresh, 200)
+
+    [token] =
+      page
+      |> Floki.parse_document!()
+      |> Floki.find("meta[name='csrf-token']")
+      |> Floki.attribute("content")
+
+    assert Plug.CSRFProtection.valid_state_and_csrf_token?(
+             Plug.Conn.get_session(fresh, "_csrf_token"),
+             token
+           )
   end
 
   test "thread pages keep the shared postcontrols form outside the rendered thread tree", %{
