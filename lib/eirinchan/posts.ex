@@ -1729,7 +1729,7 @@ defmodule Eirinchan.Posts do
       preview_count = if include_replies, do: thread_preview_count(thread, config), else: 0
 
       FragmentCache.fetch_or_store(
-        thread_summary_cache_key(thread, stats, preview_count, include_replies),
+        thread_summary_cache_key(thread, stats, preview_count, include_replies, config),
         fn ->
           replies =
             if include_replies do
@@ -1781,12 +1781,14 @@ defmodule Eirinchan.Posts do
     }
   end
 
-  defp thread_summary_cache_key(thread, stats, preview_count, include_replies) do
+  defp thread_summary_cache_key(thread, stats, preview_count, include_replies, config) do
     {
       :thread_summary,
       thread.id,
       include_replies,
       preview_count,
+      config.noko50_min,
+      config.noko50_count,
       thread.updated_at,
       thread.bump_at,
       stats.reply_count,
