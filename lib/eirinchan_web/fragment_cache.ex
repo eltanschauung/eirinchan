@@ -9,13 +9,16 @@ defmodule EirinchanWeb.FragmentCache do
   @default_ttl_ms 5 * 60 * 1_000
   @supervisor_wait_attempts 200
   @supervisor_wait_ms 5
+  @max_namespace_generations 512
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, :ok, Keyword.put_new(opts, :name, __MODULE__))
   end
 
   @impl true
-  def init(:ok), do: {:ok, %{table: create_table(), generation: make_ref()}}
+  def init(:ok) do
+    {:ok, new_generation_state(%{table: create_table()})}
+  end
 
   def fetch_or_store(key, fun) when is_function(fun, 0) do
     fetch_or_store(key, fun, @retry_attempts)
@@ -43,25 +46,46 @@ defmodule EirinchanWeb.FragmentCache do
 
   def handle_call(:generation, _from, state) do
     state = ensure_state_table(state)
-    {:reply, state.generation, state}
+    # Older callers may still be in flight across a hot code upgrade. Their
+    # generation is conservatively fenced by every namespace invalidation.
+    {:reply, Map.get(state, :legacy_generation, state.generation), state}
+  end
+
+  def handle_call({:generation, namespace}, _from, state) do
+    state = ensure_state_table(state)
+    {:reply, generation_for_namespace(state, namespace), state}
   end
 
   def handle_call({:store_if_current, key, value, generation}, _from, state) do
     state = ensure_state_table(state)
-    if state.generation == generation, do: insert_unsafe(key, value)
+    if current_generation?(state, key, generation), do: insert_unsafe(key, value)
     {:reply, :ok, state}
   end
 
   def handle_call(:clear, _from, state) do
     state = ensure_state_table(state)
     :ets.delete_all_objects(@table)
-    {:reply, :ok, %{state | generation: make_ref()}}
+    {:reply, :ok, new_generation_state(state)}
   end
 
   def handle_call({:delete_namespaces, namespaces}, _from, state) do
     state = ensure_state_table(state)
     delete_namespaces_unsafe(namespaces)
-    {:reply, :ok, %{state | generation: make_ref()}}
+    versions = Map.get(state, :namespace_generations, %{})
+    versions = Enum.reduce(namespaces, versions, &Map.put(&2, &1, make_ref()))
+
+    state =
+      if map_size(versions) > @max_namespace_generations do
+        # Bound state even if many distinct namespaces are supplied. A rare
+        # full-generation reset is safe, though it rejects unrelated fills.
+        new_generation_state(state)
+      else
+        state
+        |> Map.put(:namespace_generations, versions)
+        |> Map.put(:legacy_generation, make_ref())
+      end
+
+    {:reply, :ok, state}
   end
 
   defp fetch_or_store(key, fun, attempts_left) when attempts_left > 0 do
@@ -87,7 +111,7 @@ defmodule EirinchanWeb.FragmentCache do
   end
 
   defp store_computed(key, fun, attempts_left) do
-    generation = owner_call(:generation, attempts_left)
+    generation = owner_call({:generation, key_namespace(key)}, attempts_left)
     value = fun.()
     :ok = owner_call({:store_if_current, key, value, generation}, attempts_left)
     value
@@ -195,6 +219,36 @@ defmodule EirinchanWeb.FragmentCache do
 
   defp namespaced_key?(_key, _namespace), do: false
 
+  defp key_namespace(key) when is_tuple(key) and tuple_size(key) > 0,
+    do: {:tuple, elem(key, 0)}
+
+  defp key_namespace(_key), do: :plain
+
+  defp generation_for_namespace(state, namespace) do
+    namespace_version =
+      case namespace do
+        {:tuple, namespace} -> Map.get(Map.get(state, :namespace_generations, %{}), namespace)
+        :plain -> nil
+      end
+
+    {state.generation, namespace_version}
+  end
+
+  defp current_generation?(state, key, generation) when is_tuple(generation),
+    do: generation == generation_for_namespace(state, key_namespace(key))
+
+  defp current_generation?(state, _key, generation) when is_reference(generation),
+    do: generation == Map.get(state, :legacy_generation, state.generation)
+
+  defp current_generation?(_state, _key, _generation), do: false
+
+  defp new_generation_state(state) do
+    state
+    |> Map.put(:generation, make_ref())
+    |> Map.put(:legacy_generation, make_ref())
+    |> Map.put(:namespace_generations, %{})
+  end
+
   defp ensure_table do
     case :ets.whereis(@table) do
       :undefined -> owner_call(:ensure_table, @retry_attempts)
@@ -241,7 +295,7 @@ defmodule EirinchanWeb.FragmentCache do
 
   defp ensure_state_table(state) do
     case :ets.whereis(@table) do
-      :undefined -> %{state | table: create_table(), generation: make_ref()}
+      :undefined -> state |> Map.put(:table, create_table()) |> new_generation_state()
       _table -> state
     end
   end

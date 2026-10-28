@@ -96,6 +96,50 @@ defmodule EirinchanWeb.FragmentCacheTest do
     assert FragmentCache.fetch_or_store({:board, 1}, fn -> :new end) == :new
   end
 
+  test "invalidating one namespace retains an unrelated in-flight fill" do
+    task = blocked_fill({:other, 1})
+    assert :ok = FragmentCache.delete_namespace(:board)
+    send(task.pid, :finish_fill)
+    assert Task.await(task) == :old
+    assert FragmentCache.fetch_or_store({:other, 1}, fn -> :new end) == :old
+  end
+
+  test "namespace generation tracking remains bounded and falls back safely" do
+    task = blocked_fill({:other, 1})
+    for value <- 1..513, do: FragmentCache.delete_namespace({:synthetic, value})
+    send(task.pid, :finish_fill)
+    assert Task.await(task) == :old
+    assert FragmentCache.fetch_or_store({:other, 1}, fn -> :new end) == :new
+  end
+
+  test "legacy in-flight generations remain fenced after a namespace clear" do
+    legacy_generation = GenServer.call(FragmentCache, :generation)
+    assert :ok = FragmentCache.delete_namespace(:board)
+
+    assert :ok =
+             GenServer.call(
+               FragmentCache,
+               {:store_if_current, {:other, 1}, :old, legacy_generation}
+             )
+
+    assert FragmentCache.fetch_or_store({:other, 1}, fn -> :new end) == :new
+  end
+
+  test "a legacy owner state survives a hot code upgrade" do
+    :sys.replace_state(FragmentCache, &Map.drop(&1, [:namespace_generations, :legacy_generation]))
+    legacy_generation = GenServer.call(FragmentCache, :generation)
+    assert :ok = FragmentCache.delete_namespace(:board)
+
+    assert :ok =
+             GenServer.call(
+               FragmentCache,
+               {:store_if_current, {:board, 1}, :old, legacy_generation}
+             )
+
+    assert FragmentCache.fetch_or_store({:board, 1}, fn -> :new end) == :new
+    assert FragmentCache.fetch_or_store({:board, 1}, fn -> :wrong end) == :new
+  end
+
   test "an in-flight fill cannot cross a cache owner restart" do
     task = blocked_fill({:board, 1})
     old_pid = Process.whereis(FragmentCache)
