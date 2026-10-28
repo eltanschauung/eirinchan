@@ -14,9 +14,7 @@ defmodule EirinchanWeb.Announcements do
 
   @refresh_cache_namespaces [
     :announcement_global_message,
-    :tf2_player_count,
-    :board_fragment_md5,
-    :thread_fragment_md5
+    :tf2_player_count
   ]
 
   def refresh_cache do

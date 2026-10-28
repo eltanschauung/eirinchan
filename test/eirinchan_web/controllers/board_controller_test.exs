@@ -4,6 +4,31 @@ defmodule EirinchanWeb.BoardControllerTest do
   alias Eirinchan.BrowserAbuse
   alias Eirinchan.PostOwnership
 
+  test "refreshed messages retain unchanged fragment hashes and change when content changes", %{
+    conn: conn
+  } do
+    board = board_fixture(%{config_overrides: %{"global_message" => "First announcement"}})
+    thread = thread_fixture(board, %{body: "Announcement cache test"})
+
+    paths = [
+      "/#{board.uri}?fragment=md5",
+      "/#{board.uri}/res/#{Eirinchan.Posts.PublicIds.public_id(thread)}.html?fragment=md5"
+    ]
+
+    first = Enum.map(paths, fn path -> conn |> get(path) |> response(200) end)
+
+    assert :ok = EirinchanWeb.Announcements.refresh_cache()
+    assert Enum.map(paths, fn path -> conn |> get(path) |> response(200) end) == first
+
+    assert {:ok, _} =
+             Eirinchan.Boards.update_board(board, %{
+               config_overrides: %{"global_message" => "Changed announcement"}
+             })
+
+    changed = Enum.map(paths, fn path -> conn |> get(path) |> response(200) end)
+    assert Enum.zip(first, changed) |> Enum.all?(fn {before, after_} -> before != after_ end)
+  end
+
   test "a changed theme cannot reuse a full-page fragment validator", %{conn: conn} do
     board = board_fixture()
     _thread = thread_fixture(board, %{body: "Theme validation thread"})

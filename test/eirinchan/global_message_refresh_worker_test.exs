@@ -40,15 +40,18 @@ defmodule Eirinchan.GlobalMessageRefreshWorkerTest do
     assert Process.alive?(worker)
   end
 
-  test "refreshes announcement and document hashes without flushing unrelated fragments" do
+  test "refreshes announcement inputs without flushing unchanged document hashes" do
     refreshed = [
       {:announcement_global_message, :message},
-      {:tf2_player_count, 1},
+      {:tf2_player_count, 1}
+    ]
+
+    retained = [
       {:board_fragment_md5, :board},
       {:thread_fragment_md5, :thread}
     ]
 
-    Enum.each(refreshed, fn key ->
+    Enum.each(refreshed ++ retained, fn key ->
       assert FragmentCache.fetch_or_store(key, fn -> :old end) == :old
     end)
 
@@ -64,6 +67,10 @@ defmodule Eirinchan.GlobalMessageRefreshWorkerTest do
 
     Enum.each(refreshed, fn key ->
       assert FragmentCache.fetch_or_store(key, fn -> :new end) == :new
+    end)
+
+    Enum.each(retained, fn key ->
+      assert FragmentCache.fetch_or_store(key, fn -> :changed end) == :old
     end)
 
     assert FragmentCache.fetch_or_store({:post_view, 1}, fn -> :changed end) == :kept
