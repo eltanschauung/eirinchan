@@ -301,6 +301,7 @@ defmodule Eirinchan.Posts do
                   repo,
                   config,
                   now,
+                  upload_attempt?,
                   fn ->
                     maybe_bump_thread(thread, attrs, config, repo, now)
                     maybe_cycle_thread(board, thread, config, repo)
@@ -312,10 +313,6 @@ defmodule Eirinchan.Posts do
             case persistence_result do
               {:ok, post} ->
                 {pruning_us, _} = timed(fn -> maybe_prune_threads(board, post, config, repo) end)
-
-                unless upload_attempt? do
-                  Antispam.log_post(board, attrs, request, repo: repo)
-                end
 
                 {build_dispatch_us, _} =
                   timed(fn ->

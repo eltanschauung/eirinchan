@@ -4,6 +4,7 @@ defmodule Eirinchan.Posts.Persistence do
   import Ecto.Query, only: [from: 2]
 
   alias Eirinchan.AprilFoolsTeams
+  alias Eirinchan.Antispam
   alias Eirinchan.Boards.BoardRecord
   alias Eirinchan.PosterIds
   alias Eirinchan.Posts.Cite
@@ -15,6 +16,13 @@ defmodule Eirinchan.Posts.Persistence do
   alias Eirinchan.Posts
   alias Eirinchan.Uploads
 
+  # Preserve the existing persistence-only entry point for callers that manage
+  # their own admission and accounting. Posts.create_post uses the arity below
+  # that explicitly distinguishes already-reserved uploads from text posts.
+  def create_post_record(board, thread, attrs, request, repo, config, now, after_insert) do
+    create_post_record(board, thread, attrs, request, repo, config, now, true, after_insert)
+  end
+
   @spec create_post_record(
           BoardRecord.t(),
           Post.t() | nil,
@@ -23,6 +31,7 @@ defmodule Eirinchan.Posts.Persistence do
           module(),
           map(),
           DateTime.t(),
+          boolean(),
           (-> :ok)
         ) ::
           {:ok, Post.t()} | {:error, term()}
@@ -34,6 +43,7 @@ defmodule Eirinchan.Posts.Persistence do
         repo,
         config,
         now,
+        upload_attempt?,
         after_insert
       ) do
     attrs =
@@ -49,22 +59,55 @@ defmodule Eirinchan.Posts.Persistence do
       case repo.transaction(fn ->
              with :ok <- reject_recent_duplicate_thread(board, thread, attrs, repo, config, now),
                   :ok <- reject_recent_duplicate_post(board, attrs, repo, config, now),
-                  {:ok, locked_board} <- lock_board(board, repo),
-                  {:ok, attrs} <- allocate_public_id(locked_board, attrs, repo),
-                  {:ok, post} <- insert_post(locked_board, thread, attrs, repo, config, now),
-                  {:ok, post} <- maybe_assign_poster_id(post, attrs, repo, config),
-                  {:ok, post} <-
-                    maybe_store_uploads(board, post, upload_entries, repo, config, cleanup_key),
-                  :ok <- maybe_increment_april_fools_team(post, config, repo),
-                  :ok <- store_citations(locked_board, post, repo),
-                  :ok <- after_insert.(),
-                  :ok <-
-                    Posts.sync_thread_metrics(locked_board, post.thread_id || post.id, repo: repo) do
-               post
+                  {:ok, locked_board} <- lock_board(board, repo) do
+               case text_post_admission(
+                      locked_board,
+                      attrs,
+                      request,
+                      repo,
+                      config,
+                      upload_attempt?
+                    ) do
+                 :ok ->
+                   with {:ok, attrs} <- allocate_public_id(locked_board, attrs, repo),
+                        {:ok, post} <- insert_post(locked_board, thread, attrs, repo, config, now),
+                        {:ok, post} <- maybe_assign_poster_id(post, attrs, repo, config),
+                        {:ok, post} <-
+                          maybe_store_uploads(
+                            board,
+                            post,
+                            upload_entries,
+                            repo,
+                            config,
+                            cleanup_key
+                          ),
+                        :ok <- maybe_increment_april_fools_team(post, config, repo),
+                        :ok <- store_citations(locked_board, post, repo),
+                        :ok <- after_insert.(),
+                        :ok <-
+                          Posts.sync_thread_metrics(locked_board, post.thread_id || post.id,
+                            repo: repo
+                          ) do
+                     unless upload_attempt?,
+                       do: Antispam.log_post(board, attrs, request, repo: repo)
+
+                     post
+                   else
+                     {:error, reason} -> repo.rollback(reason)
+                   end
+
+                 # A rejected recheck happens before board or post mutation;
+                 # commit any BrowserAbuse signal rather than rolling it back.
+                 {:error, reason} ->
+                   {:admission_rejected, reason}
+               end
              else
                {:error, reason} -> repo.rollback(reason)
              end
            end) do
+        {:ok, {:admission_rejected, reason}} ->
+          {:error, reason}
+
         {:ok, post} ->
           Process.put({cleanup_key, :committed}, true)
           {:ok, post}
@@ -81,6 +124,15 @@ defmodule Eirinchan.Posts.Persistence do
 
       Process.delete(cleanup_key)
     end
+  end
+
+  defp text_post_admission(_board, _attrs, _request, _repo, _config, true), do: :ok
+
+  defp text_post_admission(board, attrs, request, repo, config, false) do
+    # Duplicate and board locks are already held; upload admission only holds
+    # this lock through its short check/insert transaction, never media work.
+    Antispam.lock_post_scope(repo)
+    Antispam.check_post(board, attrs, request, config, repo: repo)
   end
 
   defp insert_post(board, nil, attrs, repo, config, now) do
