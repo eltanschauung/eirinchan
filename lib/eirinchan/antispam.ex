@@ -81,7 +81,7 @@ defmodule Eirinchan.Antispam do
     repo.transaction(fn ->
       # Check and account together across boards, but release before expensive
       # image/video preparation. Failed processing remains an attempt.
-      lock_antispam_scope(repo, "post")
+      lock_post_scope(repo)
 
       with :ok <- check_post(board, attrs, request, config, opts),
            {:ok, _entry} <- log_upload_attempt(board, attrs, request, opts) do
@@ -93,6 +93,9 @@ defmodule Eirinchan.Antispam do
     end)
     |> unwrap_transaction()
   end
+
+  @doc false
+  def lock_post_scope(repo), do: lock_antispam_scope(repo, "post")
 
   def check_public_action(%BoardRecord{} = board, action, attrs, request, config, opts \\ []) do
     repo = Keyword.get(opts, :repo, Repo)
