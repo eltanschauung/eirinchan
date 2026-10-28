@@ -23,6 +23,8 @@ defmodule EirinchanWeb.FragmentCache do
 
   def delete_namespace(namespace), do: delete_namespaces([namespace])
 
+  def delete_namespaces([]), do: :ok
+
   def delete_namespaces(namespaces) when is_list(namespaces) do
     delete_namespaces(MapSet.new(namespaces), @retry_attempts)
   end
@@ -164,8 +166,10 @@ defmodule EirinchanWeb.FragmentCache do
   defp namespaced_key?(_key, _namespace), do: false
 
   defp ensure_table do
-    ensure_owner_started()
-    GenServer.call(__MODULE__, :ensure_table)
+    case :ets.whereis(@table) do
+      :undefined -> owner_call(:ensure_table, @retry_attempts)
+      _table -> :ok
+    end
   end
 
   defp ensure_owner_started do
@@ -222,8 +226,7 @@ defmodule EirinchanWeb.FragmentCache do
 
   defp handle_stale_table(error) do
     if stale_table_error?(error) do
-      ensure_owner_started()
-      GenServer.call(__MODULE__, :ensure_table)
+      owner_call(:ensure_table, @retry_attempts)
       :retry
     else
       raise error

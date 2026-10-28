@@ -20,6 +20,27 @@ defmodule EirinchanWeb.FragmentCacheTest do
     assert FragmentCache.fetch_or_store(:alpha, fn -> "two" end) == "one"
   end
 
+  test "cache hits do not send synchronous messages to the owner" do
+    assert FragmentCache.fetch_or_store(:hit, fn -> :cached end) == :cached
+    owner = Process.whereis(FragmentCache)
+    :ok = :sys.statistics(owner, true)
+
+    for _ <- 1..25 do
+      assert FragmentCache.fetch_or_store(:hit, fn -> :unexpected end) == :cached
+    end
+
+    assert {:ok, statistics} = :sys.statistics(owner, :get)
+    assert statistics[:messages_in] == 0
+  end
+
+  test "an empty namespace invalidation does not discard an in-flight fill" do
+    task = blocked_fill({:board, 1})
+    assert :ok = FragmentCache.delete_namespaces([])
+    send(task.pid, :finish_fill)
+    assert Task.await(task) == :old
+    assert FragmentCache.fetch_or_store({:board, 1}, fn -> :new end) == :old
+  end
+
   test "deletes only entries in the requested tuple namespace" do
     assert FragmentCache.fetch_or_store({:announcement, :first}, fn -> "old" end) == "old"
     assert FragmentCache.fetch_or_store({:other, :first}, fn -> "kept" end) == "kept"
