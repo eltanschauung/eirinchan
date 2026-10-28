@@ -20,6 +20,18 @@ defmodule Eirinchan.Posts.Moderation do
   @spec moderate_delete_post(BoardRecord.t(), String.t() | integer(), keyword()) ::
           {:ok, map()} | {:error, :post_not_found | Ecto.Changeset.t()}
   def moderate_delete_post(%BoardRecord{} = board, post_id, opts \\ []) do
+    Eirinchan.MediaMutation.with_post(
+      board,
+      post_id,
+      Keyword.get(opts, :repo, Repo),
+      fn ->
+        do_moderate_delete_post(board, post_id, opts)
+      end,
+      :post_not_found
+    )
+  end
+
+  defp do_moderate_delete_post(board, post_id, opts) do
     repo = Keyword.get(opts, :repo, Repo)
     config = Keyword.get(opts, :config, Config.compose())
 
@@ -105,6 +117,12 @@ defmodule Eirinchan.Posts.Moderation do
   @spec delete_post_files(BoardRecord.t(), String.t() | integer(), keyword()) ::
           {:ok, Post.t()} | {:error, :not_found | Ecto.Changeset.t()}
   def delete_post_files(%BoardRecord{} = board, post_id, opts \\ []) do
+    Eirinchan.MediaMutation.with_post(board, post_id, Keyword.get(opts, :repo, Repo), fn ->
+      do_delete_post_files(board, post_id, opts)
+    end)
+  end
+
+  defp do_delete_post_files(board, post_id, opts) do
     repo = Keyword.get(opts, :repo, Repo)
     config = Keyword.get(opts, :config, Config.compose())
 
@@ -152,6 +170,12 @@ defmodule Eirinchan.Posts.Moderation do
   @spec delete_post_file(BoardRecord.t(), String.t() | integer(), non_neg_integer(), keyword()) ::
           {:ok, Post.t()} | {:error, :not_found | Ecto.Changeset.t()}
   def delete_post_file(%BoardRecord{} = board, post_id, file_index, opts \\ []) do
+    Eirinchan.MediaMutation.with_post(board, post_id, Keyword.get(opts, :repo, Repo), fn ->
+      do_delete_post_file(board, post_id, file_index, opts)
+    end)
+  end
+
+  defp do_delete_post_file(board, post_id, file_index, opts) do
     repo = Keyword.get(opts, :repo, Repo)
     config = Keyword.get(opts, :config, Config.compose())
 
@@ -171,6 +195,12 @@ defmodule Eirinchan.Posts.Moderation do
   @spec spoilerize_post_files(BoardRecord.t(), String.t() | integer(), keyword()) ::
           {:ok, Post.t()} | {:error, :not_found | Ecto.Changeset.t()}
   def spoilerize_post_files(%BoardRecord{} = board, post_id, opts \\ []) do
+    Eirinchan.MediaMutation.with_post(board, post_id, Keyword.get(opts, :repo, Repo), fn ->
+      do_spoilerize_post_files(board, post_id, opts)
+    end)
+  end
+
+  defp do_spoilerize_post_files(board, post_id, opts) do
     repo = Keyword.get(opts, :repo, Repo)
     config = Keyword.get(opts, :config, Config.compose())
 
@@ -190,6 +220,12 @@ defmodule Eirinchan.Posts.Moderation do
         ) ::
           {:ok, Post.t()} | {:error, :not_found | Ecto.Changeset.t()}
   def spoilerize_post_file(%BoardRecord{} = board, post_id, file_index, opts \\ []) do
+    Eirinchan.MediaMutation.with_post(board, post_id, Keyword.get(opts, :repo, Repo), fn ->
+      do_spoilerize_post_file(board, post_id, file_index, opts)
+    end)
+  end
+
+  defp do_spoilerize_post_file(board, post_id, file_index, opts) do
     repo = Keyword.get(opts, :repo, Repo)
     config = Keyword.get(opts, :config, Config.compose())
 
@@ -207,12 +243,23 @@ defmodule Eirinchan.Posts.Moderation do
 
   @spec move_thread(BoardRecord.t(), String.t() | integer(), BoardRecord.t(), keyword()) ::
           {:ok, Post.t()} | {:error, :not_found | :upload_failed | Ecto.Changeset.t()}
-  def move_thread(
-        %BoardRecord{} = source_board,
-        thread_id,
-        %BoardRecord{} = target_board,
-        opts \\ []
-      ) do
+  def move_thread(source_board, thread_id, target_board, opts \\ []) do
+    Eirinchan.MediaMutation.with_post(
+      source_board,
+      thread_id,
+      Keyword.get(opts, :repo, Repo),
+      fn ->
+        do_move_thread(source_board, thread_id, target_board, opts)
+      end
+    )
+  end
+
+  defp do_move_thread(
+         %BoardRecord{} = source_board,
+         thread_id,
+         %BoardRecord{} = target_board,
+         opts
+       ) do
     repo = Keyword.get(opts, :repo, Repo)
 
     source_config =
@@ -295,13 +342,19 @@ defmodule Eirinchan.Posts.Moderation do
           keyword()
         ) ::
           {:ok, Post.t()} | {:error, :not_found | :upload_failed | Ecto.Changeset.t()}
-  def move_reply(
-        %BoardRecord{} = source_board,
-        post_id,
-        %BoardRecord{} = target_board,
-        target_thread_id,
-        opts \\ []
-      ) do
+  def move_reply(source_board, post_id, target_board, target_thread_id, opts \\ []) do
+    Eirinchan.MediaMutation.with_post(source_board, post_id, Keyword.get(opts, :repo, Repo), fn ->
+      do_move_reply(source_board, post_id, target_board, target_thread_id, opts)
+    end)
+  end
+
+  defp do_move_reply(
+         %BoardRecord{} = source_board,
+         post_id,
+         %BoardRecord{} = target_board,
+         target_thread_id,
+         opts
+       ) do
     repo = Keyword.get(opts, :repo, Repo)
 
     source_config =

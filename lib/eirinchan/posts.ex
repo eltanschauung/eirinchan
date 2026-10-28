@@ -398,6 +398,18 @@ defmodule Eirinchan.Posts do
           {:ok, map()}
           | {:error, :post_not_found | :invalid_password | :post_too_old | Ecto.Changeset.t()}
   def delete_post(%BoardRecord{} = board, post_id, password, opts \\ []) do
+    Eirinchan.MediaMutation.with_post(
+      board,
+      post_id,
+      Keyword.get(opts, :repo, Repo),
+      fn ->
+        do_delete_post(board, post_id, password, opts)
+      end,
+      :post_not_found
+    )
+  end
+
+  defp do_delete_post(board, post_id, password, opts) do
     repo = Keyword.get(opts, :repo, Repo)
     config = Keyword.get(opts, :config, Config.compose())
     password = trim_to_nil(password)
