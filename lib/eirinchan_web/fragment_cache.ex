@@ -115,7 +115,11 @@ defmodule EirinchanWeb.FragmentCache do
   end
 
   defp insert_unsafe(key, value) do
-    evict_if_full()
+    # A second in-flight computation may finish after another has stored this
+    # key. Replacing it does not consume capacity and must not evict a neighbor.
+    unless :ets.member(@table, key) and :ets.info(@table, :size) <= max_entries(),
+      do: evict_if_full()
+
     :ets.insert(@table, {key, monotonic_ms(), value})
   end
 
@@ -123,12 +127,36 @@ defmodule EirinchanWeb.FragmentCache do
     size = :ets.info(@table, :size)
     maximum = max_entries()
 
-    if size >= maximum do
-      @table
-      |> :ets.tab2list()
-      |> Enum.sort_by(fn {_key, inserted_at, _value} -> inserted_at end)
-      |> Enum.take(size - maximum + 1)
-      |> Enum.each(fn {key, _inserted_at, _value} -> :ets.delete(@table, key) end)
+    case size - maximum + 1 do
+      count when count <= 0 ->
+        :ok
+
+      1 ->
+        # The common saturated-cache path needs only the oldest row. Folding
+        # avoids copying and sorting the whole table for every new entry.
+        oldest =
+          :ets.foldl(
+            fn
+              entry, nil ->
+                entry
+
+              {_key, timestamp, _value} = entry, {_, oldest_timestamp, _} = oldest ->
+                if timestamp < oldest_timestamp, do: entry, else: oldest
+            end,
+            nil,
+            @table
+          )
+
+        if oldest, do: :ets.delete_object(@table, oldest)
+
+      count ->
+        # If capacity was lowered at runtime, evict all excess entries in a
+        # single pass. This rare path retains the existing ordering policy.
+        @table
+        |> :ets.tab2list()
+        |> Enum.sort_by(fn {_key, inserted_at, _value} -> inserted_at end)
+        |> Enum.take(count)
+        |> Enum.each(fn entry -> :ets.delete_object(@table, entry) end)
     end
   end
 

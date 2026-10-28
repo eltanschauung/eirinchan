@@ -177,6 +177,37 @@ defmodule EirinchanWeb.FragmentCacheTest do
     assert FragmentCache.size() <= 4
   end
 
+  test "lowering capacity evicts the oldest excess entries" do
+    Application.put_env(:eirinchan, :fragment_cache, max_entries: 5, ttl_ms: 60_000)
+
+    for key <- 1..5 do
+      assert FragmentCache.fetch_or_store(key, fn -> key end) == key
+      Process.sleep(2)
+    end
+
+    Application.put_env(:eirinchan, :fragment_cache, max_entries: 2, ttl_ms: 60_000)
+    assert FragmentCache.fetch_or_store(:new, fn -> :new end) == :new
+    assert FragmentCache.size() == 2
+    assert [{5, _, 5}] = :ets.lookup(FragmentCache, 5)
+    assert [{:new, _, :new}] = :ets.lookup(FragmentCache, :new)
+  end
+
+  test "a duplicate concurrent fill does not evict an unrelated entry" do
+    Application.put_env(:eirinchan, :fragment_cache, max_entries: 2, ttl_ms: 60_000)
+    assert FragmentCache.fetch_or_store(:keep, fn -> :kept end) == :kept
+    Process.sleep(2)
+
+    first = blocked_fill(:same_key)
+    second = blocked_fill(:same_key)
+    send(first.pid, :finish_fill)
+    assert Task.await(first) == :old
+    send(second.pid, :finish_fill)
+    assert Task.await(second) == :old
+
+    assert [{:keep, _, :kept}] = :ets.lookup(FragmentCache, :keep)
+    assert FragmentCache.size() == 2
+  end
+
   defp blocked_fill(key) do
     parent = self()
 
