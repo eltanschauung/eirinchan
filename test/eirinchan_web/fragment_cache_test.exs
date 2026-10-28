@@ -108,6 +108,41 @@ defmodule EirinchanWeb.FragmentCacheTest do
     assert FragmentCache.fetch_or_store({:board, 1}, fn -> :new end) == :new
   end
 
+  test "requests wait for the application supervisor to replace a failed owner" do
+    supervisor = Process.whereis(Eirinchan.Supervisor)
+    assert is_pid(supervisor)
+    old_owner = Process.whereis(FragmentCache)
+    monitor = Process.monitor(old_owner)
+    :ok = :sys.suspend(supervisor)
+
+    try do
+      Process.exit(old_owner, :kill)
+      assert_receive {:DOWN, ^monitor, :process, ^old_owner, :killed}
+      parent = self()
+
+      task =
+        Task.async(fn ->
+          send(parent, :request_started)
+          FragmentCache.fetch_or_store(:supervisor_race, fn -> :fresh end)
+        end)
+
+      assert_receive :request_started
+      Process.sleep(30)
+      assert Process.whereis(FragmentCache) == nil
+      :ok = :sys.resume(supervisor)
+      assert Task.await(task, 2_000) == :fresh
+      assert Process.alive?(supervisor)
+      owner = Process.whereis(FragmentCache)
+      assert :ets.info(FragmentCache, :owner) == owner
+
+      assert Enum.any?(Supervisor.which_children(supervisor), fn {_, pid, _, _} ->
+               pid == owner
+             end)
+    after
+      if Process.alive?(supervisor), do: :sys.resume(supervisor)
+    end
+  end
+
   test "expires cached values after the configured ttl" do
     Application.put_env(:eirinchan, :fragment_cache, max_entries: 10, ttl_ms: 10)
 

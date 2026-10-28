@@ -7,6 +7,8 @@ defmodule EirinchanWeb.FragmentCache do
   @retry_attempts 2
   @default_max_entries 5_000
   @default_ttl_ms 5 * 60 * 1_000
+  @supervisor_wait_attempts 200
+  @supervisor_wait_ms 5
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, :ok, Keyword.put_new(opts, :name, __MODULE__))
@@ -175,13 +177,37 @@ defmodule EirinchanWeb.FragmentCache do
   defp ensure_owner_started do
     case Process.whereis(__MODULE__) do
       nil ->
-        case start_link([]) do
-          {:ok, _pid} -> :ok
-          {:error, {:already_started, _pid}} -> :ok
+        case Process.whereis(Eirinchan.Supervisor) do
+          supervisor when is_pid(supervisor) ->
+            wait_for_supervised_owner(supervisor, @supervisor_wait_attempts)
+
+          nil ->
+            case start_link([]) do
+              {:ok, _pid} -> :ok
+              {:error, {:already_started, _pid}} -> :ok
+            end
         end
 
       _pid ->
         :ok
+    end
+  end
+
+  defp wait_for_supervised_owner(supervisor, attempts_left) do
+    case Process.whereis(__MODULE__) do
+      pid when is_pid(pid) ->
+        :ok
+
+      nil when attempts_left > 0 ->
+        if Process.alive?(supervisor) do
+          Process.sleep(@supervisor_wait_ms)
+          wait_for_supervised_owner(supervisor, attempts_left - 1)
+        else
+          exit(:cache_supervisor_unavailable)
+        end
+
+      nil ->
+        exit(:cache_owner_unavailable)
     end
   end
 
