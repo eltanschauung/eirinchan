@@ -308,15 +308,18 @@ defmodule Eirinchan.Uploads do
   def prepare_spoiler_thumbnail(board_uri, file_path, config)
       when is_binary(board_uri) and is_binary(file_path) do
     with true <- board_uri not in ["", ".", ".."] and board_uri == Path.basename(board_uri),
-         ["", ^board_uri, "thumb", filename] <- String.split(file_path, "/"),
+         {:ok, directory_parts} <- spoiler_directory(config),
+         ["", ^board_uri | relative] <- String.split(file_path, "/"),
+         true <- Enum.drop(relative, -1) == directory_parts,
+         filename when is_binary(filename) <- List.last(relative),
          true <- filename == Path.basename(filename),
          extension <- filename |> Path.extname() |> String.downcase(),
          {:ok, _} <- spoiler_thumbnail_format(extension),
-         :ok <- safe_spoiler_source(board_uri, filename) do
+         :ok <- safe_spoiler_source(board_uri, directory_parts, filename) do
       nonce = :crypto.strong_rand_bytes(16) |> Base.encode16(case: :lower)
       staged_dir = Path.join(staging_root(), "spoiler-#{nonce}")
       staged_file = Path.join(staged_dir, "thumbnail#{extension}")
-      new_path = "/#{board_uri}/thumb/spoiler-#{nonce}#{extension}"
+      new_path = Path.dirname(file_path) <> "/spoiler-#{nonce}#{extension}"
 
       Eirinchan.MediaProcessing.run(
         fn ->
@@ -352,17 +355,33 @@ defmodule Eirinchan.Uploads do
 
   # Reject symlinked board/thumbnail paths and files; the configured root is
   # trusted, but a path from stored metadata must stay inside that root.
-  defp safe_spoiler_source(board_uri, filename) do
-    root = board_root()
-    board_dir = Path.join(root, board_uri)
-    thumb_dir = Path.join(board_dir, "thumb")
+  defp spoiler_directory(config) do
+    directory = config |> Map.get(:dir, %{}) |> Map.get(:thumb, "thumb/")
 
-    with {:ok, %File.Stat{type: :directory}} <- File.lstat(board_dir),
-         {:ok, %File.Stat{type: :directory}} <- File.lstat(thumb_dir),
-         {:ok, %File.Stat{type: :regular}} <- File.lstat(Path.join(thumb_dir, filename)) do
-      :ok
+    if is_binary(directory) and not String.starts_with?(directory, "/") do
+      parts = directory |> String.trim_trailing("/") |> String.split("/")
+
+      if Enum.all?(parts, &(&1 not in ["", ".", ".."] and not String.contains?(&1, "\\"))),
+        do: {:ok, parts},
+        else: {:error, :upload_failed}
     else
-      _ -> {:error, :upload_failed}
+      {:error, :upload_failed}
+    end
+  end
+
+  defp safe_spoiler_source(board_uri, directory_parts, filename) do
+    root = board_root()
+    directories = Enum.scan([board_uri | directory_parts], root, &Path.join(&2, &1))
+
+    if Enum.all?(directories, fn path ->
+         match?({:ok, %File.Stat{type: :directory}}, File.lstat(path))
+       end) do
+      case File.lstat(Path.join(List.last(directories), filename)) do
+        {:ok, %File.Stat{type: :regular}} -> :ok
+        _ -> {:error, :upload_failed}
+      end
+    else
+      {:error, :upload_failed}
     end
   end
 

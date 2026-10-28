@@ -286,7 +286,9 @@ defmodule Eirinchan.Posts.Persistence do
     case repo.one(
            from board_record in BoardRecord,
              where: board_record.id == ^board.id,
-             lock: "FOR UPDATE"
+             # Allocation changes only non-key board counters. This lock still
+             # serializes allocations but permits flood-entry FK KEY SHARE.
+             lock: "FOR NO KEY UPDATE"
          ) do
       %BoardRecord{} = locked_board -> {:ok, locked_board}
       _ -> {:error, :board_not_found}
