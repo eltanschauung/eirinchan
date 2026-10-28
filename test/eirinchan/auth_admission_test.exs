@@ -3,7 +3,7 @@ defmodule Eirinchan.AuthAdmissionTest do
   alias Eirinchan.AuthAdmission
 
   test "an uninitialized or replaced authority fails closed" do
-    key = {AuthAdmission, :authority}
+    key = {Eirinchan.LockAuthority, :authority}
     original = :persistent_term.get(key)
 
     try do

@@ -28,26 +28,35 @@ defmodule Eirinchan.MediaMutation do
   defp with_thread(thread_id, fun) do
     key = {__MODULE__, thread_id}
 
-    if Process.get(key, false) do
-      fun.()
-    else
-      result =
-        :global.trans(
-          {key, self()},
-          fn ->
-            Process.put(key, true)
+    cond do
+      not Eirinchan.LockAuthority.available?() ->
+        {:error, :stale_media}
 
-            try do
-              fun.()
-            after
-              Process.delete(key)
-            end
-          end,
-          [node()],
-          0
-        )
+      Process.get(key, false) ->
+        fun.()
 
-      if result == :aborted, do: {:error, :stale_media}, else: result
+      true ->
+        result =
+          :global.trans(
+            {key, self()},
+            fn ->
+              if Eirinchan.LockAuthority.available?() do
+                Process.put(key, true)
+
+                try do
+                  fun.()
+                after
+                  Process.delete(key)
+                end
+              else
+                {:error, :stale_media}
+              end
+            end,
+            [node()],
+            0
+          )
+
+        if result == :aborted, do: {:error, :stale_media}, else: result
     end
   end
 end
