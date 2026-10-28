@@ -13,6 +13,28 @@ defmodule Eirinchan.MediaMutationTest do
   alias Eirinchan.{MediaMutation, Posts, Uploads}
   alias Eirinchan.Runtime.Config
 
+  test "media work fails closed when lock authority is missing or replaced" do
+    key = {Eirinchan.LockAuthority, :authority}
+    original = :persistent_term.get(key)
+    board = %Eirinchan.Boards.BoardRecord{id: 1, uri: "synthetic"}
+    post = %Eirinchan.Posts.Post{id: 1, public_id: 1, thread_id: 10}
+
+    try do
+      for invalid <- [nil, self()] do
+        Process.put(:media_snapshots, [post])
+        :persistent_term.put(key, invalid)
+
+        assert {:error, :stale_media} =
+                 MediaMutation.with_post(board, 1, Eirinchan.MediaMutationSnapshotRepo, fn ->
+                   flunk("unguarded media work ran")
+                 end)
+      end
+    after
+      :persistent_term.put(key, original)
+      Process.delete(:media_snapshots)
+    end
+  end
+
   test "a changed post identity or thread scope is rejected after lock acquisition" do
     board = %Eirinchan.Boards.BoardRecord{id: 1, uri: "synthetic"}
     initial = %Eirinchan.Posts.Post{id: 1, public_id: 1, thread_id: 10}
