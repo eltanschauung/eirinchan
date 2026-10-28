@@ -4640,7 +4640,10 @@ defmodule Eirinchan.PostsTest do
                  "body" => "Opening body",
                  "file" => upload_fixture("source.png", "first"),
                  "post" => "New Topic"
-               }, config: config, request: post_request(board.uri))
+               },
+               config: config,
+               request: post_request(board.uri)
+             )
 
     assert {:ok, reply, _} =
              Posts.create_post(
@@ -4650,7 +4653,10 @@ defmodule Eirinchan.PostsTest do
                  "body" => "Reply",
                  "file" => upload_fixture("reply.png", "second"),
                  "post" => "Reply"
-               }, config: config, request: post_request(board.uri))
+               },
+               config: config,
+               request: post_request(board.uri)
+             )
 
     old_path = thread.thumb_path
     bytes = File.read!(Eirinchan.Uploads.filesystem_path(old_path))
@@ -4745,6 +4751,28 @@ defmodule Eirinchan.PostsTest do
              Eirinchan.Uploads.prepare_spoiler_thumbnail(board.uri, path, config)
 
     assert File.lstat!(absolute).type == :symlink
+  end
+
+  test "spoiler preparation respects a configured thumbnail directory" do
+    board = board_fixture()
+    config = post_config(%{dir: %{thumb: "previews/"}})
+
+    assert {:ok, post, _} =
+             Posts.create_post(
+               board,
+               %{
+                 "body" => "Custom thumbnails",
+                 "post" => "New Topic",
+                 "file" => upload_fixture("custom.png", "synthetic")
+               },
+               config: config,
+               request: post_request(board.uri)
+             )
+
+    assert String.starts_with?(post.thumb_path, "/#{board.uri}/previews/")
+    assert {:ok, spoilered} = Posts.spoilerize_post_files(board, post.public_id, config: config)
+    assert String.starts_with?(spoilered.thumb_path, "/#{board.uri}/previews/spoiler-")
+    assert File.exists?(Eirinchan.Uploads.filesystem_path(spoilered.thumb_path))
   end
 
   test "create_post records flood entries and rejects rapid repeated posts from the same ip" do
