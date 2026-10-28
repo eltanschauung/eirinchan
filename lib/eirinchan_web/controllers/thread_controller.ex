@@ -134,6 +134,16 @@ defmodule EirinchanWeb.ThreadController do
           response_assigns =
             fragment_ownership_assigns(render_assigns, conn, summary, fragment? or fragment_md5?)
 
+          response_assigns =
+            Keyword.update!(response_assigns, :post_fragment_context, fn context ->
+              own_ids =
+                if Keyword.get(response_assigns, :show_yous),
+                  do: Keyword.fetch!(response_assigns, :own_post_ids),
+                  else: MapSet.new()
+
+              Map.put(context, :own_post_ids, own_ids)
+            end)
+
           fragment_md5 =
             PublicControllerHelpers.personalized_fragment_md5(fragment_md5, response_assigns)
 

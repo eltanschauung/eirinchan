@@ -927,6 +927,8 @@ defmodule EirinchanWeb.ThreadControllerTest do
     board = board_fixture()
     thread = thread_fixture(board, %{body: "Opening body"})
     reply = reply_fixture(board, thread, %{body: "Reply body"})
+    quoting = reply_fixture(board, thread, %{body: ">>#{PublicIds.public_id(reply)}"})
+    unaffected = reply_fixture(board, thread, %{body: "Unrelated"})
     token = browser_token("thread-revalidation-yous")
     path = "/#{board.uri}/res/#{PublicIds.public_id(thread)}.html?fragment=1"
 
@@ -935,10 +937,20 @@ defmodule EirinchanWeb.ThreadControllerTest do
 
     first = get(request, path)
     [old_etag] = get_resp_header(first, "etag")
-    assert html_response(first, 200)
+    before_html = html_response(first, 200)
     assert {:ok, _} = PostOwnership.record(token, reply.id)
     changed = request |> recycle() |> put_req_header("if-none-match", old_etag) |> get(path)
-    assert html_response(changed, 200) =~ ~s|<span class="own_post">(You)</span>|
+    after_html = html_response(changed, 200)
+    assert after_html =~ ~s|<span class="own_post">(You)</span>|
+    assert after_html =~ ~s|data-quote-annotation="you">(You)</small>|
+    refute reply_fragment_version(before_html, reply) == reply_fragment_version(after_html, reply)
+
+    refute reply_fragment_version(before_html, quoting) ==
+             reply_fragment_version(after_html, quoting)
+
+    assert reply_fragment_version(before_html, unaffected) ==
+             reply_fragment_version(after_html, unaffected)
+
     [new_etag] = get_resp_header(changed, "etag")
     refute new_etag == old_etag
     unchanged = request |> recycle() |> put_req_header("if-none-match", new_etag) |> get(path)

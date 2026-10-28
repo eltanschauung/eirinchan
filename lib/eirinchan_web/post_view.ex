@@ -131,12 +131,27 @@ defmodule EirinchanWeb.PostView do
           context_stamp,
           post_fragment_fields(post, Map.get(context, :visible_ip?, false)),
           post_fragment_files(post),
-          Map.get(backlinks_map, public_post_id(post), [])
+          Map.get(backlinks_map, public_post_id(post), []),
+          post_fragment_ownership(post, Map.get(context, :own_post_ids, MapSet.new()))
         },
         [:deterministic]
       )
 
     CredentialHash.fingerprint(payload, :post_fragment_version, 43)
+  end
+
+  defp post_fragment_ownership(post, own_post_ids) do
+    if MapSet.size(own_post_ids) == 0 do
+      {false, []}
+    else
+      quoted_owned_ids =
+        (post.body || "")
+        |> extract_local_quote_ids()
+        |> Enum.filter(&MapSet.member?(own_post_ids, &1))
+        |> Enum.sort()
+
+      {MapSet.member?(own_post_ids, public_post_id(post)), quoted_owned_ids}
+    end
   end
 
   defp post_fragment_fields(%Post{} = post, visible_ip?) do

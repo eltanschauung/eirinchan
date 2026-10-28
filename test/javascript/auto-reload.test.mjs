@@ -195,6 +195,26 @@ test("a reply post invalidates an older in-flight thread fragment", async () => 
   dom.window.close();
 });
 
+test("thread updates replace changed ownership markers but retain unchanged replies", async () => {
+  const {dom, requests} = await setup({pageKind: "thread"});
+  const target = dom.window.document.getElementById("thread-refresh-target");
+  const oldChanged = dom.window.document.getElementById("reply_1");
+  target.insertAdjacentHTML("beforeend", '<div class="post reply" id="reply_2" data-fragment-version="stable"></div><br class="clear">');
+  const oldUnchanged = dom.window.document.getElementById("reply_2");
+  await delay(25);
+  assert.equal(requests.length, 1);
+  requests[0].resolve(`<!doctype html><html><body>
+    <div id="thread-refresh-target" data-fragment-md5="fresh">
+      <div class="post reply you" id="reply_1" data-fragment-version="owned"><span class="own_post">(You)</span></div>
+      <div class="post reply" id="reply_2" data-fragment-version="stable"></div>
+    </div>
+  </body></html>`);
+  assert.notEqual(dom.window.document.getElementById("reply_1"), oldChanged);
+  assert.equal(dom.window.document.getElementById("reply_2"), oldUnchanged);
+  assert.ok(dom.window.document.querySelector("#reply_1 .own_post"));
+  dom.window.close();
+});
+
 test("thread refreshes defer until an unsuccessful post attempt clears", async () => {
   const {dom, requests} = await setup({pageKind: "thread"});
   const $ = dom.window.jQuery;
