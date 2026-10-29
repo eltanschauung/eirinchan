@@ -4,6 +4,88 @@ defmodule EirinchanWeb.BoardControllerTest do
   alias Eirinchan.BrowserAbuse
   alias Eirinchan.PostOwnership
 
+  defp board_marker(conn) do
+    conn.resp_body
+    |> Floki.parse_document!()
+    |> Floki.find("#board-refresh-target")
+    |> Floki.attribute("data-fragment-md5")
+    |> hd()
+  end
+
+  test "an owned index starts with the same private validator and markup as its first poll", %{
+    conn: conn
+  } do
+    board = board_fixture()
+    thread = thread_fixture(board)
+    reply = reply_fixture(board, thread)
+    token = browser_token("index-bootstrap-owner")
+    assert {:ok, _} = PostOwnership.record(token, reply.id)
+
+    initial = conn |> put_req_cookie("browser_token", token) |> get("/#{board.uri}")
+    assert html_response(initial, 200) =~ ~s|<span class="own_post">(You)</span>|
+    marker = board_marker(initial)
+    fragment = initial |> recycle() |> get("/#{board.uri}?fragment=1")
+    assert board_marker(fragment) == marker
+
+    initial_tree = initial.resp_body |> Floki.parse_document!() |> Floki.find("#board-threads")
+    fragment_tree = fragment.resp_body |> Floki.parse_document!() |> Floki.find("#board-threads")
+    assert initial_tree == fragment_tree
+
+    poll =
+      initial
+      |> recycle()
+      |> put_req_header("if-none-match", ~s("#{marker}"))
+      |> get("/#{board.uri}?fragment=1")
+
+    assert response(poll, 304) == ""
+  end
+
+  test "initial ownership validators remain browser private and honor disabled markers", %{
+    conn: conn
+  } do
+    board = board_fixture()
+    thread = thread_fixture(board)
+    token = browser_token("private-bootstrap-owner")
+    assert {:ok, _} = PostOwnership.record(token, thread.id)
+    owner = conn |> put_req_cookie("browser_token", token) |> get("/#{board.uri}")
+
+    visitor =
+      conn
+      |> put_req_cookie("browser_token", browser_token("other-bootstrap-visitor"))
+      |> get("/#{board.uri}")
+
+    refute board_marker(owner) == board_marker(visitor)
+    refute visitor.resp_body =~ ~s|<span class="own_post">(You)</span>|
+
+    disabled = owner |> recycle() |> put_req_cookie("show_yous", "false") |> get("/#{board.uri}")
+    assert board_marker(disabled) == board_marker(visitor)
+    refute disabled.resp_body =~ ~s|<span class="own_post">(You)</span>|
+
+    poll =
+      disabled
+      |> recycle()
+      |> put_req_header("if-none-match", ~s("#{board_marker(disabled)}"))
+      |> get("/#{board.uri}?fragment=1")
+
+    assert response(poll, 304) == ""
+  end
+
+  test "index expansion metadata uses the complete thread path and versioned preview posts", %{
+    conn: conn
+  } do
+    board = board_fixture(%{config_overrides: %{threads_preview: 1, noko50_min: 2}})
+    thread = thread_fixture(board)
+    reply_fixture(board, thread)
+    reply_fixture(board, thread)
+    page = get(conn, "/#{board.uri}") |> html_response(200) |> Floki.parse_document!()
+    id = Eirinchan.Posts.PublicIds.public_id(thread)
+    [node] = Floki.find(page, "#thread_#{id}")
+    assert Floki.attribute(node, "data-thread-url") == ["/#{board.uri}/res/#{id}.html"]
+    assert [version] = Floki.attribute(node, "data-preview-version")
+    assert byte_size(version) > 20
+    assert [_] = Floki.find(node, ".reply[data-fragment-version]")
+  end
+
   test "refreshed messages retain unchanged fragment hashes and change when content changes", %{
     conn: conn
   } do

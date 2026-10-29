@@ -1,10 +1,12 @@
 <div id="global-message-refresh-target">
   <%= if @global_message_html && @global_message_html != "" do %>
-    <%= raw(@global_message_html) %>
+    {raw(@global_message_html)}
   <% end %>
 </div>
 <div
   id="thread-refresh-target"
+  data-board={@board.uri}
+  data-thread-id={PostView.public_post_id(@summary.thread)}
   data-fragment-md5={@fragment_md5}
   data-board-page-num={@page_num}
   data-board-page-path={Eirinchan.ThreadPaths.board_page_path(@board, @page_num, @config)}
