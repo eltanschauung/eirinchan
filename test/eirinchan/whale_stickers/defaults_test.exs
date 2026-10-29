@@ -3,6 +3,18 @@ defmodule Eirinchan.WhaleStickers.DefaultsTest do
 
   alias Eirinchan.WhaleStickers.Defaults
 
+  test "woof is a packaged default sticker and renders through the replacement system" do
+    assert %{token: "woof", file: "woof.png", title: "woof", append_break: false} in Defaults.entries()
+
+    assert Eirinchan.WhaleStickers.contains_sticker?(":woof:", %{})
+    html = Eirinchan.WhaleStickers.replace_line(":woof: hello", %{})
+
+    assert html =~ ~s(src="/whalestickers/woof.png")
+    assert html =~ ~s(title=":woof:")
+    assert html =~ ~s(width="137" height="79")
+    assert String.ends_with?(html, " hello")
+  end
+
   test "every configured default sticker is packaged with the application" do
     missing =
       Defaults.entries()

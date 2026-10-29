@@ -62,6 +62,7 @@ defmodule Eirinchan.WhaleStickers.Defaults do
       {"fact3", "fact3.png", false},
       {"pensive2", "pensive2.png", false},
       {"horse", "horse.png", false},
+      {"woof", "woof.png", false},
       {"kasawalk", "tsukasa.gif", false},
       {"cum", "cum.gif", false},
       {"imhungry", "hungry.png", false},
