@@ -91,6 +91,8 @@ defmodule EirinchanWeb.JsBundles do
   # minified public counterparts before constructing the public bundles.
   @maintained_outputs %{
     "assets/app.js" => "assets/js/app.js",
+    "js/auto-reload.js" => "assets/js/auto-reload.js",
+    "js/expand.js" => "assets/js/expand.js",
     "js/auth-redirect.js" => "assets/js/auth-redirect.js",
     "js/blotter.js" => "assets/js/blotter.js",
     "js/inline-expanding.js" => "assets/js/inline-expanding.js",

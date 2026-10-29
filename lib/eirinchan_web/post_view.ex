@@ -140,6 +140,23 @@ defmodule EirinchanWeb.PostView do
     CredentialHash.fingerprint(payload, :post_fragment_version, 43)
   end
 
+  def thread_preview_version(summary, backlinks_map, context) do
+    versions =
+      [summary.thread | summary.replies]
+      |> Enum.map(&post_fragment_version(&1, backlinks_map, context))
+
+    FragmentHash.term_digest({
+      :thread_preview_v1,
+      versions,
+      summary.reply_count,
+      summary.image_count,
+      summary.omitted_posts,
+      summary.omitted_images,
+      summary.has_noko50,
+      summary.last_count
+    })
+  end
+
   defp post_fragment_ownership(post, own_post_ids) do
     if MapSet.size(own_post_ids) == 0 do
       {false, []}

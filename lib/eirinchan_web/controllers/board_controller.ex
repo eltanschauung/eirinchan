@@ -311,7 +311,7 @@ defmodule EirinchanWeb.BoardController do
           )
 
         response_assigns =
-          fragment_ownership_assigns(render_assigns, conn, page_data, fragment? or fragment_md5?)
+          fragment_ownership_assigns(render_assigns, conn, page_data)
 
         fragment_md5 =
           PublicControllerHelpers.personalized_fragment_md5(fragment_md5, response_assigns)
@@ -370,9 +370,7 @@ defmodule EirinchanWeb.BoardController do
     Posts.backlinks_map_for_posts(posts)
   end
 
-  defp fragment_ownership_assigns(assigns, _conn, _page_data, false), do: assigns
-
-  defp fragment_ownership_assigns(assigns, conn, page_data, true) do
+  defp fragment_ownership_assigns(assigns, conn, page_data) do
     show_yous = ShowYous.enabled?(conn)
 
     posts =
