@@ -71,6 +71,17 @@ defmodule Eirinchan.Tripcode do
 
   def split_name_and_tripcode(name, _config), do: {name, nil}
 
+  # Extract only the displayed identity without calculating/storing a tripcode
+  # or exposing its password to a non-post destination such as feedback.
+  def display_name(name) when is_binary(name) do
+    case Regex.run(~r/^(.*?)(##?)(.+)$/u, String.trim(name)) do
+      [_, display_name, _marker, _secret] -> trim_to_nil(display_name)
+      _ -> trim_to_nil(name)
+    end
+  end
+
+  def display_name(_name), do: nil
+
   defp run_tripcode_command(name, config, display_name) do
     php = System.find_executable("php")
 

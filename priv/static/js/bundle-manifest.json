@@ -41,15 +41,15 @@
     {
       "label": "bundle:thread",
       "output": "priv/static/js/bundle-public-thread.js",
-      "output_bytes": 315609,
+      "output_bytes": 315872,
       "public_path": "/js/bundle-public-thread.js",
-      "sha256": "2202cf1faaf8ffe4ed2ae6bf185dcb0c2259cb12dc2347a7699de66d55974e5d",
-      "source_bytes": 356004,
+      "sha256": "5f50ee15bf881ae359bfc2853bba69ee140080d43e9fd23b6f6c55bc75ef2c75",
+      "source_bytes": 356470,
       "sources": [
         "assets/js/inline-expanding.js",
         "priv/static/js/thread-stats.js",
         "priv/static/js/strftime.min.js",
-        "priv/static/js/ajax.js",
+        "assets/js/ajax.js",
         "priv/static/js/file-selector.js",
         "priv/static/js/upload-selection.js",
         "assets/js/expand.js",
@@ -69,14 +69,14 @@
     {
       "label": "bundle:index",
       "output": "priv/static/js/bundle-public-index.js",
-      "output_bytes": 318328,
+      "output_bytes": 318591,
       "public_path": "/js/bundle-public-index.js",
-      "sha256": "da9ec0720a9147c42e18c71e72e7e14f65999b5e0b34a91e08885f795e897c5c",
-      "source_bytes": 362185,
+      "sha256": "f0c3fffc1aa01e3ba6e8c723cd6c6261196aebca14c3a40c09226ae7fd385f5c",
+      "source_bytes": 362651,
       "sources": [
         "assets/js/inline-expanding.js",
         "priv/static/js/strftime.min.js",
-        "priv/static/js/ajax.js",
+        "assets/js/ajax.js",
         "priv/static/js/file-selector.js",
         "priv/static/js/upload-selection.js",
         "assets/js/expand.js",
@@ -97,12 +97,12 @@
     {
       "label": "bundle:catalog",
       "output": "priv/static/js/bundle-public-catalog.js",
-      "output_bytes": 30113,
+      "output_bytes": 30376,
       "public_path": "/js/bundle-public-catalog.js",
-      "sha256": "5d8f2b1f129ea98bf0f2d65c83b1398636a894c788b256249f3187263f449c7a",
-      "source_bytes": 53494,
+      "sha256": "af04530f15341c56e96f6656721c4033b839e0a76bcc1bdd270d19b0cdbcf201",
+      "source_bytes": 53960,
       "sources": [
-        "priv/static/js/ajax.js",
+        "assets/js/ajax.js",
         "priv/static/js/file-selector.js",
         "priv/static/js/upload-selection.js",
         "priv/static/js/post-menu.js",
@@ -155,6 +155,17 @@
       ]
     },
     {
+      "label": "maintained:js/ajax.js",
+      "output": "priv/static/js/ajax.js",
+      "output_bytes": 7188,
+      "public_path": "/js/ajax.js",
+      "sha256": "343fb205ae8b963b34d3b46b32b03861ad8849d2e911196ffc72498836873466",
+      "source_bytes": 15209,
+      "sources": [
+        "assets/js/ajax.js"
+      ]
+    },
+    {
       "label": "maintained:js/auth-redirect.js",
       "output": "priv/static/js/auth-redirect.js",
       "output_bytes": 256,
@@ -196,6 +207,17 @@
       "source_bytes": 15281,
       "sources": [
         "assets/js/expand.js"
+      ]
+    },
+    {
+      "label": "maintained:js/feedback-submitted.js",
+      "output": "priv/static/js/feedback-submitted.js",
+      "output_bytes": 282,
+      "public_path": "/js/feedback-submitted.js",
+      "sha256": "04396ca5a7a42154699825c109eb81de321d134eea96acb709cef5d905326fc2",
+      "source_bytes": 467,
+      "sources": [
+        "assets/js/feedback-submitted.js"
       ]
     },
     {

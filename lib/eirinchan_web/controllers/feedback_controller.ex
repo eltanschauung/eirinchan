@@ -1,48 +1,16 @@
 defmodule EirinchanWeb.FeedbackController do
   use EirinchanWeb, :controller
 
-  alias Eirinchan.Antispam
-  alias Eirinchan.Antispam.PublicActivityPolicy
   alias Eirinchan.EventLog
-  alias Eirinchan.Feedback
+  alias Eirinchan.Feedback.Submission
   alias Eirinchan.PublicPages
-  alias Eirinchan.Runtime.Config
   alias Eirinchan.Settings
   alias EirinchanWeb.RequestMeta
 
   def create(conn, params) do
     request = RequestMeta.public_identity(conn)
 
-    config =
-      Settings.current_instance_config()
-      |> Config.deep_merge(Application.get_env(:eirinchan, :feedback_overrides, %{}))
-      |> then(&Config.compose(nil, &1, %{}))
-
-    cond do
-      invalid_feedback_body?(params["body"]) ->
-        EventLog.log(conn, "feedback.rejected", %{outcome: "body_shape"})
-        reject_feedback(conn, params, config.error.antispam, :unprocessable_entity)
-
-      true ->
-        case Antispam.reserve_configured_public_activity("feedback", request, config) do
-          {:ok, _entry} ->
-            create_feedback(conn, params, config)
-
-          {:error, _reason} ->
-            EventLog.log(conn, "feedback.rejected", %{outcome: "rate_limited"})
-
-            message = PublicActivityPolicy.rate_limit_message(:feedback, config)
-
-            reject_feedback(conn, params, message, :too_many_requests)
-        end
-    end
-  end
-
-  defp create_feedback(conn, params, config) do
-    case Feedback.create_feedback(params,
-           remote_ip: RequestMeta.effective_remote_ip(conn),
-           config: config
-         ) do
+    case Submission.submit(params, request) do
       {:ok, entry} ->
         if params["json_response"] == "1" do
           json(conn, %{feedback_id: entry.id, status: "ok"})
@@ -63,6 +31,11 @@ defmodule EirinchanWeb.FeedbackController do
             errors: EirinchanWeb.ChangesetErrors.translate(changeset)
           )
         end
+
+      {:error, reason, message} when reason in [:body_shape, :rate_limited] ->
+        EventLog.log(conn, "feedback.rejected", %{outcome: Atom.to_string(reason)})
+        status = if reason == :rate_limited, do: :too_many_requests, else: :unprocessable_entity
+        reject_feedback(conn, params, message, status)
     end
   end
 
@@ -77,9 +50,6 @@ defmodule EirinchanWeb.FeedbackController do
       |> render_feedback_page(params: params, errors: %{"rate_limit" => [message]})
     end
   end
-
-  defp invalid_feedback_body?(body) when is_binary(body), do: not String.contains?(body, " ")
-  defp invalid_feedback_body?(_body), do: false
 
   defp render_feedback_page(conn, opts) do
     page = PublicPages.fetch_named_page("feedback")

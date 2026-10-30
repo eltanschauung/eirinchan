@@ -1,0 +1,1 @@
+!function(e,t){"use strict";function d(){var d=t.querySelector("[data-feedback-submitted]");d&&"true"!==d.dataset.notified&&(d.dataset.notified="true",e.alert("Feedback submitted!"))}"loading"===t.readyState?t.addEventListener("DOMContentLoaded",d,{once:!0}):d()}(window,document);

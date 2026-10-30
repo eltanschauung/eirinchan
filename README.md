@@ -66,6 +66,16 @@ Stopping the stack with `./eirinchan stop` preserves all volumes. Do not use
 There is intentionally no browser installation endpoint and there are no default
 administrator credentials.
 
+## Feedback from posting forms
+
+Start a new-topic or reply body with `/feedback Your message` to send feedback
+instead of publishing a post. The command is removed and the message is truncated
+to 2,000 Unicode characters. Name and email are carried over; tripcode secrets
+are never included. Feedback uses the same submission budget as `/feedback` and
+does not upload attachments, bump threads, or create ownership/watcher entries.
+AJAX forms show `Feedback submitted!`; classic forms show a confirmation page
+with the same alert when JavaScript is enabled.
+
 ## Security
 
 This software has been heavily pentested by GPT 5.6 Pro in software-side and live environments. This software is not subject to CSRF vulnerability recently found in Vichan.
