@@ -199,6 +199,17 @@
       ]
     },
     {
+      "label": "maintained:js/flag-picker.js",
+      "output": "priv/static/js/flag-picker.js",
+      "output_bytes": 2028,
+      "public_path": "/js/flag-picker.js",
+      "sha256": "8b712d7dd5848ef306b06d33caa920fab5249833860acf3f78044d4d758530ba",
+      "source_bytes": 3918,
+      "sources": [
+        "assets/js/flag-picker.js"
+      ]
+    },
+    {
       "label": "maintained:js/image-hover.js",
       "output": "priv/static/js/image-hover.js",
       "output_bytes": 3043,

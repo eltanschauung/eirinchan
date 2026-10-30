@@ -1,0 +1,24 @@
+<div
+  class="flag-page-preview"
+  data-flag-preview
+  data-flag-preview-options={Jason.encode!(@preview)}
+>
+  <p class="intro" aria-live="polite" aria-atomic="true">
+    <span class="name">Anonymous</span><span data-flag-preview-flags>
+      <%= for flag <- @preview.initial do %>
+        {" "}<img
+          class="flag"
+          src={flag.src}
+          alt={flag.alt}
+          title={flag.alt}
+          width="16"
+          height="11"
+          loading="eager"
+          decoding="async"
+          style={@preview.style}
+        />
+      <% end %>
+    </span>
+  </p>
+  <p class="unimportant" data-flag-preview-error hidden>Enter valid flag names to preview.</p>
+</div>

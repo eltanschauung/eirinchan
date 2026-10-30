@@ -9,13 +9,15 @@
   show_global_message={@show_global_message}
 >
   <section class="public-panel flag-page-shell">
+    <%!-- The dedicated picker owns field changes; suppress main.js's legacy initializer. --%>
     <div
       id="content"
       style="text-align:center;margin-top:2em;margin-bottom:2em;"
       data-flag-page
+      data-flag-page-initialized="true"
       data-flag-storage-key={@flag_storage_key}
     >
-      <%= raw(@flag_body_html) %>
+      {raw(@flag_body_html)}
     </div>
   </section>
 </.page_shell>

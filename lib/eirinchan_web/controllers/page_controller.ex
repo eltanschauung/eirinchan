@@ -380,19 +380,12 @@ defmodule EirinchanWeb.PageController do
 
     sanitized_body = HtmlSanitizer.sanitize_fragment(page.body || "")
     current_flag_assets = flag_assets()
-
-    flag_body_html =
-      if page.slug == "flags" do
-        FlagsPage.expand_dynamic(sanitized_body,
-          flag_assets: current_flag_assets,
-          flag_board: board
-        )
-      end
+    user_flag_config = if(page.slug == "flags", do: flag_user_config(boards, conn))
 
     public_page_opts = [
       boards: boards,
       include_global_message: show_global_message,
-      user_flag_config: if(page.slug == "flags", do: flag_user_config(boards, conn))
+      user_flag_config: user_flag_config
     ]
 
     public_page_assigns =
@@ -402,6 +395,30 @@ defmodule EirinchanWeb.PageController do
         page.slug,
         public_page_opts
       )
+
+    {flag_body_html, public_page_assigns} =
+      if page.slug == "flags" do
+        preview =
+          FlagsPage.preview_data(
+            user_flag_config || Settings.effective_instance_config(),
+            %{remote_ip: EirinchanWeb.RequestMeta.effective_remote_ip(conn)},
+            Keyword.get(public_page_assigns, :user_flag_value) || "country"
+          )
+
+        body =
+          FlagsPage.expand_dynamic(sanitized_body,
+            flag_assets: current_flag_assets,
+            flag_board: board,
+            preview: preview
+          )
+
+        assigns =
+          Keyword.update!(public_page_assigns, :javascript_urls, &(&1 ++ ["/js/flag-picker.js"]))
+
+        {body, assigns}
+      else
+        {nil, public_page_assigns}
+      end
 
     extra_stylesheets =
       public_page_assigns

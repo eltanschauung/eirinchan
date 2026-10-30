@@ -93,6 +93,7 @@ defmodule EirinchanWeb.JsBundles do
     "assets/app.js" => "assets/js/app.js",
     "js/auto-reload.js" => "assets/js/auto-reload.js",
     "js/expand.js" => "assets/js/expand.js",
+    "js/flag-picker.js" => "assets/js/flag-picker.js",
     "js/auth-redirect.js" => "assets/js/auth-redirect.js",
     "js/blotter.js" => "assets/js/blotter.js",
     "js/inline-expanding.js" => "assets/js/inline-expanding.js",

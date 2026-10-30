@@ -574,8 +574,10 @@ defmodule EirinchanWeb.PageControllerTest do
 
     refute flags_page =~ "Visitors in the last 10 minutes:"
     assert flags_page =~ ~s(id="blotter")
-    assert flags_page =~ "To rizz your posts"
-    assert flags_page =~ "You can click the flags."
+    assert flags_page =~ "To pick your flags, click on flags above."
+    assert flags_page =~ "US flag for anonimity."
+    refute flags_page =~ "New feature:"
+    assert flags_page =~ "data-flag-preview"
     assert flags_page =~ ~s(class="public-panel flag-page-shell")
     refute flags_page =~ ~s(class="ban flag-page-shell")
     refute flags_page =~ ~s(class="static-page-panel")
@@ -1143,8 +1145,9 @@ defmodule EirinchanWeb.PageControllerTest do
       |> get("/pages/flags")
       |> html_response(200)
 
-    assert page =~ "To rizz your posts"
-    assert page =~ "You can click the flags."
+    assert page =~ "To pick your flags, click on flags above."
+    assert page =~ "data-flag-preview"
+    refute page =~ "New feature:"
     assert page =~ "/flags/compiled/"
     assert page =~ ~s(id="user_flag")
     assert page =~ "Apply"
@@ -1185,7 +1188,7 @@ defmodule EirinchanWeb.PageControllerTest do
       |> get("/flags")
       |> html_response(200)
 
-    assert page =~ "To rizz your posts"
+    assert page =~ "To pick your flags, click on flags above."
     assert page =~ "/flags/compiled/"
     assert page =~ ~s(id="user_flag")
 
@@ -1226,6 +1229,21 @@ defmodule EirinchanWeb.PageControllerTest do
 
     assert "meiling" in Jason.decode!(allowed_json)
     assert "tenshi" in Jason.decode!(allowed_json)
+
+    assert Floki.text(Floki.find(document, "[data-flag-preview] .name")) == "Anonymous"
+    assert Floki.attribute(document, ~s(.flag-page-shell a[href="/bant"]), "href") == ["/bant"]
+    assert Floki.text(Floki.find(document, ".flag-page-shell p")) =~ "to return to /bant/."
+    assert Floki.find(document, ~s(script[src*="/js/flag-picker.js"])) != []
+    assert Floki.attribute(document, "[data-flag-page]", "data-flag-page-initialized") == ["true"]
+    [preview_json] = Floki.attribute(document, "[data-flag-preview]", "data-flag-preview-options")
+    preview = Jason.decode!(preview_json)
+    assert preview["multiple"]
+    assert [%{"alt" => "Meiling", "src" => _}] = preview["flags"]["meiling"]
+    assert [%{"alt" => "United States", "src" => _}] = preview["fallback"]
+
+    assert get_resp_header(conn |> recycle() |> get("/flags"), "cache-control") == [
+             "private, no-cache"
+           ]
   end
 
   test "public pages without a user flag policy do not load the preference client", %{conn: conn} do
