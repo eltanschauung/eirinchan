@@ -72,9 +72,16 @@ Start a new-topic or reply body with `/feedback Your message` to send feedback
 instead of publishing a post. The command is removed and the message is truncated
 to 2,000 Unicode characters. Name and email are carried over; tripcode secrets
 are never included. Feedback uses the same submission budget as `/feedback` and
-does not upload attachments, bump threads, or create ownership/watcher entries.
+does not store attachments, bump threads, or create ownership/watcher entries.
 AJAX forms show `Feedback submitted!`; classic forms show a confirmation page
 with the same alert when JavaScript is enabled.
+
+Both this command and the public feedback form require a valid, unexpired
+IpAccess grant (including configured access-list entries). Other submissions
+receive the same success response but are silently discarded, even if general
+IP enforcement is disabled. Passing a proof-of-work challenge or logging in as
+a moderator does not bypass this requirement. Public feedback receipts do not
+expose moderation-queue entry IDs.
 
 ## Security
 

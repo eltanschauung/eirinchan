@@ -11,9 +11,10 @@ defmodule EirinchanWeb.FeedbackController do
     request = RequestMeta.public_identity(conn)
 
     case Submission.submit(params, request) do
-      {:ok, entry} ->
+      {:ok, _entry} ->
         if params["json_response"] == "1" do
-          json(conn, %{feedback_id: entry.id, status: "ok"})
+          # Same public receipt for accepted and silently discarded submissions.
+          json(conn, %{status: "ok"})
         else
           redirect(conn, to: "/feedback")
         end

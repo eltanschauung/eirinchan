@@ -4,11 +4,8 @@ defmodule EirinchanWeb.FeedbackManagementControllerTest do
   test "feedback queue lists entries, marks read, adds notes, and deletes", %{conn: conn} do
     moderator = moderator_fixture()
 
-    conn =
-      conn
-      |> post("/feedback", %{"body" => "Needs review", "json_response" => "1"})
-
-    assert %{"feedback_id" => feedback_id} = json_response(conn, 200)
+    {:ok, feedback} = Eirinchan.Feedback.create_feedback(%{"body" => "Needs review"})
+    feedback_id = feedback.id
 
     queue_conn =
       conn
@@ -69,12 +66,10 @@ defmodule EirinchanWeb.FeedbackManagementControllerTest do
   test "non-admin moderators do not receive feedback ip values", %{conn: conn} do
     moderator = moderator_fixture(%{role: "mod"})
 
-    conn =
-      conn
-      |> Map.put(:remote_ip, {198, 51, 100, 9})
-      |> post("/feedback", %{"body" => "Needs review", "json_response" => "1"})
-
-    assert %{"feedback_id" => _feedback_id} = json_response(conn, 200)
+    {:ok, _feedback} =
+      Eirinchan.Feedback.create_feedback(%{"body" => "Needs review"},
+        remote_ip: {198, 51, 100, 9}
+      )
 
     assert %{"data" => [%{"ip_subnet" => nil}]} =
              conn

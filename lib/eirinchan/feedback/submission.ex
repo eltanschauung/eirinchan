@@ -1,7 +1,7 @@
 defmodule Eirinchan.Feedback.Submission do
   @moduledoc "Shared admission for public feedback forms and posting commands."
 
-  alias Eirinchan.{Antispam, Feedback, Settings, Tripcode}
+  alias Eirinchan.{AccessList, Antispam, Feedback, Settings, Tripcode}
   alias Eirinchan.Antispam.PublicActivityPolicy
   alias Eirinchan.Runtime.Config
 
@@ -34,6 +34,16 @@ defmodule Eirinchan.Feedback.Submission do
   end
 
   def submit(attrs, request, opts \\ []) do
+    # Do not use allowed?/1: globally disabled IP enforcement deliberately
+    # allows browsing, but it does not establish an authenticated grant.
+    if AccessList.allowed_for_posting?(request.remote_ip) do
+      submit_authenticated(attrs, request, opts)
+    else
+      {:ok, nil}
+    end
+  end
+
+  defp submit_authenticated(attrs, request, opts) do
     config = config()
     # Public callers never control moderation state, IP storage, or admission options.
     attrs = Map.take(attrs, ["name", "email", "body"])

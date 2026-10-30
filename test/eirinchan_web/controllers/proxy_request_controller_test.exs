@@ -145,18 +145,20 @@ defmodule EirinchanWeb.ProxyRequestControllerTest do
     })
 
     Application.put_env(:eirinchan, :feedback_store_ip, true)
+    {:ok, _grant} = Eirinchan.AccessList.record_access("198.51.100.0/24", "synthetic-proxy-grant")
 
     conn =
       conn
       |> Map.put(:remote_ip, {203, 0, 113, 10})
-      |> put_req_header("x-forwarded-for", "192.168.5.25, 203.0.113.10")
+      |> put_req_header("x-forwarded-for", "198.51.100.25, 203.0.113.10")
       |> post("/feedback", %{
         "name" => "Anon",
         "body" => "proxied feedback",
         "json_response" => "1"
       })
 
-    assert %{"feedback_id" => feedback_id, "status" => "ok"} = json_response(conn, 200)
-    assert Feedback.get_feedback(feedback_id).ip_subnet == "192.168.0.0/16"
+    assert %{"status" => "ok"} = json_response(conn, 200)
+    assert [entry] = Feedback.list_feedback()
+    assert entry.ip_subnet == "198.51.0.0/16"
   end
 end

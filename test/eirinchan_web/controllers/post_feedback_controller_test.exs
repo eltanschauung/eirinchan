@@ -4,7 +4,62 @@ defmodule EirinchanWeb.PostFeedbackControllerTest do
   alias Eirinchan.Posts.Post
 
   setup %{conn: conn} do
+    {:ok, _grant} = Eirinchan.AccessList.record_access("192.0.2.0/24", "synthetic-feedback-grant")
     {:ok, conn: %{conn | remote_ip: {192, 0, 2, 25}}}
+  end
+
+  test "unverified commands have the same success receipt but store neither feedback nor a post",
+       %{conn: conn} do
+    board = board_fixture()
+
+    result =
+      %{conn | remote_ip: {203, 0, 113, 25}}
+      |> post("/#{board.uri}/post", %{
+        "body" => "/feedback Silently discarded",
+        "json_response" => "1"
+      })
+
+    assert json_response(result, 200) == %{"status" => "ok", "feedback_submitted" => true}
+    assert Feedback.list_feedback() == []
+    assert Repo.aggregate(Post, :count) == 0
+  end
+
+  test "classic unverified commands get the normal confirmation without storage", %{conn: conn} do
+    board = board_fixture()
+
+    result =
+      %{conn | remote_ip: {203, 0, 113, 25}}
+      |> post("/#{board.uri}/post", %{"body" => "/feedback Silently discarded"})
+
+    assert html_response(result, 200) =~ "Feedback submitted!"
+    assert Feedback.list_feedback() == []
+    assert Repo.aggregate(Post, :count) == 0
+  end
+
+  test "an expired IPv6 grant is rejected, while a fresh matching subnet is accepted", %{
+    conn: conn
+  } do
+    board = board_fixture()
+    ip = {0x2001, 0xDB8, 7, 0, 0, 0, 0, 9}
+
+    {:ok, _} =
+      Eirinchan.AccessList.record_access("2001:db8:7::/48", "synthetic-expired",
+        granted_at: NaiveDateTime.add(NaiveDateTime.local_now(), -200 * 3600, :second)
+      )
+
+    params = %{"body" => "/feedback IPv6 feedback", "json_response" => "1"}
+
+    assert %{conn | remote_ip: ip} |> post("/#{board.uri}/post", params) |> json_response(200) ==
+             %{"status" => "ok", "feedback_submitted" => true}
+
+    assert Feedback.list_feedback() == []
+    {:ok, _} = Eirinchan.AccessList.record_access("2001:db8:7::/48", "synthetic-fresh")
+
+    assert %{conn | remote_ip: ip} |> post("/#{board.uri}/post", params) |> json_response(200) ==
+             %{"status" => "ok", "feedback_submitted" => true}
+
+    assert [%{body: "IPv6 feedback"}] = Feedback.list_feedback()
+    assert Repo.aggregate(Post, :count) == 0
   end
 
   test "new-topic commands create feedback only and preserve supplied contact fields", %{
@@ -95,6 +150,21 @@ defmodule EirinchanWeb.PostFeedbackControllerTest do
     assert %{"id" => _id} = json_response(result, 200)
     assert Feedback.list_feedback() == []
     assert Repo.aggregate(Post, :count) == 1
+  end
+
+  test "legacy posting commands use the same admission and never publish", %{conn: conn} do
+    board = board_fixture()
+
+    result =
+      post(conn, "/post.php", %{
+        "board" => board.uri,
+        "body" => "/feedback Legacy feedback",
+        "json_response" => "1"
+      })
+
+    assert json_response(result, 200) == %{"status" => "ok", "feedback_submitted" => true}
+    assert [%{body: "Legacy feedback"}] = Feedback.list_feedback()
+    assert Repo.aggregate(Post, :count) == 0
   end
 
   test "classic form commands have a CSP-safe confirmation document", %{conn: conn} do
