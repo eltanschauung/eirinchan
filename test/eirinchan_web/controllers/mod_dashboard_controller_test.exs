@@ -17,10 +17,7 @@ defmodule EirinchanWeb.ModDashboardControllerTest do
     })
     |> json_response(200)
 
-    conn
-    |> recycle()
-    |> post("/feedback", %{"body" => "Needs review", "json_response" => "1"})
-    |> json_response(200)
+    {:ok, _feedback} = Eirinchan.Feedback.create_feedback(%{"body" => "Needs review"})
 
     assert %{
              "data" => %{

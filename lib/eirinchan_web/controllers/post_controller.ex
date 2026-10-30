@@ -8,6 +8,7 @@ defmodule EirinchanWeb.PostController do
   alias Eirinchan.Boards
   alias Eirinchan.Command
   alias Eirinchan.EventLog
+  alias Eirinchan.Feedback.Submission, as: FeedbackSubmission
   alias Eirinchan.IpAccessAuth
   alias Eirinchan.ModerationLog
   alias Eirinchan.PostOwnership
@@ -152,6 +153,25 @@ defmodule EirinchanWeb.PostController do
             respond_changeset_error(conn, changeset)
         end
 
+      :feedback ->
+        {:ok, attrs} = FeedbackSubmission.command_attrs(params)
+
+        case FeedbackSubmission.submit(attrs, request, source: :post_command) do
+          {:ok, _entry} ->
+            respond_feedback_submitted(conn, board, params)
+
+          {:error, %Ecto.Changeset{} = changeset} ->
+            respond_changeset_error(conn, changeset)
+
+          {:error, reason, message} ->
+            EventLog.log(conn, "feedback.rejected", %{outcome: Atom.to_string(reason)})
+
+            status =
+              if reason == :rate_limited, do: :too_many_requests, else: :unprocessable_entity
+
+            respond_error(conn, :feedback, status, message, config)
+        end
+
       :post ->
         case Posts.create_public_post(board, params, config: config, request: request) do
           {:ok, post, meta} ->
@@ -172,6 +192,28 @@ defmodule EirinchanWeb.PostController do
           {:error, %Ecto.Changeset{} = changeset} ->
             respond_changeset_error(conn, changeset)
         end
+    end
+  end
+
+  defp respond_feedback_submitted(conn, board, params) do
+    if json_response?(conn, params) do
+      json(conn, %{status: "ok", feedback_submitted: true})
+    else
+      draft_key =
+        Enum.find([params["thread_id"], params["thread"]], fn value ->
+          is_binary(value) and Regex.match?(~r/\A[0-9]{1,20}\z/, value)
+        end) || "new"
+
+      conn = put_post_success_cookie(conn, board, draft_key)
+
+      assigns =
+        PublicControllerHelpers.public_page_assigns(conn, "active-page", "feedback",
+          include_global_message: false
+        )
+        |> Keyword.merge(layout: false, return_path: "/#{board.uri}")
+        |> Keyword.update!(:javascript_urls, &(&1 ++ ["/js/feedback-submitted.js"]))
+
+      render(conn, :feedback_submitted, assigns)
     end
   end
 
@@ -596,6 +638,7 @@ defmodule EirinchanWeb.PostController do
       legacy_action(params) == :report -> :report
       legacy_action(params) == :delete -> :delete
       Map.has_key?(params, "appeal_ban_id") or Map.has_key?(params, "ban_id") -> :appeal
+      FeedbackSubmission.command?(params["body"]) -> :feedback
       true -> :post
     end
   end

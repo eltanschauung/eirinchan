@@ -2,6 +2,60 @@ defmodule EirinchanWeb.FeedbackControllerTest do
   use EirinchanWeb.ConnCase, async: false
   import ExUnit.CaptureLog
 
+  setup %{conn: conn} do
+    {:ok, _grant} = Eirinchan.AccessList.record_access("192.0.2.0/24", "synthetic-feedback-grant")
+    {:ok, conn: %{conn | remote_ip: {192, 0, 2, 25}}}
+  end
+
+  test "unverified form submissions are silently discarded even while general IP enforcement is disabled",
+       %{conn: conn} do
+    conn = %{conn | remote_ip: {203, 0, 113, 25}}
+    assert Eirinchan.AccessList.allowed?(conn.remote_ip)
+    refute Eirinchan.AccessList.allowed_for_posting?(conn.remote_ip)
+    result = conn |> post("/feedback", %{"body" => "Unverified feedback", "json_response" => "1"})
+    assert json_response(result, 200) == %{"status" => "ok"}
+    assert Eirinchan.Feedback.list_feedback() == []
+  end
+
+  test "unverified invalid bodies and moderator sessions cannot bypass the silent gate", %{
+    conn: conn
+  } do
+    moderator = moderator_fixture(%{role: "admin"})
+    conn = %{conn | remote_ip: {203, 0, 113, 25}} |> login_moderator(moderator)
+    response = post(conn, "/feedback", %{"body" => "singleword", "json_response" => "1"})
+    assert json_response(response, 200) == %{"status" => "ok"}
+    assert Eirinchan.Feedback.list_feedback() == []
+  end
+
+  test "an untrusted forwarded IP cannot impersonate an authenticated subnet", %{conn: conn} do
+    result =
+      %{conn | remote_ip: {203, 0, 113, 25}}
+      |> put_req_header("x-forwarded-for", "192.0.2.25")
+      |> post("/feedback", %{"body" => "Spoofed forwarded identity", "json_response" => "1"})
+
+    assert json_response(result, 200) == %{"status" => "ok"}
+    assert Eirinchan.Feedback.list_feedback() == []
+  end
+
+  test "silent discards do not consume the authenticated global feedback budget", %{conn: conn} do
+    previous = Application.get_env(:eirinchan, :feedback_overrides, %{})
+
+    Application.put_env(:eirinchan, :feedback_overrides, %{
+      feedback_submissions_per_minutes: [0, 2],
+      feedback_submissions_per_minutes_all: [1, 2]
+    })
+
+    on_exit(fn -> Application.put_env(:eirinchan, :feedback_overrides, previous) end)
+
+    rejected =
+      %{conn | remote_ip: {203, 0, 113, 25}}
+      |> post("/feedback", %{"body" => "Unverified feedback", "json_response" => "1"})
+
+    accepted = conn |> post("/feedback", %{"body" => "Verified feedback", "json_response" => "1"})
+    assert json_response(rejected, 200) == json_response(accepted, 200)
+    assert [%{body: "Verified feedback"}] = Eirinchan.Feedback.list_feedback()
+  end
+
   test "public feedback page renders and accepts submissions", %{conn: conn} do
     moderator_fixture()
     board_fixture(%{uri: "tech", title: "Technology"})
@@ -22,7 +76,7 @@ defmodule EirinchanWeb.FeedbackControllerTest do
         "json_response" => "1"
       })
 
-    assert %{"feedback_id" => _id, "status" => "ok"} = json_response(conn, 200)
+    assert %{"status" => "ok"} = json_response(conn, 200)
   end
 
   test "feedback form is not conditionally cached with a session-bound csrf token", %{conn: conn} do
