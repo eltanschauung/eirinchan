@@ -72,6 +72,7 @@ defmodule EirinchanWeb.ManagePageControllerTest do
       |> html_response(200)
 
     assert dashboard =~ "Signed in as"
+    assert dashboard =~ "<title>Dashboard</title>"
     assert dashboard =~ moderator.username
     assert dashboard =~ "Report queue (0)"
     assert dashboard =~ "Feedback (0)"
@@ -79,6 +80,18 @@ defmodule EirinchanWeb.ManagePageControllerTest do
     assert dashboard =~ ~s(href="/ukko">Overboard</a>)
     refute dashboard =~ ~s(href="/news">News</a>)
     assert dashboard =~ ~s(class="boardlist")
+  end
+
+  test "dashboard validation errors keep the Dashboard tab title", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+
+    page =
+      conn
+      |> login_moderator(moderator)
+      |> post("/manage/boards/browser", %{"uri" => "", "title" => ""})
+      |> html_response(422)
+
+    assert page =~ "<title>Dashboard</title>"
   end
 
   test "manage pages use the resolved automatic browser theme", %{conn: conn} do

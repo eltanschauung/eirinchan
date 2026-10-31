@@ -2791,6 +2791,7 @@ defmodule EirinchanWeb.ManagePageController do
 
     Map.merge(
       %{
+        page_title: "Dashboard",
         moderator: moderator,
         boards: Moderation.list_accessible_boards(moderator),
         can_view_recent?: can_view_recent?(moderator),
