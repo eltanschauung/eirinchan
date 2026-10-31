@@ -1,9 +1,7 @@
 defmodule EirinchanWeb.LegacyModController do
   use EirinchanWeb, :controller
 
-  alias Eirinchan.Bans
   alias Eirinchan.Boards
-  alias Eirinchan.IpAccessAuth
   alias Eirinchan.IpCrypt
   alias Eirinchan.Moderation
   alias Eirinchan.Posts
@@ -71,9 +69,7 @@ defmodule EirinchanWeb.LegacyModController do
     with {:ok, moderator, board} <- authorized_board(conn, uri),
          :ok <- verify_action_token(conn, "#{uri}/delete/#{post_id}", token),
          {:ok, _result} <-
-           Posts.moderate_delete_post(board, post_id,
-             config: board_config(board, conn)
-           ) do
+           Posts.moderate_delete_post(board, post_id, config: board_config(board, conn)) do
       ModerationAudit.log(conn, "Deleted post No. #{post_id}", moderator: moderator, board: board)
       post_action_response(conn, "/#{uri}")
     else
@@ -87,9 +83,7 @@ defmodule EirinchanWeb.LegacyModController do
          :ok <- verify_action_token(conn, "#{uri}/deletefile/#{post_id}/#{file_index}", token),
          {:ok, post} <- Posts.get_post(board, post_id),
          {:ok, _updated_post} <-
-           Posts.delete_post_file(board, post_id, file_index,
-             config: board_config(board, conn)
-           ) do
+           Posts.delete_post_file(board, post_id, file_index, config: board_config(board, conn)) do
       ModerationAudit.log(conn, "Deleted file from post No. #{PostView.public_post_id(post)}",
         moderator: moderator,
         board: board
@@ -158,9 +152,11 @@ defmodule EirinchanWeb.LegacyModController do
                config_map(
                  Moderation.list_accessible_boards(moderator),
                  conn
-              )
+               )
            ) do
-      ModerationAudit.log(conn, "Deleted posts across boards by IP #{display_ip_for_log(post.ip_subnet)}",
+      ModerationAudit.log(
+        conn,
+        "Deleted posts across boards by IP #{display_ip_for_log(post.ip_subnet)}",
         moderator: moderator,
         board: board
       )
@@ -173,32 +169,24 @@ defmodule EirinchanWeb.LegacyModController do
 
   defp dispatch_board_action(conn, [uri, "ban24", post_id, token]) do
     with {:ok, moderator, board} <- authorized_board(conn, uri),
+         :ok <- require_permission(moderator, :ban24),
          :ok <- require_permission(moderator, :show_ip_global),
          :ok <- verify_action_token(conn, "#{uri}/ban24/#{post_id}", token),
-         {:ok, post} <- Posts.get_post(board, post_id),
-         {:ok, _post_after_file_delete} <-
-           maybe_delete_post_files_for_ban24(board, post, board_config(board, conn)),
-         true <- is_binary(post.ip_subnet) and post.ip_subnet != "",
-         {:ok, subnet} <- IpAccessAuth.subnet_for_ip(post.ip_subnet),
-         {:ok, _ban} <-
-           Bans.create_ban(%{
-             board_id: nil,
-             mod_user_id: moderator.id,
-             ip_subnet: subnet,
-             reason:
-               "Subnet ban from post control for #{display_ip_for_log(post.ip_subnet)} on /#{board.uri}/ No. #{PostView.public_post_id(post)}",
-             active: true
-           }) do
+         {:ok, %{ban: ban, post: post}} <-
+           Posts.ban_subnet_and_delete_files(board, post_id, moderator,
+             config: board_config(board, conn)
+           ) do
       ModerationAudit.log(
         conn,
-        "Created /24 ban #{subnet} from #{display_ip_for_log(post.ip_subnet)} on post No. #{PostView.public_post_id(post)} and deleted attached files",
+        "Created subnet ban #{display_ip_for_log(ban.ip_subnet)} from #{display_ip_for_log(post.ip_subnet)} on post No. #{PostView.public_post_id(post)} and deleted attached files",
         moderator: moderator,
-        board: board
+        board: board,
+        subject_ip: post.ip_subnet
       )
 
       post_action_response(conn, "/#{uri}")
     else
-      false -> send_resp(conn, :bad_request, "Post has no IP.")
+      {:error, :missing_ip} -> send_resp(conn, :bad_request, "Post has no IP.")
       {:error, :invalid_ip} -> send_resp(conn, :bad_request, "Invalid IP address.")
       error -> legacy_error(conn, error)
     end
@@ -466,18 +454,6 @@ defmodule EirinchanWeb.LegacyModController do
     Posts.update_thread_state(board, post_id, attrs, config: board_config(board, host))
   end
 
-  defp maybe_delete_post_files_for_ban24(board, post, config) do
-    if post_has_files?(post) do
-      Posts.delete_post_files(board, post.id, config: config)
-    else
-      {:ok, post}
-    end
-  end
-
-  defp post_has_files?(post) do
-    post.file_path not in [nil, "", "deleted"] or Enum.any?(post.extra_files || [])
-  end
-
   defp legacy_error(conn, {:error, :unauthorized}), do: redirect(conn, to: ~p"/manage/login")
   defp legacy_error(conn, {:error, :forbidden}), do: send_resp(conn, :forbidden, "Forbidden")
   defp legacy_error(conn, {:error, :not_found}), do: send_resp(conn, :not_found, "Page not found")
@@ -500,7 +476,7 @@ defmodule EirinchanWeb.LegacyModController do
   defp xml_http_request?(conn) do
     conn
     |> get_req_header("x-requested-with")
-    |> Enum.any?(&String.downcase(&1) == "xmlhttprequest")
+    |> Enum.any?(&(String.downcase(&1) == "xmlhttprequest"))
   end
 
   defp config_map(boards, conn) do
