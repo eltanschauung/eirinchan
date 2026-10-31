@@ -845,6 +845,10 @@ defmodule Eirinchan.Posts do
     PostsModeration.moderate_delete_posts_by_ip(boards, ip_subnet, opts)
   end
 
+  def ban_subnet_and_delete_files(%BoardRecord{} = board, post_id, moderator, opts \\ []) do
+    PostsModeration.ban_subnet_and_delete_files(board, post_id, moderator, opts)
+  end
+
   def null_all_post_ips(opts \\ []) do
     PostsModeration.null_all_post_ips(opts)
   end

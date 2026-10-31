@@ -6,7 +6,10 @@ defmodule Eirinchan.Posts.Moderation do
   import Ecto.Query, only: [from: 2]
 
   alias Eirinchan.Build
+  alias Eirinchan.Bans
   alias Eirinchan.Boards.BoardRecord
+  alias Eirinchan.IpAccessAuth
+  alias Eirinchan.Moderation.PostEvent
   alias Eirinchan.Posts
   alias Eirinchan.Posts.ThreadLookup, as: PostsThreadLookup
   alias Eirinchan.Posts.Post
@@ -127,19 +130,9 @@ defmodule Eirinchan.Posts.Moderation do
     config = Keyword.get(opts, :config, Config.compose())
 
     with {:ok, post} <- Posts.get_post(board, post_id, repo: repo) do
-      file_paths = post_delete_file_paths(post, repo)
+      file_paths = attached_file_delete_paths(post)
 
-      case repo.transaction(fn ->
-             with {:ok, updated_post} <-
-                    post
-                    |> Post.create_changeset(deleted_file_attrs(post))
-                    |> repo.update(),
-                  :ok <- mark_extra_files_deleted(post.id, repo) do
-               repo.preload(updated_post, :extra_files, force: true)
-             else
-               {:error, reason} -> repo.rollback(reason)
-             end
-           end) do
+      case repo.transaction(fn -> mark_post_files_deleted!(post, repo) end) do
         {:ok, updated_post} ->
           Enum.each(file_paths, &Uploads.remove/1)
 
@@ -154,6 +147,111 @@ defmodule Eirinchan.Posts.Moderation do
         {:error, reason} ->
           {:error, reason}
       end
+    end
+  end
+
+  @doc "Bans a post's subnet and atomically records/removes its attachment metadata."
+  def ban_subnet_and_delete_files(%BoardRecord{} = board, post_id, moderator, opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+
+    Eirinchan.MediaMutation.with_post(board, post_id, repo, fn ->
+      with {:ok, post} <- Posts.get_post(board, post_id, repo: repo) do
+        do_ban_subnet_and_delete_files(board, post, moderator, opts)
+      end
+    end)
+  end
+
+  defp do_ban_subnet_and_delete_files(board, original, moderator, opts) do
+    repo = Keyword.get(opts, :repo, Repo)
+    config = Keyword.get(opts, :config, Config.compose())
+
+    result =
+      repo.transaction(fn ->
+        post =
+          repo.one(from p in Post, where: p.id == ^original.id, lock: "FOR UPDATE") ||
+            repo.rollback(:not_found)
+
+        post = repo.preload(post, :extra_files, force: true)
+
+        if post.ip_subnet in [nil, ""], do: repo.rollback(:missing_ip)
+
+        subnet =
+          case IpAccessAuth.subnet_for_ip(post.ip_subnet) do
+            {:ok, subnet} -> subnet
+            {:error, reason} -> repo.rollback(reason)
+          end
+
+        ban =
+          Bans.create_ban(
+            %{
+              board_id: nil,
+              mod_user_id: moderator.id,
+              ip_subnet: subnet,
+              reason:
+                "Subnet ban from post control on /#{board.uri}/ No. #{post.public_id || post.id}",
+              active: true
+            },
+            repo: repo
+          )
+          |> unwrap_moderation_result!(repo)
+
+        files =
+          [{0, post} | Enum.map(post.extra_files, &{&1.position, &1})]
+          |> Enum.filter(fn {_position, file} -> path_present?(file.file_path) end)
+          |> Enum.sort_by(&elem(&1, 0))
+          |> Enum.map(fn {position, file} ->
+            file |> Map.take([:file_name, :file_md5, :file_size]) |> Map.put(:position, position)
+          end)
+
+        event =
+          %PostEvent{}
+          |> PostEvent.changeset(%{
+            action: "ban24",
+            mod_user_id: moderator.id,
+            ban_id: ban.id,
+            post_id: post.id,
+            public_post_id: post.public_id || post.id,
+            board_uri: board.uri,
+            ip_subnet: post.ip_subnet,
+            banned_subnet: subnet,
+            file_count: length(files),
+            files: files
+          })
+          |> repo.insert()
+          |> unwrap_moderation_result!(repo)
+
+        paths = if files == [], do: [], else: attached_file_delete_paths(post)
+        updated = if files == [], do: post, else: mark_post_files_deleted!(post, repo)
+        %{ban: ban, event: event, post: updated, file_paths: paths}
+      end)
+
+    case result do
+      {:ok, %{post: post, file_paths: paths} = result} ->
+        # Never remove bytes or publish rebuilt pages until the ban, evidence,
+        # and deleted-file markers have all committed successfully.
+        if paths != [] do
+          Enum.each(paths, &Uploads.remove/1)
+          _ = Posts.sync_thread_metrics(board, post.thread_id || post.id, repo: repo)
+          _ = Build.rebuild_after_post_update(board, post, config: config, repo: repo)
+        end
+
+        {:ok, Map.delete(result, :file_paths)}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp unwrap_moderation_result!({:ok, value}, _repo), do: value
+  defp unwrap_moderation_result!({:error, reason}, repo), do: repo.rollback(reason)
+
+  defp mark_post_files_deleted!(post, repo) do
+    with {:ok, updated_post} <-
+           post |> Post.create_changeset(deleted_file_attrs(post)) |> repo.update(),
+         :ok <- mark_extra_files_deleted(post.id, repo) do
+      repo.preload(updated_post, :extra_files, force: true)
+    else
+      {:error, reason} -> repo.rollback(reason)
     end
   end
 
@@ -766,6 +864,10 @@ defmodule Eirinchan.Posts.Moderation do
   defp primary_file_delete_paths(%Post{} = post) do
     [post.file_path, post.thumb_path]
     |> Enum.filter(&path_present?/1)
+  end
+
+  defp attached_file_delete_paths(post) do
+    primary_file_delete_paths(post) ++ Enum.flat_map(post.extra_files, &file_delete_paths/1)
   end
 
   defp file_delete_paths(file) do

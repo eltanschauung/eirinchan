@@ -83,6 +83,22 @@ IP enforcement is disabled. Passing a proof-of-work challenge or logging in as
 a moderator does not bypass this requirement. Public feedback receipts do not
 expose moderation-queue entry IDs.
 
+## B24 moderation evidence
+
+The B24 post control creates a global subnet ban and deletes that post's attached
+files (not its text or other posts). It records a private `moderation_post_events`
+row with the stored poster IP, banned subnet, board/public post ID, moderator,
+ban ID, timestamp, and active file count. The `files` JSON array preserves each
+attachment's position, original filename, MD5 and byte size before deletion;
+already deleted files are excluded and text-only posts have an empty array.
+Missing legacy metadata remains null. Media bytes and post bodies are not copied.
+
+The ban, evidence, and file-deletion markers share one database transaction;
+filesystem removal follows commit. Evidence survives subsequent post, board,
+ban or moderator deletion, has no public endpoint, and is not removed by the
+ordinary access/moderation-log retention job. Treat this table and its database
+backups as private IP-bearing data and apply an appropriate retention policy.
+
 ## Security
 
 This software has been heavily pentested by GPT 5.6 Pro in software-side and live environments. This software is not subject to CSRF vulnerability recently found in Vichan.

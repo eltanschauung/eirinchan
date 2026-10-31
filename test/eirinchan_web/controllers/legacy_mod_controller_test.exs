@@ -109,7 +109,7 @@ defmodule EirinchanWeb.LegacyModControllerTest do
     thread = thread_fixture(board)
 
     Repo.update_all(from(p in Eirinchan.Posts.Post, where: p.id == ^thread.id),
-      set: [ip_subnet: "99.254.181.161"]
+      set: [ip_subnet: "198.51.100.161"]
     )
 
     conn = login_moderator(conn, moderator)
@@ -124,7 +124,90 @@ defmodule EirinchanWeb.LegacyModControllerTest do
 
     [ban] = Eirinchan.Bans.list_bans()
     assert ban.board_id == nil
-    assert ban.ip_subnet == "99.254.181.0/24"
+    assert ban.ip_subnet == "198.51.100.0/24"
+    event = Repo.one!(Eirinchan.Moderation.PostEvent)
+    assert event.ip_subnet == "198.51.100.161"
+    assert event.banned_subnet == ban.ip_subnet
+    assert event.ban_id == ban.id
+    assert event.mod_user_id == moderator.id
+    assert event.file_count == 0
+    assert event.files == []
+  end
+
+  test "legacy B24 logs all selected attachments and preserves reply media", %{conn: conn} do
+    moderator = moderator_fixture(%{role: "admin"})
+    board = board_fixture()
+
+    thread =
+      thread_fixture(board, %{
+        files: [upload_fixture("first.png", "first"), upload_fixture("second.gif", "second")]
+      })
+
+    reply = reply_fixture(board, thread, %{file: upload_fixture("reply.png", "reply")})
+
+    Repo.update_all(from(p in Eirinchan.Posts.Post, where: p.id == ^thread.id),
+      set: [ip_subnet: "192.0.2.25"]
+    )
+
+    conn = login_moderator(conn, moderator)
+    path = "#{board.uri}/ban24/#{thread.public_id}"
+    response = get(conn, "/mod.php?/#{path}/#{signed_token(conn, path)}")
+    assert redirected_to(response) == "/#{board.uri}"
+
+    event = Repo.one!(Eirinchan.Moderation.PostEvent)
+    assert event.file_count == 2
+
+    assert Enum.map(event.files, &{&1.position, &1.file_name, &1.file_md5, &1.file_size}) ==
+             [{0, thread.file_name, thread.file_md5, thread.file_size}] ++
+               Enum.map(
+                 thread.extra_files,
+                 &{&1.position, &1.file_name, &1.file_md5, &1.file_size}
+               )
+
+    assert {:ok, updated} = Posts.get_post(board, thread.public_id)
+    assert updated.body == thread.body
+    assert updated.file_path == "deleted"
+    assert Enum.all?(updated.extra_files, &(&1.file_path == "deleted"))
+    refute File.exists?(Eirinchan.Uploads.filesystem_path(thread.file_path))
+
+    for file <- thread.extra_files,
+        do: refute(File.exists?(Eirinchan.Uploads.filesystem_path(file.file_path)))
+
+    assert File.exists?(Eirinchan.Uploads.filesystem_path(reply.file_path))
+    assert File.exists?(Eirinchan.Uploads.filesystem_path(reply.thumb_path))
+  end
+
+  test "B24 rejects missing IPs, invalid tokens and non-admin callers without evidence", %{
+    conn: conn
+  } do
+    board = board_fixture()
+    thread = thread_fixture(board, %{file: upload_fixture("intact.png", "intact")})
+
+    Repo.update_all(from(p in Eirinchan.Posts.Post, where: p.id == ^thread.id),
+      set: [ip_subnet: nil]
+    )
+
+    admin_conn = login_moderator(conn, moderator_fixture(%{role: "admin"}))
+    path = "#{board.uri}/ban24/#{thread.public_id}"
+
+    assert response(
+             get(admin_conn, "/mod.php?/#{path}/#{signed_token(admin_conn, path)}"),
+             400
+           ) =~ "Post has no IP"
+
+    assert response(get(admin_conn, "/mod.php?/#{path}/invalid-token"), 403)
+
+    janitor = moderator_fixture(%{role: "janitor"}) |> grant_board_access_fixture(board)
+    janitor_conn = login_moderator(recycle(conn), janitor)
+
+    assert response(
+             get(janitor_conn, "/mod.php?/#{path}/#{signed_token(janitor_conn, path)}"),
+             403
+           )
+
+    assert Repo.aggregate(Eirinchan.Moderation.PostEvent, :count) == 0
+    assert Eirinchan.Bans.list_bans() == []
+    assert File.exists?(Eirinchan.Uploads.filesystem_path(thread.file_path))
   end
 
   test "legacy deletefile route removes a single file for janitors", %{conn: conn} do
@@ -277,5 +360,4 @@ defmodule EirinchanWeb.LegacyModControllerTest do
       path
     )
   end
-
 end
