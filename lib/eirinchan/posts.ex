@@ -151,7 +151,8 @@ defmodule Eirinchan.Posts do
       {validation_base_us, validation_base_result} =
         timed_continue(thread_guard_result, fn %{attrs: attrs} = context ->
           with :ok <- PostsValidation.validate_body(op?, attrs, config),
-               :ok <- PostsValidation.validate_body_limits(attrs, config) do
+               :ok <- PostsValidation.validate_body_limits(attrs, config),
+               {:ok, _poll} <- Eirinchan.Polls.Command.parse(Map.get(attrs, "body")) do
             {:ok, context}
           end
         end)
@@ -190,9 +191,9 @@ defmodule Eirinchan.Posts do
 
       {antispam_us, antispam_result} =
         timed_continue(metadata_result, fn %{attrs: attrs} = context ->
-          case Antispam.check_post(board, attrs, request, config, repo: repo) do
-            :ok -> {:ok, context}
-            error -> error
+          with :ok <- Eirinchan.Polls.check_creation(attrs, request, config, repo),
+               :ok <- Antispam.check_post(board, attrs, request, config, repo: repo) do
+            {:ok, context}
           end
         end)
 
@@ -802,7 +803,8 @@ defmodule Eirinchan.Posts do
     attrs = normalize_attrs(attrs)
 
     with {:ok, post} <- get_post(board, post_id, repo: repo),
-         {:ok, attrs} <- normalize_moderation_post_update(post, attrs, config) do
+         {:ok, attrs} <- normalize_moderation_post_update(post, attrs, config),
+         :ok <- Eirinchan.Polls.validate_edit(post, attrs) do
       case repo.transaction(fn ->
              with {:ok, updated_post} <-
                     post
@@ -1509,7 +1511,7 @@ defmodule Eirinchan.Posts do
       |> normalize_post_text(config)
 
     with {:ok, attrs} <- PostsFlags.normalize(attrs, config, request) do
-      {:ok, attrs}
+      Eirinchan.Polls.attach(attrs)
     end
   end
 

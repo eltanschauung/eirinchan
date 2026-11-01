@@ -284,6 +284,13 @@ defmodule EirinchanWeb.Router do
     post "/post", PostController, :create_json
   end
 
+  scope "/api/polls", EirinchanWeb do
+    pipe_through :api
+
+    get "/state", PollController, :state
+    post "/:post_id/vote", PollController, :vote
+  end
+
   # Uploaded files are already guarded by the endpoint's host, IP-access, and
   # access-log plugs. Keep them out of the HTML browser pipeline so each image
   # request does not perform session, identity, moderator, theme, and board work.

@@ -1081,6 +1081,43 @@ defmodule EirinchanWeb.PostComponents do
       (PostView.public_gap_warning_html(assigns.post, assigns.config) || "")
   end
 
+  attr :asset_version, :any, default: nil
+
+  def poll_assets(assigns) do
+    ~H"""
+    <link rel="stylesheet" href={EirinchanWeb.Layouts.versioned_asset("/stylesheets/polls.css", @asset_version)} />
+    <script defer src={EirinchanWeb.Layouts.versioned_asset("/js/polls.js", @asset_version)}></script>
+    """
+  end
+
+  def poll_assets_html(assigns) do
+    assigns |> with_component_assigns() |> poll_assets() |> to_iodata() |> IO.iodata_to_binary()
+  end
+
+  attr :post, :map, required: true
+
+  def poll(assigns) do
+    ~H"""
+    <section class="post-poll" data-poll-post-id={@post.id} aria-label="Poll">
+      <div class="poll-question">{@post.poll_question}</div>
+      <div class="poll-options" role="group" aria-label={@post.poll_question}>
+        <label :for={{option, choice} <- Enum.with_index(@post.poll_options)} class="poll-option">
+          <input type="radio" name={"poll-#{@post.id}"} value={choice} />
+          <span>{option}</span>
+        </label>
+        <button type="button" class="poll-vote">Vote</button>
+      </div>
+      <div class="poll-results" aria-live="polite" hidden></div>
+      <p class="poll-status" role="status" aria-live="polite"></p>
+      <noscript>JavaScript is required to vote and view results.</noscript>
+    </section>
+    """
+  end
+
+  def poll_html(assigns) do
+    assigns |> with_component_assigns() |> poll() |> to_iodata() |> IO.iodata_to_binary()
+  end
+
   # Compatibility wrapper for builder/test paths that still consume binary HTML.
   def body_container_html(assigns) do
     assigns

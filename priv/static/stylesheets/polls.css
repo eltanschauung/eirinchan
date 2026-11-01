@@ -1,0 +1,22 @@
+.post-poll {
+  clear: both;
+  box-sizing: border-box;
+  max-width: 32em;
+  margin: .5em 0;
+  padding: .65em;
+  border: 1px solid currentColor;
+  border-radius: .25em;
+  background: transparent;
+  color: inherit;
+  overflow-wrap: anywhere;
+}
+.post-poll [hidden] { display: none !important; }
+.post-poll .poll-question { font-weight: bold; margin-bottom: .5em; }
+.post-poll .poll-option { display: flex; gap: .4em; align-items: baseline; margin: .35em 0; cursor: pointer; }
+.post-poll .poll-option input[type=radio] { flex: none; width: auto; margin: 0; }
+.post-poll .poll-results ol { list-style: none; padding: 0; margin: 0; }
+.post-poll .poll-results li { margin: .6em 0; }
+.post-poll progress { display: block; width: 100%; height: .65em; accent-color: currentColor; }
+.post-poll button { margin-top: .4em; }
+.post-poll .poll-status { margin: .4em 0 0; }
+.post-poll .poll-status:empty { display: none; }

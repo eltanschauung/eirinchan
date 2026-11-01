@@ -131,6 +131,7 @@ defmodule Eirinchan.Runtime.Config do
     allow_roll: false,
     try_smarter: false,
     board_locked: false,
+    max_polls_per_hour: 2,
     strip_combining_chars: false,
     emojis: true,
     wordfilters: [],

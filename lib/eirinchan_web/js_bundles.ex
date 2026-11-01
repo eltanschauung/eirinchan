@@ -91,6 +91,7 @@ defmodule EirinchanWeb.JsBundles do
   # minified public counterparts before constructing the public bundles.
   @maintained_outputs %{
     "assets/app.js" => "assets/js/app.js",
+    "js/polls.js" => "assets/js/polls.js",
     "js/auto-reload.js" => "assets/js/auto-reload.js",
     "js/ajax.js" => "assets/js/ajax.js",
     "js/feedback-submitted.js" => "assets/js/feedback-submitted.js",

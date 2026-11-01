@@ -320,6 +320,17 @@
       ]
     },
     {
+      "label": "maintained:js/polls.js",
+      "output": "priv/static/js/polls.js",
+      "output_bytes": 5635,
+      "public_path": "/js/polls.js",
+      "sha256": "7f5f839658cd2af5c00e433a0311e4b01bc55bae4d81dada2e265ab718e53fcf",
+      "source_bytes": 9553,
+      "sources": [
+        "assets/js/polls.js"
+      ]
+    },
+    {
       "label": "maintained:js/post-actions.js",
       "output": "priv/static/js/post-actions.js",
       "output_bytes": 2971,

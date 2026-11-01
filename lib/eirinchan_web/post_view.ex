@@ -738,10 +738,14 @@ defmodule EirinchanWeb.PostView do
     |> Kernel.||("")
     |> String.replace("\r\n", "\n")
     |> String.replace("\r", "\n")
-    |> html_escape()
-    |> safe_to_string()
     |> String.split("\n", trim: false)
-    |> Enum.map(&format_body_line(&1, board, thread, config, opts))
+    |> Enum.map(fn line ->
+      if Eirinchan.Polls.poll?(post) and Eirinchan.Polls.Command.command_line?(line) do
+        EirinchanWeb.PostComponents.poll_html(%{post: post})
+      else
+        line |> html_escape() |> safe_to_string() |> format_body_line(board, thread, config, opts)
+      end
+    end)
   end
 
   def public_ban_message_html(post) do
