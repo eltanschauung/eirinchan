@@ -163,7 +163,9 @@ database dumps or these private values. Ordinary HTTP logging still redacts them
 
 `ipaccess_time` defaults to `0` (disabled). A positive number requires that many
 hours of IP-access authentication before uploading images, including images
-identified after media decoding. Re-authenticating does not restart the wait.
+identified after media decoding. Posts passing the existing flag-length bypass
+(`user_flag` enabled and `ip_nulling_flags` met) skip this wait at both checks,
+even without an IP-access grant. Re-authenticating does not restart the wait.
 Text-only posting retains its usual permissions. Blocked uploads show an alert
 and do not create a post. Each successfully committed post increments the matched
 grant's `post_count`; rejected or rolled-back posts do not. A minute worker prunes

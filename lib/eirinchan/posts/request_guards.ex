@@ -81,7 +81,8 @@ defmodule Eirinchan.Posts.RequestGuards do
   def validate_ipaccess_time(attrs, request, config, opts \\ []) do
     hours = Map.get(config, :ipaccess_time, 0)
 
-    if is_integer(hours) and hours > 0 and image_attempt?(attrs) do
+    if is_integer(hours) and hours > 0 and not ip_nulling_flag_bypass?(attrs, config) and
+         image_attempt?(attrs) do
       repo = Keyword.get(opts, :repo, Repo)
 
       seconds =
