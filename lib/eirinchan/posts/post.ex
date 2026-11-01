@@ -10,6 +10,7 @@ defmodule Eirinchan.Posts.Post do
     field :subject, :string
     field :password, :string
     field :body, :string
+    field :user_agent, :string
     field :poll_question, :string
     field :poll_options, {:array, :string}, default: []
     field :embed, :string
@@ -63,6 +64,7 @@ defmodule Eirinchan.Posts.Post do
       :subject,
       :password,
       :body,
+      :user_agent,
       :poll_question,
       :poll_options,
       :embed,

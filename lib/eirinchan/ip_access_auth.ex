@@ -2,7 +2,6 @@ defmodule Eirinchan.IpAccessAuth do
   @moduledoc false
 
   alias Eirinchan.AccessList
-  alias Eirinchan.CredentialHash
   alias Eirinchan.IpMatching
 
   @default_passwords []
@@ -78,9 +77,9 @@ defmodule Eirinchan.IpAccessAuth do
     request_path == auth_path(config)
   end
 
-  def authorize(ip, password, config \\ %{})
+  def authorize(ip, password, config \\ %{}, opts \\ [])
 
-  def authorize(ip, password, config) when is_binary(password) do
+  def authorize(ip, password, config, opts) when is_binary(password) do
     config = effective_config(config)
     normalized_password = password |> String.trim() |> String.downcase()
     passwords = normalized_passwords(Map.get(config, :passwords, @default_passwords))
@@ -92,11 +91,15 @@ defmodule Eirinchan.IpAccessAuth do
       passwords == [] ->
         {:error, :invalid_password}
 
-      not Enum.any?(passwords, &CredentialHash.verify(normalized_password, &1, :ip_access)) ->
+      not Enum.any?(
+        passwords,
+        &(byte_size(normalized_password) == byte_size(&1) and
+              Plug.Crypto.secure_compare(normalized_password, &1))
+      ) ->
         {:error, :invalid_password}
 
       true ->
-        do_authorize(ip, normalized_password, config)
+        do_authorize(ip, String.trim(password), config, opts)
     end
   end
 
@@ -116,11 +119,13 @@ defmodule Eirinchan.IpAccessAuth do
     end
   end
 
-  defp do_authorize(ip, normalized_password, config) do
+  defp do_authorize(ip, password, config, opts) do
     with {:ok, subnet} <- subnet_for_ip(ip),
          {:ok, _entry} <-
-           AccessList.record_access(subnet, normalized_password,
-             grant_ttl_hours: config.grant_ttl_hours
+           AccessList.record_access(
+             subnet,
+             password,
+             Keyword.put(opts, :grant_ttl_hours, config.grant_ttl_hours)
            ) do
       {:ok, %{subnet: subnet}}
     else
@@ -215,9 +220,8 @@ defmodule Eirinchan.IpAccessAuth do
       |> String.split(",", trim: true)
       |> Enum.map(&String.trim/1)
       |> Enum.reject(&(&1 == ""))
-      |> Enum.map(fn password ->
-        if CredentialHash.encoded?(password), do: password, else: String.downcase(password)
-      end)
+      |> Enum.reject(&String.starts_with?(&1, "hmac-sha256:v1:"))
+      |> Enum.map(&String.downcase/1)
       |> Enum.uniq()
 
     passwords

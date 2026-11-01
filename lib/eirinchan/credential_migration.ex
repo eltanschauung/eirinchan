@@ -73,37 +73,33 @@ defmodule Eirinchan.CredentialMigration do
     end
   end
 
-  defp migrate_access_credentials(repo) do
-    access_entries = repo.all(IpAccessEntry)
+  defp migrate_access_credentials(repo), do: restore_ip_access_passwords(repo: repo)
 
-    migrated_access_entries =
-      Enum.map(access_entries, fn entry ->
-        password = migrate_access_password(entry.password)
-        %{ip: entry.ip, password: password, granted_at: entry.granted_at}
+  def restore_ip_access_passwords(opts \\ []) do
+    repo = Keyword.get(opts, :repo, Repo)
+
+    known =
+      Keyword.get_lazy(opts, :passwords, fn ->
+        Settings.current_instance_config()
+        |> Map.get(:ip_access_passwords, [])
+        |> then(&Eirinchan.IpAccessAuth.effective_config(%{passwords: &1}).passwords)
       end)
 
-    access_count =
-      Enum.count(Enum.zip(access_entries, migrated_access_entries), fn {old, new} ->
-        old.password != new.password
-      end)
+    repo.all(from entry in IpAccessEntry, select: {entry.ip, entry.password})
+    |> Enum.reduce(0, fn {ip, stored}, count ->
+      if is_binary(stored) and CredentialHash.encoded?(stored) do
+        # Verification is used only to recover an old value from known private
+        # originals. Unrecoverable metadata is cleared, not kept as an ID.
+        plain = Enum.find(known, &CredentialHash.verify(String.downcase(&1), stored, :ip_access))
 
-    if access_count > 0 do
-      repo.delete_all(IpAccessEntry)
-      repo.insert_all(IpAccessEntry, migrated_access_entries)
-    end
+        {changed, _} =
+          repo.update_all(from(e in IpAccessEntry, where: e.ip == ^ip), set: [password: plain])
 
-    access_count
-  end
-
-  defp migrate_access_password(nil), do: nil
-  defp migrate_access_password(""), do: nil
-
-  defp migrate_access_password(password) do
-    if CredentialHash.encoded?(password) do
-      password
-    else
-      password |> String.downcase() |> CredentialHash.hash(:ip_access)
-    end
+        count + changed
+      else
+        count
+      end
+    end)
   end
 
   defp migrate_settings(false), do: {:ok, 0}

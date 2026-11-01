@@ -175,7 +175,7 @@ defmodule EirinchanWeb.PostView do
     fields =
       post
       |> Map.take(Post.__schema__(:fields))
-      |> Map.drop([:password, :ip_subnet, :proxy, :legacy_import_id])
+      |> Map.drop([:password, :ip_subnet, :proxy, :legacy_import_id, :user_agent])
 
     if visible_ip?, do: Map.put(fields, :ip_subnet, post.ip_subnet), else: fields
   end
