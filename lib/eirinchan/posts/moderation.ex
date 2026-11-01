@@ -187,6 +187,7 @@ defmodule Eirinchan.Posts.Moderation do
               board_id: nil,
               mod_user_id: moderator.id,
               ip_subnet: subnet,
+              user_agent: post.user_agent,
               reason:
                 "Subnet ban from post control on /#{board.uri}/ No. #{post.public_id || post.id}",
               active: true
@@ -203,20 +204,31 @@ defmodule Eirinchan.Posts.Moderation do
             file |> Map.take([:file_name, :file_md5, :file_size]) |> Map.put(:position, position)
           end)
 
+        evidence = Eirinchan.AccessList.evidence_for_post(post, config, repo: repo)
+
+        age_at_ban =
+          if evidence.authenticated_at,
+            do: max(DateTime.diff(DateTime.utc_now(), evidence.authenticated_at, :second), 0)
+
         event =
           %PostEvent{}
-          |> PostEvent.changeset(%{
-            action: "ban24",
-            mod_user_id: moderator.id,
-            ban_id: ban.id,
-            post_id: post.id,
-            public_post_id: post.public_id || post.id,
-            board_uri: board.uri,
-            ip_subnet: post.ip_subnet,
-            banned_subnet: subnet,
-            file_count: length(files),
-            files: files
-          })
+          |> PostEvent.changeset(
+            %{
+              action: "ban24",
+              mod_user_id: moderator.id,
+              ban_id: ban.id,
+              post_id: post.id,
+              public_post_id: post.public_id || post.id,
+              board_uri: board.uri,
+              ip_subnet: post.ip_subnet,
+              banned_subnet: subnet,
+              file_count: length(files),
+              files: files
+            }
+            |> Map.merge(evidence)
+            |> Map.put(:auth_age_at_ban_seconds, age_at_ban)
+            |> Map.put(:user_agent, post.user_agent)
+          )
           |> repo.insert()
           |> unwrap_moderation_result!(repo)
 

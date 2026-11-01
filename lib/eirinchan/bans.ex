@@ -112,7 +112,7 @@ defmodule Eirinchan.Bans do
       end
 
     repo.all(query)
-    |> Enum.filter(&ban_matches?(&1, remote_ip))
+    |> Enum.filter(&ban_matches?(&1, remote_ip, Keyword.get(opts, :user_agent)))
   end
 
   @spec active?(Ban.t(), DateTime.t()) :: boolean()
@@ -176,7 +176,7 @@ defmodule Eirinchan.Bans do
           not ban_applies_to_board?(ban, board) ->
             {:error, :not_found}
 
-          not ban_matches?(ban, remote_ip) ->
+          not ban_matches?(ban, remote_ip, Keyword.get(opts, :user_agent)) ->
             {:error, :not_found}
 
           true ->
@@ -335,14 +335,7 @@ defmodule Eirinchan.Bans do
         where: ban.active == true and (is_nil(ban.board_id) or ban.board_id == ^board.id),
         order_by: [desc: ban.inserted_at]
     )
-    |> Enum.find(&ban_matches?(&1, remote_ip))
-    |> case do
-      %Ban{expires_at: %DateTime{} = expires_at} = ban ->
-        if DateTime.compare(expires_at, DateTime.utc_now()) == :gt, do: ban, else: nil
-
-      ban ->
-        ban
-    end
+    |> Enum.find(&(active?(&1) and ban_matches?(&1, remote_ip, Keyword.get(opts, :user_agent))))
   end
 
   @spec purge_expired(keyword()) :: non_neg_integer()
@@ -359,10 +352,17 @@ defmodule Eirinchan.Bans do
     count
   end
 
-  defp ban_matches?(_ban, nil), do: false
-  defp ban_matches?(%Ban{ip_subnet: nil}, _remote_ip), do: false
+  defp ban_matches?(ban, remote_ip, user_agent) do
+    agent = Eirinchan.ClientMetadata.user_agent(user_agent)
 
-  defp ban_matches?(%Ban{ip_subnet: ip_subnet}, remote_ip) do
+    (not is_nil(agent) and not is_nil(ban.user_agent) and agent == ban.user_agent) or
+      ip_ban_matches?(ban, remote_ip)
+  end
+
+  defp ip_ban_matches?(_ban, nil), do: false
+  defp ip_ban_matches?(%Ban{ip_subnet: nil}, _remote_ip), do: false
+
+  defp ip_ban_matches?(%Ban{ip_subnet: ip_subnet}, remote_ip) do
     mask = normalize_ip_mask(ip_subnet)
 
     cond do

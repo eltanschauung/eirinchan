@@ -224,6 +224,11 @@
         <td><input type="text" name="ip_mask" id="ip_mask" size="30" maxlength="128" value={@ban_form["ip_mask"]} /></td>
       </tr>
       <tr>
+        <th><label for="user_agent">User-Agent</label></th>
+        <td><input type="text" name="user_agent" id="user_agent" size="60" maxlength="1024" value={@ban_form["user_agent"]} />
+          <span class="unimportant">Exact match, independent of IP. Blank for IP-only.</span></td>
+      </tr>
+      <tr>
         <th><label for="reason">Reason</label></th>
         <td><textarea name="reason" id="reason" rows="5" cols="30"><%= @ban_form["reason"] %></textarea></td>
       </tr>

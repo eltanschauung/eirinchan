@@ -127,11 +127,49 @@ attachment's position, original filename, MD5 and byte size before deletion;
 already deleted files are excluded and text-only posts have an empty array.
 Missing legacy metadata remains null. Media bytes and post bodies are not copied.
 
+B24 also records the stored User-Agent, associated IP-access password in
+plaintext, authentication timestamp, age in seconds at posting and at banning,
+and two-letter GeoIP country code. Private per-post authentication snapshots
+preserve this evidence if the grant later expires or changes. These snapshots
+are deleted with the post; the B24 event survives deletion. Missing historical
+evidence remains null; a newer grant is never attributed to an older post.
+
 The ban, evidence, and file-deletion markers share one database transaction;
 filesystem removal follows commit. Evidence survives subsequent post, board,
 ban or moderator deletion, has no public endpoint, and is not removed by the
 ordinary access/moderation-log retention job. Treat this table and its database
-backups as private IP-bearing data and apply an appropriate retention policy.
+backups as private identity/password-bearing data and apply an appropriate
+retention policy.
+
+## User-Agent bans and IP-access activity
+
+New post bans prefill both the stored IP and recorded User-Agent. Either target
+independently matches (IP **or** exact, case-sensitive User-Agent) within the
+ban's board scope. The public ban response is unchanged. Clear the User-Agent
+field for an IP-only ban. Common browser User-Agents can match unrelated users;
+this is not a unique device identifier. Older posts without a recorded agent
+leave that field blank rather than guessing. IP-less posts can use an agent-only
+ban. B24 retains its existing requirement for a stored IP/subnet.
+
+IP-access grants store the supplied plaintext password and up to ten distinct
+User-Agents in private database fields. Authentication with the same network and
+password is idempotent: it appends a new agent if space remains, without resetting
+authentication age, expiry or post count. A different password starts a fresh
+grant on the same network row. Legacy HMAC values are recovered only from known
+private plaintext passwords; unmatched password metadata is cleared, not the
+grant. Configured passwords must be plaintext; admin and post-deletion credential
+hashing is unrelated and remains unchanged. Never publish runtime settings,
+database dumps or these private values. Ordinary HTTP logging still redacts them.
+
+`ipaccess_time` defaults to `0` (disabled). A positive number requires that many
+hours of IP-access authentication before uploading images, including images
+identified after media decoding. Re-authenticating does not restart the wait.
+Text-only posting retains its usual permissions. Blocked uploads show an alert
+and do not create a post. Each successfully committed post increments the matched
+grant's `post_count`; rejected or rolled-back posts do not. A minute worker prunes
+grants older than twelve hours with zero posts, as well as normally expired grants.
+Existing grants get a twelve-hour activity-tracking grace period on upgrade;
+historical posts are not scanned or attributed speculatively.
 
 ## Security
 
