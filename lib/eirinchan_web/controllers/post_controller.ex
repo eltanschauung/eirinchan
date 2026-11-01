@@ -450,7 +450,7 @@ defmodule EirinchanWeb.PostController do
     conn = if reason == :media_busy, do: put_resp_header(conn, "retry-after", "2"), else: conn
 
     conn =
-      if reason in [:antispam, :too_many_deletions],
+      if reason in [:antispam, :too_many_deletions, :poll_rate_limited],
         do: Statistics.mark_rate_limited(conn, branch(conn.params)),
         else: conn
 
@@ -834,6 +834,12 @@ defmodule EirinchanWeb.PostController do
   defp error_status(:invalid_referer), do: :forbidden
   defp error_status(:antispam), do: :unprocessable_entity
   defp error_status(:too_many_deletions), do: :too_many_requests
+  defp error_status(:poll_rate_limited), do: :too_many_requests
+
+  defp error_status(reason)
+       when reason in [:invalid_poll, :multiple_polls, :poll_identity_required],
+       do: :unprocessable_entity
+
   defp error_status(:too_many_threads), do: :unprocessable_entity
   defp error_status(:toomanylinks), do: :unprocessable_entity
   defp error_status(:toomanycites), do: :unprocessable_entity
@@ -875,6 +881,20 @@ defmodule EirinchanWeb.PostController do
   defp error_status(:changeset), do: :unprocessable_entity
 
   defp error_message(:thread_not_found, _config), do: "Thread not found"
+
+  defp error_message(:poll_rate_limited, config),
+    do:
+      "Poll creation is limited to #{Map.get(config, :max_polls_per_hour, 2)} per hour. Please try again later."
+
+  defp error_message(:invalid_poll, _config),
+    do:
+      "Use /poll followed by a question (up to 300 characters) and 2–6 distinct options (up to 200 characters each). Put text containing spaces in double quotes."
+
+  defp error_message(:multiple_polls, _config), do: "Only one poll is allowed per post."
+
+  defp error_message(:poll_identity_required, _config),
+    do: "A client address is required to create a poll."
+
   defp error_message(:post_not_found, _config), do: "Post not found"
 
   defp error_message(:ipaccess, config),

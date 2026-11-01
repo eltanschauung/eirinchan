@@ -15,6 +15,8 @@ defmodule Eirinchan.Antispam.PublicActivityPolicy do
       "search" -> search_limits(config)
       "feedback" -> feedback_limits(config)
       "post_delete" -> post_delete_limits(config)
+      "poll_create" -> identity_limits(configured_count(config, :max_polls_per_hour, 2), 3_600)
+      "poll_vote" -> identity_limits(30, 60)
       other -> raise ArgumentError, "no public activity rate-limit policy for #{inspect(other)}"
     end
   end
@@ -88,6 +90,20 @@ defmodule Eirinchan.Antispam.PublicActivityPolicy do
         per_browser_window_seconds: 60 * 60,
         per_client_count: count,
         per_client_window_seconds: 60 * 60,
+        global_count: 0
+      ]
+    ]
+  end
+
+  defp identity_limits(count, seconds) do
+    [
+      [
+        per_ip_count: count,
+        per_ip_window_seconds: seconds,
+        per_browser_count: count,
+        per_browser_window_seconds: seconds,
+        per_client_count: count,
+        per_client_window_seconds: seconds,
         global_count: 0
       ]
     ]

@@ -10,6 +10,8 @@ defmodule Eirinchan.Posts.Post do
     field :subject, :string
     field :password, :string
     field :body, :string
+    field :poll_question, :string
+    field :poll_options, {:array, :string}, default: []
     field :embed, :string
     field :flag_codes, {:array, :string}, default: []
     field :flag_alts, {:array, :string}, default: []
@@ -61,6 +63,8 @@ defmodule Eirinchan.Posts.Post do
       :subject,
       :password,
       :body,
+      :poll_question,
+      :poll_options,
       :embed,
       :flag_codes,
       :flag_alts,
@@ -106,6 +110,7 @@ defmodule Eirinchan.Posts.Post do
     |> validate_required([:board_id])
     |> foreign_key_constraint(:board_id)
     |> foreign_key_constraint(:thread_id)
+    |> check_constraint(:poll_question, name: :posts_poll_shape)
   end
 
   def thread_state_changeset(post, attrs) do

@@ -465,7 +465,7 @@ defmodule Eirinchan.Build do
     """
     <!doctype html>
     <html>
-    <head><meta charset="utf-8"><title>/#{html_escape(board.uri)}/ - #{html_escape(board.title)}</title></head>
+    <head><meta charset="utf-8"><title>/#{html_escape(board.uri)}/ - #{html_escape(board.title)}</title>#{poll_assets(config)}</head>
     <body>
     <h1>/#{html_escape(board.uri)}/ - #{html_escape(board.title)}</h1>
     #{boardlist}
@@ -502,7 +502,7 @@ defmodule Eirinchan.Build do
     """
     <!doctype html>
     <html>
-    <head><meta charset="utf-8"><title>/#{html_escape(board.uri)}/ - #{html_escape(PostView.post_title(board, summary.thread, config))}</title></head>
+    <head><meta charset="utf-8"><title>/#{html_escape(board.uri)}/ - #{html_escape(PostView.post_title(board, summary.thread, config))}</title>#{poll_assets(config)}</head>
     <body>
     <article id="p#{PublicIds.public_id(summary.thread)}">
     <h1>/#{html_escape(board.uri)}/ - #{html_escape(PostView.post_title(board, summary.thread, config))}</h1>
@@ -550,7 +550,7 @@ defmodule Eirinchan.Build do
     """
     <!doctype html>
     <html>
-    <head><meta charset="utf-8"><title>/#{html_escape(board.uri)}/ - #{html_escape(board.title)} catalog</title></head>
+    <head><meta charset="utf-8"><title>/#{html_escape(board.uri)}/ - #{html_escape(board.title)} catalog</title>#{poll_assets(config)}</head>
     <body>
     <h1>/#{html_escape(board.uri)}/ - #{html_escape(board.title)}</h1>
     <p><a href="/#{html_escape(board.uri)}">Return</a></p>
@@ -578,6 +578,10 @@ defmodule Eirinchan.Build do
       {:error, :not_found} ->
         []
     end
+  end
+
+  defp poll_assets(config) do
+    PostComponents.poll_assets_html(%{asset_version: Map.get(config, :asset_version)})
   end
 
   defp render_catalog_pages(page_data) do

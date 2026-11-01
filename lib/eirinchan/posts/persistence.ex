@@ -69,7 +69,8 @@ defmodule Eirinchan.Posts.Persistence do
                       upload_attempt?
                     ) do
                  :ok ->
-                   with {:ok, attrs} <- allocate_public_id(locked_board, attrs, repo),
+                   with :ok <- Eirinchan.Polls.reserve_creation(attrs, request, config, repo),
+                        {:ok, attrs} <- allocate_public_id(locked_board, attrs, repo),
                         {:ok, post} <- insert_post(locked_board, thread, attrs, repo, config, now),
                         {:ok, post} <- maybe_assign_poster_id(post, attrs, repo, config),
                         {:ok, post} <-

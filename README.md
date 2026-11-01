@@ -83,6 +83,40 @@ IP enforcement is disabled. Passing a proof-of-work challenge or logging in as
 a moderator does not bypass this requirement. Public feedback receipts do not
 expose moderation-queue entry IDs.
 
+## Post polls
+
+Put one `/poll` command on its own line in a new post or reply:
+
+```text
+Text above the poll.
+/poll "What's the meaning of life?" "This is option 1" option2 "Option three" option4 option5
+Text below the poll.
+```
+
+Use double quotes around arguments containing spaces; `\"` and `\\` escape a
+quote or backslash inside quoted arguments. A poll has one question (maximum
+300 characters) and 2–6 distinct choices (maximum 200 characters each).
+Other lines retain the normal post formatting. Malformed commands are rejected,
+not published as a partially working poll. Polls require JavaScript for voting.
+
+`max_polls_per_hour` defaults to **2**, in a rolling hour shared across all boards,
+using the existing IP/browser/client rate-limit identities. Successful poll
+creation and its allowance are committed together; deleting the post does not
+reset the allowance. All normal posting, upload and spam checks still apply.
+The same limiter also caps new votes at 30 per minute per identity.
+
+Polls are single-choice and cannot be changed after creation; moderators can
+edit surrounding text or delete the post. Each IP/browser may vote once per
+poll, with database uniqueness enforcing concurrent submissions. Shared IPs
+share a vote; this is anonymous abuse resistance, not proof of unique people.
+Retries never change an existing vote. Vote receipts use per-poll keyed hashes,
+not raw IPs or browser tokens. Votes follow moved posts and disappear when the
+post is deleted. Creation uses the normal short-lived activity tracker.
+
+Results and totals are returned only after the requesting identity has voted.
+They are fetched through private, non-cacheable JSON, never embedded in shared
+post HTML or fragment caches. Results can be refreshed with **Refresh results**.
+
 ## B24 moderation evidence
 
 The B24 post control creates a global subnet ban and deletes that post's attached

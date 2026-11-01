@@ -21,6 +21,7 @@
       <meta property="og:description" content={description} />
     <% end %>
     <meta name="csrf-token" content={get_csrf_token()} />
+    <EirinchanWeb.PostComponents.poll_assets asset_version={assigns[:asset_version]} />
     <link
       :if={assigns[:base_stylesheet]}
       rel="stylesheet"
