@@ -10,6 +10,7 @@ defmodule Eirinchan.Posts.Metadata do
       attrs
       |> normalize_post_identity(config)
       |> put_request_ip(request)
+      |> Map.put("user_agent", Eirinchan.ClientMetadata.user_agent(request[:user_agent]))
 
     with {:ok, attrs} <- normalize_post_tag(attrs, config, op?),
          {:ok, attrs} <- normalize_proxy(attrs, config, request),

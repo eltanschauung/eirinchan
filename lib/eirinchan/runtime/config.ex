@@ -296,6 +296,7 @@ defmodule Eirinchan.Runtime.Config do
     ipaccess: false,
     ipaccess_replies: false,
     ipaccess_imagelim: 0,
+    ipaccess_time: 0,
     country_flags: false,
     allow_no_country: false,
     country_flags_condensed: true,

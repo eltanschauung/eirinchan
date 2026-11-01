@@ -78,6 +78,34 @@ defmodule Eirinchan.Posts.RequestGuards do
     end
   end
 
+  def validate_ipaccess_time(attrs, request, config, opts \\ []) do
+    hours = Map.get(config, :ipaccess_time, 0)
+
+    if is_integer(hours) and hours > 0 and image_attempt?(attrs) do
+      repo = Keyword.get(opts, :repo, Repo)
+
+      seconds =
+        if Keyword.has_key?(opts, :grant),
+          do: AccessList.grant_age_seconds(Keyword.get(opts, :grant), repo),
+          else:
+            AccessList.authentication_age_seconds(request[:remote_ip] || request["remote_ip"],
+              repo: repo
+            )
+
+      if is_integer(seconds) and seconds >= hours * 3600, do: :ok, else: {:error, :ipaccess_time}
+    else
+      :ok
+    end
+  end
+
+  defp image_attempt?(attrs) do
+    uploaded_image?(attrs) or
+      Enum.any?(Eirinchan.Posts.UploadPreparation.uploads(attrs), fn upload ->
+        String.starts_with?(upload.content_type || "", "image/") or
+          String.downcase(Path.extname(upload.filename || "")) in ~w(.png .jpg .jpeg .gif .webp .bmp .avif .heic .heif)
+      end)
+  end
+
   def validate_dnsbl(attrs, request, config) do
     cond do
       not Map.get(config, :use_dnsbl, true) ->
@@ -175,7 +203,9 @@ defmodule Eirinchan.Posts.RequestGuards do
     if moderator_board_access?(request, board) do
       :ok
     else
-      if Bans.active_ban_for_request(board, request[:remote_ip] || request["remote_ip"]) do
+      if Bans.active_ban_for_request(board, request[:remote_ip] || request["remote_ip"],
+           user_agent: request[:user_agent]
+         ) do
         {:error, :banned}
       else
         :ok

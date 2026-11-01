@@ -2,11 +2,14 @@ defmodule Eirinchan.Moderation.PostEvent do
   @moduledoc """
   Private, durable metadata for B24 bans and attachment deletions.
 
-  No post body, media bytes, credentials, or public serialization is retained.
-  File metadata is captured before deletion; previously deleted files are excluded.
+  No post body, media bytes, or public serialization is retained. Private audit
+  fields intentionally retain the associated plaintext IP-access password,
+  authentication age, User-Agent and GeoIP country. File metadata is captured
+  before deletion; previously deleted files are excluded.
   """
   use Ecto.Schema
   import Ecto.Changeset
+  @derive {Inspect, except: [:auth_password, :ip_subnet, :user_agent]}
 
   schema "moderation_post_events" do
     field :action, :string
@@ -16,6 +19,12 @@ defmodule Eirinchan.Moderation.PostEvent do
     field :ip_subnet, :string
     field :banned_subnet, :string
     field :file_count, :integer
+    field :user_agent, :string
+    field :auth_password, :string
+    field :authenticated_at, :utc_datetime_usec
+    field :auth_age_seconds, :integer
+    field :auth_age_at_ban_seconds, :integer
+    field :country_code, :string
 
     embeds_many :files, FileSnapshot, primary_key: false do
       field :position, :integer
@@ -39,6 +48,12 @@ defmodule Eirinchan.Moderation.PostEvent do
       :ip_subnet,
       :banned_subnet,
       :file_count,
+      :user_agent,
+      :auth_password,
+      :authenticated_at,
+      :auth_age_seconds,
+      :auth_age_at_ban_seconds,
+      :country_code,
       :mod_user_id,
       :ban_id
     ])

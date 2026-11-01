@@ -383,6 +383,7 @@ defmodule EirinchanWeb.ManagePageController do
            Bans.update_ban(ban, %{
              board_id: target_board_id,
              ip_subnet: Map.get(params, "ip_mask", ban.ip_subnet),
+             user_agent: Map.get(params, "user_agent", ban.user_agent),
              reason: params["reason"],
              length: params["length"],
              active: true
@@ -1368,7 +1369,7 @@ defmodule EirinchanWeb.ManagePageController do
       board_ids = Enum.map(boards, & &1.id)
       posts = Moderation.list_ip_posts(decoded_ip, board_ids: board_ids)
       config = Settings.current_instance_config()
-      ban_form = ip_ban_form_params(decoded_ip, nil, params)
+      ban_form = ip_ban_form_params(decoded_ip, nil, params, posts)
       matching_bans = Bans.list_matching_bans(decoded_ip, board_ids: board_ids)
       edit_ban = selected_ip_ban(matching_bans, params)
       ban_form = maybe_apply_edit_ban(ban_form, edit_ban)
@@ -1412,7 +1413,7 @@ defmodule EirinchanWeb.ManagePageController do
       edit_ban = selected_ip_ban(matching_bans, params)
 
       ban_form =
-        ip_ban_form_params(decoded_ip, board.uri, params) |> maybe_apply_edit_ban(edit_ban)
+        ip_ban_form_params(decoded_ip, board.uri, params, posts) |> maybe_apply_edit_ban(edit_ban)
 
       render(conn, :ip_history,
         moderator: moderator,
@@ -1631,6 +1632,7 @@ defmodule EirinchanWeb.ManagePageController do
              board_id: target_board_id,
              mod_user_id: moderator.id,
              ip_subnet: Map.get(params, "ip_mask", ip),
+             user_agent: Map.get(params, "user_agent"),
              reason: params["reason"],
              length: params["length"],
              active: true
@@ -1672,6 +1674,7 @@ defmodule EirinchanWeb.ManagePageController do
            Bans.update_ban(ban, %{
              board_id: target_board_id,
              ip_subnet: Map.get(params, "ip_mask", ban.ip_subnet),
+             user_agent: Map.get(params, "user_agent", ban.user_agent),
              reason: params["reason"],
              length: params["length"],
              active: true
@@ -1749,6 +1752,7 @@ defmodule EirinchanWeb.ManagePageController do
              board_id: target_board_id,
              mod_user_id: moderator.id,
              ip_subnet: Map.get(params, "ip_mask", ip),
+             user_agent: Map.get(params, "user_agent"),
              reason: params["reason"],
              length: params["length"],
              active: true
@@ -1797,6 +1801,7 @@ defmodule EirinchanWeb.ManagePageController do
            Bans.update_ban(ban, %{
              board_id: target_board_id,
              ip_subnet: Map.get(params, "ip_mask", ban.ip_subnet),
+             user_agent: Map.get(params, "user_agent", ban.user_agent),
              reason: params["reason"],
              length: params["length"],
              active: true
@@ -2032,6 +2037,7 @@ defmodule EirinchanWeb.ManagePageController do
               else: ""
             ),
           "reason" => Map.get(params, "reason", ""),
+          "user_agent" => Map.get(params, "user_agent", post.user_agent || ""),
           "public_message" => Map.get(params, "public_message", "0"),
           "message" => Map.get(params, "message", "USER WAS BANNED FOR THIS POST"),
           "length" => Map.get(params, "length", ""),
@@ -2066,6 +2072,7 @@ defmodule EirinchanWeb.ManagePageController do
              board_id: target_board_id,
              mod_user_id: moderator.id,
              ip_subnet: Map.get(params, "ip", post.ip_subnet),
+             user_agent: Map.get(params, "user_agent", post.user_agent),
              reason: params["reason"],
              length: params["length"],
              active: true
@@ -3270,13 +3277,24 @@ defmodule EirinchanWeb.ManagePageController do
     Enum.find(bans, &(&1.id == selected_id))
   end
 
-  defp ip_ban_form_params(decoded_ip, default_board_uri, params) do
+  defp ip_ban_form_params(decoded_ip, default_board_uri, params, posts) do
     %{
       "ip_mask" => Map.get(params, "ip_mask", IpCrypt.cloak_ip(decoded_ip)),
+      "user_agent" => Map.get(params, "user_agent", unique_recorded_agent(posts)),
       "reason" => Map.get(params, "reason", ""),
       "length" => Map.get(params, "length", ""),
       "board" => Map.get(params, "board", default_board_uri || "*")
     }
+  end
+
+  defp unique_recorded_agent(posts) do
+    case posts
+         |> Enum.map(&Map.get(&1, :user_agent))
+         |> Enum.reject(&(&1 in [nil, ""]))
+         |> Enum.uniq() do
+      [agent] -> agent
+      _ -> ""
+    end
   end
 
   defp maybe_apply_edit_ban(params, nil), do: params
@@ -3284,6 +3302,7 @@ defmodule EirinchanWeb.ManagePageController do
   defp maybe_apply_edit_ban(_params, ban) do
     %{
       "ip_mask" => IpCrypt.cloak_ip(ban.ip_subnet),
+      "user_agent" => ban.user_agent || "",
       "reason" => ban.reason || "",
       "length" => "",
       "board" =>
@@ -3525,6 +3544,7 @@ defmodule EirinchanWeb.ManagePageController do
             else: ""
           ),
         "reason" => Map.get(params, "reason", ""),
+        "user_agent" => Map.get(params, "user_agent", post.user_agent || ""),
         "public_message" => Map.get(params, "public_message", "0"),
         "message" => Map.get(params, "message", "USER WAS BANNED FOR THIS POST"),
         "length" => Map.get(params, "length", ""),
@@ -3625,6 +3645,7 @@ defmodule EirinchanWeb.ManagePageController do
           can_manage_global_bans?: can_manage_global_bans?(moderator),
           ban_form: %{
             "ip_mask" => Map.get(params, "ip_mask", IpCrypt.cloak_ip(ban.ip_subnet)),
+            "user_agent" => Map.get(params, "user_agent", ban.user_agent || ""),
             "reason" => Map.get(params, "reason", ban.reason || ""),
             "length" => Map.get(params, "length", ""),
             "board" => Map.get(params, "board", if(ban.board, do: ban.board.uri, else: "*"))

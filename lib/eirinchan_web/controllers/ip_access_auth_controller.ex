@@ -37,7 +37,11 @@ defmodule EirinchanWeb.IpAccessAuthController do
     case IpAccessAuthThrottle.acquire(ip, config) do
       {:ok, lease} ->
         try do
-          result = IpAccessAuth.authorize(ip, password, config)
+          result =
+            IpAccessAuth.authorize(ip, password, config,
+              user_agent: conn |> get_req_header("user-agent") |> List.first()
+            )
+
           handle_authorization(conn, result, config, ip, password)
         after
           IpAccessAuthThrottle.release(lease)

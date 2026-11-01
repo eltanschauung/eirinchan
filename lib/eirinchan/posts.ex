@@ -175,9 +175,10 @@ defmodule Eirinchan.Posts do
 
       {upload_preflight_us, upload_preflight_result} =
         timed_continue(dnsbl_result, fn %{attrs: attrs} = context ->
-          case PostsValidation.validate_upload_preflight(op?, attrs, config, request) do
-            :ok -> {:ok, context}
-            error -> error
+          with :ok <- PostsValidation.validate_upload_preflight(op?, attrs, config, request),
+               :ok <-
+                 PostsRequestGuards.validate_ipaccess_time(attrs, request, config, repo: repo) do
+            {:ok, context}
           end
         end)
 

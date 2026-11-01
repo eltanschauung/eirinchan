@@ -20,6 +20,7 @@ defmodule EirinchanWeb.BanManagementJSON do
           else: nil
         ),
       reason: ban.reason,
+      user_agent: if(PostView.can_view_ip?(moderator, board), do: ban.user_agent, else: nil),
       expires_at: ban.expires_at,
       active: ban.active
     }

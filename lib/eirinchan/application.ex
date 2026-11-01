@@ -30,6 +30,7 @@ defmodule Eirinchan.Application do
         statistics_snapshot_worker(),
         global_message_refresh_worker(),
         maintenance_worker(),
+        access_list_pruner(),
         health_log_worker(),
         EirinchanWeb.Endpoint
       ]
@@ -44,6 +45,11 @@ defmodule Eirinchan.Application do
   defp maintenance_worker do
     if Application.get_env(:eirinchan, :start_maintenance_worker, true),
       do: Eirinchan.MaintenanceWorker
+  end
+
+  defp access_list_pruner do
+    if Application.get_env(:eirinchan, :start_maintenance_worker, true),
+      do: Eirinchan.AccessListPruner
   end
 
   defp access_log_worker do

@@ -36,6 +36,7 @@ defmodule EirinchanWeb.BanManagementController do
              board_id: board.id,
              mod_user_id: conn.assigns.current_moderator.id,
              ip_subnet: params["ip_subnet"],
+             user_agent: params["user_agent"],
              reason: params["reason"],
              expires_at: params["expires_at"],
              length: params["length"],
@@ -65,7 +66,14 @@ defmodule EirinchanWeb.BanManagementController do
          {:ok, ban} <-
            Bans.update_ban(
              ban,
-             Map.take(params, ["ip_subnet", "reason", "expires_at", "length", "active"])
+             Map.take(params, [
+               "ip_subnet",
+               "user_agent",
+               "reason",
+               "expires_at",
+               "length",
+               "active"
+             ])
            ) do
       ModerationAudit.log(
         conn,

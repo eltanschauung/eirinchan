@@ -50,6 +50,7 @@ defmodule EirinchanWeb.PostController do
     request =
       Map.merge(request, %{
         forwarded_for: RequestMeta.forwarded_for(conn),
+        user_agent: conn |> get_req_header("user-agent") |> List.first(),
         moderator: conn.assigns[:current_moderator]
       })
 
@@ -137,7 +138,8 @@ defmodule EirinchanWeb.PostController do
                params,
                board,
                request.remote_ip,
-               config: config
+               config: config,
+               user_agent: request[:user_agent]
              ) do
           {:ok, appeal} ->
             respond_appealed(conn, board, appeal, params, request, config)
@@ -466,9 +468,22 @@ defmodule EirinchanWeb.PostController do
       |> put_status(status)
       |> json(payload)
     else
-      conn
-      |> put_status(status)
-      |> text(message)
+      if reason == :ipaccess_time do
+        assigns =
+          PublicControllerHelpers.public_page_assigns(conn, "active-page", "upload-wait",
+            include_global_message: false
+          )
+          |> Keyword.merge(
+            layout: false,
+            message: message,
+            return_path: "/#{conn.assigns.current_board.uri}"
+          )
+          |> Keyword.update!(:javascript_urls, &(&1 ++ ["/js/upload-wait.js"]))
+
+        conn |> put_status(status) |> render(:upload_wait, assigns)
+      else
+        conn |> put_status(status) |> text(message)
+      end
     end
   end
 
@@ -478,7 +493,11 @@ defmodule EirinchanWeb.PostController do
     appeal_error = Keyword.get(opts, :appeal_error)
     status = Keyword.get(opts, :status, :forbidden)
     if Keyword.get(opts, :log?, true), do: log_post_error(:banned, status, conn)
-    context = Bans.appeal_context_for_request(board, request.remote_ip, config)
+
+    context =
+      Bans.appeal_context_for_request(board, request.remote_ip, config,
+        user_agent: request[:user_agent]
+      )
 
     if json_response?(conn) do
       payload =
@@ -826,6 +845,7 @@ defmodule EirinchanWeb.PostController do
   defp error_status(:ban_not_found), do: :not_found
   defp error_status(:ipaccess), do: :forbidden
   defp error_status(:ipaccess_imagelim), do: :forbidden
+  defp error_status(:ipaccess_time), do: :forbidden
   defp error_status(:dnsbl), do: :forbidden
   defp error_status(:invalid_password), do: :forbidden
   defp error_status(:post_too_old), do: :unprocessable_entity
@@ -904,6 +924,10 @@ defmodule EirinchanWeb.PostController do
   defp error_message(:ipaccess_imagelim, config),
     do:
       "You were authenticated too recently; wait #{Map.get(config, :ipaccess_imagelim, 0)} hour(s)"
+
+  defp error_message(:ipaccess_time, config),
+    do:
+      "You've been authenticated for under #{Map.get(config, :ipaccess_time, 0)} hours; image uploads disabled."
 
   defp error_message(:dnsbl, config), do: String.replace(config.error.dnsbl, "%s", "DNSBL")
   defp error_message(:invalid_password, config), do: config.error.password

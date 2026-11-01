@@ -85,8 +85,7 @@ defmodule EirinchanWeb.IpAccessAuthControllerTest do
     assert [%IpAccessEntry{ip: "127.0.0.0/24", password: stored, granted_at: %NaiveDateTime{}}] =
              Eirinchan.Repo.all(IpAccessEntry)
 
-    assert Eirinchan.CredentialHash.verify("letmein", stored, :ip_access)
-    refute stored == "letmein"
+    assert stored == "LETMEIN"
   end
 
   test "invalid passwords return validation feedback", %{conn: conn} do

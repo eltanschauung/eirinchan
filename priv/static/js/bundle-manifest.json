@@ -408,6 +408,17 @@
       ]
     },
     {
+      "label": "maintained:js/upload-wait.js",
+      "output": "priv/static/js/upload-wait.js",
+      "output_bytes": 229,
+      "public_path": "/js/upload-wait.js",
+      "sha256": "b9dce28fafdca9615698a0019578940eaff9fe946ae6ff9718b6727d3651b19b",
+      "source_bytes": 313,
+      "sources": [
+        "assets/js/upload-wait.js"
+      ]
+    },
+    {
       "label": "maintained:js/user-flag-preference.js",
       "output": "priv/static/js/user-flag-preference.js",
       "output_bytes": 3855,

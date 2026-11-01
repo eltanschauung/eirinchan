@@ -1,0 +1,1 @@
+!function(){"use strict";var t=document.querySelector("[data-upload-wait-message]");t&&"true"!==t.getAttribute("data-alerted")&&(t.setAttribute("data-alerted","true"),window.alert(t.getAttribute("data-upload-wait-message")))}();

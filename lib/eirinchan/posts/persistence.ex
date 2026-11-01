@@ -68,7 +68,17 @@ defmodule Eirinchan.Posts.Persistence do
                       upload_attempt?
                     ) do
                  :ok ->
-                   with :ok <- Eirinchan.Polls.reserve_creation(attrs, request, config, repo),
+                   grant = Eirinchan.AccessList.lock_post_grant(request, repo)
+
+                   with :ok <-
+                          Eirinchan.Posts.RequestGuards.validate_ipaccess_time(
+                            attrs,
+                            request,
+                            config,
+                            grant: grant,
+                            repo: repo
+                          ),
+                        :ok <- Eirinchan.Polls.reserve_creation(attrs, request, config, repo),
                         {:ok, attrs} <- allocate_public_id(locked_board, attrs, repo),
                         {:ok, post} <- insert_post(locked_board, thread, attrs, repo, config, now),
                         {:ok, post} <- maybe_assign_poster_id(post, attrs, repo, config),
@@ -82,6 +92,14 @@ defmodule Eirinchan.Posts.Persistence do
                             cleanup_key
                           ),
                         :ok <- store_citations(locked_board, post, repo),
+                        :ok <-
+                          Eirinchan.AccessList.record_successful_post(
+                            grant,
+                            post,
+                            request,
+                            config,
+                            repo
+                          ),
                         :ok <- after_insert.(),
                         :ok <-
                           Posts.sync_thread_metrics(locked_board, post.thread_id || post.id,

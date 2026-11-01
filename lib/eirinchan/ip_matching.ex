@@ -39,7 +39,8 @@ defmodule Eirinchan.IpMatching do
   def ip_in_cidr?(ip, cidr) do
     with [address, prefix] <- String.split(to_string(cidr), "/", parts: 2),
          {prefix_size, ""} <- Integer.parse(prefix),
-         {:ok, ip_binary} <- ip_to_binary(ip),
+         {:ok, normalized_ip} <- parse_ip(ip),
+         {:ok, ip_binary} <- ip_to_binary(normalized_ip),
          {:ok, network_ip} <- parse_ip(address),
          {:ok, network_binary} <- ip_to_binary(network_ip),
          true <- byte_size(ip_binary) == byte_size(network_binary),
